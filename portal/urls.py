@@ -1,28 +1,40 @@
-from django.contrib import admin
 from django.urls import path
-from . import views
-from .views import tour_json_view
+from portal import views
 
 urlpatterns = [
-   
-    # mut students portal
-    path('', views.mut, name="mut"),
-    path('registerunits/', views.register_units, name='register_units'),
+    # Authentication
+    path('', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('profile/', views.profile_view, name='profile'),
+    path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    path('student/dashboard/', views.student_dashboard, name='student_dashboard'),
+    path('dashboard/', views.student_dashboard, name='dashboard'),  # Alias
+    path('lecturer/dashboard/', views.lecturer_dashboard, name='lecturer_dashboard'),
+    path('dean/dashboard/', views.dean_dashboard, name='dean_dashboard'),
+    path('hos/dashboard/', views.hos_dashboard, name='hos_dashboard'),
+    path('hod/dashboard/', views.hod_dashboard, name='hod_dashboard'),
+    path('finance/dashboard/', views.finance_dashboard, name='finance_dashboard'),
+    path('registrar/dashboard/', views.registrar_dashboard, name='registrar_dashboard'),
+    path('library/dashboard/', views.library_dashboard, name='library_dashboard'),
+    path('hostel/dashboard/', views.hostel_dashboard, name='hostel_dashboard'),
+    path('procurement/dashboard/', views.procurement_dashboard, name='procurement_dashboard'),
     
+    # Student list and management
+    path('students/', views.student_list, name='student_list'),
+    path('students/add/', views.add_student, name='add_student'),
+    path('students/bulk-update/', views.bulk_update_students, name='bulk_update_students'),
+    path('students/export/', views.export_students, name='export_students'),
+    
+    # Individual student management
+    path('students/<path:reg_number>/', views.student_detail, name='student_detail'),
+    path('update/students/<path:reg_number>/', views.update_student, name='update_student'),
+    path('delete/students/<path:reg_number>/', views.delete_student, name='delete_student'),
+    path('performance/students/<path:reg_number>/', views.student_performance, name='student_performance'),
+    path('fees/students/<path:reg_number>/', views.student_fees, name='student_fees'),
+    path('add-payment/students/<path:reg_number>/', views.add_fee_payment, name='add_fee_payment'),
 
-    path("register", views.register, name="register"),
-    path("signin", views.signin, name="signin"),
-    path("signout",views.signout,name = "signout"),
-    
-    path("dashboard",views.dashboard,name = 'dashboard'),
-    path("mutsignup",views.mutsignup,name = 'mutsignup'),
-    path("profile",views.profile,name = 'profile'),
-    path('tour.json', tour_json_view, name='tour_json'),
-    path('index', views.homepage, name='index'),
-    path("unit",views.unit,name = 'unit'),
-   
-   
-    
-    
+    # AJAX
+    path('students/ajax/<path:reg_number>/', views.get_student_details_ajax, name='get_student_details_ajax'),
+    path('students/ajax/fee-structure/', views.get_programme_fee_structure, name='get_programme_fee_structure'),
 
-    ]
+]

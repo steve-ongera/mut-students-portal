@@ -1,0 +1,857 @@
+{% extends 'admin/admin_base.html' %}  <!-- Using same base for consistency -->
+{% load static %}
+
+{% block title %}Student Dashboard{% endblock %}
+
+{% block page_title %}Student Dashboard{% endblock %}
+{% block page_subtitle %}Welcome, {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Card -->
+    <div class="content-card mb-4 welcome-card">
+        <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-4">
+            <div class="flex-grow-1">
+                <h2 class="mb-2">Welcome back, {{ student.user.get_full_name }}</h2>
+                <p class="text-muted mb-0">
+                    You are currently in <strong>Year {{ student.current_year }}, Semester {{ student.current_semester }}</strong> 
+                    of <strong>{{ student.programme.name }}</strong>
+                </p>
+                <div class="mt-3">
+                    <span class="badge bg-primary me-2">{{ student.registration_number }}</span>
+                    <span class="badge bg-success">{{ student.get_student_status_display }}</span>
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="avatar-wrapper">
+                    <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                         alt="{{ student.user.get_full_name }}" class="avatar-lg">
+                </div>
+                <p class="small text-muted mt-2">{{ student.intake.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-4">
+        <!-- Academic Progress -->
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card stat-card-primary">
+                <div class="stat-icon">
+                    <i class="ri-book-open-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">{{ student.total_credit_hours|default:"0" }}</h3>
+                    <p class="stat-label">Total Credits</p>
+                    <div class="stat-progress">
+                        {% with progress=student.total_credit_hours|default:0 min_credits=student.programme.min_credit_hours|default:120 %}
+                        {% widthratio progress min_credits 100 as percentage %}
+                        <div class="d-flex justify-content-between mb-1">
+                            <small>Progress</small>
+                            <small>{{ percentage }}%</small>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar" style="width: {{ percentage }}%"></div>
+                        </div>
+                        {% endwith %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GPA -->
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card stat-card-success">
+                <div class="stat-icon">
+                    <i class="ri-trophy-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">{{ student.cumulative_gpa|default:"0.00" }}</h3>
+                    <p class="stat-label">Cumulative GPA</p>
+                    <div class="stat-trend">
+                        {% if student.cumulative_gpa >= 3.0 %}
+                        <i class="ri-arrow-up-line text-success"></i>
+                        <span class="text-success small">Excellent</span>
+                        {% elif student.cumulative_gpa >= 2.0 %}
+                        <i class="ri-check-line text-info"></i>
+                        <span class="text-info small">Good</span>
+                        {% else %}
+                        <i class="ri-arrow-down-line text-warning"></i>
+                        <span class="text-warning small">Needs Improvement</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Balance -->
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card stat-card-{% if fee_balance and fee_balance.balance > 0 %}warning{% else %}info{% endif %}">
+                <div class="stat-icon">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">
+                        {% if fee_balance %}
+                        Ksh {{ fee_balance.balance|floatformat:2|default:"0.00" }}
+                        {% else %}
+                        Ksh 0.00
+                        {% endif %}
+                    </h3>
+                    <p class="stat-label">Fee Balance</p>
+                    <div class="stat-trend">
+                        {% if fee_balance and fee_balance.balance > 0 %}
+                        <i class="ri-alert-line text-warning"></i>
+                        <span class="text-warning small">Payment Due</span>
+                        {% else %}
+                        <i class="ri-check-line text-success"></i>
+                        <span class="text-success small">Cleared</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hostel Status -->
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card stat-card-{% if hostel_allocation %}purple{% else %}secondary{% endif %}">
+                <div class="stat-icon">
+                    <i class="ri-hotel-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">
+                        {% if hostel_allocation %}
+                        Allocated
+                        {% else %}
+                        Not Assigned
+                        {% endif %}
+                    </h3>
+                    <p class="stat-label">Hostel Status</p>
+                    <div class="stat-trend">
+                        {% if hostel_allocation %}
+                        <i class="ri-check-line text-success"></i>
+                        <span class="text-success small">{{ hostel_allocation.bed.room.hostel.name }}</span>
+                        {% else %}
+                        <i class="ri-information-line text-info"></i>
+                        <span class="text-info small">Apply Now</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row g-4">
+        <!-- Current Semester Units -->
+        <div class="col-xl-8">
+            <div class="content-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="card-title mb-0">Current Semester Units</h5>
+                    <a href="#" class="btn btn-sm btn-outline-primary">View Timetable</a>
+                </div>
+                
+                {% if registrations %}
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Unit Code</th>
+                                <th>Unit Name</th>
+                                <th>Credit Hours</th>
+                                <th>Lecturer</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for registration in registrations %}
+                            <tr>
+                                <td>
+                                    <strong>{{ registration.programme_unit.unit.code }}</strong>
+                                </td>
+                                <td>
+                                    <p class="mb-0 fw-medium">{{ registration.programme_unit.unit.name }}</p>
+                                    <small class="text-muted">{{ registration.programme_unit.unit.unit_level }}</small>
+                                </td>
+                                <td>{{ registration.programme_unit.unit.credit_hours }}</td>
+                                <td>
+                                    {% with allocation=registration.programme_unit.allocations.first %}
+                                    {% if allocation and allocation.lecturer %}
+                                    <small>{{ allocation.lecturer.user.get_full_name|default:"Not Assigned" }}</small>
+                                    {% else %}
+                                    <small class="text-muted">Not Assigned</small>
+                                    {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-success rounded-pill">{{ registration.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" title="View Details">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" title="Materials">
+                                            <i class="ri-book-2-line"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success" title="Assignments">
+                                            <i class="ri-file-text-line"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <div class="text-muted">
+                        <i class="ri-book-open-line display-4"></i>
+                        <p class="mt-3">No units registered for current semester</p>
+                        <a href="#" class="btn btn-primary mt-2">
+                            <i class="ri-add-line me-1"></i> Register Units
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Recent Announcements -->
+            <div class="content-card mt-4">
+                <h5 class="card-title mb-4">Recent Announcements</h5>
+                
+                <div class="announcements">
+                    {% for i in "123" %}
+                    <div class="announcement-item">
+                        <div class="announcement-icon bg-primary-light">
+                            <i class="ri-megaphone-line text-primary"></i>
+                        </div>
+                        <div class="announcement-content">
+                            <h6 class="mb-1">Semester Registration Deadline Extended</h6>
+                            <p class="text-muted small mb-2">The deadline for semester registration has been extended to Friday, 15th December 2024.</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted"><i class="ri-time-line me-1"></i> 2 hours ago</small>
+                                <small class="text-primary">From: Registrar's Office</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="text-center mt-3">
+                    <a href="#" class="btn btn-sm btn-outline-primary">View All Announcements</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar - Quick Actions & Info -->
+        <div class="col-xl-4">
+            <!-- Quick Actions -->
+            <div class="content-card mb-4">
+                <h5 class="card-title mb-4">Quick Actions</h5>
+                <div class="d-grid gap-3">
+                    <a href="#" class="btn btn-outline-primary d-flex align-items-center justify-content-start py-3">
+                        <i class="ri-file-list-3-line me-3 fs-5"></i>
+                        <div class="text-start">
+                            <span class="fw-medium">Unit Registration</span>
+                            <small class="d-block text-muted">Register for next semester</small>
+                        </div>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                    
+                    <a href="#" class="btn btn-outline-success d-flex align-items-center justify-content-start py-3">
+                        <i class="ri-money-dollar-circle-line me-3 fs-5"></i>
+                        <div class="text-start">
+                            <span class="fw-medium">Fee Payment</span>
+                            <small class="d-block text-muted">Make fee payment online</small>
+                        </div>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                    
+                    <a href="#" class="btn btn-outline-info d-flex align-items-center justify-content-start py-3">
+                        <i class="ri-file-text-line me-3 fs-5"></i>
+                        <div class="text-start">
+                            <span class="fw-medium">Exam Results</span>
+                            <small class="d-block text-muted">View semester results</small>
+                        </div>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                    
+                    <a href="#" class="btn btn-outline-warning d-flex align-items-center justify-content-start py-3">
+                        <i class="ri-hotel-line me-3 fs-5"></i>
+                        <div class="text-start">
+                            <span class="fw-medium">Hostel Application</span>
+                            <small class="d-block text-muted">Apply for hostel accommodation</small>
+                        </div>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                    
+                    <a href="#" class="btn btn-outline-secondary d-flex align-items-center justify-content-start py-3">
+                        <i class="ri-user-settings-line me-3 fs-5"></i>
+                        <div class="text-start">
+                            <span class="fw-medium">Profile Settings</span>
+                            <small class="d-block text-muted">Update personal information</small>
+                        </div>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Fee Details -->
+            <div class="content-card mb-4">
+                <h5 class="card-title mb-4">Fee Details</h5>
+                
+                {% if fee_balance %}
+                <div class="fee-details">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Total Fees</span>
+                            <span class="fw-medium">Ksh {{ fee_balance.total_fees|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Amount Paid</span>
+                            <span class="fw-medium text-success">Ksh {{ fee_balance.amount_paid|floatformat:2 }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span class="text-muted">Balance</span>
+                            <span class="fw-bold {% if fee_balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                Ksh {{ fee_balance.balance|floatformat:2 }}
+                            </span>
+                        </div>
+                        
+                        <div class="progress mb-2" style="height: 8px;">
+                            <div class="progress-bar bg-success" 
+                                 style="width: {% widthratio fee_balance.amount_paid fee_balance.total_fees 100 %}%"></div>
+                        </div>
+                        <small class="text-muted d-block text-center">
+                            {% widthratio fee_balance.amount_paid fee_balance.total_fees 100 %}% Paid
+                        </small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-success">
+                            <i class="ri-bank-card-line me-1"></i> Make Payment
+                        </a>
+                        <a href="#" class="btn btn-sm btn-outline-primary">
+                            <i class="ri-history-line me-1"></i> Payment History
+                        </a>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <div class="text-muted">
+                        <i class="ri-money-dollar-circle-line display-4"></i>
+                        <p class="mt-3">No fee information available</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Upcoming Events -->
+            <div class="content-card">
+                <h5 class="card-title mb-4">Upcoming Events</h5>
+                
+                <div class="events">
+                    <div class="event-item">
+                        <div class="event-date bg-primary">
+                            <span class="day">15</span>
+                            <span class="month">DEC</span>
+                        </div>
+                        <div class="event-details">
+                            <h6 class="mb-1">Semester Registration Deadline</h6>
+                            <p class="text-muted small mb-0">Last day to register for units</p>
+                        </div>
+                    </div>
+                    
+                    <div class="event-item">
+                        <div class="event-date bg-success">
+                            <span class="day">20</span>
+                            <span class="month">DEC</span>
+                        </div>
+                        <div class="event-details">
+                            <h6 class="mb-1">CAT 1 Examinations</h6>
+                            <p class="text-muted small mb-0">Continuous Assessment Tests begin</p>
+                        </div>
+                    </div>
+                    
+                    <div class="event-item">
+                        <div class="event-date bg-info">
+                            <span class="day">05</span>
+                            <span class="month">JAN</span>
+                        </div>
+                        <div class="event-details">
+                            <h6 class="mb-1">Semester Break Begins</h6>
+                            <p class="text-muted small mb-0">End of semester activities</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <a href="#" class="btn btn-sm btn-outline-primary">View Academic Calendar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Academic Progress -->
+    <div class="content-card mt-4">
+        <h5 class="card-title mb-4">Academic Progress</h5>
+        
+        <div class="row">
+            <div class="col-md-4">
+                <div class="progress-item">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Year {{ student.current_year }} Progress</span>
+                        <span class="fw-bold">65%</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-primary" style="width: 65%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="progress-item">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Programme Completion</span>
+                        <span class="fw-bold">
+                            {% with progress=student.total_credit_hours|default:0 min_credits=student.programme.min_credit_hours|default:120 %}
+                            {% widthratio progress min_credits 100 %}%
+                            {% endwith %}
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-success" 
+                             style="width: {% widthratio student.total_credit_hours|default:0 student.programme.min_credit_hours|default:120 100 %}%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="progress-item">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Graduation Readiness</span>
+                        <span class="fw-bold">
+                            {% if student.total_credit_hours >= student.programme.min_credit_hours %}
+                            100%
+                            {% else %}
+                            {% widthratio student.total_credit_hours|default:0 student.programme.min_credit_hours|default:120 100 %}%
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-warning" 
+                             style="width: {% if student.total_credit_hours >= student.programme.min_credit_hours %}100{% else %}{% widthratio student.total_credit_hours|default:0 student.programme.min_credit_hours|default:120 100 %}{% endif %}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="ri-calendar-check-line text-primary fs-3"></i>
+                        </div>
+                        <div>
+                            <p class="mb-0 fw-medium">Expected Graduation</p>
+                            <p class="mb-0 text-muted">{{ student.expected_graduation_date|date:"F Y"|default:"Not Set" }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="ri-time-line text-info fs-3"></i>
+                        </div>
+                        <div>
+                            <p class="mb-0 fw-medium">Time to Graduation</p>
+                            <p class="mb-0 text-muted">
+                                {% if student.expected_graduation_date %}
+                                    {{ student.expected_graduation_date|timeuntil }}
+                                {% else %}
+                                    Not Available
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .dashboard-container {
+        padding: 0;
+    }
+
+    .welcome-card {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+    }
+
+    .welcome-card h2,
+    .welcome-card p,
+    .welcome-card .badge {
+        color: white !important;
+    }
+
+    .welcome-card .badge.bg-primary {
+        background: rgba(255, 255, 255, 0.2) !important;
+    }
+
+    .welcome-card .avatar-wrapper {
+        border: 4px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: var(--bg-white);
+        border-radius: var(--radius);
+        border: 1px solid var(--border-color);
+        padding: 20px;
+        height: 100%;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+    }
+
+    .stat-card-primary::before { background-color: #2E7D32; }
+    .stat-card-success::before { background-color: #4CAF50; }
+    .stat-card-warning::before { background-color: #FF9800; }
+    .stat-card-info::before { background-color: #2196F3; }
+    .stat-card-purple::before { background-color: #673AB7; }
+    .stat-card-secondary::before { background-color: #9E9E9E; }
+
+    .stat-icon {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+
+    .stat-card-primary .stat-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: #2E7D32;
+    }
+
+    .stat-card-success .stat-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: #4CAF50;
+    }
+
+    .stat-card-warning .stat-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: #FF9800;
+    }
+
+    .stat-card-info .stat-icon {
+        background: rgba(33, 150, 243, 0.1);
+        color: #2196F3;
+    }
+
+    .stat-card-purple .stat-icon {
+        background: rgba(103, 58, 183, 0.1);
+        color: #673AB7;
+    }
+
+    .stat-card-secondary .stat-icon {
+        background: rgba(158, 158, 158, 0.1);
+        color: #9E9E9E;
+    }
+
+    .stat-content {
+        padding-right: 60px;
+    }
+
+    .stat-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+        color: var(--text-dark);
+    }
+
+    .stat-label {
+        color: var(--text-medium);
+        font-size: 0.9rem;
+        margin-bottom: 8px;
+    }
+
+    .stat-trend {
+        font-size: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .stat-progress .progress {
+        border-radius: 4px;
+    }
+
+    /* Announcements */
+    .announcement-item {
+        display: flex;
+        gap: 15px;
+        padding: 15px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .announcement-item:last-child {
+        border-bottom: none;
+    }
+
+    .announcement-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .bg-primary-light {
+        background: rgba(46, 125, 50, 0.1);
+    }
+
+    .announcement-content {
+        flex-grow: 1;
+    }
+
+    /* Events */
+    .event-item {
+        display: flex;
+        gap: 15px;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .event-item:last-child {
+        border-bottom: none;
+    }
+
+    .event-date {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--radius);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+    }
+
+    .event-date .day {
+        font-size: 1.2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .event-date .month {
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .event-details {
+        flex-grow: 1;
+    }
+
+    /* Progress Items */
+    .progress-item {
+        padding: 15px;
+        background: var(--bg-light);
+        border-radius: var(--radius);
+        height: 100%;
+    }
+
+    /* Table Styles */
+    .table th {
+        background: var(--bg-light);
+        border-bottom: 2px solid var(--border-color);
+        font-weight: 600;
+        color: var(--text-medium);
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Avatar */
+    .avatar-wrapper {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 4px solid var(--primary-light);
+    }
+
+    .avatar-lg {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stat-card {
+            padding: 15px;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            top: 15px;
+            right: 15px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+        }
+
+        .stat-content {
+            padding-right: 50px;
+        }
+
+        .avatar-wrapper {
+            width: 80px;
+            height: 80px;
+        }
+
+        .avatar-lg {
+            width: 64px;
+            height: 64px;
+        }
+
+        .announcement-item,
+        .event-item {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .announcement-icon {
+            align-self: flex-start;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .welcome-card .d-flex {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .stat-card {
+            margin-bottom: 15px;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add hover effects to cards
+        const statCards = document.querySelectorAll('.stat-card');
+        statCards.forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-4px)';
+                this.style.boxShadow = '0 6px 20px rgba(0, 0, 0, 0.15)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = '';
+            });
+        });
+
+        // Add click handlers to quick action buttons
+        document.querySelectorAll('.btn-outline-primary, .btn-outline-success, .btn-outline-info, .btn-outline-warning, .btn-outline-secondary').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                if (this.tagName === 'A' && this.getAttribute('href') === '#') {
+                    e.preventDefault();
+                    // Show loading state
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="ri-loader-4-line animate-spin me-2"></i> Loading...';
+                    this.disabled = true;
+                    
+                    // Simulate loading
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                        toastr.info('This feature will be available soon.');
+                    }, 1000);
+                }
+            });
+        });
+
+        // Update fee progress bar on hover
+        const feeProgressBar = document.querySelector('.fee-details .progress-bar');
+        if (feeProgressBar) {
+            feeProgressBar.parentElement.addEventListener('mouseenter', function() {
+                const width = feeProgressBar.style.width;
+                feeProgressBar.style.transition = 'width 1s ease';
+                feeProgressBar.style.width = '100%';
+            });
+            
+            feeProgressBar.parentElement.addEventListener('mouseleave', function() {
+                setTimeout(() => {
+                    feeProgressBar.style.width = '';
+                }, 1000);
+            });
+        }
+
+        // Initialize tooltips
+        if (typeof bootstrap !== 'undefined') {
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        }
+    });
+
+    // Simple animate-spin class for loading
+    const style = document.createElement('style');
+    style.textContent = `
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %}

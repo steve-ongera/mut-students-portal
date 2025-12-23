@@ -1,0 +1,200 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Update {{ student.registration_number }}{% endblock %}
+
+{% block page_title %}Update Student{% endblock %}
+{% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="content-card">
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Left Column: Personal Information -->
+            <div class="col-lg-6">
+                <div class="mb-4">
+                    <h5 class="mb-4">Personal Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">First Name</label>
+                            <input type="text" name="first_name" class="form-control" 
+                                   value="{{ student.user.first_name }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Last Name</label>
+                            <input type="text" name="last_name" class="form-control" 
+                                   value="{{ student.user.last_name }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Email Address</label>
+                            <input type="email" name="email" class="form-control" 
+                                   value="{{ student.user.email }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Phone Number</label>
+                            <input type="tel" name="phone_number" class="form-control" 
+                                   value="{{ student.user.phone_number }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Date of Birth</label>
+                            <input type="date" name="date_of_birth" class="form-control" 
+                                   value="{{ student.date_of_birth|date:'Y-m-d' }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Gender</label>
+                            <select name="gender" class="form-select" required>
+                                {% for gender_code, gender_name in gender_choices %}
+                                <option value="{{ gender_code }}" {% if student.gender == gender_code %}selected{% endif %}>
+                                    {{ gender_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h5 class="mb-4">Contact Information</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Permanent Address</label>
+                        <textarea name="permanent_address" class="form-control" rows="3">{{ student.permanent_address }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Current Address</label>
+                        <textarea name="current_address" class="form-control" rows="3">{{ student.current_address }}</textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column: Academic & Emergency Info -->
+            <div class="col-lg-6">
+                <div class="mb-4">
+                    <h5 class="mb-4">Academic Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Programme</label>
+                            <select name="programme" class="form-select" required>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}" {% if student.programme.id == programme.id %}selected{% endif %}>
+                                    {{ programme.code }} - {{ programme.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Current Year</label>
+                            <select name="current_year" class="form-select" required>
+                                {% for i in "1234567" %}
+                                <option value="{{ i }}" {% if student.current_year|stringformat:"i" == i %}selected{% endif %}>
+                                    Year {{ i }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Current Semester</label>
+                            <select name="current_semester" class="form-select" required>
+                                {% for semester_code, semester_name in semester_choices %}
+                                <option value="{{ semester_code }}" {% if student.current_semester == semester_code %}selected{% endif %}>
+                                    {{ semester_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label required">Student Status</label>
+                            <select name="student_status" class="form-select" required>
+                                {% for status_code, status_name in status_choices %}
+                                <option value="{{ status_code }}" {% if student.student_status == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h5 class="mb-4">Emergency Contact</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Emergency Contact Name</label>
+                            <input type="text" name="emergency_contact_name" class="form-control" 
+                                   value="{{ student.emergency_contact_name }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Emergency Contact Phone</label>
+                            <input type="tel" name="emergency_contact_phone" class="form-control" 
+                                   value="{{ student.emergency_contact_phone }}">
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Relationship</label>
+                            <input type="text" name="emergency_contact_relationship" class="form-control" 
+                                   value="{{ student.emergency_contact_relationship }}" placeholder="e.g., Father, Mother, Guardian">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h5 class="mb-4">Sponsor/Guardian Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sponsor Name</label>
+                            <input type="text" name="sponsor_name" class="form-control" 
+                                   value="{{ student.sponsor_name }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sponsor Phone</label>
+                            <input type="tel" name="sponsor_phone" class="form-control" 
+                                   value="{{ student.sponsor_phone }}">
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Sponsor Email</label>
+                            <input type="email" name="sponsor_email" class="form-control" 
+                                   value="{{ student.sponsor_email }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
+            <a href="{% url 'student_detail' student.registration_number %}" class="btn btn-outline-secondary">
+                <i class="ri-arrow-left-line me-2"></i> Back to Profile
+            </a>
+            <div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="ri-save-line me-2"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    .form-label.required::after {
+        content: " *";
+        color: #dc3545;
+    }
+</style>
+{% endblock %}

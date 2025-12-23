@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     'portal',
 ]
 
+AUTH_USER_MODEL = 'portal.User'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -68,10 +70,15 @@ WSGI_APPLICATION = 'MUT_PORTAL.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'mut_portal_db',      # Database name
+        'USER': 'postgres',           # DB username
+        'PASSWORD': 'cp7kvt',  # DB password
+        'HOST': 'localhost',          # Or IP if remote
+        'PORT': '5432',               # Default PostgreSQL port
     }
 }
+
 
 
 # Password validation

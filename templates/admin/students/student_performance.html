@@ -1,0 +1,298 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ student.registration_number }} - Performance{% endblock %}
+
+{% block page_title %}Academic Performance{% endblock %}
+{% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Performance Summary -->
+    <div class="col-lg-4">
+        <div class="content-card mb-4">
+            <h6 class="card-title mb-4">Performance Summary</h6>
+            
+            <div class="performance-summary">
+                <div class="summary-item mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Cumulative GPA</span>
+                        <span class="h4 fw-bold text-primary">{{ student.cumulative_gpa }}</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-primary" style="width: {% widthratio student.cumulative_gpa 4.0 100 %}%"></div>
+                    </div>
+                    <small class="text-muted">Out of 4.0 scale</small>
+                </div>
+                
+                <div class="summary-item mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Units Completed</span>
+                        <span class="h4 fw-bold text-success">{{ summary.total_units_completed }}</span>
+                    </div>
+                </div>
+                
+                <div class="summary-item mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">Credits Earned</span>
+                        <span class="h4 fw-bold text-info">{{ summary.total_credits_earned }}</span>
+                    </div>
+                    <small class="text-muted">Required: {{ student.programme.min_credit_hours }} credits</small>
+                </div>
+                
+                <div class="summary-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="text-muted">Transcript Status</span>
+                        {% if summary.transcript_ready %}
+                        <span class="badge bg-success rounded-pill">Ready</span>
+                        {% else %}
+                        <span class="badge bg-warning rounded-pill">In Progress</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Programme Info -->
+        <div class="content-card">
+            <h6 class="card-title mb-4">Programme Information</h6>
+            
+            <div class="programme-info">
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Programme</label>
+                    <p class="mb-0 fw-medium">{{ student.programme.name }}</p>
+                    <small class="text-muted">{{ student.programme.code }}</small>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Programme Type</label>
+                    <p class="mb-0">{{ student.programme.get_programme_type_display }}</p>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Minimum Credits Required</label>
+                    <p class="mb-0 fw-medium">{{ student.programme.min_credit_hours }} credit hours</p>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Current Progress</label>
+                    <div class="d-flex justify-content-between mb-1">
+                        <small>Credits Earned</small>
+                        <small>{{ summary.total_credits_earned }}/{{ student.programme.min_credit_hours }}</small>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" 
+                             style="width: {% widthratio summary.total_credits_earned student.programme.min_credit_hours 100 %}%"></div>
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <label class="text-muted small mb-1">Expected Graduation</label>
+                    <p class="mb-0">{{ student.expected_graduation_date|date:"F Y"|default:"Not set" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance Details -->
+    <div class="col-lg-8">
+        <!-- Semester GPAs -->
+        <div class="content-card mb-4">
+            <h6 class="card-title mb-4">Semester GPA History</h6>
+            
+            {% if semester_gpas %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Academic Year</th>
+                            <th>Semester</th>
+                            <th>Semester GPA</th>
+                            <th>Cumulative GPA</th>
+                            <th>Credit Hours</th>
+                            <th>Class Rank</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for gpa in semester_gpas %}
+                        <tr>
+                            <td>{{ gpa.semester.academic_year.name }}</td>
+                            <td>{{ gpa.semester.name }}</td>
+                            <td>
+                                <span class="fw-bold {% if gpa.semester_gpa >= 3.0 %}text-success{% elif gpa.semester_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ gpa.semester_gpa }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="fw-bold {% if gpa.cumulative_gpa >= 3.0 %}text-success{% elif gpa.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ gpa.cumulative_gpa }}
+                                </span>
+                            </td>
+                            <td>{{ gpa.total_credit_hours }}</td>
+                            <td>
+                                {% if gpa.class_rank %}
+                                <span class="badge bg-info rounded-pill">#{{ gpa.class_rank }}/{{ gpa.total_students }}</span>
+                                {% else %}
+                                <span class="text-muted small">N/A</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <div class="text-muted">
+                    <i class="ri-bar-chart-line display-4"></i>
+                    <p class="mt-3">No GPA history available</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Detailed Results by Semester -->
+        <div class="content-card">
+            <h6 class="card-title mb-4">Detailed Results</h6>
+            
+            {% if results_by_semester %}
+            <div class="accordion" id="resultsAccordion">
+                {% for semester_key, semester_data in results_by_semester.items %}
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse{{ forloop.counter }}">
+                            <div class="d-flex justify-content-between w-100 me-3">
+                                <div>
+                                    <strong>{{ semester_key }}</strong>
+                                    <small class="text-muted ms-2">
+                                        {{ semester_data.results|length }} unit(s)
+                                    </small>
+                                </div>
+                                <div>
+                                    {% if semester_data.semester_gpa %}
+                                    <span class="badge bg-primary rounded-pill">
+                                        GPA: {{ semester_data.semester_gpa }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </button>
+                    </h2>
+                    <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
+                         data-bs-parent="#resultsAccordion">
+                        <div class="accordion-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Unit Code</th>
+                                            <th>Unit Name</th>
+                                            <th>Grade</th>
+                                            <th>Grade Point</th>
+                                            <th>Credit Hours</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for result in semester_data.results %}
+                                        <tr>
+                                            <td>{{ result.programme_unit.unit.code }}</td>
+                                            <td>{{ result.programme_unit.unit.name }}</td>
+                                            <td>
+                                                <span class="badge {% if result.grade == 'A' %}bg-success{% elif result.grade == 'B' %}bg-info{% elif result.grade == 'C' %}bg-warning{% else %}bg-secondary{% endif %} rounded-pill">
+                                                    {{ result.grade }}
+                                                </span>
+                                            </td>
+                                            <td>{{ result.grade_point }}</td>
+                                            <td>{{ result.credit_hours }}</td>
+                                            <td>
+                                                {% if result.is_passed %}
+                                                <span class="badge bg-success rounded-pill">Passed</span>
+                                                {% else %}
+                                                <span class="badge bg-danger rounded-pill">Failed</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr>
+                                            <td colspan="3" class="text-end fw-bold">Semester Summary:</td>
+                                            <td class="fw-bold">{{ semester_data.total_quality_points|floatformat:2 }}</td>
+                                            <td class="fw-bold">{{ semester_data.total_credits }}</td>
+                                            <td class="fw-bold">
+                                                {% if semester_data.semester_gpa %}
+                                                GPA: {{ semester_data.semester_gpa }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <div class="text-muted">
+                    <i class="ri-file-list-3-line display-4"></i>
+                    <p class="mt-3">No detailed results available</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .performance-summary .progress {
+        border-radius: 5px;
+    }
+    
+    .summary-item {
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .summary-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    
+    .info-item label {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .accordion-button {
+        background: var(--bg-light);
+        font-weight: 500;
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background: var(--primary-light);
+        color: var(--primary-color);
+    }
+    
+    .accordion-body {
+        padding: 0;
+    }
+    
+    .accordion-body .table {
+        margin-bottom: 0;
+    }
+    
+    .accordion-body .table th {
+        background: var(--bg-light);
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .accordion-body tfoot {
+        background: var(--primary-light);
+        font-weight: 500;
+    }
+</style>
+{% endblock %}

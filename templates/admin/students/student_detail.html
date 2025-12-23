@@ -1,0 +1,355 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ student.registration_number }} - Details{% endblock %}
+
+{% block page_title %}Student Details{% endblock %}
+{% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Student Profile Card -->
+    <div class="col-lg-4">
+        <div class="content-card mb-4">
+            <div class="text-center mb-4">
+                <div class="avatar-xxl mx-auto mb-3">
+                    <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                         alt="{{ student.user.get_full_name }}" class="rounded-circle">
+                </div>
+                <h4 class="mb-1">{{ student.user.get_full_name }}</h4>
+                <p class="text-muted mb-2">{{ student.registration_number }}</p>
+                
+                {% if student.student_status == 'active' %}
+                <span class="badge bg-success rounded-pill">Active</span>
+                {% elif student.student_status == 'suspended' %}
+                <span class="badge bg-danger rounded-pill">Suspended</span>
+                {% elif student.student_status == 'deferred' %}
+                <span class="badge bg-warning rounded-pill">Deferred</span>
+                {% elif student.student_status == 'graduated' %}
+                <span class="badge bg-primary rounded-pill">Graduated</span>
+                {% else %}
+                <span class="badge bg-secondary rounded-pill">{{ student.get_student_status_display }}</span>
+                {% endif %}
+            </div>
+            
+            <div class="student-info">
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Email</label>
+                    <p class="mb-0">{{ student.user.email }}</p>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Phone</label>
+                    <p class="mb-0">{{ student.user.phone_number|default:"Not provided" }}</p>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Date of Birth</label>
+                    <p class="mb-0">{{ student.date_of_birth }}</p>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">National ID</label>
+                    <p class="mb-0">{{ student.national_id }}</p>
+                </div>
+                
+                <div class="info-item mb-3">
+                    <label class="text-muted small mb-1">Admission Date</label>
+                    <p class="mb-0">{{ student.admission_date }}</p>
+                </div>
+            </div>
+            
+            <div class="mt-4 pt-3 border-top">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'update_student' student.registration_number %}" class="btn btn-primary">
+                        <i class="ri-edit-line me-2"></i> Update Profile
+                    </a>
+                    <a href="{% url 'student_performance' student.registration_number %}" class="btn btn-success">
+                        <i class="ri-bar-chart-line me-2"></i> View Performance
+                    </a>
+                    <a href="{% url 'student_fees' student.registration_number %}" class="btn btn-info">
+                        <i class="ri-money-dollar-circle-line me-2"></i> Fee Management
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Academic Info -->
+        <div class="content-card">
+            <h6 class="card-title mb-3">Academic Information</h6>
+            
+            <div class="info-item mb-3">
+                <label class="text-muted small mb-1">Programme</label>
+                <p class="mb-0 fw-medium">{{ student.programme.name }}</p>
+                <small class="text-muted">{{ student.programme.code }} • {{ student.programme.get_programme_type_display }}</small>
+            </div>
+            
+            <div class="info-item mb-3">
+                <label class="text-muted small mb-1">Current Year/Semester</label>
+                <p class="mb-0">
+                    <span class="badge bg-info me-1">Year {{ student.current_year }}</span>
+                    <span class="badge bg-secondary">Sem {{ student.current_semester }}</span>
+                </p>
+            </div>
+            
+            <div class="info-item mb-3">
+                <label class="text-muted small mb-1">Intake</label>
+                <p class="mb-0">{{ student.intake.name }}</p>
+            </div>
+            
+            <div class="info-item mb-3">
+                <label class="text-muted small mb-1">School/Department</label>
+                <p class="mb-0 small">{{ student.programme.department.school.name }}</p>
+                <p class="mb-0 small text-muted">{{ student.programme.department.name }}</p>
+            </div>
+            
+            <div class="info-item">
+                <label class="text-muted small mb-1">Expected Graduation</label>
+                <p class="mb-0">{{ student.expected_graduation_date|default:"Not set" }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Performance Summary -->
+        <div class="content-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="card-title mb-0">Academic Performance</h6>
+                <a href="{% url 'student_performance' student.registration_number %}" class="btn btn-sm btn-outline-primary">
+                    View Full Report
+                </a>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="performance-stat">
+                        <div class="stat-value text-primary">{{ student.cumulative_gpa }}</div>
+                        <div class="stat-label">Cumulative GPA</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="performance-stat">
+                        <div class="stat-value text-success">{{ performance_summary.total_units_completed }}</div>
+                        <div class="stat-label">Units Completed</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="performance-stat">
+                        <div class="stat-value text-info">{{ student.total_credit_hours }}</div>
+                        <div class="stat-label">Total Credits</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="performance-stat">
+                        <div class="stat-value text-warning">{{ performance_summary.current_semester_gpa|default:"N/A" }}</div>
+                        <div class="stat-label">Current Semester GPA</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Current Units -->
+        <div class="content-card mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h6 class="card-title mb-0">Current Semester Units</h6>
+                <span class="badge bg-primary">{{ current_semester.name|default:"No current semester" }}</span>
+            </div>
+            
+            {% if current_units %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Unit Name</th>
+                            <th>Credit Hours</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for registration in current_units %}
+                        <tr>
+                            <td>{{ registration.programme_unit.unit.code }}</td>
+                            <td>{{ registration.programme_unit.unit.name }}</td>
+                            <td>{{ registration.programme_unit.unit.credit_hours }}</td>
+                            <td>
+                                <span class="badge bg-success rounded-pill">{{ registration.get_status_display }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <div class="text-muted">
+                    <i class="ri-book-open-line display-4"></i>
+                    <p class="mt-3">No units registered for current semester</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Fee Status -->
+        <div class="content-card mb-4">
+            <h6 class="card-title mb-4">Fee Status</h6>
+            
+            {% if fee_status %}
+            <div class="fee-status">
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="text-muted">Semester Balance</span>
+                        <span class="fw-bold {% if fee_status.balance <= 0 %}text-success{% else %}text-danger{% endif %}">
+                            Ksh {{ fee_status.balance|floatformat:2 }}
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar {% if fee_status.balance <= 0 %}bg-success{% else %}bg-warning{% endif %}" 
+                             style="width: {% widthratio fee_status.amount_paid fee_status.total_fees 100 %}%">
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Paid: Ksh {{ fee_status.amount_paid|floatformat:2 }} / 
+                        Total: Ksh {{ fee_status.total_fees|floatformat:2 }}
+                    </small>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Status</span>
+                            {% if fee_status.is_cleared %}
+                            <span class="badge bg-success rounded-pill">Cleared</span>
+                            {% else %}
+                            <span class="badge bg-warning rounded-pill">Pending</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span class="text-muted">Last Payment</span>
+                            <span class="fw-medium">{{ fee_status.last_payment_date|date:"d M Y"|default:"No payments" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <a href="{% url 'student_fees' student.registration_number %}" class="btn btn-sm btn-outline-primary">
+                    View Full Fee History
+                </a>
+                <a href="{% url 'add_fee_payment' student.registration_number %}" class="btn btn-sm btn-primary">
+                    <i class="ri-money-dollar-circle-line me-1"></i> Add Payment
+                </a>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <div class="text-muted">
+                    <i class="ri-money-dollar-circle-line display-4"></i>
+                    <p class="mt-3">No fee information available</p>
+                </div>
+                <a href="{% url 'add_fee_payment' student.registration_number %}" class="btn btn-primary mt-2">
+                    <i class="ri-money-dollar-circle-line me-1"></i> Add Payment
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Contact Information -->
+        <div class="content-card">
+            <h6 class="card-title mb-4">Contact Information</h6>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="contact-section mb-4">
+                        <h6 class="small text-muted mb-3">Permanent Address</h6>
+                        <p class="mb-0">{{ student.permanent_address|default:"Not provided" }}</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="contact-section mb-4">
+                        <h6 class="small text-muted mb-3">Current Address</h6>
+                        <p class="mb-0">{{ student.current_address|default:"Not provided" }}</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="contact-section mb-4">
+                        <h6 class="small text-muted mb-3">Emergency Contact</h6>
+                        <p class="mb-0 fw-medium">{{ student.emergency_contact_name|default:"Not provided" }}</p>
+                        <p class="mb-0 small text-muted">{{ student.emergency_contact_phone|default:"" }}</p>
+                        <p class="mb-0 small text-muted">{{ student.emergency_contact_relationship|default:"" }}</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="contact-section mb-4">
+                        <h6 class="small text-muted mb-3">Sponsor/Guardian</h6>
+                        <p class="mb-0 fw-medium">{{ student.sponsor_name|default:"Not provided" }}</p>
+                        <p class="mb-0 small text-muted">{{ student.sponsor_phone|default:"" }}</p>
+                        <p class="mb-0 small text-muted">{{ student.sponsor_email|default:"" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-xxl {
+        width: 120px;
+        height: 120px;
+    }
+    
+    .avatar-xxl img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .performance-stat {
+        text-align: center;
+        padding: 20px;
+        background: var(--primary-light);
+        border-radius: var(--radius);
+        margin-bottom: 15px;
+    }
+    
+    .performance-stat .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .performance-stat .stat-label {
+        color: var(--text-light);
+        font-size: 0.9rem;
+        margin-top: 5px;
+    }
+    
+    .info-item label {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .contact-section {
+        padding: 15px;
+        background: var(--bg-light);
+        border-radius: var(--radius);
+        height: 100%;
+    }
+    
+    @media (max-width: 768px) {
+        .avatar-xxl {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .performance-stat .stat-value {
+            font-size: 2rem;
+        }
+    }
+</style>
+{% endblock %}
