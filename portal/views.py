@@ -936,3 +936,476 @@ def export_students(request):
         ])
     
     return response
+
+
+
+# Add these views to your views.py
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Sum
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from decimal import Decimal
+
+# Import your models (adjust based on your project structure)
+from .models import (
+    Student, SemesterReport, ResitExam, UnitEnrollment, EnrollmentPeriod,
+    Semester, AcademicYear, SemesterResults, ProgrammeUnit, UnitAllocation,
+    FeeBalance, UnitGradingSystem
+)
+
+
+# ============= SEMESTER REPORTING VIEWS =============
+
+@login_required
+def semester_report_view(request):
+    """View for students to report for a new semester"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    if not current_semester:
+        messages.error(request, 'No active semester found.')
+        return redirect('student_dashboard')
+    
+    # Check if already reported for current semester
+    existing_report = SemesterReport.objects.filter(
+        student=student,
+        to_semester=current_semester,
+        status__in=['pending', 'approved']
+    ).first()
+    
+    if existing_report:
+        messages.info(request, f'You have already reported for {current_semester}.')
+        return redirect('semester_report_status', report_id=existing_report.id)
+    
+    # Get failed units count from previous semester
+    failed_units = SemesterResults.objects.filter(
+        student=student,
+        is_passed=False,
+        semester=student.semester_gpas.order_by('-semester__start_date').first().semester if student.semester_gpas.exists() else None
+    ).count()
+    
+    # Get fee balance
+    fee_balance = FeeBalance.objects.filter(
+        student=student,
+        semester=current_semester
+    ).first()
+    
+    # Calculate next year and semester
+    current_year = student.current_year
+    current_sem = int(student.current_semester)
+    programme_total_semesters = student.programme.total_semesters
+    
+    # Determine next semester
+    if current_sem < 3:  # If not in final semester of year
+        next_semester_number = str(current_sem + 1)
+        next_year = current_year
+    else:  # Move to next year
+        next_semester_number = '1'
+        next_year = current_year + 1
+    
+    # Get previous semester GPA
+    previous_gpa = student.semester_gpas.order_by('-semester__start_date').first()
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'failed_units_count': failed_units,
+        'is_eligible': failed_units <= 2,
+        'fee_balance': fee_balance,
+        'next_year': next_year,
+        'next_semester_number': next_semester_number,
+        'previous_gpa': previous_gpa,
+        'programme_total_semesters': programme_total_semesters,
+    }
+    
+    if request.method == 'POST':
+        try:
+            # Create semester report
+            semester_report = SemesterReport(
+                student=student,
+                from_academic_year=current_semester.academic_year if student.current_year else None,
+                to_academic_year=current_semester.academic_year,
+                from_semester=Semester.objects.filter(
+                    academic_year=current_semester.academic_year,
+                    semester_number=student.current_semester
+                ).first() if student.current_semester else None,
+                to_semester=current_semester,
+                from_year_of_study=student.current_year if student.current_year else None,
+                to_year_of_study=next_year,
+                from_semester_number=student.current_semester if student.current_semester else None,
+                to_semester_number=next_semester_number,
+                failed_units_count=failed_units,
+                fee_balance=fee_balance.balance if fee_balance else Decimal('0.00'),
+                is_financially_cleared=fee_balance.is_cleared if fee_balance else True,
+                previous_semester_gpa=previous_gpa.semester_gpa if previous_gpa else None,
+                cumulative_gpa=student.cumulative_gpa,
+                total_credits_earned=student.total_credit_hours,
+            )
+            
+            semester_report.save()
+            
+            messages.success(request, f'Semester report submitted successfully for {current_semester}.')
+            return redirect('semester_report_status', report_id=semester_report.id)
+            
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, f'Error submitting semester report: {str(e)}')
+    
+    return render(request, 'student/semester_report.html', context)
+
+
+@login_required
+def semester_report_status(request, report_id):
+    """View semester report status"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    report = get_object_or_404(SemesterReport, id=report_id, student=student)
+    
+    context = {
+        'student': student,
+        'report': report,
+    }
+    
+    return render(request, 'student/semester_report_status.html', context)
+
+
+@login_required
+def semester_report_history(request):
+    """View all semester reports"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    reports = SemesterReport.objects.filter(student=student).order_by('-report_date')
+    
+    context = {
+        'student': student,
+        'reports': reports,
+    }
+    
+    return render(request, 'student/semester_report_history.html', context)
+
+
+# ============= UNIT ENROLLMENT VIEWS =============
+
+@login_required
+def unit_enrollment_view(request):
+    """View for students to enroll in units"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    if not current_semester:
+        messages.error(request, 'No active semester found.')
+        return redirect('student_dashboard')
+    
+    # Check if student has reported for this semester
+    semester_report = SemesterReport.objects.filter(
+        student=student,
+        to_semester=current_semester,
+        status='approved'
+    ).first()
+    
+    if not semester_report:
+        messages.warning(request, 'You must report for the semester before enrolling in units.')
+        return redirect('semester_report')
+    
+    # Check enrollment period
+    enrollment_period = EnrollmentPeriod.objects.filter(
+        semester=current_semester
+    ).first()
+    
+    if not enrollment_period or not enrollment_period.is_enrollment_open():
+        messages.error(request, 'Unit enrollment is not currently open.')
+        return redirect('student_dashboard')
+    
+    # Get available units for student's year and semester
+    available_units = ProgrammeUnit.objects.filter(
+        programme=student.programme,
+        academic_year=current_semester.academic_year,
+        year_of_study=student.current_year,
+        semester_number=student.current_semester,
+        is_active=True
+    ).select_related('unit', 'programme')
+    
+    # Filter units that are allocated (have lecturers)
+    available_units = available_units.filter(
+        allocations__semester=current_semester,
+        allocations__status='approved_dean'
+    ).distinct()
+    
+    # Get already enrolled units
+    enrolled_units = UnitEnrollment.objects.filter(
+        student=student,
+        semester=current_semester,
+        status__in=['pending', 'approved']
+    ).values_list('programme_unit_id', flat=True)
+    
+    # Get failed units eligible for resit
+    failed_units = SemesterResults.objects.filter(
+        student=student,
+        is_passed=False
+    ).exclude(
+        programme_unit__in=enrolled_units
+    ).select_related('programme_unit', 'programme_unit__unit')
+    
+    # Filter failed units that are offered this semester
+    failed_units_offered = []
+    for result in failed_units:
+        if UnitAllocation.objects.filter(
+            programme_unit=result.programme_unit,
+            semester=current_semester,
+            status='approved_dean'
+        ).exists():
+            failed_units_offered.append(result)
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'semester_report': semester_report,
+        'enrollment_period': enrollment_period,
+        'available_units': available_units,
+        'enrolled_units': enrolled_units,
+        'failed_units_offered': failed_units_offered,
+    }
+    
+    if request.method == 'POST':
+        selected_units = request.POST.getlist('units')
+        resit_units = request.POST.getlist('resit_units')
+        
+        try:
+            enrolled_count = 0
+            
+            # Enroll in normal units
+            for unit_id in selected_units:
+                programme_unit = get_object_or_404(ProgrammeUnit, id=unit_id)
+                
+                enrollment = UnitEnrollment(
+                    student=student,
+                    semester_report=semester_report,
+                    programme_unit=programme_unit,
+                    semester=current_semester,
+                    enrollment_type='normal'
+                )
+                enrollment.save()
+                enrolled_count += 1
+            
+            # Enroll in resit units
+            for result_id in resit_units:
+                result = get_object_or_404(SemesterResults, id=result_id, student=student)
+                
+                # Create resit exam record
+                resit_exam = ResitExam(
+                    student=student,
+                    original_result=result,
+                    resit_semester=current_semester,
+                    original_semester=result.semester,
+                    original_marks=result.total_marks,
+                    original_grade=result.grade,
+                    original_grade_point=result.grade_point,
+                    resit_fee_amount=Decimal('2000.00'),  # Set appropriate resit fee
+                )
+                resit_exam.save()
+                
+                # Create enrollment
+                enrollment = UnitEnrollment(
+                    student=student,
+                    semester_report=semester_report,
+                    programme_unit=result.programme_unit,
+                    semester=current_semester,
+                    enrollment_type='resit',
+                    resit_exam=resit_exam
+                )
+                enrollment.save()
+                enrolled_count += 1
+            
+            if enrolled_count > 0:
+                messages.success(request, f'Successfully enrolled in {enrolled_count} unit(s).')
+            else:
+                messages.warning(request, 'No units selected for enrollment.')
+            
+            return redirect('unit_enrollment_status')
+            
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, f'Error enrolling in units: {str(e)}')
+    
+    return render(request, 'student/unit_enrollment.html', context)
+
+
+@login_required
+def unit_enrollment_status(request):
+    """View enrollment status"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    enrollments = UnitEnrollment.objects.filter(
+        student=student,
+        semester=current_semester
+    ).select_related(
+        'programme_unit', 
+        'programme_unit__unit',
+        'resit_exam'
+    ).order_by('enrollment_type', 'programme_unit__unit__code')
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'enrollments': enrollments,
+    }
+    
+    return render(request, 'student/unit_enrollment_status.html', context)
+
+
+# ============= RESIT EXAM VIEWS =============
+
+@login_required
+def resit_exam_registration(request):
+    """Register for resit exams"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    if not current_semester:
+        messages.error(request, 'No active semester found.')
+        return redirect('student_dashboard')
+    
+    # Check if student has reported
+    semester_report = SemesterReport.objects.filter(
+        student=student,
+        to_semester=current_semester,
+        status='approved'
+    ).first()
+    
+    if not semester_report:
+        messages.warning(request, 'You must report for the semester before registering for resit exams.')
+        return redirect('semester_report')
+    
+    # Check resit enrollment period
+    enrollment_period = EnrollmentPeriod.objects.filter(
+        semester=current_semester
+    ).first()
+    
+    if not enrollment_period or not enrollment_period.is_resit_enrollment_open():
+        messages.error(request, 'Resit exam registration is not currently open.')
+        return redirect('student_dashboard')
+    
+    # Get failed units that are offered this semester
+    failed_results = SemesterResults.objects.filter(
+        student=student,
+        is_passed=False
+    ).select_related('programme_unit', 'programme_unit__unit', 'semester')
+    
+    eligible_resits = []
+    for result in failed_results:
+        # Check if unit is offered this semester
+        if UnitAllocation.objects.filter(
+            programme_unit=result.programme_unit,
+            semester=current_semester,
+            status='approved_dean'
+        ).exists():
+            # Check if not already registered
+            if not ResitExam.objects.filter(
+                student=student,
+                original_result=result,
+                resit_semester=current_semester
+            ).exists():
+                eligible_resits.append(result)
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'eligible_resits': eligible_resits,
+        'enrollment_period': enrollment_period,
+    }
+    
+    if request.method == 'POST':
+        selected_results = request.POST.getlist('resit_units')
+        
+        try:
+            registered_count = 0
+            
+            for result_id in selected_results:
+                result = get_object_or_404(SemesterResults, id=result_id, student=student)
+                
+                resit_exam = ResitExam(
+                    student=student,
+                    original_result=result,
+                    resit_semester=current_semester,
+                    original_semester=result.semester,
+                    original_marks=result.total_marks,
+                    original_grade=result.grade,
+                    original_grade_point=result.grade_point,
+                    resit_fee_amount=Decimal('2000.00'),
+                )
+                resit_exam.save()
+                registered_count += 1
+            
+            if registered_count > 0:
+                messages.success(request, f'Successfully registered for {registered_count} resit exam(s).')
+            else:
+                messages.warning(request, 'No resit exams selected.')
+            
+            return redirect('resit_exam_status')
+            
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, f'Error registering for resit exams: {str(e)}')
+    
+    return render(request, 'student/resit_exam_registration.html', context)
+
+
+@login_required
+def resit_exam_status(request):
+    """View resit exam status"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    resit_exams = ResitExam.objects.filter(
+        student=student
+    ).select_related(
+        'original_result',
+        'original_result__programme_unit',
+        'original_result__programme_unit__unit',
+        'resit_semester',
+        'original_semester'
+    ).order_by('-registration_date')
+    
+    context = {
+        'student': student,
+        'resit_exams': resit_exams,
+    }
+    
+    return render(request, 'student/resit_exam_status.html', context)

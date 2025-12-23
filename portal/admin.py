@@ -405,6 +405,329 @@ class RequisitionItemAdmin(admin.ModelAdmin):
     search_fields = ('item_description', 'requisition__requisition_number')
     readonly_fields = ('total_estimated_price',)
 
+
+
+from django.contrib import admin
+from .models import (
+    SemesterReport, ResitExam, UnitEnrollment, EnrollmentPeriod
+)
+
+
+@admin.register(SemesterReport)
+class SemesterReportAdmin(admin.ModelAdmin):
+    list_display = [
+        'student', 'from_year_of_study', 'from_semester_number',
+        'to_year_of_study', 'to_semester_number', 'status',
+        'is_eligible', 'failed_units_count', 'report_date'
+    ]
+    list_filter = [
+        'status', 'is_eligible', 'to_semester',
+        'to_academic_year', 'to_year_of_study'
+    ]
+    search_fields = [
+        'student__registration_number',
+        'student__user__first_name',
+        'student__user__last_name'
+    ]
+    readonly_fields = [
+        'report_date', 'eligibility_checked_at',
+        'created_at', 'updated_at'
+    ]
+    fieldsets = (
+        ('Student Information', {
+            'fields': ('student',)
+        }),
+        ('Progression Details', {
+            'fields': (
+                ('from_academic_year', 'to_academic_year'),
+                ('from_semester', 'to_semester'),
+                ('from_year_of_study', 'to_year_of_study'),
+                ('from_semester_number', 'to_semester_number'),
+            )
+        }),
+        ('Eligibility', {
+            'fields': (
+                'failed_units_count',
+                'is_eligible',
+                'eligibility_checked_at',
+                'eligibility_remarks',
+            )
+        }),
+        ('Financial Status', {
+            'fields': (
+                'fee_balance',
+                'is_financially_cleared',
+                'financial_clearance_date',
+            )
+        }),
+        ('Academic Performance', {
+            'fields': (
+                'previous_semester_gpa',
+                'cumulative_gpa',
+                'total_credits_earned',
+            )
+        }),
+        ('Status & Approval', {
+            'fields': (
+                'status',
+                'approved_by',
+                'approval_date',
+                'rejection_reason',
+                'remarks',
+            )
+        }),
+        ('Timestamps', {
+            'fields': (
+                'report_date',
+                'created_at',
+                'updated_at',
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['approve_reports', 'reject_reports']
+    
+    def approve_reports(self, request, queryset):
+        from django.utils import timezone
+        count = queryset.update(
+            status='approved',
+            approved_by=request.user,
+            approval_date=timezone.now()
+        )
+        self.message_user(request, f'{count} report(s) approved successfully.')
+    approve_reports.short_description = 'Approve selected reports'
+    
+    def reject_reports(self, request, queryset):
+        count = queryset.update(status='rejected')
+        self.message_user(request, f'{count} report(s) rejected.')
+    reject_reports.short_description = 'Reject selected reports'
+
+
+@admin.register(ResitExam)
+class ResitExamAdmin(admin.ModelAdmin):
+    list_display = [
+        'student', 'get_unit_code', 'original_grade',
+        'resit_grade', 'resit_semester', 'status',
+        'fee_paid', 'attendance', 'registration_date'
+    ]
+    list_filter = [
+        'status', 'fee_paid', 'attendance',
+        'resit_semester', 'original_semester'
+    ]
+    search_fields = [
+        'student__registration_number',
+        'student__user__first_name',
+        'student__user__last_name',
+        'original_result__programme_unit__unit__code',
+        'original_result__programme_unit__unit__name'
+    ]
+    readonly_fields = [
+        'registration_date', 'created_at', 'updated_at'
+    ]
+    fieldsets = (
+        ('Student & Unit', {
+            'fields': (
+                'student',
+                'original_result',
+                'resit_semester',
+            )
+        }),
+        ('Original Attempt', {
+            'fields': (
+                'original_semester',
+                ('original_marks', 'original_grade', 'original_grade_point'),
+            )
+        }),
+        ('Resit Details', {
+            'fields': (
+                ('resit_marks', 'resit_grade', 'resit_grade_point'),
+                ('exam_date', 'exam_venue'),
+                'attendance',
+            )
+        }),
+        ('Fee Payment', {
+            'fields': (
+                'resit_fee_amount',
+                'fee_paid',
+                ('payment_reference', 'payment_date'),
+            )
+        }),
+        ('Status & Approval', {
+            'fields': (
+                'status',
+                'approved_by',
+                'approval_date',
+            )
+        }),
+        ('Marking', {
+            'fields': (
+                'marked_by',
+                'marking_date',
+                'remarks',
+            )
+        }),
+        ('Timestamps', {
+            'fields': (
+                'registration_date',
+                'created_at',
+                'updated_at',
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['approve_resits', 'mark_as_completed']
+    
+    def get_unit_code(self, obj):
+        return obj.original_result.programme_unit.unit.code
+    get_unit_code.short_description = 'Unit Code'
+    
+    def approve_resits(self, request, queryset):
+        from django.utils import timezone
+        count = queryset.update(
+            status='approved',
+            approved_by=request.user,
+            approval_date=timezone.now()
+        )
+        self.message_user(request, f'{count} resit exam(s) approved.')
+    approve_resits.short_description = 'Approve selected resit exams'
+    
+    def mark_as_completed(self, request, queryset):
+        count = queryset.update(status='completed')
+        self.message_user(request, f'{count} resit exam(s) marked as completed.')
+    mark_as_completed.short_description = 'Mark as completed'
+
+
+@admin.register(UnitEnrollment)
+class UnitEnrollmentAdmin(admin.ModelAdmin):
+    list_display = [
+        'student', 'get_unit_code', 'semester',
+        'enrollment_type', 'status', 'enrollment_date'
+    ]
+    list_filter = [
+        'status', 'enrollment_type', 'semester'
+    ]
+    search_fields = [
+        'student__registration_number',
+        'student__user__first_name',
+        'student__user__last_name',
+        'programme_unit__unit__code',
+        'programme_unit__unit__name'
+    ]
+    readonly_fields = [
+        'enrollment_date', 'created_at', 'updated_at'
+    ]
+    fieldsets = (
+        ('Enrollment Details', {
+            'fields': (
+                'student',
+                'semester_report',
+                'programme_unit',
+                'semester',
+                'enrollment_type',
+            )
+        }),
+        ('Resit Link', {
+            'fields': ('resit_exam',),
+            'classes': ('collapse',)
+        }),
+        ('Status & Approval', {
+            'fields': (
+                'status',
+                'approved_by',
+                'approval_date',
+                'rejection_reason',
+                'remarks',
+            )
+        }),
+        ('Timestamps', {
+            'fields': (
+                'enrollment_date',
+                'created_at',
+                'updated_at',
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['approve_enrollments', 'reject_enrollments']
+    
+    def get_unit_code(self, obj):
+        return obj.programme_unit.unit.code
+    get_unit_code.short_description = 'Unit Code'
+    
+    def approve_enrollments(self, request, queryset):
+        from django.utils import timezone
+        count = queryset.update(
+            status='approved',
+            approved_by=request.user,
+            approval_date=timezone.now()
+        )
+        self.message_user(request, f'{count} enrollment(s) approved.')
+    approve_enrollments.short_description = 'Approve selected enrollments'
+    
+    def reject_enrollments(self, request, queryset):
+        count = queryset.update(status='rejected')
+        self.message_user(request, f'{count} enrollment(s) rejected.')
+    reject_enrollments.short_description = 'Reject selected enrollments'
+
+
+@admin.register(EnrollmentPeriod)
+class EnrollmentPeriodAdmin(admin.ModelAdmin):
+    list_display = [
+        'semester', 'start_date', 'end_date',
+        'is_active', 'is_enrollment_open_display',
+        'is_resit_enrollment_open_display'
+    ]
+    list_filter = ['is_active', 'semester']
+    readonly_fields = [
+        'is_enrollment_open_display',
+        'is_resit_enrollment_open_display',
+        'created_at', 'updated_at'
+    ]
+    fieldsets = (
+        ('Semester', {
+            'fields': ('semester',)
+        }),
+        ('Normal Enrollment Period', {
+            'fields': (
+                ('start_date', 'end_date'),
+                'is_enrollment_open_display',
+            )
+        }),
+        ('Resit Enrollment Period', {
+            'fields': (
+                ('resit_start_date', 'resit_end_date'),
+                'is_resit_enrollment_open_display',
+            )
+        }),
+        ('Status', {
+            'fields': (
+                'is_active',
+                'remarks',
+            )
+        }),
+        ('Timestamps', {
+            'fields': (
+                'created_at',
+                'updated_at',
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def is_enrollment_open_display(self, obj):
+        return obj.is_enrollment_open()
+    is_enrollment_open_display.short_description = 'Enrollment Open'
+    is_enrollment_open_display.boolean = True
+    
+    def is_resit_enrollment_open_display(self, obj):
+        return obj.is_resit_enrollment_open()
+    is_resit_enrollment_open_display.short_description = 'Resit Enrollment Open'
+    is_resit_enrollment_open_display.boolean = True
+
+
 # Customize admin site
 admin.site.site_header = "MUT University Management System"
 admin.site.site_title = "MUT Admin"

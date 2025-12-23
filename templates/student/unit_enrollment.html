@@ -1,0 +1,371 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Unit Enrollment{% endblock %}
+
+{% block page_title %}Unit Enrollment{% endblock %}
+{% block page_subtitle %}Enroll for {{ current_semester }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Enrollment Period Info -->
+            <div class="alert alert-info mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="ri-calendar-line fs-3 me-3"></i>
+                    <div>
+                        <h6 class="mb-1">Enrollment Period</h6>
+                        <p class="mb-0">
+                            <strong>Normal Units:</strong> {{ enrollment_period.start_date|date:"M d, Y H:i" }} - {{ enrollment_period.end_date|date:"M d, Y H:i" }}
+                            {% if enrollment_period.resit_start_date %}
+                            <br><strong>Resit Units:</strong> {{ enrollment_period.resit_start_date|date:"M d, Y H:i" }} - {{ enrollment_period.resit_end_date|date:"M d, Y H:i" }}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" id="enrollmentForm">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <!-- Available Units -->
+                    <div class="col-lg-8">
+                        <div class="content-card mb-4">
+                            <h5 class="card-title mb-4">
+                                <i class="ri-book-2-line me-2"></i>
+                                Available Units
+                            </h5>
+
+                            {% if available_units %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th width="50">
+                                                <input type="checkbox" id="selectAllNormal" class="form-check-input">
+                                            </th>
+                                            <th>Unit Code</th>
+                                            <th>Unit Name</th>
+                                            <th>Credits</th>
+                                            <th>Type</th>
+                                            <th>Lecturer</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for programme_unit in available_units %}
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" 
+                                                       name="units" 
+                                                       value="{{ programme_unit.id }}"
+                                                       class="form-check-input normal-unit"
+                                                       {% if programme_unit.id in enrolled_units %}disabled checked{% endif %}>
+                                            </td>
+                                            <td>
+                                                <strong>{{ programme_unit.unit.code }}</strong>
+                                            </td>
+                                            <td>
+                                                <div>{{ programme_unit.unit.name }}</div>
+                                                <small class="text-muted">{{ programme_unit.unit.get_unit_level_display }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ programme_unit.unit.credit_hours }} CH</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{% if programme_unit.unit_type == 'core' %}success{% elif programme_unit.unit_type == 'elective' %}info{% else %}secondary{% endif %}">
+                                                    {{ programme_unit.get_unit_type_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% with allocation=programme_unit.allocations.first %}
+                                                {% if allocation and allocation.lecturer %}
+                                                <small>{{ allocation.lecturer.user.get_full_name }}</small>
+                                                {% else %}
+                                                <small class="text-muted">Not Assigned</small>
+                                                {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-5">
+                                <i class="ri-book-open-line display-4 text-muted"></i>
+                                <p class="mt-3 text-muted">No units available for enrollment</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Failed Units (Resit) -->
+                        {% if failed_units_offered %}
+                        <div class="content-card">
+                            <h5 class="card-title mb-4">
+                                <i class="ri-refresh-line me-2 text-warning"></i>
+                                Units Available for Resit
+                            </h5>
+
+                            <div class="alert alert-warning mb-3">
+                                <i class="ri-information-line me-2"></i>
+                                <strong>Note:</strong> These are units you previously failed. Enrolling for resit will allow you to retake the final exam.
+                                A resit fee of <strong>Ksh 2,000</strong> per unit applies.
+                            </div>
+
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th width="50">
+                                                <input type="checkbox" id="selectAllResit" class="form-check-input">
+                                            </th>
+                                            <th>Unit Code</th>
+                                            <th>Unit Name</th>
+                                            <th>Previous Grade</th>
+                                            <th>Previous Marks</th>
+                                            <th>Failed In</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for result in failed_units_offered %}
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" 
+                                                       name="resit_units" 
+                                                       value="{{ result.id }}"
+                                                       class="form-check-input resit-unit"
+                                                       data-fee="2000">
+                                            </td>
+                                            <td>
+                                                <strong>{{ result.programme_unit.unit.code }}</strong>
+                                            </td>
+                                            <td>
+                                                {{ result.programme_unit.unit.name }}
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-danger">{{ result.grade }}</span>
+                                            </td>
+                                            <td>
+                                                {{ result.total_marks|floatformat:2 }}%
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ result.semester }}</small>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Summary Sidebar -->
+                    <div class="col-lg-4">
+                        <div class="content-card sticky-top" style="top: 20px;">
+                            <h5 class="card-title mb-4">Enrollment Summary</h5>
+
+                            <!-- Selected Units -->
+                            <div class="summary-section mb-4">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Normal Units</span>
+                                    <span class="badge bg-primary" id="normalCount">0</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Resit Units</span>
+                                    <span class="badge bg-warning" id="resitCount">0</span>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>Total Units</strong>
+                                    <strong><span id="totalCount">0</span></strong>
+                                </div>
+                            </div>
+
+                            <!-- Credit Hours -->
+                            <div class="summary-section mb-4">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted">Total Credit Hours</span>
+                                    <strong><span id="totalCredits">0</span> CH</strong>
+                                </div>
+                            </div>
+
+                            <!-- Fees -->
+                            <div class="summary-section mb-4">
+                                <h6 class="mb-3">Fee Breakdown</h6>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">Resit Fees</span>
+                                    <span>Ksh <span id="resitFees">0</span></span>
+                                </div>
+                                {% if fee_balance and not fee_balance.is_cleared %}
+                                <div class="alert alert-warning mt-3 mb-0 small">
+                                    <i class="ri-error-warning-line me-1"></i>
+                                    Outstanding fee balance: <strong>Ksh {{ fee_balance.balance|floatformat:2 }}</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                    <i class="ri-check-line me-2"></i>
+                                    Confirm Enrollment
+                                </button>
+                                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                                    <i class="ri-close-line me-2"></i>
+                                    Cancel
+                                </a>
+                            </div>
+
+                            <!-- Help Text -->
+                            <div class="alert alert-info mt-3 mb-0 small">
+                                <i class="ri-information-line me-1"></i>
+                                Select the units you want to enroll in and click "Confirm Enrollment" to proceed.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .summary-section {
+        padding: 15px;
+        background: var(--bg-light);
+        border-radius: var(--radius);
+    }
+
+    .table td {
+        vertical-align: middle;
+    }
+
+    .form-check-input {
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+    }
+
+    .form-check-input:disabled {
+        cursor: not-allowed;
+    }
+
+    .sticky-top {
+        position: sticky;
+    }
+
+    @media (max-width: 991px) {
+        .sticky-top {
+            position: relative !important;
+            top: 0 !important;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const normalCheckboxes = document.querySelectorAll('.normal-unit:not(:disabled)');
+        const resitCheckboxes = document.querySelectorAll('.resit-unit');
+        const selectAllNormal = document.getElementById('selectAllNormal');
+        const selectAllResit = document.getElementById('selectAllResit');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function updateSummary() {
+            let normalCount = 0;
+            let resitCount = 0;
+            let totalCredits = 0;
+            let resitFees = 0;
+
+            // Count normal units
+            normalCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    normalCount++;
+                    // Get credit hours from row
+                    const row = checkbox.closest('tr');
+                    const creditsText = row.querySelector('.badge.bg-primary').textContent;
+                    const credits = parseInt(creditsText.match(/\d+/)[0]);
+                    totalCredits += credits;
+                }
+            });
+
+            // Count resit units
+            resitCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    resitCount++;
+                    resitFees += parseInt(checkbox.dataset.fee);
+                    // Get credit hours from row
+                    const row = checkbox.closest('tr');
+                    const code = row.querySelector('strong').textContent;
+                    // Find corresponding unit in available units for credits
+                    // For simplicity, assume resit units are 3 credits
+                    totalCredits += 3;
+                }
+            });
+
+            // Update UI
+            document.getElementById('normalCount').textContent = normalCount;
+            document.getElementById('resitCount').textContent = resitCount;
+            document.getElementById('totalCount').textContent = normalCount + resitCount;
+            document.getElementById('totalCredits').textContent = totalCredits;
+            document.getElementById('resitFees').textContent = resitFees.toLocaleString();
+
+            // Enable/disable submit button
+            submitBtn.disabled = (normalCount + resitCount) === 0;
+        }
+
+        // Select all normal units
+        selectAllNormal?.addEventListener('change', function() {
+            normalCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateSummary();
+        });
+
+        // Select all resit units
+        selectAllResit?.addEventListener('change', function() {
+            resitCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateSummary();
+        });
+
+        // Individual checkboxes
+        normalCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSummary);
+        });
+
+        resitCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateSummary);
+        });
+
+        // Form submission
+        document.getElementById('enrollmentForm').addEventListener('submit', function(e) {
+            const normalCount = document.querySelectorAll('.normal-unit:checked').length;
+            const resitCount = document.querySelectorAll('.resit-unit:checked').length;
+
+            if (normalCount + resitCount === 0) {
+                e.preventDefault();
+                alert('Please select at least one unit to enroll.');
+                return;
+            }
+
+            if (resitCount > 0) {
+                const totalFee = resitCount * 2000;
+                if (!confirm(`You are enrolling for ${resitCount} resit unit(s). Total resit fee: Ksh ${totalFee.toLocaleString()}. Do you want to proceed?`)) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        });
+
+        // Initial summary update
+        updateSummary();
+    });
+</script>
+{% endblock %}

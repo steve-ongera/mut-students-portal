@@ -1,0 +1,177 @@
+<!-- ============================================ -->
+<!-- unit_enrollment_status.html -->
+<!-- ============================================ -->
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Enrollment Status{% endblock %}
+
+{% block page_title %}Unit Enrollment Status{% endblock %}
+{% block page_subtitle %}{{ current_semester }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            {% if enrollments %}
+            <!-- Summary Card -->
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-primary-light">
+                            <i class="ri-book-2-line text-primary"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>{{ enrollments|length }}</h3>
+                            <p>Total Enrollments</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-success-light">
+                            <i class="ri-check-line text-success"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>{{ enrollments|filter_by_status:'approved'|length }}</h3>
+                            <p>Approved</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="stat-card">
+                        <div class="stat-icon bg-warning-light">
+                            <i class="ri-time-line text-warning"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3>{{ enrollments|filter_by_status:'pending'|length }}</h3>
+                            <p>Pending</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enrollments List -->
+            <div class="content-card">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="card-title mb-0">
+                        <i class="ri-list-check-2 me-2"></i>
+                        Enrolled Units
+                    </h5>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Unit Code</th>
+                                <th>Unit Name</th>
+                                <th>Credits</th>
+                                <th>Type</th>
+                                <th>Enrollment Type</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for enrollment in enrollments %}
+                            <tr>
+                                <td>
+                                    <strong>{{ enrollment.programme_unit.unit.code }}</strong>
+                                </td>
+                                <td>
+                                    <div>{{ enrollment.programme_unit.unit.name }}</div>
+                                    <small class="text-muted">{{ enrollment.programme_unit.unit.get_unit_level_display }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ enrollment.programme_unit.unit.credit_hours }} CH</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if enrollment.programme_unit.unit_type == 'core' %}success{% elif enrollment.programme_unit.unit_type == 'elective' %}info{% else %}secondary{% endif %}">
+                                        {{ enrollment.programme_unit.get_unit_type_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if enrollment.enrollment_type == 'resit' %}warning{% else %}primary{% endif %}">
+                                        {{ enrollment.get_enrollment_type_display }}
+                                    </span>
+                                    {% if enrollment.resit_exam %}
+                                    <br><small class="text-muted">Original: {{ enrollment.resit_exam.original_grade }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if enrollment.status == 'approved' %}success{% elif enrollment.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                        {{ enrollment.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small>{{ enrollment.enrollment_date|date:"M d, Y" }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% else %}
+            <div class="content-card text-center py-5">
+                <i class="ri-book-open-line display-4 text-muted"></i>
+                <h5 class="mt-3 mb-2">No Units Enrolled</h5>
+                <p class="text-muted mb-4">You haven't enrolled in any units for this semester yet.</p>
+                <a href="{% url 'unit_enrollment' %}" class="btn btn-primary">
+                    <i class="ri-add-line me-2"></i>
+                    Enroll Now
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Back Button -->
+            <div class="text-center mt-4">
+                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="ri-arrow-left-line me-2"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 20px;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius);
+        height: 100%;
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+    }
+
+    .bg-primary-light { background: rgba(46, 125, 50, 0.1); }
+    .bg-success-light { background: rgba(76, 175, 80, 0.1); }
+    .bg-warning-light { background: rgba(255, 152, 0, 0.1); }
+
+    .stat-content h3 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin-bottom: 5px;
+        color: var(--text-dark);
+    }
+
+    .stat-content p {
+        color: var(--text-medium);
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}

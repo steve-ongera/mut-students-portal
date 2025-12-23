@@ -1,0 +1,351 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Semester Report{% endblock %}
+
+{% block page_title %}Semester Report{% endblock %}
+{% block page_subtitle %}Report for {{ current_semester }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Eligibility Check Card -->
+            <div class="content-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="card-title mb-0">
+                        <i class="ri-file-list-3-line me-2"></i>
+                        Semester Reporting
+                    </h5>
+                    {% if is_eligible %}
+                    <span class="badge bg-success">Eligible</span>
+                    {% else %}
+                    <span class="badge bg-danger">Not Eligible</span>
+                    {% endif %}
+                </div>
+
+                <!-- Student Information -->
+                <div class="info-section mb-4">
+                    <h6 class="section-title">Student Information</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <span class="info-label">Registration Number:</span>
+                                <span class="info-value">{{ student.registration_number }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Programme:</span>
+                                <span class="info-value">{{ student.programme.name }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <span class="info-label">Current Year:</span>
+                                <span class="info-value">Year {{ student.current_year }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Current Semester:</span>
+                                <span class="info-value">Semester {{ student.current_semester }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progression Details -->
+                <div class="info-section mb-4">
+                    <h6 class="section-title">Progression Details</h6>
+                    <div class="progression-flow">
+                        <div class="progression-item">
+                            <div class="progression-label">From</div>
+                            <div class="progression-value">
+                                Year {{ student.current_year }}, Semester {{ student.current_semester }}
+                            </div>
+                        </div>
+                        <div class="progression-arrow">
+                            <i class="ri-arrow-right-line"></i>
+                        </div>
+                        <div class="progression-item">
+                            <div class="progression-label">To</div>
+                            <div class="progression-value">
+                                Year {{ next_year }}, Semester {{ next_semester_number }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Eligibility Checks -->
+                <div class="info-section mb-4">
+                    <h6 class="section-title">Eligibility Checks</h6>
+                    
+                    <!-- Academic Check -->
+                    <div class="check-item {% if failed_units_count <= 2 %}check-pass{% else %}check-fail{% endif %}">
+                        <div class="check-icon">
+                            {% if failed_units_count <= 2 %}
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                            {% else %}
+                            <i class="ri-close-circle-line text-danger"></i>
+                            {% endif %}
+                        </div>
+                        <div class="check-content">
+                            <div class="check-title">Academic Requirements</div>
+                            <div class="check-description">
+                                You have <strong>{{ failed_units_count }}</strong> failed unit(s)
+                                {% if failed_units_count <= 2 %}
+                                <span class="text-success">(Maximum 2 allowed)</span>
+                                {% else %}
+                                <span class="text-danger">(Exceeds maximum of 2)</span>
+                                {% endif %}
+                            </div>
+                            {% if failed_units_count > 2 %}
+                            <div class="alert alert-danger mt-2 mb-0">
+                                <i class="ri-error-warning-line me-1"></i>
+                                You must clear at least <strong>{{ failed_units_count|add:"-2" }}</strong> failed unit(s) through resit exams before you can report for the next semester.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Financial Check -->
+                    <div class="check-item {% if fee_balance.is_cleared %}check-pass{% else %}check-warning{% endif %}">
+                        <div class="check-icon">
+                            {% if fee_balance.is_cleared %}
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                            {% else %}
+                            <i class="ri-error-warning-line text-warning"></i>
+                            {% endif %}
+                        </div>
+                        <div class="check-content">
+                            <div class="check-title">Financial Clearance</div>
+                            <div class="check-description">
+                                {% if fee_balance %}
+                                Fee Balance: <strong>Ksh {{ fee_balance.balance|floatformat:2 }}</strong>
+                                {% if fee_balance.is_cleared %}
+                                <span class="text-success">(Cleared)</span>
+                                {% else %}
+                                <span class="text-warning">(Outstanding)</span>
+                                {% endif %}
+                                {% else %}
+                                No fee balance information available
+                                {% endif %}
+                            </div>
+                            {% if fee_balance and not fee_balance.is_cleared %}
+                            <div class="alert alert-warning mt-2 mb-0">
+                                <i class="ri-information-line me-1"></i>
+                                You can report with a fee balance, but you must clear your fees to access full services.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Academic Performance -->
+                    {% if previous_gpa %}
+                    <div class="check-item check-info">
+                        <div class="check-icon">
+                            <i class="ri-line-chart-line text-info"></i>
+                        </div>
+                        <div class="check-content">
+                            <div class="check-title">Academic Performance</div>
+                            <div class="check-description">
+                                Previous Semester GPA: <strong>{{ previous_gpa.semester_gpa }}</strong><br>
+                                Cumulative GPA: <strong>{{ student.cumulative_gpa }}</strong><br>
+                                Total Credits Earned: <strong>{{ student.total_credit_hours }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Report Form -->
+                {% if is_eligible %}
+                <form method="post" id="reportForm">
+                    {% csrf_token %}
+                    
+                    <div class="alert alert-info">
+                        <i class="ri-information-line me-2"></i>
+                        <strong>Important:</strong> By submitting this report, you confirm that:
+                        <ul class="mb-0 mt-2">
+                            <li>All information provided is accurate</li>
+                            <li>You understand the progression requirements</li>
+                            <li>You will enroll in units after approval</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="ri-send-plane-line me-2"></i>
+                            Submit Semester Report
+                        </button>
+                        <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="ri-arrow-left-line me-2"></i>
+                            Back to Dashboard
+                        </a>
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-danger">
+                    <h6 class="alert-heading">
+                        <i class="ri-error-warning-line me-2"></i>
+                        Not Eligible to Report
+                    </h6>
+                    <p class="mb-0">
+                        You cannot report for the next semester because you have {{ failed_units_count }} failed units. 
+                        You must register for resit exams and pass at least {{ failed_units_count|add:"-2" }} unit(s) 
+                        to become eligible.
+                    </p>
+                    <hr>
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'resit_exam_registration' %}" class="btn btn-warning">
+                            <i class="ri-file-text-line me-2"></i>
+                            Register for Resit Exams
+                        </a>
+                        <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="ri-arrow-left-line me-2"></i>
+                            Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .info-section {
+        padding: 20px;
+        background: var(--bg-light);
+        border-radius: var(--radius);
+    }
+
+    .section-title {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .info-item {
+        padding: 8px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .info-label {
+        color: var(--text-medium);
+        font-size: 0.9rem;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+
+    .progression-flow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        padding: 20px;
+    }
+
+    .progression-item {
+        text-align: center;
+        padding: 20px;
+        background: white;
+        border-radius: var(--radius);
+        border: 2px solid var(--primary-color);
+        min-width: 200px;
+    }
+
+    .progression-label {
+        font-size: 0.85rem;
+        color: var(--text-medium);
+        margin-bottom: 8px;
+    }
+
+    .progression-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .progression-arrow {
+        font-size: 2rem;
+        color: var(--primary-color);
+    }
+
+    .check-item {
+        display: flex;
+        gap: 15px;
+        padding: 15px;
+        background: white;
+        border-radius: var(--radius);
+        margin-bottom: 15px;
+        border-left: 4px solid transparent;
+    }
+
+    .check-item.check-pass {
+        border-left-color: #4CAF50;
+        background: rgba(76, 175, 80, 0.05);
+    }
+
+    .check-item.check-fail {
+        border-left-color: #f44336;
+        background: rgba(244, 67, 54, 0.05);
+    }
+
+    .check-item.check-warning {
+        border-left-color: #FF9800;
+        background: rgba(255, 152, 0, 0.05);
+    }
+
+    .check-item.check-info {
+        border-left-color: #2196F3;
+        background: rgba(33, 150, 243, 0.05);
+    }
+
+    .check-icon {
+        font-size: 1.8rem;
+        flex-shrink: 0;
+    }
+
+    .check-content {
+        flex-grow: 1;
+    }
+
+    .check-title {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 5px;
+    }
+
+    .check-description {
+        color: var(--text-medium);
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .progression-flow {
+            flex-direction: column;
+        }
+
+        .progression-arrow {
+            transform: rotate(90deg);
+        }
+
+        .progression-item {
+            min-width: 100%;
+        }
+    }
+</style>
+
+<script>
+    document.getElementById('reportForm')?.addEventListener('submit', function(e) {
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+    });
+</script>
+{% endblock %}

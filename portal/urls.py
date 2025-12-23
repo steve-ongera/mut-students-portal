@@ -36,5 +36,18 @@ urlpatterns = [
     # AJAX
     path('students/ajax/<path:reg_number>/', views.get_student_details_ajax, name='get_student_details_ajax'),
     path('students/ajax/fee-structure/', views.get_programme_fee_structure, name='get_programme_fee_structure'),
+    
+    # Semester Reporting
+    path('semester-report/', views.semester_report_view, name='semester_report'),
+    path('semester-report/<int:report_id>/status/', views.semester_report_status, name='semester_report_status'),
+    path('semester-report/history/', views.semester_report_history, name='semester_report_history'),
+    
+    # Unit Enrollment
+    path('unit-enrollment/', views.unit_enrollment_view, name='unit_enrollment'),
+    path('unit-enrollment/status/', views.unit_enrollment_status, name='unit_enrollment_status'),
+    
+    # Resit Exams
+    path('resit-exam/registration/', views.resit_exam_registration, name='resit_exam_registration'),
+    path('resit-exam/status/', views.resit_exam_status, name='resit_exam_status'),
 
 ]

@@ -1,0 +1,146 @@
+<!-- semester_report_status.html -->
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Report Status{% endblock %}
+
+{% block page_title %}Semester Report Status{% endblock %}
+{% block page_subtitle %}{{ report.to_semester }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="content-card">
+                <!-- Status Header -->
+                <div class="status-header text-center mb-4 p-4">
+                    {% if report.status == 'approved' %}
+                    <i class="ri-checkbox-circle-line text-success" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 mb-2">Report Approved</h4>
+                    <p class="text-muted">Your semester report has been approved. You can now enroll in units.</p>
+                    {% elif report.status == 'pending' %}
+                    <i class="ri-time-line text-warning" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 mb-2">Report Pending</h4>
+                    <p class="text-muted">Your semester report is awaiting approval.</p>
+                    {% elif report.status == 'rejected' %}
+                    <i class="ri-close-circle-line text-danger" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 mb-2">Report Rejected</h4>
+                    <p class="text-muted">Your semester report has been rejected.</p>
+                    {% endif %}
+                </div>
+
+                <!-- Report Details -->
+                <div class="report-details">
+                    <h6 class="section-title mb-3">Report Details</h6>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <span class="detail-label">Report Date</span>
+                                <span class="detail-value">{{ report.report_date|date:"M d, Y H:i" }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">From</span>
+                                <span class="detail-value">Year {{ report.from_year_of_study }}, Semester {{ report.from_semester_number }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">To</span>
+                                <span class="detail-value">Year {{ report.to_year_of_study }}, Semester {{ report.to_semester_number }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="detail-item">
+                                <span class="detail-label">Status</span>
+                                <span class="badge bg-{% if report.status == 'approved' %}success{% elif report.status == 'pending' %}warning{% else %}danger{% endif %}">
+                                    {{ report.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Failed Units</span>
+                                <span class="detail-value">{{ report.failed_units_count }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Fee Balance</span>
+                                <span class="detail-value">Ksh {{ report.fee_balance|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if report.rejection_reason %}
+                    <div class="alert alert-danger mt-3">
+                        <strong>Rejection Reason:</strong><br>
+                        {{ report.rejection_reason }}
+                    </div>
+                    {% endif %}
+
+                    {% if report.remarks %}
+                    <div class="alert alert-info mt-3">
+                        <strong>Remarks:</strong><br>
+                        {{ report.remarks }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Actions -->
+                <div class="d-flex gap-2 justify-content-center mt-4">
+                    {% if report.status == 'approved' %}
+                    <a href="{% url 'unit_enrollment' %}" class="btn btn-primary">
+                        <i class="ri-book-2-line me-2"></i>
+                        Enroll in Units
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'semester_report_history' %}" class="btn btn-outline-secondary">
+                        <i class="ri-history-line me-2"></i>
+                        View History
+                    </a>
+                    <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="ri-home-line me-2"></i>
+                        Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .status-header {
+        background: var(--bg-light);
+        border-radius: var(--radius);
+    }
+
+    .report-details {
+        padding: 20px;
+        background: var(--bg-light);
+        border-radius: var(--radius);
+    }
+
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        color: var(--text-medium);
+    }
+
+    .detail-value {
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+
+    .section-title {
+        font-weight: 600;
+        color: var(--text-dark);
+        padding-bottom: 10px;
+        border-bottom: 2px solid var(--border-color);
+    }
+</style>
+{% endblock %}
