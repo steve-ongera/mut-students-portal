@@ -1409,3 +1409,531 @@ def resit_exam_status(request):
     }
     
     return render(request, 'student/resit_exam_status.html', context)
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from datetime import datetime, timedelta
+from .models import AcademicYear, Semester, Intake
+from .forms import AcademicYearForm, SemesterForm, IntakeForm
+
+# ============= ACADEMIC YEARS =============
+
+@login_required
+def academic_year_list(request):
+    """List all academic years with search and filtering"""
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        academic_years = academic_years.filter(
+            Q(name__icontains=search_query)
+        )
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'current':
+        academic_years = academic_years.filter(is_current=True)
+    elif status_filter == 'active':
+        academic_years = academic_years.filter(is_active=True)
+    elif status_filter == 'inactive':
+        academic_years = academic_years.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(academic_years, 10)
+    page_number = request.GET.get('page')
+    academic_years_page = paginator.get_page(page_number)
+    
+    context = {
+        'academic_years': academic_years_page,
+        'total_years': academic_years.count(),
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'current_year': AcademicYear.objects.filter(is_current=True).first(),
+    }
+    
+    return render(request, 'admin/academic_calendar/academic_year_list.html', context)
+
+
+@login_required
+def academic_year_detail(request, pk):
+    """View details of a specific academic year"""
+    academic_year = get_object_or_404(AcademicYear, pk=pk)
+    
+    # Get related data
+    semesters = academic_year.semesters.all().order_by('semester_number')
+    intakes = academic_year.intakes.all().order_by('start_date')
+    programmes = academic_year.programme_units.values('programme__code', 'programme__name').distinct()
+    
+    # Statistics
+    total_students = academic_year.student_gpas.values('student').distinct().count()
+    total_units = academic_year.programme_units.count()
+    
+    context = {
+        'academic_year': academic_year,
+        'semesters': semesters,
+        'intakes': intakes,
+        'programmes': programmes,
+        'total_students': total_students,
+        'total_units': total_units,
+    }
+    
+    return render(request, 'admin/academic_calendar/academic_year_detail.html', context)
+
+
+@login_required
+def add_academic_year(request):
+    """Add a new academic year"""
+    if request.method == 'POST':
+        form = AcademicYearForm(request.POST)
+        if form.is_valid():
+            try:
+                academic_year = form.save()
+                messages.success(request, f'Academic year {academic_year.name} created successfully!')
+                return redirect('academic_year_list')
+            except Exception as e:
+                messages.error(request, f'Error creating academic year: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = AcademicYearForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add Academic Year',
+        'button_text': 'Create Academic Year',
+    }
+    
+    return render(request, 'admin/academic_calendar/academic_year_form.html', context)
+
+
+@login_required
+def update_academic_year(request, pk):
+    """Update an existing academic year"""
+    academic_year = get_object_or_404(AcademicYear, pk=pk)
+    
+    if request.method == 'POST':
+        form = AcademicYearForm(request.POST, instance=academic_year)
+        if form.is_valid():
+            try:
+                academic_year = form.save()
+                messages.success(request, f'Academic year {academic_year.name} updated successfully!')
+                return redirect('academic_year_detail', pk=academic_year.pk)
+            except Exception as e:
+                messages.error(request, f'Error updating academic year: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = AcademicYearForm(instance=academic_year)
+    
+    context = {
+        'form': form,
+        'academic_year': academic_year,
+        'title': f'Update Academic Year - {academic_year.name}',
+        'button_text': 'Update Academic Year',
+    }
+    
+    return render(request, 'admin/academic_calendar/academic_year_form.html', context)
+
+
+@login_required
+def delete_academic_year(request, pk):
+    """Delete an academic year"""
+    academic_year = get_object_or_404(AcademicYear, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            name = academic_year.name
+            academic_year.delete()
+            messages.success(request, f'Academic year {name} deleted successfully!')
+            return redirect('academic_year_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting academic year: {str(e)}')
+            return redirect('academic_year_detail', pk=pk)
+    
+    return redirect('academic_year_detail', pk=pk)
+
+
+@login_required
+def set_current_academic_year(request, pk):
+    """Set an academic year as current"""
+    academic_year = get_object_or_404(AcademicYear, pk=pk)
+    
+    try:
+        # Unset all other current years
+        AcademicYear.objects.filter(is_current=True).update(is_current=False)
+        
+        # Set this as current
+        academic_year.is_current = True
+        academic_year.save()
+        
+        messages.success(request, f'{academic_year.name} is now the current academic year!')
+    except Exception as e:
+        messages.error(request, f'Error setting current academic year: {str(e)}')
+    
+    return redirect('academic_year_detail', pk=pk)
+
+
+# ============= SEMESTERS =============
+
+@login_required
+def semester_list(request):
+    """List all semesters with search and filtering"""
+    semesters = Semester.objects.select_related('academic_year').all().order_by('-academic_year__start_date', 'semester_number')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        semesters = semesters.filter(
+            Q(name__icontains=search_query) |
+            Q(academic_year__name__icontains=search_query)
+        )
+    
+    # Filter by academic year
+    year_filter = request.GET.get('year', '')
+    if year_filter:
+        semesters = semesters.filter(academic_year_id=year_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'current':
+        semesters = semesters.filter(is_current=True)
+    elif status_filter == 'active':
+        semesters = semesters.filter(is_active=True)
+    elif status_filter == 'inactive':
+        semesters = semesters.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(semesters, 10)
+    page_number = request.GET.get('page')
+    semesters_page = paginator.get_page(page_number)
+    
+    # Get academic years for filter
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    context = {
+        'semesters': semesters_page,
+        'total_semesters': semesters.count(),
+        'search_query': search_query,
+        'year_filter': year_filter,
+        'status_filter': status_filter,
+        'academic_years': academic_years,
+        'current_semester': Semester.objects.filter(is_current=True).first(),
+        'semester_choices': Semester.SEMESTER_NAMES,
+    }
+    
+    return render(request, 'admin/academic_calendar/semester_list.html', context)
+
+
+@login_required
+def semester_detail(request, pk):
+    """View details of a specific semester"""
+    semester = get_object_or_404(Semester.objects.select_related('academic_year'), pk=pk)
+    
+    # Get related data
+    unit_allocations = semester.unit_allocations.select_related(
+        'programme_unit__unit', 'programme_unit__programme', 'lecturer__user'
+    ).all()
+    
+    unit_registrations = semester.unit_registrations.select_related(
+        'student', 'programme_unit__unit'
+    ).all()
+    
+    # Statistics
+    total_students = unit_registrations.values('student').distinct().count()
+    total_units = unit_allocations.values('programme_unit__unit').distinct().count()
+    total_lecturers = unit_allocations.values('lecturer').distinct().count()
+    
+    # Registration status
+    now = timezone.now().date()
+    registration_open = semester.registration_start_date <= now <= semester.registration_end_date
+    
+    context = {
+        'semester': semester,
+        'unit_allocations': unit_allocations[:10],  # Show only first 10
+        'unit_registrations': unit_registrations[:10],  # Show only first 10
+        'total_students': total_students,
+        'total_units': total_units,
+        'total_lecturers': total_lecturers,
+        'registration_open': registration_open,
+    }
+    
+    return render(request, 'admin/academic_calendar/semester_detail.html', context)
+
+
+@login_required
+def add_semester(request):
+    """Add a new semester"""
+    if request.method == 'POST':
+        form = SemesterForm(request.POST)
+        if form.is_valid():
+            try:
+                semester = form.save()
+                messages.success(request, f'Semester {semester.name} created successfully!')
+                return redirect('semester_list')
+            except Exception as e:
+                messages.error(request, f'Error creating semester: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = SemesterForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add Semester',
+        'button_text': 'Create Semester',
+    }
+    
+    return render(request, 'admin/academic_calendar/semester_form.html', context)
+
+
+@login_required
+def update_semester(request, pk):
+    """Update an existing semester"""
+    semester = get_object_or_404(Semester, pk=pk)
+    
+    if request.method == 'POST':
+        form = SemesterForm(request.POST, instance=semester)
+        if form.is_valid():
+            try:
+                semester = form.save()
+                messages.success(request, f'Semester {semester.name} updated successfully!')
+                return redirect('semester_detail', pk=semester.pk)
+            except Exception as e:
+                messages.error(request, f'Error updating semester: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = SemesterForm(instance=semester)
+    
+    context = {
+        'form': form,
+        'semester': semester,
+        'title': f'Update Semester - {semester.name}',
+        'button_text': 'Update Semester',
+    }
+    
+    return render(request, 'admin/academic_calendar/semester_form.html', context)
+
+
+@login_required
+def delete_semester(request, pk):
+    """Delete a semester"""
+    semester = get_object_or_404(Semester, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            name = semester.name
+            semester.delete()
+            messages.success(request, f'Semester {name} deleted successfully!')
+            return redirect('semester_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting semester: {str(e)}')
+            return redirect('semester_detail', pk=pk)
+    
+    return redirect('semester_detail', pk=pk)
+
+
+@login_required
+def set_current_semester(request, pk):
+    """Set a semester as current"""
+    semester = get_object_or_404(Semester, pk=pk)
+    
+    try:
+        # Unset all other current semesters
+        Semester.objects.filter(is_current=True).update(is_current=False)
+        
+        # Set this as current
+        semester.is_current = True
+        semester.save()
+        
+        messages.success(request, f'{semester.name} is now the current semester!')
+    except Exception as e:
+        messages.error(request, f'Error setting current semester: {str(e)}')
+    
+    return redirect('semester_detail', pk=pk)
+
+
+# ============= INTAKES =============
+
+@login_required
+def intake_list(request):
+    """List all intakes with search and filtering"""
+    intakes = Intake.objects.select_related('academic_year').all().order_by('-start_date')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        intakes = intakes.filter(
+            Q(name__icontains=search_query) |
+            Q(intake_number__icontains=search_query) |
+            Q(academic_year__name__icontains=search_query)
+        )
+    
+    # Filter by academic year
+    year_filter = request.GET.get('year', '')
+    if year_filter:
+        intakes = intakes.filter(academic_year_id=year_filter)
+    
+    # Filter by month
+    month_filter = request.GET.get('month', '')
+    if month_filter:
+        intakes = intakes.filter(month=month_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        intakes = intakes.filter(is_active=True)
+    elif status_filter == 'inactive':
+        intakes = intakes.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(intakes, 10)
+    page_number = request.GET.get('page')
+    intakes_page = paginator.get_page(page_number)
+    
+    # Get academic years for filter
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    context = {
+        'intakes': intakes_page,
+        'total_intakes': intakes.count(),
+        'search_query': search_query,
+        'year_filter': year_filter,
+        'month_filter': month_filter,
+        'status_filter': status_filter,
+        'academic_years': academic_years,
+        'month_choices': Intake.INTAKE_MONTHS,
+    }
+    
+    return render(request, 'admin/academic_calendar/intake_list.html', context)
+
+
+@login_required
+def intake_detail(request, pk):
+    """View details of a specific intake"""
+    intake = get_object_or_404(Intake.objects.select_related('academic_year'), pk=pk)
+    
+    # Get students in this intake
+    students = intake.students.select_related('user', 'programme').all()
+    
+    # Statistics
+    total_students = students.count()
+    programmes = students.values('programme__code', 'programme__name').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Check if application is open
+    now = timezone.now().date()
+    application_open = now <= intake.application_deadline
+    
+    context = {
+        'intake': intake,
+        'students': students[:20],  # Show only first 20
+        'total_students': total_students,
+        'programmes': programmes,
+        'application_open': application_open,
+    }
+    
+    return render(request, 'admin/academic_calendar/intake_detail.html', context)
+
+
+@login_required
+def add_intake(request):
+    """Add a new intake"""
+    if request.method == 'POST':
+        form = IntakeForm(request.POST)
+        if form.is_valid():
+            try:
+                intake = form.save()
+                messages.success(request, f'Intake {intake.name} created successfully!')
+                return redirect('intake_list')
+            except Exception as e:
+                messages.error(request, f'Error creating intake: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = IntakeForm()
+    
+    context = {
+        'form': form,
+        'title': 'Add Intake',
+        'button_text': 'Create Intake',
+    }
+    
+    return render(request, 'admin/academic_calendar/intake_form.html', context)
+
+
+@login_required
+def update_intake(request, pk):
+    """Update an existing intake"""
+    intake = get_object_or_404(Intake, pk=pk)
+    
+    if request.method == 'POST':
+        form = IntakeForm(request.POST, instance=intake)
+        if form.is_valid():
+            try:
+                intake = form.save()
+                messages.success(request, f'Intake {intake.name} updated successfully!')
+                return redirect('intake_detail', pk=intake.pk)
+            except Exception as e:
+                messages.error(request, f'Error updating intake: {str(e)}')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = IntakeForm(instance=intake)
+    
+    context = {
+        'form': form,
+        'intake': intake,
+        'title': f'Update Intake - {intake.name}',
+        'button_text': 'Update Intake',
+    }
+    
+    return render(request, 'admin/academic_calendar/intake_form.html', context)
+
+
+@login_required
+def delete_intake(request, pk):
+    """Delete an intake"""
+    intake = get_object_or_404(Intake, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            name = intake.name
+            intake.delete()
+            messages.success(request, f'Intake {name} deleted successfully!')
+            return redirect('intake_list')
+        except Exception as e:
+            messages.error(request, f'Error deleting intake: {str(e)}')
+            return redirect('intake_detail', pk=pk)
+    
+    return redirect('intake_detail', pk=pk)
+
+
+# ============= AJAX/API ENDPOINTS =============
+
+@login_required
+def get_semesters_by_year(request):
+    """Get semesters for a specific academic year (AJAX)"""
+    year_id = request.GET.get('year_id')
+    if year_id:
+        semesters = Semester.objects.filter(academic_year_id=year_id).values('id', 'name', 'semester_number')
+        return JsonResponse(list(semesters), safe=False)
+    return JsonResponse([], safe=False)
+
+
+@login_required
+def get_intakes_by_year(request):
+    """Get intakes for a specific academic year (AJAX)"""
+    year_id = request.GET.get('year_id')
+    if year_id:
+        intakes = Intake.objects.filter(academic_year_id=year_id).values('id', 'name', 'intake_number', 'month')
+        return JsonResponse(list(intakes), safe=False)
+    return JsonResponse([], safe=False)
