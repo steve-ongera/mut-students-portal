@@ -749,6 +749,7 @@
             </li>
 
             <!-- Academic Year & Semester -->
+            <!-- Academic Year & Semester -->
             <li class="menu-item">
                 <a href="#" class="menu-link">
                     <i class="ri-calendar-line menu-icon"></i>
@@ -756,12 +757,13 @@
                     <i class="ri-arrow-right-s-line menu-caret"></i>
                 </a>
                 <ul class="sub-menu">
-                    <li class="sub-item"><a href="#" class="sub-link">Academic Years</a></li>
-                    <li class="sub-item"><a href="#" class="sub-link">Semesters</a></li>
-                    <li class="sub-item"><a href="#" class="sub-link">Intakes</a></li>
+                    <li class="sub-item"><a href="{% url 'academic_year_list' %}" class="sub-link">Academic Years</a></li>
+                    <li class="sub-item"><a href="{% url 'semester_list' %}" class="sub-link">Semesters</a></li>
+                    <li class="sub-item"><a href="{% url 'intake_list' %}" class="sub-link">Intakes</a></li>
                     <li class="sub-item"><a href="#" class="sub-link">Important Dates</a></li>
                 </ul>
             </li>
+
 
             <!-- Units/Courses -->
             <li class="menu-item">
@@ -1049,7 +1051,6 @@
     <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.12.1/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/js/toastr.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
@@ -1213,24 +1214,7 @@
                 });
             });
 
-            // Initialize DataTables
-            if (typeof $.fn.DataTable !== 'undefined') {
-                $('.datatable').DataTable({
-                    dom: '<"row"<"col-md-12"f>><"row mt-2"<"col-md-12"rt>><"row d-flex align-items-center bottom mt-3"<"col-md-6 d-flex align-items-center len-info"li><"col-md-6"p>>',
-                    pageLength: 10,
-                    language: {
-                        search: "Search:",
-                        lengthMenu: "Show _MENU_ entries",
-                        info: "Showing _START_ to _END_ of _TOTAL_ entries",
-                        paginate: {
-                            first: "First",
-                            last: "Last",
-                            next: "Next",
-                            previous: "Previous"
-                        }
-                    }
-                });
-            }
+            
 
             // Toastr configuration
             if (typeof toastr !== 'undefined') {
@@ -1287,6 +1271,11 @@
             initSidebar();
         });
 
+        $('#example').dataTable( {
+    paging: false,
+    searching: false
+} );
+
         // Show toast messages from Django
         {% if messages %}
             document.addEventListener('DOMContentLoaded', function() {
@@ -1304,16 +1293,7 @@
             });
         {% endif %}
     </script>
-    <script>
-$(document).ready(function () {
-    if (!$.fn.DataTable.isDataTable('#studentsTable')) {
-        $('#studentsTable').DataTable({
-            pageLength: 10,
-            responsive: true,
-        });
-    }
-});
-</script>
+   
 
 
     {% block extra_js %}{% endblock %}

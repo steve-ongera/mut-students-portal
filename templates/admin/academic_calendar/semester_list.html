@@ -1,0 +1,214 @@
+
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Semesters{% endblock %}
+
+{% block page_title %}Semesters{% endblock %}
+{% block page_subtitle %}Manage academic semesters and registration periods{% endblock %}
+
+{% block content %}
+<div class="content-card">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="card-title mb-0">All Semesters</h5>
+            <p class="text-muted mb-0">{{ total_semesters }} semester(s) found</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="ri-filter-line me-1"></i> Filter
+            </button>
+            <a href="{% url 'add_semester' %}" class="btn btn-sm btn-primary">
+                <i class="ri-add-line me-1"></i> Add Semester
+            </a>
+        </div>
+    </div>
+
+    <!-- Current Semester Alert -->
+    {% if current_semester %}
+    <div class="alert alert-success d-flex align-items-center mb-4">
+        <i class="ri-calendar-check-line me-2 fs-5"></i>
+        <div>
+            <strong>Current Semester:</strong> {{ current_semester.name }}
+            <br>
+            <small>{{ current_semester.start_date|date:"F d, Y" }} - {{ current_semester.end_date|date:"F d, Y" }}</small>
+            {% if current_semester.registration_start_date <= today <= current_semester.registration_end_date %}
+            <br>
+            <span class="badge bg-warning text-dark mt-1">Registration Open</span>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Search Bar -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" class="form-control" name="search" placeholder="Search by semester name or academic year..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit">
+                <i class="ri-search-line"></i> Search
+            </button>
+        </div>
+    </form>
+
+    <!-- Semesters Table -->
+    <div class="table-responsive">
+        <table class="table datatable" id="semestersTable">
+            <thead>
+                <tr>
+                    <th>Semester</th>
+                    <th>Academic Year</th>
+                    <th>Semester Period</th>
+                    <th>Registration Period</th>
+                    <th>Status</th>
+                    <th>Current</th>
+                    <th width="250">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for semester in semesters %}
+                <tr>
+                    <td>
+                        <div>
+                            <strong class="text-primary">{{ semester.name }}</strong>
+                            <br>
+                            <span class="badge bg-info rounded-pill">{{ semester.get_semester_number_display }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="fw-medium">{{ semester.academic_year.name }}</span>
+                    </td>
+                    <td>
+                        <small class="d-block">
+                            <i class="ri-calendar-line text-muted me-1"></i>
+                            {{ semester.start_date|date:"M d, Y" }}
+                        </small>
+                        <small class="d-block">
+                            <i class="ri-calendar-check-line text-muted me-1"></i>
+                            {{ semester.end_date|date:"M d, Y" }}
+                        </small>
+                    </td>
+                    <td>
+                        <small class="d-block">
+                            <i class="ri-edit-box-line text-muted me-1"></i>
+                            {{ semester.registration_start_date|date:"M d, Y" }}
+                        </small>
+                        <small class="d-block">
+                            <i class="ri-checkbox-circle-line text-muted me-1"></i>
+                            {{ semester.registration_end_date|date:"M d, Y" }}
+                        </small>
+                    </td>
+                    <td>
+                        {% if semester.is_active %}
+                        <span class="badge bg-success rounded-pill">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary rounded-pill">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if semester.is_current %}
+                        <span class="badge bg-primary rounded-pill">
+                            <i class="ri-star-fill me-1"></i>Current
+                        </span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'semester_detail' semester.pk %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="View Details">
+                                <i class="ri-eye-line"></i>
+                            </a>
+                            
+                            <a href="{% url 'update_semester' semester.pk %}" 
+                               class="btn btn-sm btn-outline-warning" 
+                               title="Update">
+                                <i class="ri-edit-line"></i>
+                            </a>
+                            
+                            {% if not semester.is_current %}
+                            <form action="{% url 'set_current_semester' semester.pk %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="btn btn-sm btn-outline-info" 
+                                        title="Set as Current"
+                                        onclick="return confirm('Set {{ semester.name }} as current semester?')">
+                                    <i class="ri-star-line"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                            <form action="{% url 'delete_semester' semester.pk %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="btn btn-sm btn-outline-danger" 
+                                        title="Delete"
+                                        onclick="return confirm('Are you sure you want to delete {{ semester.name }}?')">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <div class="text-muted">
+                            <i class="ri-calendar-event-line display-4"></i>
+                            <p class="mt-3">No semesters found</p>
+                            <a href="{% url 'add_semester' %}" class="btn btn-primary mt-2">
+                                <i class="ri-add-line me-1"></i> Add First Semester
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Semesters</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Academic Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All Years</option>
+                            {% for year in academic_years %}
+                            <option value="{{ year.id }}" {% if year_filter == year.id|stringformat:"i" %}selected{% endif %}>
+                                {{ year.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All</option>
+                            <option value="current" {% if status_filter == 'current' %}selected{% endif %}>Current</option>
+                            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'semester_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+

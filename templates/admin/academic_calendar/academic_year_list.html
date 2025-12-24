@@ -1,0 +1,236 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Academic Years{% endblock %}
+
+{% block page_title %}Academic Years{% endblock %}
+{% block page_subtitle %}Manage academic years and periods{% endblock %}
+
+{% block content %}
+<div class="content-card">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="card-title mb-0">All Academic Years</h5>
+            <p class="text-muted mb-0">{{ total_years }} academic year(s) found</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="ri-filter-line me-1"></i> Filter
+            </button>
+            <a href="{% url 'add_academic_year' %}" class="btn btn-sm btn-primary">
+                <i class="ri-add-line me-1"></i> Add Academic Year
+            </a>
+        </div>
+    </div>
+
+    <!-- Current Academic Year Alert -->
+    {% if current_year %}
+    <div class="alert alert-info d-flex align-items-center mb-4">
+        <i class="ri-information-line me-2 fs-5"></i>
+        <div>
+            <strong>Current Academic Year:</strong> {{ current_year.name }}
+            <br>
+            <small>{{ current_year.start_date|date:"F d, Y" }} - {{ current_year.end_date|date:"F d, Y" }}</small>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Search Bar -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" class="form-control" name="search" placeholder="Search by academic year name..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit">
+                <i class="ri-search-line"></i> Search
+            </button>
+        </div>
+    </form>
+
+    <!-- Academic Years Table -->
+    <div class="table-responsive">
+        <table class="table datatable" id="academicYearsTable">
+            <thead>
+                <tr>
+                    <th>Academic Year</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Current</th>
+                    <th width="250">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for year in academic_years %}
+                <tr>
+                    <td>
+                        <strong class="text-primary fs-6">{{ year.name }}</strong>
+                    </td>
+                    <td>
+                        <i class="ri-calendar-line text-muted me-1"></i>
+                        {{ year.start_date|date:"M d, Y" }}
+                    </td>
+                    <td>
+                        <i class="ri-calendar-check-line text-muted me-1"></i>
+                        {{ year.end_date|date:"M d, Y" }}
+                    </td>
+                    <td>
+                        {% widthratio year.end_date.toordinal year.start_date.toordinal 1 as days %}
+                        <span class="badge bg-secondary rounded-pill">
+                            {{ days|add:"-1" }} days
+                        </span>
+                    </td>
+                    <td>
+                        {% if year.is_active %}
+                        <span class="badge bg-success rounded-pill">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary rounded-pill">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if year.is_current %}
+                        <span class="badge bg-primary rounded-pill">
+                            <i class="ri-star-fill me-1"></i>Current
+                        </span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'academic_year_detail' year.pk %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="View Details">
+                                <i class="ri-eye-line"></i>
+                            </a>
+                            
+                            <a href="{% url 'update_academic_year' year.pk %}" 
+                               class="btn btn-sm btn-outline-warning" 
+                               title="Update">
+                                <i class="ri-edit-line"></i>
+                            </a>
+                            
+                            {% if not year.is_current %}
+                            <form action="{% url 'set_current_academic_year' year.pk %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="btn btn-sm btn-outline-info" 
+                                        title="Set as Current"
+                                        onclick="return confirm('Set {{ year.name }} as current academic year?')">
+                                    <i class="ri-star-line"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            
+                            <form action="{% url 'delete_academic_year' year.pk %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="btn btn-sm btn-outline-danger" 
+                                        title="Delete"
+                                        onclick="return confirm('Are you sure you want to delete {{ year.name }}?')">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5">
+                        <div class="text-muted">
+                            <i class="ri-calendar-2-line display-4"></i>
+                            <p class="mt-3">No academic years found</p>
+                            <a href="{% url 'add_academic_year' %}" class="btn btn-primary mt-2">
+                                <i class="ri-add-line me-1"></i> Add First Academic Year
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if academic_years.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if academic_years.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ academic_years.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                    <i class="ri-arrow-left-line"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for i in academic_years.paginator.page_range %}
+                {% if academic_years.number == i %}
+                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ i }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if academic_years.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ academic_years.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                    <i class="ri-arrow-right-line"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Academic Years</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All</option>
+                            <option value="current" {% if status_filter == 'current' %}selected{% endif %}>Current</option>
+                            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'academic_year_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DataTable
+    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#academicYearsTable')) {
+        $('#academicYearsTable').DataTable({
+            ordering: true,
+            searching: false,
+            paging: false,
+            info: false,
+            responsive: true,
+            autoWidth: false,
+            order: [[0, 'desc']],
+            columnDefs: [
+                { orderable: false, targets: [6] }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

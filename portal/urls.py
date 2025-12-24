@@ -49,5 +49,32 @@ urlpatterns = [
     # Resit Exams
     path('resit-exam/registration/', views.resit_exam_registration, name='resit_exam_registration'),
     path('resit-exam/status/', views.resit_exam_status, name='resit_exam_status'),
+    
+    # ============= ACADEMIC YEARS =============
+    path('academic-years/', views.academic_year_list, name='academic_year_list'),
+    path('academic-years/add/', views.add_academic_year, name='add_academic_year'),
+    path('academic-years/<int:pk>/', views.academic_year_detail, name='academic_year_detail'),
+    path('academic-years/<int:pk>/update/', views.update_academic_year, name='update_academic_year'),
+    path('academic-years/<int:pk>/delete/', views.delete_academic_year, name='delete_academic_year'),
+    path('academic-years/<int:pk>/set-current/', views.set_current_academic_year, name='set_current_academic_year'),
+    
+    # ============= SEMESTERS =============
+    path('semesters/', views.semester_list, name='semester_list'),
+    path('semesters/add/', views.add_semester, name='add_semester'),
+    path('semesters/<int:pk>/', views.semester_detail, name='semester_detail'),
+    path('semesters/<int:pk>/update/', views.update_semester, name='update_semester'),
+    path('semesters/<int:pk>/delete/', views.delete_semester, name='delete_semester'),
+    path('semesters/<int:pk>/set-current/', views.set_current_semester, name='set_current_semester'),
+    
+    # ============= INTAKES =============
+    path('intakes/', views.intake_list, name='intake_list'),
+    path('intakes/add/', views.add_intake, name='add_intake'),
+    path('intakes/<int:pk>/', views.intake_detail, name='intake_detail'),
+    path('intakes/<int:pk>/update/', views.update_intake, name='update_intake'),
+    path('intakes/<int:pk>/delete/', views.delete_intake, name='delete_intake'),
+    
+    # ============= AJAX/API ENDPOINTS =============
+    path('api/semesters-by-year/', views.get_semesters_by_year, name='get_semesters_by_year'),
+    path('api/intakes-by-year/', views.get_intakes_by_year, name='get_intakes_by_year'),
 
 ]

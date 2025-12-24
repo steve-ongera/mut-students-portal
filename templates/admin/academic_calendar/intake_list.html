@@ -1,0 +1,212 @@
+<!-- ===================== INTAKE LIST TEMPLATE ===================== -->
+<!-- File: templates/admin/academic_calendar/intake_list.html -->
+
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Intakes{% endblock %}
+
+{% block page_title %}Student Intakes{% endblock %}
+{% block page_subtitle %}Manage student intake periods and admissions{% endblock %}
+
+{% block content %}
+<div class="content-card">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="card-title mb-0">All Intakes</h5>
+            <p class="text-muted mb-0">{{ total_intakes }} intake(s) found</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="ri-filter-line me-1"></i> Filter
+            </button>
+            <a href="{% url 'add_intake' %}" class="btn btn-sm btn-primary">
+                <i class="ri-add-line me-1"></i> Add Intake
+            </a>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" class="form-control" name="search" placeholder="Search by intake name or number..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit">
+                <i class="ri-search-line"></i> Search
+            </button>
+        </div>
+    </form>
+
+    <!-- Intakes Table -->
+    <div class="table-responsive">
+        <table class="table datatable" id="intakesTable">
+            <thead>
+                <tr>
+                    <th>Intake Name</th>
+                    <th>Intake Number</th>
+                    <th>Month</th>
+                    <th>Academic Year</th>
+                    <th>Start Date</th>
+                    <th>Application Deadline</th>
+                    <th>Status</th>
+                    <th width="200">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for intake in intakes %}
+                <tr>
+                    <td>
+                        <strong class="text-primary">{{ intake.name }}</strong>
+                    </td>
+                    <td>
+                        <span class="badge bg-info rounded-pill">{{ intake.intake_number }}</span>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary rounded-pill">
+                            <i class="ri-calendar-line me-1"></i>
+                            {{ intake.get_month_display }}
+                        </span>
+                    </td>
+                    <td>
+                        {{ intake.academic_year.name }}
+                    </td>
+                    <td>
+                        <small>
+                            <i class="ri-calendar-check-line text-muted me-1"></i>
+                            {{ intake.start_date|date:"M d, Y" }}
+                        </small>
+                    </td>
+                    <td>
+                        <small>
+                            <i class="ri-time-line text-muted me-1"></i>
+                            {{ intake.application_deadline|date:"M d, Y" }}
+                        </small>
+                        {% now "Y-m-d" as today %}
+                        {% if intake.application_deadline|date:"Y-m-d" >= today %}
+                        <br>
+                        <span class="badge bg-success badge-sm">Open</span>
+                        {% else %}
+                        <br>
+                        <span class="badge bg-danger badge-sm">Closed</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if intake.is_active %}
+                        <span class="badge bg-success rounded-pill">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary rounded-pill">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'intake_detail' intake.pk %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="View Details">
+                                <i class="ri-eye-line"></i>
+                            </a>
+                            
+                            <a href="{% url 'update_intake' intake.pk %}" 
+                               class="btn btn-sm btn-outline-warning" 
+                               title="Update">
+                                <i class="ri-edit-line"></i>
+                            </a>
+                            
+                            <form action="{% url 'delete_intake' intake.pk %}" method="post" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="btn btn-sm btn-outline-danger" 
+                                        title="Delete"
+                                        onclick="return confirm('Are you sure you want to delete {{ intake.name }}?')">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <div class="text-muted">
+                            <i class="ri-user-add-line display-4"></i>
+                            <p class="mt-3">No intakes found</p>
+                            <a href="{% url 'add_intake' %}" class="btn btn-primary mt-2">
+                                <i class="ri-add-line me-1"></i> Add First Intake
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Intakes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Academic Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All Years</option>
+                            {% for year in academic_years %}
+                            <option value="{{ year.id }}" {% if year_filter == year.id|stringformat:"i" %}selected{% endif %}>
+                                {{ year.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Month</label>
+                        <select name="month" class="form-select">
+                            <option value="">All Months</option>
+                            {% for month_code, month_name in month_choices %}
+                            <option value="{{ month_code }}" {% if month_filter == month_code %}selected{% endif %}>
+                                {{ month_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All</option>
+                            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'intake_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#intakesTable')) {
+        $('#intakesTable').DataTable({
+            ordering: true,
+            searching: false,
+            paging: false,
+            info: false,
+            responsive: true,
+            autoWidth: false,
+            order: [[4, 'desc']],
+            columnDefs: [
+                { orderable: false, targets: [7] }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}
