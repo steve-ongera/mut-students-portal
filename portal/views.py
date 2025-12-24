@@ -998,18 +998,26 @@ def semester_report_view(request):
         semester=current_semester
     ).first()
     
-    # Calculate next year and semester
-    current_year = student.current_year
-    current_sem = int(student.current_semester)
+    # Calculate next year and semester based on how many semesters your programme has 
     programme_total_semesters = student.programme.total_semesters
-    
-    # Determine next semester
-    if current_sem < 3:  # If not in final semester of year
-        next_semester_number = str(current_sem + 1)
-        next_year = current_year
-    else:  # Move to next year
+    is_fresher = not student.semester_gpas.exists()
+
+    if is_fresher:
+        # Freshly admitted students
+        next_year = 1
         next_semester_number = '1'
-        next_year = current_year + 1
+    else:
+        # Continuing students (promotion logic)
+        current_year = student.current_year
+        current_sem = int(student.current_semester)
+
+        if current_sem < 2:  # Sem 1 → Sem 2
+            next_semester_number = str(current_sem + 1)
+            next_year = current_year
+        else:  # Sem 2 → Next Year Sem 1
+            next_semester_number = '1'
+            next_year = current_year + 1
+
     
     # Get previous semester GPA
     previous_gpa = student.semester_gpas.order_by('-semester__start_date').first()
@@ -1780,61 +1788,92 @@ def add_semester_ajax(request, academic_year_id):
         )
 
 
+from datetime import datetime
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+
+from .models import Semester
+
+
 @login_required
 @require_http_methods(["POST"])
 def update_semester_ajax(request, semester_id):
     """Update a semester (AJAX)"""
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        try:
-            semester = get_object_or_404(Semester, pk=semester_id)
-            
-            # Get form data
-            name = request.POST.get('name')
-            start_date = request.POST.get('start_date')
-            end_date = request.POST.get('end_date')
-            registration_start_date = request.POST.get('registration_start_date')
-            registration_end_date = request.POST.get('registration_end_date')
-            is_active = request.POST.get('is_active', 'true').lower() == 'true'
-            
-            # Update semester
-            if name:
-                semester.name = name
-            if start_date:
-                semester.start_date = start_date
-            if end_date:
-                semester.end_date = end_date
-            if registration_start_date:
-                semester.registration_start_date = registration_start_date
-            if registration_end_date:
-                semester.registration_end_date = registration_end_date
-            
-            semester.is_active = is_active
-            semester.save()
-            
-            return JsonResponse({
-                'success': True,
-                'message': f'Semester {semester.name} updated successfully!',
-                'semester': {
-                    'id': semester.id,
-                    'name': semester.name,
-                    'semester_number': semester.semester_number,
-                    'start_date': semester.start_date.strftime('%Y-%m-%d'),
-                    'end_date': semester.end_date.strftime('%Y-%m-%d'),
-                    'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
-                    'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
-                    'is_current': semester.is_current,
-                    'is_active': semester.is_active,
-                    'academic_year_id': semester.academic_year.id,
-                }
-            })
-            
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'Error updating semester: {str(e)}'
-            }, status=400)
-    
-    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
+    # Ensure AJAX request
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return JsonResponse(
+            {'success': False, 'message': 'Invalid request'},
+            status=400
+        )
+
+    try:
+        semester = get_object_or_404(Semester, pk=semester_id)
+
+        # Get form data
+        name = request.POST.get('name')
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        registration_start_date = request.POST.get('registration_start_date')
+        registration_end_date = request.POST.get('registration_end_date')
+        is_active = request.POST.get('is_active', 'true').lower() == 'true'
+
+        # Update fields safely
+        if name:
+            semester.name = name
+
+        if start_date:
+            semester.start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+
+        if end_date:
+            semester.end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+
+        if registration_start_date:
+            semester.registration_start_date = datetime.strptime(
+                registration_start_date, '%Y-%m-%d'
+            ).date()
+
+        if registration_end_date:
+            semester.registration_end_date = datetime.strptime(
+                registration_end_date, '%Y-%m-%d'
+            ).date()
+
+        semester.is_active = is_active
+        semester.save()
+
+        # Return clean JSON response
+        return JsonResponse({
+            'success': True,
+            'message': f'Semester {semester.name} updated successfully!',
+            'semester': {
+                'id': semester.id,
+                'name': semester.name,
+                'semester_number': semester.semester_number,
+                'start_date': semester.start_date.strftime('%Y-%m-%d') if semester.start_date else None,
+                'end_date': semester.end_date.strftime('%Y-%m-%d') if semester.end_date else None,
+                'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d')
+                    if semester.registration_start_date else None,
+                'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d')
+                    if semester.registration_end_date else None,
+                'is_current': semester.is_current,
+                'is_active': semester.is_active,
+                'academic_year_id': semester.academic_year.id,
+            }
+        })
+
+    except ValueError:
+        return JsonResponse(
+            {'success': False, 'message': 'Invalid date format. Use YYYY-MM-DD.'},
+            status=400
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {'success': False, 'message': f'Error updating semester: {str(e)}'},
+            status=400
+        )
 
 
 @login_required

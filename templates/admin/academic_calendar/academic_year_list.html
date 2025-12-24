@@ -678,25 +678,80 @@
     }
     
     // Open semester modal
-    function openSemesterModal(mode, yearId, yearName, semesterId = null) {
-        const modal = new bootstrap.Modal(document.getElementById('semesterModal'));
-        const form = document.getElementById('semesterForm');
-        const title = document.getElementById('semesterModalTitle');
+    // Open semester modal
+function openSemesterModal(mode, yearId, yearName, semesterId = null) {
+    const modal = new bootstrap.Modal(document.getElementById('semesterModal'));
+    const form = document.getElementById('semesterForm');
+    const title = document.getElementById('semesterModalTitle');
+    
+    form.reset();
+    document.getElementById('academic_year_id').value = yearId;
+    
+    if (mode === 'add') {
+        title.textContent = `Add Semester to ${yearName}`;
+        document.getElementById('semester_id').value = '';
+    } else {
+        title.textContent = `Edit Semester`;
+        document.getElementById('semester_id').value = semesterId;
         
-        form.reset();
-        document.getElementById('academic_year_id').value = yearId;
-        
-        if (mode === 'add') {
-            title.textContent = `Add Semester to ${yearName}`;
-            document.getElementById('semester_id').value = '';
-        } else {
-            title.textContent = `Edit Semester`;
-            document.getElementById('semester_id').value = semesterId;
-            // Load semester data if needed
-        }
-        
-        modal.show();
+        // Load semester data
+        loadSemesterData(semesterId);
     }
+    
+    modal.show();
+}
+
+// NEW FUNCTION: Load semester data for editing
+function loadSemesterData(semesterId) {
+    // Find the semester data from the already loaded semesters
+    // We need to get the academic year ID first
+    const semesterCard = document.querySelector(`[onclick*="openSemesterModal('edit'"][onclick*="${semesterId}"]`);
+    
+    if (!semesterCard) {
+        // If we can't find it in the DOM, fetch it from the server
+        fetchSemesterData(semesterId);
+        return;
+    }
+    
+    // Try to extract data from the card (less reliable, better to fetch from server)
+    fetchSemesterData(semesterId);
+}
+
+// Fetch semester data from server
+function fetchSemesterData(semesterId) {
+    // Get the academic year ID from the hidden input
+    const yearId = document.getElementById('academic_year_id').value;
+    
+    fetch(`/academic-years/${yearId}/semesters/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const semester = data.semesters.find(s => s.id == semesterId);
+            if (semester) {
+                populateSemesterForm(semester);
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error loading semester data:', error);
+        showAlert('danger', 'Error loading semester data');
+    });
+}
+
+// Populate form with semester data
+function populateSemesterForm(semester) {
+    document.getElementById('semester_number').value = semester.semester_number;
+    document.getElementById('name').value = semester.name;
+    document.getElementById('start_date').value = semester.start_date;
+    document.getElementById('end_date').value = semester.end_date;
+    document.getElementById('registration_start_date').value = semester.registration_start_date;
+    document.getElementById('registration_end_date').value = semester.registration_end_date;
+    document.getElementById('is_active').checked = semester.is_active;
+}
     
     // Save semester
     function saveSemester() {
