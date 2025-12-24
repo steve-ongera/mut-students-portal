@@ -1824,6 +1824,7 @@ def update_semester_ajax(request, semester_id):
                     'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
                     'is_current': semester.is_current,
                     'is_active': semester.is_active,
+                    'academic_year_id': semester.academic_year.id,  # ADD THIS LINE
                 }
             })
             
@@ -1834,7 +1835,6 @@ def update_semester_ajax(request, semester_id):
             }, status=400)
     
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
-
 
 @login_required
 @require_http_methods(["POST"])
