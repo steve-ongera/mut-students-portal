@@ -1475,7 +1475,6 @@ def academic_year_list(request):
     
     return render(request, 'admin/academic_calendar/academic_year_list.html', context)
 
-
 @login_required
 def academic_year_detail(request, pk):
     """View details of a specific academic year"""
@@ -1626,17 +1625,36 @@ def get_semesters(request, academic_year_id):
             academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
             semesters = academic_year.semesters.all().order_by('semester_number')
             
-            semesters_data = [{
-                'id': sem.id,
-                'name': sem.name,
-                'semester_number': sem.semester_number,
-                'start_date': sem.start_date.strftime('%Y-%m-%d'),
-                'end_date': sem.end_date.strftime('%Y-%m-%d'),
-                'registration_start_date': sem.registration_start_date.strftime('%Y-%m-%d'),
-                'registration_end_date': sem.registration_end_date.strftime('%Y-%m-%d'),
-                'is_current': sem.is_current,
-                'is_active': sem.is_active,
-            } for sem in semesters]
+            semesters_data = []
+            for sem in semesters:
+                # Get enrollment period if exists
+                enrollment_period = None
+                try:
+                    period = EnrollmentPeriod.objects.get(semester=sem)
+                    enrollment_period = {
+                        'start_date': period.start_date.strftime('%Y-%m-%d %H:%M'),
+                        'end_date': period.end_date.strftime('%Y-%m-%d %H:%M'),
+                        'resit_start_date': period.resit_start_date.strftime('%Y-%m-%d %H:%M') if period.resit_start_date else None,
+                        'resit_end_date': period.resit_end_date.strftime('%Y-%m-%d %H:%M') if period.resit_end_date else None,
+                        'is_enrollment_open': period.is_enrollment_open(),
+                        'is_resit_enrollment_open': period.is_resit_enrollment_open(),
+                    }
+                except EnrollmentPeriod.DoesNotExist:
+                    pass
+                
+                semester_data = {
+                    'id': sem.id,
+                    'name': sem.name,
+                    'semester_number': sem.semester_number,
+                    'start_date': sem.start_date.strftime('%Y-%m-%d'),
+                    'end_date': sem.end_date.strftime('%Y-%m-%d'),
+                    'registration_start_date': sem.registration_start_date.strftime('%Y-%m-%d'),
+                    'registration_end_date': sem.registration_end_date.strftime('%Y-%m-%d'),
+                    'is_current': sem.is_current,
+                    'is_active': sem.is_active,
+                    'enrollment_period': enrollment_period,
+                }
+                semesters_data.append(semester_data)
             
             return JsonResponse({
                 'success': True,
@@ -1651,6 +1669,60 @@ def get_semesters(request, academic_year_id):
     
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
+@login_required
+@require_http_methods(["POST"])
+def save_enrollment_period(request, semester_id):
+    """Save or update enrollment period for a semester (called from semester form)"""
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return JsonResponse(
+            {'success': False, 'message': 'Invalid request'},
+            status=400
+        )
+    
+    try:
+        semester = get_object_or_404(Semester, pk=semester_id)
+        
+        # Get enrollment period data
+        enrollment_start = request.POST.get('enrollment_start_date')
+        enrollment_end = request.POST.get('enrollment_end_date')
+        resit_start = request.POST.get('resit_enrollment_start_date')
+        resit_end = request.POST.get('resit_enrollment_end_date')
+        is_active = request.POST.get('enrollment_is_active', 'true').lower() == 'true'
+        
+        # Only create/update if start and end dates are provided
+        if enrollment_start and enrollment_end:
+            enrollment_period, created = EnrollmentPeriod.objects.update_or_create(
+                semester=semester,
+                defaults={
+                    'start_date': datetime.strptime(enrollment_start, '%Y-%m-%dT%H:%M'),
+                    'end_date': datetime.strptime(enrollment_end, '%Y-%m-%dT%H:%M'),
+                    'resit_start_date': datetime.strptime(resit_start, '%Y-%m-%dT%H:%M') if resit_start else None,
+                    'resit_end_date': datetime.strptime(resit_end, '%Y-%m-%dT%H:%M') if resit_end else None,
+                    'is_active': is_active,
+                }
+            )
+            
+            action = 'created' if created else 'updated'
+            return JsonResponse({
+                'success': True,
+                'message': f'Enrollment period {action} successfully'
+            })
+        else:
+            return JsonResponse({
+                'success': True,
+                'message': 'Semester saved without enrollment period'
+            })
+            
+    except ValueError as e:
+        return JsonResponse(
+            {'success': False, 'message': f'Invalid date format: {str(e)}'},
+            status=400
+        )
+    except Exception as e:
+        return JsonResponse(
+            {'success': False, 'message': f'Error saving enrollment period: {str(e)}'},
+            status=400
+        )
 
 from datetime import datetime
 from django.http import JsonResponse

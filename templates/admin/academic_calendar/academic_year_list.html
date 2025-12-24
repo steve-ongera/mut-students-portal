@@ -375,7 +375,7 @@
 
 <!-- Add/Edit Semester Modal -->
 <div class="modal fade" id="semesterModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="semesterModalTitle">Add Semester</h5>
@@ -387,6 +387,10 @@
                 <input type="hidden" id="academic_year_id" name="academic_year_id">
                 
                 <div class="modal-body">
+                    <!-- Semester Basic Information -->
+                    <h6 class="mb-3 text-primary">
+                        <i class="ri-bookmark-line me-2"></i>Semester Information
+                    </h6>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="semester_number" class="form-label">Semester Number <span class="text-danger">*</span></label>
@@ -400,22 +404,23 @@
                         
                         <div class="col-md-6 mb-3">
                             <label for="name" class="form-label">Semester Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="name" name="name" required>
+                            <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., Semester 1 - 2024/2025">
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                            <label for="start_date" class="form-label">Semester Start Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="start_date" name="start_date" required>
                         </div>
                         
                         <div class="col-md-6 mb-3">
-                            <label for="end_date" class="form-label">End Date <span class="text-danger">*</span></label>
+                            <label for="end_date" class="form-label">Semester End Date <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="end_date" name="end_date" required>
                         </div>
                         
                         <div class="col-md-6 mb-3">
                             <label for="registration_start_date" class="form-label">Registration Start <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="registration_start_date" name="registration_start_date" required>
+                            <small class="text-muted">When students can register for the semester</small>
                         </div>
                         
                         <div class="col-md-6 mb-3">
@@ -428,6 +433,53 @@
                                 <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
                                 <label class="form-check-label" for="is_active">
                                     Active Semester
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Unit Enrollment Period -->
+                    <h6 class="mb-3 text-primary">
+                        <i class="ri-file-list-3-line me-2"></i>Unit Enrollment Period
+                    </h6>
+                    <div class="alert alert-info alert-dismissible fade show" role="alert">
+                        <i class="ri-information-line me-2"></i>
+                        <small>This defines when students can enroll in units for this semester. Leave blank to set up later.</small>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="enrollment_start_date" class="form-label">Enrollment Start Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="enrollment_start_date" name="enrollment_start_date">
+                            <small class="text-muted">When unit enrollment opens</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="enrollment_end_date" class="form-label">Enrollment End Date & Time</label>
+                            <input type="datetime-local" class="form-control" id="enrollment_end_date" name="enrollment_end_date">
+                            <small class="text-muted">When unit enrollment closes</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="resit_enrollment_start_date" class="form-label">Resit Enrollment Start</label>
+                            <input type="datetime-local" class="form-control" id="resit_enrollment_start_date" name="resit_enrollment_start_date">
+                            <small class="text-muted">Optional: For resit/supplementary exams</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="resit_enrollment_end_date" class="form-label">Resit Enrollment End</label>
+                            <input type="datetime-local" class="form-control" id="resit_enrollment_end_date" name="resit_enrollment_end_date">
+                            <small class="text-muted">Optional: For resit/supplementary exams</small>
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enrollment_is_active" name="enrollment_is_active" checked>
+                                <label class="form-check-label" for="enrollment_is_active">
+                                    Enrollment Period Active
                                 </label>
                             </div>
                         </div>
@@ -555,7 +607,7 @@
         });
     }
     
-    // Display semesters
+    // Display semesters with enrollment period info
     function displaySemesters(yearId, semesters) {
         const container = document.getElementById(`semesters-container-${yearId}`);
         
@@ -571,6 +623,40 @@
         
         let html = '';
         semesters.forEach(semester => {
+            // Build enrollment period display
+            let enrollmentPeriodHtml = '';
+            if (semester.enrollment_period) {
+                const ep = semester.enrollment_period;
+                const isOpen = ep.is_enrollment_open;
+                const isResitOpen = ep.is_resit_enrollment_open;
+                
+                enrollmentPeriodHtml = `
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-muted d-block mb-1"><strong>Unit Enrollment Period:</strong></small>
+                        <small class="d-block">
+                            <i class="ri-time-line me-1"></i>
+                            ${formatDateTime(ep.start_date)} - ${formatDateTime(ep.end_date)}
+                            ${isOpen ? '<span class="badge bg-success ms-1">Open</span>' : '<span class="badge bg-secondary ms-1">Closed</span>'}
+                        </small>
+                        ${ep.resit_start_date && ep.resit_end_date ? `
+                        <small class="d-block mt-1">
+                            <i class="ri-repeat-line me-1"></i>
+                            Resit: ${formatDateTime(ep.resit_start_date)} - ${formatDateTime(ep.resit_end_date)}
+                            ${isResitOpen ? '<span class="badge bg-warning ms-1">Open</span>' : '<span class="badge bg-secondary ms-1">Closed</span>'}
+                        </small>
+                        ` : ''}
+                    </div>
+                `;
+            } else {
+                enrollmentPeriodHtml = `
+                    <div class="mt-2 pt-2 border-top">
+                        <small class="text-warning">
+                            <i class="ri-alert-line me-1"></i>No enrollment period set
+                        </small>
+                    </div>
+                `;
+            }
+            
             html += `
                 <div class="col-md-6 mb-3">
                     <div class="card semester-card ${semester.is_current ? 'current' : ''}">
@@ -598,7 +684,7 @@
                                             <i class="ri-edit-line me-2"></i>Edit
                                         </button>
                                         <div class="semester-dropdown-divider"></div>
-                                        <button class="semester-dropdown-item text-danger" onclick="deleteSemester(${semester.id}); closeAllDropdowns();">
+                                        <button class="semester-dropdown-item text-danger" onclick="deleteSemester(${semester.id}, ${yearId}); closeAllDropdowns();">
                                             <i class="ri-delete-bin-line me-2"></i>Delete
                                         </button>
                                     </div>
@@ -608,6 +694,7 @@
                                 <div><i class="ri-calendar-line me-1"></i> ${formatDate(semester.start_date)} - ${formatDate(semester.end_date)}</div>
                                 <div><i class="ri-user-add-line me-1"></i> Registration: ${formatDate(semester.registration_start_date)} - ${formatDate(semester.registration_end_date)}</div>
                             </div>
+                            ${enrollmentPeriodHtml}
                         </div>
                     </div>
                 </div>
@@ -678,251 +765,305 @@
     }
     
     // Open semester modal
-    // Open semester modal
-function openSemesterModal(mode, yearId, yearName, semesterId = null) {
-    const modal = new bootstrap.Modal(document.getElementById('semesterModal'));
-    const form = document.getElementById('semesterForm');
-    const title = document.getElementById('semesterModalTitle');
-    
-    form.reset();
-    document.getElementById('academic_year_id').value = yearId;
-    
-    if (mode === 'add') {
-        title.textContent = `Add Semester to ${yearName}`;
-        document.getElementById('semester_id').value = '';
-    } else {
-        title.textContent = `Edit Semester`;
-        document.getElementById('semester_id').value = semesterId;
+    function openSemesterModal(mode, yearId, yearName, semesterId = null) {
+        const modal = new bootstrap.Modal(document.getElementById('semesterModal'));
+        const form = document.getElementById('semesterForm');
+        const title = document.getElementById('semesterModalTitle');
         
-        // Load semester data
-        loadSemesterData(semesterId);
-    }
-    
-    modal.show();
-}
-
-// NEW FUNCTION: Load semester data for editing
-function loadSemesterData(semesterId) {
-    // Find the semester data from the already loaded semesters
-    // We need to get the academic year ID first
-    const semesterCard = document.querySelector(`[onclick*="openSemesterModal('edit'"][onclick*="${semesterId}"]`);
-    
-    if (!semesterCard) {
-        // If we can't find it in the DOM, fetch it from the server
-        fetchSemesterData(semesterId);
-        return;
-    }
-    
-    // Try to extract data from the card (less reliable, better to fetch from server)
-    fetchSemesterData(semesterId);
-}
-
-// Fetch semester data from server
-function fetchSemesterData(semesterId) {
-    // Get the academic year ID from the hidden input
-    const yearId = document.getElementById('academic_year_id').value;
-    
-    fetch(`/academic-years/${yearId}/semesters/`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+        form.reset();
+        document.getElementById('academic_year_id').value = yearId;
+        
+        if (mode === 'add') {
+            title.textContent = `Add Semester to ${yearName}`;
+            document.getElementById('semester_id').value = '';
+        } else {
+            title.textContent = `Edit Semester`;
+            document.getElementById('semester_id').value = semesterId;
+            
+            // Load semester data
+            fetchSemesterData(yearId, semesterId);
         }
+        
+        modal.show();
+    }
+    
+    // Fetch semester data from server
+    function fetchSemesterData(yearId, semesterId) {
+        fetch(`/academic-years/${yearId}/semesters/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const semester = data.semesters.find(s => s.id == semesterId);
+                if (semester) {
+                    populateSemesterForm(semester);
+                } else {
+                    showAlert('danger', 'Semester not found');
+                }
+            } else {
+                showAlert('danger', 'Error loading semester data');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading semester data:', error);
+            showAlert('danger', 'Error loading semester data');
+        });
+    }
+    
+    // Populate form with semester data
+    // Populate form with semester data
+    function populateSemesterForm(semester) {
+        document.getElementById('semester_number').value = semester.semester_number;
+        document.getElementById('name').value = semester.name;
+        document.getElementById('start_date').value = semester.start_date;
+        document.getElementById('end_date').value = semester.end_date;
+        document.getElementById('registration_start_date').value = semester.registration_start_date;
+        document.getElementById('registration_end_date').value = semester.registration_end_date;
+        document.getElementById('is_active').checked = semester.is_active;
+        
+        // Populate enrollment period if exists
+        if (semester.enrollment_period) {
+            const ep = semester.enrollment_period;
+            
+            if (ep.start_date) {
+                document.getElementById('enrollment_start_date').value = formatDateTimeForInput(ep.start_date);
+            }
+            if (ep.end_date) {
+                document.getElementById('enrollment_end_date').value = formatDateTimeForInput(ep.end_date);
+            }
+            if (ep.resit_start_date) {
+                document.getElementById('resit_enrollment_start_date').value = formatDateTimeForInput(ep.resit_start_date);
+            }
+            if (ep.resit_end_date) {
+                document.getElementById('resit_enrollment_end_date').value = formatDateTimeForInput(ep.resit_end_date);
+            }
+            
+            // Note: We can't get is_active from current data structure, defaults to checked
+        }
+    }
+
+    // Utility: Format datetime for input field (YYYY-MM-DDTHH:MM)
+    function formatDateTimeForInput(dateTimeString) {
+        const date = new Date(dateTimeString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+    
+    // Save semester
+    // Save semester
+function saveSemester() {
+    const form = document.getElementById('semesterForm');
+    const formData = new FormData(form);
+    const semesterId = document.getElementById('semester_id').value;
+    const yearId = document.getElementById('academic_year_id').value;
+    const btn = document.getElementById('saveSemesterBtn');
+    const btnText = btn.querySelector('.btn-text');
+    const spinner = btn.querySelector('.spinner-border');
+    
+    // Show loading
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    btnText.textContent = 'Saving...';
+    
+    const url = semesterId 
+        ? `/semesters/${semesterId}/update/`
+        : `/academic-years/${yearId}/add-semester/`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        },
+        body: formData
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            const semester = data.semesters.find(s => s.id == semesterId);
-            if (semester) {
-                populateSemesterForm(semester);
+            // If semester was saved successfully and we have a semester ID, save enrollment period
+            const savedSemesterId = semesterId || data.semester?.id;
+            
+            if (savedSemesterId && (formData.get('enrollment_start_date') || formData.get('enrollment_end_date'))) {
+                // Save enrollment period
+                return fetch(`/semesters/${savedSemesterId}/enrollment-period/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(enrollmentData => {
+                    showAlert('success', data.message + ' ' + (enrollmentData.message || ''));
+                    bootstrap.Modal.getInstance(document.getElementById('semesterModal')).hide();
+                    loadedSemesters.delete(yearId);
+                    loadSemesters(yearId);
+                });
+            } else {
+                showAlert('success', data.message);
+                bootstrap.Modal.getInstance(document.getElementById('semesterModal')).hide();
+                loadedSemesters.delete(yearId);
+                loadSemesters(yearId);
             }
+        } else {
+            showAlert('danger', data.message);
         }
     })
     .catch(error => {
-        console.error('Error loading semester data:', error);
-        showAlert('danger', 'Error loading semester data');
+        console.error('Error:', error);
+        showAlert('danger', 'An error occurred while saving the semester');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        btnText.textContent = 'Save Semester';
     });
 }
-
-// Populate form with semester data
-function populateSemesterForm(semester) {
-    document.getElementById('semester_number').value = semester.semester_number;
-    document.getElementById('name').value = semester.name;
-    document.getElementById('start_date').value = semester.start_date;
-    document.getElementById('end_date').value = semester.end_date;
-    document.getElementById('registration_start_date').value = semester.registration_start_date;
-    document.getElementById('registration_end_date').value = semester.registration_end_date;
-    document.getElementById('is_active').checked = semester.is_active;
-}
     
-    // Save semester
-    function saveSemester() {
-        const form = document.getElementById('semesterForm');
-        const formData = new FormData(form);
-        const semesterId = document.getElementById('semester_id').value;
-        const yearId = document.getElementById('academic_year_id').value;
-        const btn = document.getElementById('saveSemesterBtn');
-        const btnText = btn.querySelector('.btn-text');
-        const spinner = btn.querySelector('.spinner-border');
-        
-        // Show loading
-        btn.disabled = true;
-        spinner.classList.remove('d-none');
-        btnText.textContent = 'Saving...';
-        
-        const url = semesterId 
-            ? `/semesters/${semesterId}/update/`
-            : `/academic-years/${yearId}/add-semester/`;
-        
-        fetch(url, {
+    // Set current academic year
+    function setCurrentYear(yearId) {
+        fetch(`/academic-years/${yearId}/set-current/`, {
             method: 'POST',
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': csrfToken
-            },
-            body: formData
+            }
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 showAlert('success', data.message);
-                bootstrap.Modal.getInstance(document.getElementById('semesterModal')).hide();
-                loadedSemesters.delete(yearId);
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred');
+        });
+    }
+    
+    // Set current semester
+    function setCurrentSemester(semesterId) {
+        if (!confirm('Set this as the current semester? This will also set its academic year as current.')) {
+            return;
+        }
+        
+        fetch(`/semesters/${semesterId}/set-current/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred');
+        });
+    }
+    
+    // Delete academic year
+    function deleteYear(yearId) {
+        fetch(`/academic-years/${yearId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                showAlert('success', 'Academic year deleted successfully');
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('danger', 'Error deleting academic year');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred');
+        });
+    }
+    
+    // Delete semester
+    function deleteSemester(semesterId, yearId) {
+        if (!confirm('Are you sure you want to delete this semester?')) {
+            return;
+        }
+        
+        fetch(`/semesters/${semesterId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                // Reload semesters for this academic year
+                loadedSemesters.delete(yearId.toString());
                 loadSemesters(yearId);
             } else {
                 showAlert('danger', data.message);
-}
-})
-.catch(error => {
-console.error('Error:', error);
-showAlert('danger', 'An error occurred while saving the semester');
-})
-.finally(() => {
-btn.disabled = false;
-spinner.classList.add('d-none');
-btnText.textContent = 'Save Semester';
-});
-}
-// Set current academic year
-function setCurrentYear(yearId) {
-    fetch(`/academic-years/${yearId}/set-current/`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': csrfToken
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlert('danger', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'An error occurred');
-    });
-}
-
-// Set current semester
-function setCurrentSemester(semesterId) {
-    if (!confirm('Set this as the current semester? This will also set its academic year as current.')) {
-        return;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'An error occurred');
+        });
     }
     
-    fetch(`/semesters/${semesterId}/set-current/`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': csrfToken
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlert('danger', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'An error occurred');
-    });
-}
-
-// Delete academic year
-function deleteYear(yearId) {
-    fetch(`/academic-years/${yearId}/delete/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrfToken
-        }
-    })
-    .then(response => {
-        if (response.ok) {
-            showAlert('success', 'Academic year deleted successfully');
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlert('danger', 'Error deleting academic year');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'An error occurred');
-    });
-}
-
-// Delete semester
-function deleteSemester(semesterId) {
-    if (!confirm('Are you sure you want to delete this semester?')) {
-        return;
+    // Utility: Show alert
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
     }
     
-    fetch(`/semesters/${semesterId}/delete/`, {
-        method: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': csrfToken
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            setTimeout(() => location.reload(), 1500);
-        } else {
-            showAlert('danger', data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('danger', 'An error occurred');
-    });
-}
-
-// Utility: Show alert
-function showAlert(type, message) {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
-    alertDiv.style.zIndex = '9999';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-    document.body.appendChild(alertDiv);
+    // Utility: Format date
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
     
-    setTimeout(() => {
-        alertDiv.remove();
-    }, 5000);
-}
-
-// Utility: Format date
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
+    // Utility: Format date and time
+    function formatDateTime(dateTimeString) {
+        const date = new Date(dateTimeString);
+        return date.toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    }
 </script>
 {% endblock %}

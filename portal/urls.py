@@ -66,6 +66,8 @@ urlpatterns = [
     path('semesters/<int:pk>/set-current/', views.set_current_semester, name='set_current_semester'),
     path('semesters/<int:semester_id>/delete/', views.delete_semester_ajax, name='delete_semester_ajax'),
     
+    path('semesters/<int:semester_id>/enrollment-period/',views.save_enrollment_period, name='save_enrollment_period'),
+    
     # ============= SEMESTERS =============
     path('semesters/', views.semester_list, name='semester_list'),
     path('semesters/add/', views.add_semester, name='add_semester'),
