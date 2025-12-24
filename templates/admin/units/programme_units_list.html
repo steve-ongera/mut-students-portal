@@ -1,8 +1,168 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Page Title{% endblock %}
+{% block title %}Programme Units Management{% endblock %}
+
+{% block page_title %}Programme Units Management{% endblock %}
+{% block page_subtitle %}Select a programme to manage its unit structure{% endblock %}
+
+{% block extra_css %}
+<style>
+    .programme-card {
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s;
+        cursor: pointer;
+        height: 100%;
+    }
+    
+    .programme-card:hover {
+        border-color: #667eea;
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+    }
+    
+    .programme-code {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        display: inline-block;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+    
+    .programme-stats {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .stat-item {
+        flex: 1;
+        text-align: center;
+        padding: 0.5rem;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<!-- Content goes here -->
+<div class="content-card">
+    <!-- Search and Filters -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <form method="get" class="mb-0">
+                <div class="input-group">
+                    <input type="text" class="form-control" name="search" placeholder="Search programmes..." value="{{ search_query }}">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="ri-search-line"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-6 text-end">
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="ri-filter-line me-1"></i> Filter
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="?">All Programmes</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><h6 class="dropdown-header">By School</h6></li>
+                    <!-- Add school filters dynamically -->
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Programmes Grid -->
+    <div class="row">
+        {% for programme in programmes %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="programme-card" onclick="window.location.href='{% url 'programme_units_structure' programme.id %}'">
+                <div class="programme-code">{{ programme.code }}</div>
+                <h5 class="mb-2">{{ programme.name }}</h5>
+                <p class="text-muted small mb-0">
+                    <i class="ri-building-line me-1"></i>{{ programme.department.school.name }}
+                </p>
+                <p class="text-muted small">
+                    <i class="ri-folder-line me-1"></i>{{ programme.department.name }}
+                </p>
+                
+                <div class="programme-stats">
+                    <div class="stat-item">
+                        <div class="stat-value">{{ programme.duration_years }}</div>
+                        <div class="stat-label">Years</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ programme.total_semesters }}</div>
+                        <div class="stat-label">Semesters</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">{{ programme.unit_count }}</div>
+                        <div class="stat-label">Units</div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <span class="badge bg-primary">{{ programme.get_programme_type_display }}</span>
+                    <span class="badge bg-secondary">{{ programme.get_study_mode_display }}</span>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 text-center py-5">
+            <i class="ri-book-line display-1 text-muted"></i>
+            <p class="mt-3 text-muted">No programmes found</p>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if programmes.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if programmes.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ programmes.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    <i class="ri-arrow-left-line"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for i in programmes.paginator.page_range %}
+                {% if programmes.number == i %}
+                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if programmes.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ programmes.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                    <i class="ri-arrow-right-line"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}

@@ -1,8 +1,631 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Page Title{% endblock %}
+{% block title %}{{ programme.code }} - Unit Structure{% endblock %}
+
+{% block page_title %}{{ programme.name }}{% endblock %}
+{% block page_subtitle %}{{ programme.code }} - Manage Unit Structure{% endblock %}
+
+{% block extra_css %}
+<style>
+    .programme-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .year-tab {
+        border: 2px solid #e9ecef;
+        border-radius: 10px;
+        transition: all 0.3s;
+        cursor: pointer;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .year-tab:hover {
+        border-color: #667eea;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    
+    .year-tab.active {
+        border-color: #667eea;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+    
+    .semester-section {
+        background: white;
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .semester-header {
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .unit-card {
+        background: #f8f9fa;
+        border-left: 4px solid #667eea;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s;
+    }
+    
+    .unit-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .unit-card.elective {
+        border-left-color: #f59e0b;
+    }
+    
+    .unit-card.common {
+        border-left-color: #10b981;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #6c757d;
+    }
+    
+    .badge-credit {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+    }
+    
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 300px;
+    }
+    
+    .unit-actions {
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+    
+    .unit-card:hover .unit-actions {
+        opacity: 1;
+    }
+    
+    .add-unit-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .add-unit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<!-- Content goes here -->
+<!-- Programme Info Card -->
+<div class="programme-info">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h3 class="mb-2">{{ programme.name }}</h3>
+            <p class="mb-2"><strong>Code:</strong> {{ programme.code }}</p>
+            <p class="mb-2"><strong>Department:</strong> {{ programme.department.name }}</p>
+            <p class="mb-0"><strong>School:</strong> {{ programme.department.school.name }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="mb-2">
+                <span class="badge bg-light text-dark fs-6">
+                    <i class="ri-time-line me-1"></i>{{ programme.duration_years }} Years
+                </span>
+            </div>
+            <div>
+                <span class="badge bg-light text-dark fs-6">
+                    <i class="ri-bookmark-line me-1"></i>{{ programme.total_semesters }} Semesters
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Controls -->
+<div class="content-card mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <label class="form-label mb-2">Academic Year</label>
+            <select id="academicYearSelect" class="form-select">
+                {% for year in academic_years %}
+                <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                    {{ year.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-6 text-end">
+            <button class="btn btn-outline-primary" id="copyUnitsBtn">
+                <i class="ri-file-copy-line me-2"></i>Copy from Another Year
+            </button>
+            <a href="{% url 'programme_detail' programme.id %}" class="btn btn-outline-secondary">
+                <i class="ri-arrow-left-line me-2"></i>Back to Programme
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Year Tabs -->
+<div class="content-card mb-4">
+    <div class="row" id="yearTabs">
+        <!-- Will be populated dynamically -->
+    </div>
+</div>
+
+<!-- Semesters Content -->
+<div id="semestersContent">
+    <div class="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Add Unit Modal -->
+<div class="modal fade" id="addUnitModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Unit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Search Units</label>
+                    <input type="text" class="form-control" id="unitSearch" placeholder="Search by code or name...">
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Unit Level</label>
+                        <select class="form-select" id="unitLevelFilter">
+                            <option value="">All Levels</option>
+                            <option value="100">Level 100</option>
+                            <option value="200">Level 200</option>
+                            <option value="300">Level 300</option>
+                            <option value="400">Level 400</option>
+                            <option value="500">Level 500</option>
+                            <option value="600">Level 600</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Unit Type</label>
+                        <select class="form-select" id="unitTypeSelect">
+                            <option value="core">Core</option>
+                            <option value="elective">Elective</option>
+                            <option value="common">Common Unit</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="unitsList" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Copy Units Modal -->
+<div class="modal fade" id="copyUnitsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Copy Units from Another Academic Year</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">From Academic Year</label>
+                    <select class="form-select" id="copyFromYear">
+                        {% for year in academic_years %}
+                        <option value="{{ year.id }}">{{ year.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="alert alert-info">
+                    <i class="ri-information-line me-2"></i>
+                    This will copy all units from the selected academic year to the current year.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmCopyBtn">
+                    <i class="ri-file-copy-line me-2"></i>Copy Units
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const programmeId = {{ programme.id }};
+const csrfToken = '{{ csrf_token }}';
+let currentYear = 1;
+let currentAcademicYear = null;
+let currentAddingSemester = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Get current academic year
+    const academicYearSelect = document.getElementById('academicYearSelect');
+    currentAcademicYear = academicYearSelect.value;
+    
+    // Load structure
+    loadProgrammeStructure();
+    
+    // Academic year change
+    academicYearSelect.addEventListener('change', function() {
+        currentAcademicYear = this.value;
+        loadProgrammeStructure();
+    });
+    
+    // Copy units button
+    document.getElementById('copyUnitsBtn').addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('copyUnitsModal'));
+        modal.show();
+    });
+    
+    // Confirm copy
+    document.getElementById('confirmCopyBtn').addEventListener('click', copyUnits);
+    
+    // Unit search
+    let searchTimeout;
+    document.getElementById('unitSearch').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => loadAvailableUnits(), 300);
+    });
+    
+    document.getElementById('unitLevelFilter').addEventListener('change', loadAvailableUnits);
+});
+
+function loadProgrammeStructure() {
+    const url = `/api/programme/${programmeId}/structure/?academic_year=${currentAcademicYear}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderYearTabs(data.structure);
+                renderSemesters(data.structure[0]); // Show first year by default
+                currentYear = 1;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('danger', 'Error loading programme structure');
+        });
+}
+
+function renderYearTabs(structure) {
+    const container = document.getElementById('yearTabs');
+    let html = '';
+    
+    structure.forEach((yearData, index) => {
+        const isActive = index === 0 ? 'active' : '';
+        html += `
+            <div class="col-md-${12 / structure.length} mb-3">
+                <div class="year-tab ${isActive}" onclick="selectYear(${yearData.year}, this)">
+                    <h4 class="mb-2">Year ${yearData.year}</h4>
+                    <p class="mb-1">${yearData.semesters.length} Semester${yearData.semesters.length > 1 ? 's' : ''}</p>
+                    <small>${getTotalCredits(yearData)} Credits</small>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function getTotalCredits(yearData) {
+    return yearData.semesters.reduce((total, sem) => total + sem.total_credits, 0);
+}
+
+function selectYear(year, element) {
+    // Update active tab
+    document.querySelectorAll('.year-tab').forEach(tab => tab.classList.remove('active'));
+    element.classList.add('active');
+    
+    currentYear = year;
+    
+    // Reload structure to get semester data
+    const url = `/api/programme/${programmeId}/structure/?academic_year=${currentAcademicYear}`;
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const yearData = data.structure.find(y => y.year === year);
+                renderSemesters(yearData);
+            }
+        });
+}
+
+function renderSemesters(yearData) {
+    const container = document.getElementById('semestersContent');
+    
+    if (!yearData || yearData.semesters.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="ri-bookmark-line display-1 text-muted"></i>
+                <p class="mt-3">No semesters configured for Year ${yearData.year}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    yearData.semesters.forEach(semester => {
+        html += `
+            <div class="semester-section">
+                <div class="semester-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="ri-bookmark-line me-2"></i>Semester ${semester.semester_number}
+                        </h5>
+                        <small class="text-muted">
+                            ${semester.unit_count} Unit${semester.unit_count !== 1 ? 's' : ''} • 
+                            ${semester.total_credits} Credit Hours
+                        </small>
+                    </div>
+                    <button class="add-unit-btn" onclick="openAddUnitModal(${yearData.year}, ${semester.semester_number})">
+                        <i class="ri-add-line me-1"></i>Add Unit
+                    </button>
+                </div>
+                
+                <div class="units-list">
+                    ${renderUnits(semester.units)}
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function renderUnits(units) {
+    if (units.length === 0) {
+        return `
+            <div class="empty-state py-4">
+                <i class="ri-file-list-line fs-1 text-muted"></i>
+                <p class="mt-2 mb-0">No units added yet</p>
+            </div>
+        `;
+    }
+    
+    return units.map(unit => `
+        <div class="unit-card ${unit.unit_type}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-2">
+                        <strong class="text-primary me-3">${unit.code}</strong>
+                        <span class="badge-credit">${unit.credit_hours} CH</span>
+                        <span class="badge bg-${getUnitTypeBadge(unit.unit_type)} ms-2">${unit.unit_type_display}</span>
+                        ${!unit.is_active ? '<span class="badge bg-secondary ms-2">Inactive</span>' : ''}
+                    </div>
+                    <p class="mb-0">${unit.name}</p>
+                </div>
+                <div class="unit-actions">
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="toggleUnitType(${unit.id})" title="Change Type">
+                        <i class="ri-arrow-left-right-line"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-${unit.is_active ? 'warning' : 'success'}" onclick="toggleUnitActive(${unit.id}, ${!unit.is_active})" title="${unit.is_active ? 'Deactivate' : 'Activate'}">
+                        <i class="ri-toggle-${unit.is_active ? 'fill' : 'line'}"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteUnit(${unit.id})" title="Remove">
+                        <i class="ri-delete-bin-line"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function getUnitTypeBadge(type) {
+    const badges = {
+        'core': 'primary',
+        'elective': 'warning',
+        'common': 'success'
+    };
+    return badges[type] || 'secondary';
+}
+
+function openAddUnitModal(year, semester) {
+    currentAddingSemester = { year, semester };
+    loadAvailableUnits();
+    const modal = new bootstrap.Modal(document.getElementById('addUnitModal'));
+    modal.show();
+}
+
+function loadAvailableUnits() {
+    const search = document.getElementById('unitSearch').value;
+    const level = document.getElementById('unitLevelFilter').value;
+    
+    const params = new URLSearchParams({
+        department: {{ programme.department.id }},
+        search: search,
+        level: level
+    });
+    
+    fetch(`/api/units/available/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                renderAvailableUnits(data.units);
+            }
+        });
+}
+
+function renderAvailableUnits(units) {
+    const container = document.getElementById('unitsList');
+    
+    if (units.length === 0) {
+        container.innerHTML = '<p class="text-center text-muted">No units found</p>';
+        return;
+    }
+    
+    container.innerHTML = units.map(unit => `
+        <div class="unit-card mb-2" style="cursor: pointer;" onclick="addUnitToProgramme(${unit.id})">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong class="text-primary">${unit.code}</strong>
+                    <span class="ms-2">${unit.name}</span>
+                </div>
+                <span class="badge-credit">${unit.credit_hours} CH</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addUnitToProgramme(unitId) {
+    const unitType = document.getElementById('unitTypeSelect').value;
+    
+    fetch('/api/programme-units/add/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            programme_id: programmeId,
+            unit_id: unitId,
+            academic_year_id: currentAcademicYear,
+            year_of_study: currentAddingSemester.year,
+            semester_number: currentAddingSemester.semester,
+            unit_type: unitType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            bootstrap.Modal.getInstance(document.getElementById('addUnitModal')).hide();
+            loadProgrammeStructure();
+        } else {
+            showAlert('danger', data.message);
+        }
+    });
+}
+
+function toggleUnitType(programmeUnitId) {
+    const types = ['core', 'elective', 'common'];
+    // You'd need to track current type and cycle through
+    // Simplified version - just prompt
+    const newType = prompt('Enter unit type (core/elective/common):');
+    if (newType && types.includes(newType)) {
+        updateProgrammeUnit(programmeUnitId, { unit_type: newType });
+    }
+}
+
+function toggleUnitActive(programmeUnitId, isActive) {
+    updateProgrammeUnit(programmeUnitId, { is_active: isActive });
+}
+
+function updateProgrammeUnit(programmeUnitId, data) {
+    fetch(`/api/programme-units/${programmeUnitId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            loadProgrammeStructure();
+        } else {
+            showAlert('danger', data.message);
+        }
+    });
+}
+
+function deleteUnit(programmeUnitId) {
+    if (!confirm('Are you sure you want to remove this unit?')) return;
+    
+    fetch(`/api/programme-units/${programmeUnitId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            loadProgrammeStructure();
+        } else {
+            showAlert('danger', data.message);
+        }
+    });
+}
+
+function copyUnits() {
+    const fromYear = document.getElementById('copyFromYear').value;
+    
+    if (!confirm('This will copy all units. Continue?')) return;
+    
+    fetch('/api/programme-units/copy/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            programme_id: programmeId,
+            from_academic_year_id: fromYear,
+            to_academic_year_id: currentAcademicYear
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            bootstrap.Modal.getInstance(document.getElementById('copyUnitsModal')).hide();
+            loadProgrammeStructure();
+        } else {
+            showAlert('danger', data.message);
+        }
+    });
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+</script>
 {% endblock %}
