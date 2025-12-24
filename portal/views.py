@@ -2288,3 +2288,586 @@ def get_intakes_by_year(request):
         intakes = Intake.objects.filter(academic_year_id=year_id).values('id', 'name', 'intake_number', 'month')
         return JsonResponse(list(intakes), safe=False)
     return JsonResponse([], safe=False)
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from .models import School, Department, Programme, User
+
+# ============= SCHOOLS/FACULTIES VIEWS =============
+
+@login_required
+def school_list(request):
+    """List all schools with search and filters"""
+    schools = School.objects.annotate(
+        department_count=Count('departments')
+    ).select_related('dean', 'head_of_school')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        schools = schools.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        schools = schools.filter(is_active=True)
+    elif status_filter == 'inactive':
+        schools = schools.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(schools, 10)
+    page = request.GET.get('page', 1)
+    schools_page = paginator.get_page(page)
+    
+    context = {
+        'schools': schools_page,
+        'total_schools': schools.count(),
+        'search_query': search_query,
+        'status_filter': status_filter,
+    }
+    return render(request, 'admin/schools/school_list.html', context)
+
+
+@login_required
+def school_detail(request, pk):
+    """View detailed information about a school"""
+    school = get_object_or_404(
+        School.objects.annotate(
+            department_count=Count('departments'),
+            programme_count=Count('departments__programmes')
+        ).select_related('dean', 'head_of_school'),
+        pk=pk
+    )
+    
+    # Get departments with counts
+    departments = school.departments.annotate(
+        programme_count=Count('programmes'),
+        lecturer_count=Count('lecturers')
+    ).select_related('hod')
+    
+    context = {
+        'school': school,
+        'departments': departments,
+    }
+    return render(request, 'admin/schools/school_detail.html', context)
+
+
+@login_required
+def school_form(request, pk=None):
+    """Add or update a school (unified form)"""
+    school = get_object_or_404(School, pk=pk) if pk else None
+    
+    # Get users eligible to be Dean or HOS
+    deans = User.objects.filter(role='dean', is_active=True)
+    hos_users = User.objects.filter(role='hos', is_active=True)
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            name = request.POST.get('name')
+            code = request.POST.get('code').upper()
+            dean_id = request.POST.get('dean')
+            hos_id = request.POST.get('head_of_school')
+            description = request.POST.get('description', '')
+            email = request.POST.get('email', '')
+            phone_number = request.POST.get('phone_number', '')
+            location = request.POST.get('location', '')
+            is_active = request.POST.get('is_active') == 'on'
+            
+            # Validate required fields
+            if not name or not code:
+                messages.error(request, 'Name and Code are required.')
+                return redirect(request.path)
+            
+            # Check for duplicate code (excluding current school if updating)
+            existing_school = School.objects.filter(code=code)
+            if school:
+                existing_school = existing_school.exclude(pk=school.pk)
+            if existing_school.exists():
+                messages.error(request, f'School with code {code} already exists.')
+                return redirect(request.path)
+            
+            # Create or update school
+            if school:
+                school.name = name
+                school.code = code
+                school.dean_id = dean_id if dean_id else None
+                school.head_of_school_id = hos_id if hos_id else None
+                school.description = description
+                school.email = email
+                school.phone_number = phone_number
+                school.location = location
+                school.is_active = is_active
+                school.save()
+                messages.success(request, f'School "{name}" updated successfully!')
+            else:
+                school = School.objects.create(
+                    name=name,
+                    code=code,
+                    dean_id=dean_id if dean_id else None,
+                    head_of_school_id=hos_id if hos_id else None,
+                    description=description,
+                    email=email,
+                    phone_number=phone_number,
+                    location=location,
+                    is_active=is_active
+                )
+                messages.success(request, f'School "{name}" created successfully!')
+            
+            return redirect('school_detail', pk=school.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error saving school: {str(e)}')
+    
+    context = {
+        'school': school,
+        'deans': deans,
+        'hos_users': hos_users,
+        'is_update': school is not None,
+    }
+    return render(request, 'admin/schools/school_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def school_delete(request, pk):
+    """Delete a school"""
+    school = get_object_or_404(School, pk=pk)
+    
+    try:
+        # Check if school has departments
+        if school.departments.exists():
+            messages.error(
+                request, 
+                f'Cannot delete "{school.name}". It has {school.departments.count()} department(s).'
+            )
+        else:
+            school_name = school.name
+            school.delete()
+            messages.success(request, f'School "{school_name}" deleted successfully!')
+        
+        return redirect('school_list')
+    except Exception as e:
+        messages.error(request, f'Error deleting school: {str(e)}')
+        return redirect('school_detail', pk=pk)
+
+
+# ============= DEPARTMENTS VIEWS =============
+
+@login_required
+def department_list(request):
+    """List all departments with search and filters"""
+    departments = Department.objects.select_related(
+        'school', 'hod'
+    ).annotate(
+        programme_count=Count('programmes'),
+        lecturer_count=Count('lecturers')
+    )
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        departments = departments.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(school__name__icontains=search_query)
+        )
+    
+    # Filter by school
+    school_filter = request.GET.get('school', '')
+    if school_filter:
+        departments = departments.filter(school_id=school_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        departments = departments.filter(is_active=True)
+    elif status_filter == 'inactive':
+        departments = departments.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(departments, 10)
+    page = request.GET.get('page', 1)
+    departments_page = paginator.get_page(page)
+    
+    # Get schools for filter dropdown
+    schools = School.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'departments': departments_page,
+        'total_departments': departments.count(),
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'school_filter': school_filter,
+        'schools': schools,
+    }
+    return render(request, 'admin/departments/department_list.html', context)
+
+
+@login_required
+def department_detail(request, pk):
+    """View detailed information about a department"""
+    department = get_object_or_404(
+        Department.objects.annotate(
+            programme_count=Count('programmes'),
+            lecturer_count=Count('lecturers'),
+            unit_count=Count('units')
+        ).select_related('school', 'hod'),
+        pk=pk
+    )
+    
+    # Get programmes
+    programmes = department.programmes.annotate(
+        student_count=Count('students')
+    ).order_by('name')
+    
+    # Get lecturers
+    lecturers = department.lecturers.select_related('user')[:10]
+    
+    context = {
+        'department': department,
+        'programmes': programmes,
+        'lecturers': lecturers,
+    }
+    return render(request, 'admin/departments/department_detail.html', context)
+
+
+@login_required
+def department_form(request, pk=None):
+    """Add or update a department (unified form)"""
+    department = get_object_or_404(Department, pk=pk) if pk else None
+    
+    # Get schools and HODs
+    schools = School.objects.filter(is_active=True).order_by('name')
+    hods = User.objects.filter(role='hod', is_active=True)
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            school_id = request.POST.get('school')
+            name = request.POST.get('name')
+            code = request.POST.get('code').upper()
+            hod_id = request.POST.get('hod')
+            description = request.POST.get('description', '')
+            email = request.POST.get('email', '')
+            phone_number = request.POST.get('phone_number', '')
+            location = request.POST.get('location', '')
+            is_active = request.POST.get('is_active') == 'on'
+            
+            # Validate required fields
+            if not school_id or not name or not code:
+                messages.error(request, 'School, Name, and Code are required.')
+                return redirect(request.path)
+            
+            # Check for duplicate code
+            existing_dept = Department.objects.filter(code=code)
+            if department:
+                existing_dept = existing_dept.exclude(pk=department.pk)
+            if existing_dept.exists():
+                messages.error(request, f'Department with code {code} already exists.')
+                return redirect(request.path)
+            
+            # Create or update department
+            if department:
+                department.school_id = school_id
+                department.name = name
+                department.code = code
+                department.hod_id = hod_id if hod_id else None
+                department.description = description
+                department.email = email
+                department.phone_number = phone_number
+                department.location = location
+                department.is_active = is_active
+                department.save()
+                messages.success(request, f'Department "{name}" updated successfully!')
+            else:
+                department = Department.objects.create(
+                    school_id=school_id,
+                    name=name,
+                    code=code,
+                    hod_id=hod_id if hod_id else None,
+                    description=description,
+                    email=email,
+                    phone_number=phone_number,
+                    location=location,
+                    is_active=is_active
+                )
+                messages.success(request, f'Department "{name}" created successfully!')
+            
+            return redirect('department_detail', pk=department.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error saving department: {str(e)}')
+    
+    context = {
+        'department': department,
+        'schools': schools,
+        'hods': hods,
+        'is_update': department is not None,
+    }
+    return render(request, 'admin/departments/department_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def department_delete(request, pk):
+    """Delete a department"""
+    department = get_object_or_404(Department, pk=pk)
+    
+    try:
+        # Check if department has programmes
+        if department.programmes.exists():
+            messages.error(
+                request,
+                f'Cannot delete "{department.name}". It has {department.programmes.count()} programme(s).'
+            )
+        else:
+            dept_name = department.name
+            department.delete()
+            messages.success(request, f'Department "{dept_name}" deleted successfully!')
+        
+        return redirect('department_list')
+    except Exception as e:
+        messages.error(request, f'Error deleting department: {str(e)}')
+        return redirect('department_detail', pk=pk)
+
+
+# ============= PROGRAMMES VIEWS =============
+
+@login_required
+def programme_list(request):
+    """List all programmes with search and filters"""
+    programmes = Programme.objects.select_related(
+        'department', 'department__school'
+    ).annotate(
+        student_count=Count('students')
+    )
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        programmes = programmes.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(department__name__icontains=search_query)
+        )
+    
+    # Filter by department
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        programmes = programmes.filter(department_id=department_filter)
+    
+    # Filter by school
+    school_filter = request.GET.get('school', '')
+    if school_filter:
+        programmes = programmes.filter(department__school_id=school_filter)
+    
+    # Filter by programme type
+    type_filter = request.GET.get('type', '')
+    if type_filter:
+        programmes = programmes.filter(programme_type=type_filter)
+    
+    # Filter by study mode
+    mode_filter = request.GET.get('mode', '')
+    if mode_filter:
+        programmes = programmes.filter(study_mode=mode_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        programmes = programmes.filter(is_active=True)
+    elif status_filter == 'inactive':
+        programmes = programmes.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(programmes, 10)
+    page = request.GET.get('page', 1)
+    programmes_page = paginator.get_page(page)
+    
+    # Get schools and departments for filters
+    schools = School.objects.filter(is_active=True).order_by('name')
+    departments = Department.objects.filter(is_active=True).select_related('school').order_by('name')
+    
+    context = {
+        'programmes': programmes_page,
+        'total_programmes': programmes.count(),
+        'search_query': search_query,
+        'status_filter': status_filter,
+        'school_filter': school_filter,
+        'department_filter': department_filter,
+        'type_filter': type_filter,
+        'mode_filter': mode_filter,
+        'schools': schools,
+        'departments': departments,
+        'programme_types': Programme.PROGRAMME_TYPES,
+        'study_modes': Programme.STUDY_MODES,
+    }
+    return render(request, 'admin/programmes/programme_list.html', context)
+
+
+@login_required
+def programme_detail(request, pk):
+    """View detailed information about a programme"""
+    programme = get_object_or_404(
+        Programme.objects.annotate(
+            student_count=Count('students'),
+            unit_count=Count('programme_units', distinct=True)
+        ).select_related('department', 'department__school'),
+        pk=pk
+    )
+    
+    # Get programme units grouped by year and semester
+    from collections import defaultdict
+    programme_units = programme.programme_units.select_related(
+        'unit', 'academic_year'
+    ).order_by('year_of_study', 'semester_number')
+    
+    units_by_year_sem = defaultdict(list)
+    for pu in programme_units:
+        key = f"Y{pu.year_of_study}S{pu.semester_number}"
+        units_by_year_sem[key].append(pu)
+    
+    # Get recent students
+    students = programme.students.select_related('user')[:10]
+    
+    context = {
+        'programme': programme,
+        'units_by_year_sem': dict(units_by_year_sem),
+        'students': students,
+    }
+    return render(request, 'admin/programmes/programme_detail.html', context)
+
+
+@login_required
+def programme_form(request, pk=None):
+    """Add or update a programme (unified form)"""
+    programme = get_object_or_404(Programme, pk=pk) if pk else None
+    
+    # Get departments
+    departments = Department.objects.filter(is_active=True).select_related('school').order_by('school__name', 'name')
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            department_id = request.POST.get('department')
+            name = request.POST.get('name')
+            code = request.POST.get('code').upper()
+            programme_type = request.POST.get('programme_type')
+            study_mode = request.POST.get('study_mode')
+            duration_years = request.POST.get('duration_years')
+            total_semesters = request.POST.get('total_semesters')
+            min_credit_hours = request.POST.get('min_credit_hours', 120)
+            description = request.POST.get('description', '')
+            accreditation_body = request.POST.get('accreditation_body', '')
+            accreditation_status = request.POST.get('accreditation_status', '')
+            is_active = request.POST.get('is_active') == 'on'
+            
+            # Validate required fields
+            if not all([department_id, name, code, programme_type, study_mode, duration_years, total_semesters]):
+                messages.error(request, 'All required fields must be filled.')
+                return redirect(request.path)
+            
+            # Check for duplicate code
+            existing_prog = Programme.objects.filter(code=code)
+            if programme:
+                existing_prog = existing_prog.exclude(pk=programme.pk)
+            if existing_prog.exists():
+                messages.error(request, f'Programme with code {code} already exists.')
+                return redirect(request.path)
+            
+            # Create or update programme
+            if programme:
+                programme.department_id = department_id
+                programme.name = name
+                programme.code = code
+                programme.programme_type = programme_type
+                programme.study_mode = study_mode
+                programme.duration_years = duration_years
+                programme.total_semesters = total_semesters
+                programme.min_credit_hours = min_credit_hours
+                programme.description = description
+                programme.accreditation_body = accreditation_body
+                programme.accreditation_status = accreditation_status
+                programme.is_active = is_active
+                programme.save()
+                messages.success(request, f'Programme "{name}" updated successfully!')
+            else:
+                programme = Programme.objects.create(
+                    department_id=department_id,
+                    name=name,
+                    code=code,
+                    programme_type=programme_type,
+                    study_mode=study_mode,
+                    duration_years=duration_years,
+                    total_semesters=total_semesters,
+                    min_credit_hours=min_credit_hours,
+                    description=description,
+                    accreditation_body=accreditation_body,
+                    accreditation_status=accreditation_status,
+                    is_active=is_active
+                )
+                messages.success(request, f'Programme "{name}" created successfully!')
+            
+            return redirect('programme_detail', pk=programme.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error saving programme: {str(e)}')
+    
+    context = {
+        'programme': programme,
+        'departments': departments,
+        'programme_types': Programme.PROGRAMME_TYPES,
+        'study_modes': Programme.STUDY_MODES,
+        'is_update': programme is not None,
+    }
+    return render(request, 'admin/programmes/programme_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def programme_delete(request, pk):
+    """Delete a programme"""
+    programme = get_object_or_404(Programme, pk=pk)
+    
+    try:
+        # Check if programme has students
+        if programme.students.exists():
+            messages.error(
+                request,
+                f'Cannot delete "{programme.name}". It has {programme.students.count()} student(s).'
+            )
+        else:
+            prog_name = programme.name
+            programme.delete()
+            messages.success(request, f'Programme "{prog_name}" deleted successfully!')
+        
+        return redirect('programme_list')
+    except Exception as e:
+        messages.error(request, f'Error deleting programme: {str(e)}')
+        return redirect('programme_detail', pk=pk)
+
+
+# ============= AJAX HELPER VIEWS =============
+
+@login_required
+def get_departments_by_school(request, school_id):
+    """AJAX endpoint to get departments by school"""
+    departments = Department.objects.filter(
+        school_id=school_id,
+        is_active=True
+    ).values('id', 'name', 'code')
+    
+    return JsonResponse({
+        'success': True,
+        'departments': list(departments)
+    })
