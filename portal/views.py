@@ -1644,77 +1644,140 @@ def get_semesters(request, academic_year_id):
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
 
+from datetime import datetime
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+
 @login_required
 @require_http_methods(["POST"])
 def add_semester_ajax(request, academic_year_id):
     """Add a semester to an academic year (AJAX)"""
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        try:
-            academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
-            
-            # Get form data
-            semester_number = request.POST.get('semester_number')
-            name = request.POST.get('name')
-            start_date = request.POST.get('start_date')
-            end_date = request.POST.get('end_date')
-            registration_start_date = request.POST.get('registration_start_date')
-            registration_end_date = request.POST.get('registration_end_date')
-            is_active = request.POST.get('is_active', 'true').lower() == 'true'
-            
-            # Validate required fields
-            if not all([semester_number, name, start_date, end_date, 
-                       registration_start_date, registration_end_date]):
-                return JsonResponse({
-                    'success': False,
-                    'message': 'All fields are required'
-                }, status=400)
-            
-            # Check if semester already exists
-            if Semester.objects.filter(
-                academic_year=academic_year, 
-                semester_number=semester_number
-            ).exists():
-                return JsonResponse({
-                    'success': False,
-                    'message': f'Semester {semester_number} already exists for {academic_year.name}'
-                }, status=400)
-            
-            # Create semester
-            semester = Semester.objects.create(
-                academic_year=academic_year,
-                name=name,
-                semester_number=semester_number,
-                start_date=start_date,
-                end_date=end_date,
-                registration_start_date=registration_start_date,
-                registration_end_date=registration_end_date,
-                is_active=is_active,
-                is_current=False
+    if request.headers.get('X-Requested-With') != 'XMLHttpRequest':
+        return JsonResponse(
+            {'success': False, 'message': 'Invalid request'},
+            status=400
+        )
+
+    try:
+        academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
+
+        # -----------------------------
+        # Get POST data
+        # -----------------------------
+        semester_number = request.POST.get('semester_number')
+        name = request.POST.get('name')
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        registration_start_date = request.POST.get('registration_start_date')
+        registration_end_date = request.POST.get('registration_end_date')
+        is_active = request.POST.get('is_active', 'true').lower() == 'true'
+
+        # -----------------------------
+        # Validate required fields
+        # -----------------------------
+        if not all([
+            semester_number,
+            name,
+            start_date,
+            end_date,
+            registration_start_date,
+            registration_end_date
+        ]):
+            return JsonResponse(
+                {'success': False, 'message': 'All fields are required'},
+                status=400
             )
-            
-            return JsonResponse({
-                'success': True,
-                'message': f'Semester {semester.name} added successfully!',
-                'semester': {
-                    'id': semester.id,
-                    'name': semester.name,
-                    'semester_number': semester.semester_number,
-                    'start_date': semester.start_date.strftime('%Y-%m-%d'),
-                    'end_date': semester.end_date.strftime('%Y-%m-%d'),
-                    'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
-                    'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
-                    'is_current': semester.is_current,
-                    'is_active': semester.is_active,
-                }
-            })
-            
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': f'Error adding semester: {str(e)}'
-            }, status=400)
-    
-    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
+        # -----------------------------
+        # Convert dates (FIXES strftime ERROR)
+        # -----------------------------
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        registration_start_date = datetime.strptime(registration_start_date, '%Y-%m-%d').date()
+        registration_end_date = datetime.strptime(registration_end_date, '%Y-%m-%d').date()
+
+        # -----------------------------
+        # Logical date validation
+        # -----------------------------
+        if start_date > end_date:
+            return JsonResponse(
+                {'success': False, 'message': 'Semester start date cannot be after end date'},
+                status=400
+            )
+
+        if registration_start_date > registration_end_date:
+            return JsonResponse(
+                {'success': False, 'message': 'Registration start date cannot be after end date'},
+                status=400
+            )
+
+        # -----------------------------
+        # Check duplicate semester
+        # -----------------------------
+        if Semester.objects.filter(
+            academic_year=academic_year,
+            semester_number=semester_number
+        ).exists():
+            return JsonResponse(
+                {
+                    'success': False,
+                    'message': f'Semester {semester_number} already exists for {academic_year}'
+                },
+                status=400
+            )
+
+        # -----------------------------
+        # Create semester
+        # -----------------------------
+        semester = Semester(
+            academic_year=academic_year,
+            name=name,
+            semester_number=semester_number,
+            start_date=start_date,
+            end_date=end_date,
+            registration_start_date=registration_start_date,
+            registration_end_date=registration_end_date,
+            is_active=is_active,
+            is_current=False
+        )
+
+        # Run model validation (clean())
+        semester.full_clean()
+        semester.save()
+
+        # -----------------------------
+        # Success response
+        # -----------------------------
+        return JsonResponse({
+            'success': True,
+            'message': f'Semester "{semester.name}" added successfully!',
+            'semester': {
+                'id': semester.id,
+                'name': semester.name,
+                'semester_number': semester.semester_number,
+                'start_date': semester.start_date.strftime('%Y-%m-%d'),
+                'end_date': semester.end_date.strftime('%Y-%m-%d'),
+                'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
+                'is_current': semester.is_current,
+                'is_active': semester.is_active,
+            }
+        })
+
+    except ValidationError as e:
+        return JsonResponse(
+            {'success': False, 'message': e.messages[0]},
+            status=400
+        )
+
+    except Exception as e:
+        return JsonResponse(
+            {'success': False, 'message': f'Error adding semester: {str(e)}'},
+            status=400
+        )
 
 
 @login_required
