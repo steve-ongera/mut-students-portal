@@ -1824,7 +1824,7 @@ def update_semester_ajax(request, semester_id):
                     'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
                     'is_current': semester.is_current,
                     'is_active': semester.is_active,
-                    'academic_year_id': semester.academic_year.id,  # ADD THIS LINE
+                    'academic_year_id': semester.academic_year.id,
                 }
             })
             
@@ -1836,25 +1836,28 @@ def update_semester_ajax(request, semester_id):
     
     return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
+
 @login_required
 @require_http_methods(["POST"])
-def set_current_semester(request, semester_id):
+def set_current_semester(request, pk):  # Changed parameter name from semester_id to pk
     """Set a semester as current (AJAX)"""
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         try:
-            semester = get_object_or_404(Semester, pk=semester_id)
+            semester = get_object_or_404(Semester, pk=pk)
             
             # Unset all other current semesters
             Semester.objects.filter(is_current=True).update(is_current=False)
             
-            # Set this as current
+            # Set this semester as current
             semester.is_current = True
+            semester.is_active = True  # Also ensure it's active
             semester.save()
             
-            # Also set the academic year as current
+            # Also set the academic year as current and active
             academic_year = semester.academic_year
             AcademicYear.objects.filter(is_current=True).update(is_current=False)
             academic_year.is_current = True
+            academic_year.is_active = True
             academic_year.save()
             
             return JsonResponse({
@@ -1873,14 +1876,21 @@ def set_current_semester(request, semester_id):
     
     # Fallback for non-AJAX requests
     try:
-        semester = get_object_or_404(Semester, pk=semester_id)
+        semester = get_object_or_404(Semester, pk=pk)
+        
+        # Unset all other current semesters
         Semester.objects.filter(is_current=True).update(is_current=False)
+        
+        # Set this semester as current
         semester.is_current = True
+        semester.is_active = True
         semester.save()
         
+        # Set the academic year as current
         academic_year = semester.academic_year
         AcademicYear.objects.filter(is_current=True).update(is_current=False)
         academic_year.is_current = True
+        academic_year.is_active = True
         academic_year.save()
         
         messages.success(request, f'{semester.name} is now the current semester!')
@@ -2082,7 +2092,7 @@ def delete_semester(request, pk):
 
 
 @login_required
-def set_current_semester(request, pk):
+def backup_set_current_semester(request, pk):
     """Set a semester as current"""
     semester = get_object_or_404(Semester, pk=pk)
     

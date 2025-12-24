@@ -63,7 +63,7 @@ urlpatterns = [
     path('academic-years/<int:academic_year_id>/semesters/', views.get_semesters, name='get_semesters'),
     path('academic-years/<int:academic_year_id>/add-semester/', views.add_semester_ajax, name='add_semester_ajax'),
     path('semesters/<int:semester_id>/update/', views.update_semester_ajax, name='update_semester_ajax'),
-    path('semesters/<int:semester_id>/set-current/', views.set_current_semester, name='set_current_semester'),
+    path('semesters/<int:pk>/set-current/', views.set_current_semester, name='set_current_semester'),
     path('semesters/<int:semester_id>/delete/', views.delete_semester_ajax, name='delete_semester_ajax'),
     
     # ============= SEMESTERS =============
@@ -72,7 +72,7 @@ urlpatterns = [
     path('semesters/<int:pk>/', views.semester_detail, name='semester_detail'),
     path('update/semesters/<int:pk>/', views.update_semester, name='update_semester'),
     path('delete/semesters/<int:pk>/', views.delete_semester, name='delete_semester'),
-    path('set-current/semesters/<int:pk>/', views.set_current_semester, name='set_current_semester'),
+    path('set-current/semesters/<int:pk>/', views.backup_set_current_semester, name='backup_set_current_semester'),
     
     # ============= INTAKES =============
     path('intakes/', views.intake_list, name='intake_list'),
