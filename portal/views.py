@@ -2871,3 +2871,604 @@ def get_departments_by_school(request, school_id):
         'success': True,
         'departments': list(departments)
     })
+    
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Prefetch
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from .models import (
+    Programme, Unit, ProgrammeUnit, AcademicYear, 
+    Semester, Department, UnitGradingSystem
+)
+from collections import defaultdict
+import json
+
+# ============= PROGRAMME UNITS MANAGEMENT =============
+
+@login_required
+def programme_units_list(request):
+    """List all programmes for unit management"""
+    programmes = Programme.objects.filter(is_active=True).select_related(
+        'department', 'department__school'
+    ).annotate(
+        unit_count=Count('programme_units', distinct=True)
+    ).order_by('department__school__name', 'name')
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        programmes = programmes.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Filter by school
+    school_filter = request.GET.get('school', '')
+    if school_filter:
+        programmes = programmes.filter(department__school_id=school_filter)
+    
+    # Filter by department
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        programmes = programmes.filter(department_id=department_filter)
+    
+    # Pagination
+    paginator = Paginator(programmes, 12)
+    page = request.GET.get('page', 1)
+    programmes_page = paginator.get_page(page)
+    
+    context = {
+        'programmes': programmes_page,
+        'total_programmes': programmes.count(),
+        'search_query': search_query,
+        'school_filter': school_filter,
+        'department_filter': department_filter,
+    }
+    return render(request, 'admin/units/programme_units_list.html', context)
+
+
+@login_required
+def programme_units_structure(request, programme_id):
+    """Dynamic programme unit structure view"""
+    programme = get_object_or_404(
+        Programme.objects.select_related('department', 'department__school'),
+        pk=programme_id
+    )
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all academic years for dropdown
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    
+    context = {
+        'programme': programme,
+        'current_academic_year': current_academic_year,
+        'academic_years': academic_years,
+    }
+    return render(request, 'admin/units/programme_units_structure.html', context)
+
+
+# ============= API ENDPOINTS =============
+
+@login_required
+def api_programme_structure(request, programme_id):
+    """API: Get programme structure with years and semesters"""
+    programme = get_object_or_404(Programme, pk=programme_id)
+    academic_year_id = request.GET.get('academic_year')
+    
+    if not academic_year_id:
+        academic_year = AcademicYear.objects.filter(is_current=True).first()
+    else:
+        academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
+    
+    # Build structure based on programme configuration
+    structure = []
+    
+    # Calculate semesters per year based on total_semesters and duration_years
+    total_semesters = programme.total_semesters
+    duration_years = programme.duration_years
+    
+    # Determine semester distribution
+    if total_semesters == duration_years * 2:
+        # Regular: 2 semesters per year
+        semesters_per_year = [2] * duration_years
+    elif total_semesters == duration_years * 3:
+        # Tri-semester: 3 semesters per year
+        semesters_per_year = [3] * duration_years
+    else:
+        # Irregular distribution
+        base_sem = total_semesters // duration_years
+        extra_sem = total_semesters % duration_years
+        semesters_per_year = [base_sem + (1 if i < extra_sem else 0) for i in range(duration_years)]
+    
+    # Build year structure
+    for year_num in range(1, duration_years + 1):
+        year_data = {
+            'year': year_num,
+            'semesters': []
+        }
+        
+        num_semesters = semesters_per_year[year_num - 1]
+        for sem_num in range(1, num_semesters + 1):
+            # Get units for this year and semester
+            programme_units = ProgrammeUnit.objects.filter(
+                programme=programme,
+                academic_year=academic_year,
+                year_of_study=year_num,
+                semester_number=str(sem_num)
+            ).select_related('unit').order_by('unit__code')
+            
+            units_data = []
+            total_credits = 0
+            
+            for pu in programme_units:
+                units_data.append({
+                    'id': pu.id,
+                    'unit_id': pu.unit.id,
+                    'code': pu.unit.code,
+                    'name': pu.unit.name,
+                    'credit_hours': pu.unit.credit_hours,
+                    'unit_type': pu.unit_type,
+                    'unit_type_display': pu.get_unit_type_display(),
+                    'is_active': pu.is_active,
+                })
+                total_credits += pu.unit.credit_hours
+            
+            year_data['semesters'].append({
+                'semester_number': sem_num,
+                'units': units_data,
+                'total_credits': total_credits,
+                'unit_count': len(units_data)
+            })
+        
+        structure.append(year_data)
+    
+    return JsonResponse({
+        'success': True,
+        'programme': {
+            'id': programme.id,
+            'name': programme.name,
+            'code': programme.code,
+            'duration_years': programme.duration_years,
+            'total_semesters': programme.total_semesters,
+        },
+        'academic_year': {
+            'id': academic_year.id,
+            'name': academic_year.name,
+        },
+        'structure': structure
+    })
+
+
+@login_required
+def api_available_units(request):
+    """API: Get available units for adding to programme"""
+    department_id = request.GET.get('department')
+    unit_level = request.GET.get('level', '')
+    search = request.GET.get('search', '')
+    
+    units = Unit.objects.filter(is_active=True)
+    
+    if department_id:
+        units = units.filter(department_id=department_id)
+    
+    if unit_level:
+        units = units.filter(unit_level=unit_level)
+    
+    if search:
+        units = units.filter(
+            Q(code__icontains=search) |
+            Q(name__icontains=search)
+        )
+    
+    units = units.select_related('department')[:50]
+    
+    units_data = [{
+        'id': unit.id,
+        'code': unit.code,
+        'name': unit.name,
+        'credit_hours': unit.credit_hours,
+        'unit_level': unit.unit_level,
+        'department': unit.department.name,
+    } for unit in units]
+    
+    return JsonResponse({
+        'success': True,
+        'units': units_data
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_add_programme_unit(request):
+    """API: Add unit to programme"""
+    try:
+        data = json.loads(request.body)
+        
+        programme_id = data.get('programme_id')
+        unit_id = data.get('unit_id')
+        academic_year_id = data.get('academic_year_id')
+        year_of_study = data.get('year_of_study')
+        semester_number = data.get('semester_number')
+        unit_type = data.get('unit_type', 'core')
+        
+        # Validate required fields
+        if not all([programme_id, unit_id, academic_year_id, year_of_study, semester_number]):
+            return JsonResponse({
+                'success': False,
+                'message': 'All fields are required'
+            }, status=400)
+        
+        # Get objects
+        programme = get_object_or_404(Programme, pk=programme_id)
+        unit = get_object_or_404(Unit, pk=unit_id)
+        academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
+        
+        # Check if already exists
+        if ProgrammeUnit.objects.filter(
+            programme=programme,
+            unit=unit,
+            academic_year=academic_year,
+            year_of_study=year_of_study,
+            semester_number=semester_number
+        ).exists():
+            return JsonResponse({
+                'success': False,
+                'message': f'{unit.code} is already added to this year and semester'
+            }, status=400)
+        
+        # Create programme unit
+        programme_unit = ProgrammeUnit.objects.create(
+            programme=programme,
+            unit=unit,
+            academic_year=academic_year,
+            year_of_study=year_of_study,
+            semester_number=semester_number,
+            unit_type=unit_type,
+            is_active=True
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{unit.code} added successfully',
+            'programme_unit': {
+                'id': programme_unit.id,
+                'unit_id': unit.id,
+                'code': unit.code,
+                'name': unit.name,
+                'credit_hours': unit.credit_hours,
+                'unit_type': programme_unit.unit_type,
+                'unit_type_display': programme_unit.get_unit_type_display(),
+                'is_active': programme_unit.is_active,
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_update_programme_unit(request, programme_unit_id):
+    """API: Update programme unit"""
+    try:
+        data = json.loads(request.body)
+        programme_unit = get_object_or_404(ProgrammeUnit, pk=programme_unit_id)
+        
+        unit_type = data.get('unit_type')
+        is_active = data.get('is_active')
+        
+        if unit_type:
+            programme_unit.unit_type = unit_type
+        
+        if is_active is not None:
+            programme_unit.is_active = is_active
+        
+        programme_unit.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Unit updated successfully',
+            'programme_unit': {
+                'id': programme_unit.id,
+                'unit_type': programme_unit.unit_type,
+                'unit_type_display': programme_unit.get_unit_type_display(),
+                'is_active': programme_unit.is_active,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_delete_programme_unit(request, programme_unit_id):
+    """API: Delete programme unit"""
+    try:
+        programme_unit = get_object_or_404(ProgrammeUnit, pk=programme_unit_id)
+        
+        # Check if unit has allocations or registrations
+        if programme_unit.allocations.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'Cannot delete. This unit has lecturer allocations.'
+            }, status=400)
+        
+        if programme_unit.registrations.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'Cannot delete. Students have registered for this unit.'
+            }, status=400)
+        
+        unit_code = programme_unit.unit.code
+        programme_unit.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{unit_code} removed successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_copy_programme_units(request):
+    """API: Copy units from one academic year to another"""
+    try:
+        data = json.loads(request.body)
+        
+        programme_id = data.get('programme_id')
+        from_academic_year_id = data.get('from_academic_year_id')
+        to_academic_year_id = data.get('to_academic_year_id')
+        
+        if not all([programme_id, from_academic_year_id, to_academic_year_id]):
+            return JsonResponse({
+                'success': False,
+                'message': 'All fields are required'
+            }, status=400)
+        
+        programme = get_object_or_404(Programme, pk=programme_id)
+        from_year = get_object_or_404(AcademicYear, pk=from_academic_year_id)
+        to_year = get_object_or_404(AcademicYear, pk=to_academic_year_id)
+        
+        # Get existing units
+        existing_units = ProgrammeUnit.objects.filter(
+            programme=programme,
+            academic_year=from_year
+        ).select_related('unit')
+        
+        copied_count = 0
+        skipped_count = 0
+        
+        for pu in existing_units:
+            # Check if already exists
+            if not ProgrammeUnit.objects.filter(
+                programme=programme,
+                unit=pu.unit,
+                academic_year=to_year,
+                year_of_study=pu.year_of_study,
+                semester_number=pu.semester_number
+            ).exists():
+                ProgrammeUnit.objects.create(
+                    programme=programme,
+                    unit=pu.unit,
+                    academic_year=to_year,
+                    year_of_study=pu.year_of_study,
+                    semester_number=pu.semester_number,
+                    unit_type=pu.unit_type,
+                    is_active=pu.is_active
+                )
+                copied_count += 1
+            else:
+                skipped_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Copied {copied_count} units. Skipped {skipped_count} duplicates.',
+            'copied': copied_count,
+            'skipped': skipped_count
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+# ============= ALL UNITS MANAGEMENT =============
+
+@login_required
+def units_list(request):
+    """List all units"""
+    units = Unit.objects.select_related('department').annotate(
+        programme_count=Count('programme_assignments', distinct=True)
+    )
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        units = units.filter(
+            Q(code__icontains=search_query) |
+            Q(name__icontains=search_query)
+        )
+    
+    # Filter by department
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        units = units.filter(department_id=department_filter)
+    
+    # Filter by level
+    level_filter = request.GET.get('level', '')
+    if level_filter:
+        units = units.filter(unit_level=level_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'active':
+        units = units.filter(is_active=True)
+    elif status_filter == 'inactive':
+        units = units.filter(is_active=False)
+    
+    # Pagination
+    paginator = Paginator(units, 20)
+    page = request.GET.get('page', 1)
+    units_page = paginator.get_page(page)
+    
+    from .models import Department
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'units': units_page,
+        'total_units': units.count(),
+        'search_query': search_query,
+        'department_filter': department_filter,
+        'level_filter': level_filter,
+        'status_filter': status_filter,
+        'departments': departments,
+        'unit_levels': Unit.UNIT_LEVELS,
+    }
+    return render(request, 'admin/units/units_list.html', context)
+
+
+@login_required
+def unit_detail(request, pk):
+    """View unit details"""
+    unit = get_object_or_404(
+        Unit.objects.select_related('department').annotate(
+            programme_count=Count('programme_assignments', distinct=True)
+        ),
+        pk=pk
+    )
+    
+    # Get programmes using this unit
+    programme_units = ProgrammeUnit.objects.filter(
+        unit=unit
+    ).select_related('programme', 'academic_year').order_by('-academic_year__start_date')
+    
+    # Get prerequisites
+    prerequisites = unit.prerequisites.all()
+    required_for = unit.required_for.all()
+    
+    context = {
+        'unit': unit,
+        'programme_units': programme_units,
+        'prerequisites': prerequisites,
+        'required_for': required_for,
+    }
+    return render(request, 'admin/units/unit_detail.html', context)
+
+
+@login_required
+def unit_form(request, pk=None):
+    """Add or update a unit"""
+    unit = get_object_or_404(Unit, pk=pk) if pk else None
+    
+    from .models import Department
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    all_units = Unit.objects.filter(is_active=True).exclude(pk=pk) if pk else Unit.objects.filter(is_active=True)
+    
+    if request.method == 'POST':
+        try:
+            department_id = request.POST.get('department')
+            code = request.POST.get('code').upper()
+            name = request.POST.get('name')
+            unit_level = request.POST.get('unit_level')
+            credit_hours = request.POST.get('credit_hours', 3)
+            description = request.POST.get('description', '')
+            prerequisite_ids = request.POST.getlist('prerequisites')
+            is_active = request.POST.get('is_active') == 'on'
+            
+            if not all([department_id, code, name, unit_level]):
+                messages.error(request, 'All required fields must be filled.')
+                return redirect(request.path)
+            
+            # Check duplicate code
+            existing = Unit.objects.filter(code=code)
+            if unit:
+                existing = existing.exclude(pk=unit.pk)
+            if existing.exists():
+                messages.error(request, f'Unit with code {code} already exists.')
+                return redirect(request.path)
+            
+            if unit:
+                unit.department_id = department_id
+                unit.code = code
+                unit.name = name
+                unit.unit_level = unit_level
+                unit.credit_hours = credit_hours
+                unit.description = description
+                unit.is_active = is_active
+                unit.save()
+                unit.prerequisites.set(prerequisite_ids)
+                messages.success(request, f'Unit "{code}" updated successfully!')
+            else:
+                unit = Unit.objects.create(
+                    department_id=department_id,
+                    code=code,
+                    name=name,
+                    unit_level=unit_level,
+                    credit_hours=credit_hours,
+                    description=description,
+                    is_active=is_active
+                )
+                unit.prerequisites.set(prerequisite_ids)
+                messages.success(request, f'Unit "{code}" created successfully!')
+            
+            return redirect('unit_detail', pk=unit.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error saving unit: {str(e)}')
+    
+    context = {
+        'unit': unit,
+        'departments': departments,
+        'all_units': all_units,
+        'unit_levels': Unit.UNIT_LEVELS,
+        'is_update': unit is not None,
+    }
+    return render(request, 'admin/units/unit_form.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def unit_delete(request, pk):
+    """Delete a unit"""
+    unit = get_object_or_404(Unit, pk=pk)
+    
+    try:
+        if unit.programme_assignments.exists():
+            messages.error(
+                request,
+                f'Cannot delete "{unit.code}". It is assigned to programmes.'
+            )
+        else:
+            code = unit.code
+            unit.delete()
+            messages.success(request, f'Unit "{code}" deleted successfully!')
+            return redirect('units_list')
+    except Exception as e:
+        messages.error(request, f'Error deleting unit: {str(e)}')
+    
+    return redirect('unit_detail', pk=pk) 

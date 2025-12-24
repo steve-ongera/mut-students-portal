@@ -84,5 +84,48 @@ urlpatterns = [
     # ============= AJAX/API ENDPOINTS =============
     path('api/semesters-by-year/', views.get_semesters_by_year, name='get_semesters_by_year'),
     path('api/intakes-by-year/', views.get_intakes_by_year, name='get_intakes_by_year'),
+    
+    # ============= SCHOOLS/FACULTIES =============
+    path('schools/', views.school_list, name='school_list'),
+    path('schools/add/', views.school_form, name='school_add'),
+    path('schools/<int:pk>/', views.school_detail, name='school_detail'),
+    path('schools/<int:pk>/update/', views.school_form, name='school_update'),
+    path('schools/<int:pk>/delete/', views.school_delete, name='school_delete'),
+    
+    # ============= DEPARTMENTS =============
+    path('departments/', views.department_list, name='department_list'),
+    path('departments/add/', views.department_form, name='department_add'),
+    path('departments/<int:pk>/', views.department_detail, name='department_detail'),
+    path('departments/<int:pk>/update/', views.department_form, name='department_update'),
+    path('departments/<int:pk>/delete/', views.department_delete, name='department_delete'),
+    
+    # ============= PROGRAMMES =============
+    path('programmes/', views.programme_list, name='programme_list'),
+    path('programmes/add/', views.programme_form, name='programme_add'),
+    path('programmes/<int:pk>/', views.programme_detail, name='programme_detail'),
+    path('programmes/<int:pk>/update/', views.programme_form, name='programme_update'),
+    path('programmes/<int:pk>/delete/', views.programme_delete, name='programme_delete'),
+    
+    # ============= AJAX HELPERS =============
+    path('api/schools/<int:school_id>/departments/', views.get_departments_by_school, name='get_departments_by_school'),
+    
+    # ============= ALL UNITS =============
+    path('units/', views.units_list, name='units_list'),
+    path('units/add/', views.unit_form, name='unit_add'),
+    path('units/<int:pk>/', views.unit_detail, name='unit_detail'),
+    path('units/<int:pk>/update/', views.unit_form, name='unit_update'),
+    path('units/<int:pk>/delete/', views.unit_delete, name='unit_delete'),
+    
+    # ============= PROGRAMME UNITS =============
+    path('programme-units/', views.programme_units_list, name='programme_units_list'),
+    path('programme-units/<int:programme_id>/', views.programme_units_structure, name='programme_units_structure'),
+    
+    # ============= PROGRAMME UNITS API =============
+    path('api/programme/<int:programme_id>/structure/', views.api_programme_structure, name='api_programme_structure'),
+    path('api/units/available/', views.api_available_units, name='api_available_units'),
+    path('api/programme-units/add/', views.api_add_programme_unit, name='api_add_programme_unit'),
+    path('api/programme-units/<int:programme_unit_id>/update/', views.api_update_programme_unit, name='api_update_programme_unit'),
+    path('api/programme-units/<int:programme_unit_id>/delete/', views.api_delete_programme_unit, name='api_delete_programme_unit'),
+    path('api/programme-units/copy/', views.api_copy_programme_units, name='api_copy_programme_units'),
 
 ]
