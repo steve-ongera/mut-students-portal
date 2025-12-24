@@ -70,9 +70,9 @@ urlpatterns = [
     path('semesters/', views.semester_list, name='semester_list'),
     path('semesters/add/', views.add_semester, name='add_semester'),
     path('semesters/<int:pk>/', views.semester_detail, name='semester_detail'),
-    path('semesters/<int:pk>/update/', views.update_semester, name='update_semester'),
-    path('semesters/<int:pk>/delete/', views.delete_semester, name='delete_semester'),
-    path('semesters/<int:pk>/set-current/', views.set_current_semester, name='set_current_semester'),
+    path('update/semesters/<int:pk>/', views.update_semester, name='update_semester'),
+    path('delete/semesters/<int:pk>/', views.delete_semester, name='delete_semester'),
+    path('set-current/semesters/<int:pk>/', views.set_current_semester, name='set_current_semester'),
     
     # ============= INTAKES =============
     path('intakes/', views.intake_list, name='intake_list'),
