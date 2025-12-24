@@ -51,12 +51,20 @@ urlpatterns = [
     path('resit-exam/status/', views.resit_exam_status, name='resit_exam_status'),
     
     # ============= ACADEMIC YEARS =============
+    # Academic Year URLs
     path('academic-years/', views.academic_year_list, name='academic_year_list'),
     path('academic-years/add/', views.add_academic_year, name='add_academic_year'),
     path('academic-years/<int:pk>/', views.academic_year_detail, name='academic_year_detail'),
     path('academic-years/<int:pk>/update/', views.update_academic_year, name='update_academic_year'),
     path('academic-years/<int:pk>/delete/', views.delete_academic_year, name='delete_academic_year'),
     path('academic-years/<int:pk>/set-current/', views.set_current_academic_year, name='set_current_academic_year'),
+    
+    # Semester AJAX URLs
+    path('academic-years/<int:academic_year_id>/semesters/', views.get_semesters, name='get_semesters'),
+    path('academic-years/<int:academic_year_id>/add-semester/', views.add_semester_ajax, name='add_semester_ajax'),
+    path('semesters/<int:semester_id>/update/', views.update_semester_ajax, name='update_semester_ajax'),
+    path('semesters/<int:semester_id>/set-current/', views.set_current_semester, name='set_current_semester'),
+    path('semesters/<int:semester_id>/delete/', views.delete_semester_ajax, name='delete_semester_ajax'),
     
     # ============= SEMESTERS =============
     path('semesters/', views.semester_list, name='semester_list'),

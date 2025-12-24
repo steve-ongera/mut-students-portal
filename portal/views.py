@@ -1415,10 +1415,12 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Prefetch
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
+from django.views.decorators.http import require_http_methods
 from datetime import datetime, timedelta
+from decimal import Decimal
 from .models import AcademicYear, Semester, Intake
 from .forms import AcademicYearForm, SemesterForm, IntakeForm
 
@@ -1426,8 +1428,12 @@ from .forms import AcademicYearForm, SemesterForm, IntakeForm
 
 @login_required
 def academic_year_list(request):
-    """List all academic years with search and filtering"""
-    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    """List all academic years with semesters dropdown"""
+    academic_years = AcademicYear.objects.prefetch_related(
+        Prefetch('semesters', queryset=Semester.objects.order_by('semester_number'))
+    ).annotate(
+        semester_count=Count('semesters')
+    ).order_by('-start_date')
     
     # Search functionality
     search_query = request.GET.get('search', '')
@@ -1456,6 +1462,7 @@ def academic_year_list(request):
         'search_query': search_query,
         'status_filter': status_filter,
         'current_year': AcademicYear.objects.filter(is_current=True).first(),
+        'current_semester': Semester.objects.filter(is_current=True).first(),
     }
     
     return render(request, 'admin/academic_calendar/academic_year_list.html', context)
@@ -1561,24 +1568,295 @@ def delete_academic_year(request, pk):
 
 
 @login_required
+@require_http_methods(["POST"])
 def set_current_academic_year(request, pk):
-    """Set an academic year as current"""
-    academic_year = get_object_or_404(AcademicYear, pk=pk)
+    """Set an academic year as current (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            academic_year = get_object_or_404(AcademicYear, pk=pk)
+            
+            # Unset all other current years
+            AcademicYear.objects.filter(is_current=True).update(is_current=False)
+            
+            # Set this as current
+            academic_year.is_current = True
+            academic_year.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'{academic_year.name} is now the current academic year!',
+                'current_year_id': academic_year.pk,
+                'current_year_name': academic_year.name
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error setting current academic year: {str(e)}'
+            }, status=400)
     
+    # Fallback for non-AJAX requests
     try:
-        # Unset all other current years
+        academic_year = get_object_or_404(AcademicYear, pk=pk)
         AcademicYear.objects.filter(is_current=True).update(is_current=False)
-        
-        # Set this as current
         academic_year.is_current = True
         academic_year.save()
-        
         messages.success(request, f'{academic_year.name} is now the current academic year!')
     except Exception as e:
         messages.error(request, f'Error setting current academic year: {str(e)}')
     
-    return redirect('academic_year_detail', pk=pk)
+    return redirect('academic_year_list')
 
+
+# ============= SEMESTERS (AJAX) =============
+
+@login_required
+@require_http_methods(["GET"])
+def get_semesters(request, academic_year_id):
+    """Get semesters for a specific academic year (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
+            semesters = academic_year.semesters.all().order_by('semester_number')
+            
+            semesters_data = [{
+                'id': sem.id,
+                'name': sem.name,
+                'semester_number': sem.semester_number,
+                'start_date': sem.start_date.strftime('%Y-%m-%d'),
+                'end_date': sem.end_date.strftime('%Y-%m-%d'),
+                'registration_start_date': sem.registration_start_date.strftime('%Y-%m-%d'),
+                'registration_end_date': sem.registration_end_date.strftime('%Y-%m-%d'),
+                'is_current': sem.is_current,
+                'is_active': sem.is_active,
+            } for sem in semesters]
+            
+            return JsonResponse({
+                'success': True,
+                'semesters': semesters_data,
+                'count': len(semesters_data)
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            }, status=400)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def add_semester_ajax(request, academic_year_id):
+    """Add a semester to an academic year (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
+            
+            # Get form data
+            semester_number = request.POST.get('semester_number')
+            name = request.POST.get('name')
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+            registration_start_date = request.POST.get('registration_start_date')
+            registration_end_date = request.POST.get('registration_end_date')
+            is_active = request.POST.get('is_active', 'true').lower() == 'true'
+            
+            # Validate required fields
+            if not all([semester_number, name, start_date, end_date, 
+                       registration_start_date, registration_end_date]):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'All fields are required'
+                }, status=400)
+            
+            # Check if semester already exists
+            if Semester.objects.filter(
+                academic_year=academic_year, 
+                semester_number=semester_number
+            ).exists():
+                return JsonResponse({
+                    'success': False,
+                    'message': f'Semester {semester_number} already exists for {academic_year.name}'
+                }, status=400)
+            
+            # Create semester
+            semester = Semester.objects.create(
+                academic_year=academic_year,
+                name=name,
+                semester_number=semester_number,
+                start_date=start_date,
+                end_date=end_date,
+                registration_start_date=registration_start_date,
+                registration_end_date=registration_end_date,
+                is_active=is_active,
+                is_current=False
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Semester {semester.name} added successfully!',
+                'semester': {
+                    'id': semester.id,
+                    'name': semester.name,
+                    'semester_number': semester.semester_number,
+                    'start_date': semester.start_date.strftime('%Y-%m-%d'),
+                    'end_date': semester.end_date.strftime('%Y-%m-%d'),
+                    'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
+                    'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
+                    'is_current': semester.is_current,
+                    'is_active': semester.is_active,
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error adding semester: {str(e)}'
+            }, status=400)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_semester_ajax(request, semester_id):
+    """Update a semester (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            semester = get_object_or_404(Semester, pk=semester_id)
+            
+            # Get form data
+            name = request.POST.get('name')
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+            registration_start_date = request.POST.get('registration_start_date')
+            registration_end_date = request.POST.get('registration_end_date')
+            is_active = request.POST.get('is_active', 'true').lower() == 'true'
+            
+            # Update semester
+            if name:
+                semester.name = name
+            if start_date:
+                semester.start_date = start_date
+            if end_date:
+                semester.end_date = end_date
+            if registration_start_date:
+                semester.registration_start_date = registration_start_date
+            if registration_end_date:
+                semester.registration_end_date = registration_end_date
+            
+            semester.is_active = is_active
+            semester.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Semester {semester.name} updated successfully!',
+                'semester': {
+                    'id': semester.id,
+                    'name': semester.name,
+                    'semester_number': semester.semester_number,
+                    'start_date': semester.start_date.strftime('%Y-%m-%d'),
+                    'end_date': semester.end_date.strftime('%Y-%m-%d'),
+                    'registration_start_date': semester.registration_start_date.strftime('%Y-%m-%d'),
+                    'registration_end_date': semester.registration_end_date.strftime('%Y-%m-%d'),
+                    'is_current': semester.is_current,
+                    'is_active': semester.is_active,
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error updating semester: {str(e)}'
+            }, status=400)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+
+
+@login_required
+@require_http_methods(["POST"])
+def set_current_semester(request, semester_id):
+    """Set a semester as current (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            semester = get_object_or_404(Semester, pk=semester_id)
+            
+            # Unset all other current semesters
+            Semester.objects.filter(is_current=True).update(is_current=False)
+            
+            # Set this as current
+            semester.is_current = True
+            semester.save()
+            
+            # Also set the academic year as current
+            academic_year = semester.academic_year
+            AcademicYear.objects.filter(is_current=True).update(is_current=False)
+            academic_year.is_current = True
+            academic_year.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'{semester.name} is now the current semester!',
+                'current_semester_id': semester.pk,
+                'current_semester_name': semester.name,
+                'current_year_id': academic_year.pk,
+                'current_year_name': academic_year.name
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error setting current semester: {str(e)}'
+            }, status=400)
+    
+    # Fallback for non-AJAX requests
+    try:
+        semester = get_object_or_404(Semester, pk=semester_id)
+        Semester.objects.filter(is_current=True).update(is_current=False)
+        semester.is_current = True
+        semester.save()
+        
+        academic_year = semester.academic_year
+        AcademicYear.objects.filter(is_current=True).update(is_current=False)
+        academic_year.is_current = True
+        academic_year.save()
+        
+        messages.success(request, f'{semester.name} is now the current semester!')
+    except Exception as e:
+        messages.error(request, f'Error setting current semester: {str(e)}')
+    
+    return redirect('academic_year_list')
+
+
+@login_required
+@require_http_methods(["POST"])
+def delete_semester_ajax(request, semester_id):
+    """Delete a semester (AJAX)"""
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            semester = get_object_or_404(Semester, pk=semester_id)
+            
+            # Check if semester is current
+            if semester.is_current:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Cannot delete the current semester. Please set another semester as current first.'
+                }, status=400)
+            
+            name = semester.name
+            semester.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Semester {name} deleted successfully!'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Error deleting semester: {str(e)}'
+            }, status=400)
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
 
 # ============= SEMESTERS =============
 
