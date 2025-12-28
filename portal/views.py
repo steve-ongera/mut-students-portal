@@ -139,13 +139,319 @@ def logout_view(request):
     return redirect('login')
 
 
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum, Avg, Q, F
+from django.db.models.functions import TruncYear, TruncMonth
+from datetime import datetime, timedelta
+from decimal import Decimal
+import json
+
 @login_required
 def admin_dashboard(request):
-    """Admin dashboard view"""
+    """Admin dashboard view with comprehensive analytics"""
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # ============= BASIC STATISTICS (8 CARDS) =============
+    total_students = Student.objects.filter(student_status='active').count()
+    total_lecturers = Lecturer.objects.filter(is_active=True).count()
+    total_programmes = Programme.objects.filter(is_active=True).count()
+    total_units = Unit.objects.filter(is_active=True).count()
+    
+    # Monthly revenue (sum of all completed fee payments in current month)
+    current_month_start = datetime.now().replace(day=1)
+    monthly_revenue = FeePayment.objects.filter(
+        payment_date__gte=current_month_start,
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # Hostel occupancy
+    total_hostel_beds = HostelBed.objects.filter(
+        is_active=True,
+        academic_year=current_academic_year
+    ).count()
+    occupied_beds = HostelBed.objects.filter(
+        is_active=True,
+        academic_year=current_academic_year,
+        status='occupied'
+    ).count()
+    hostel_occupancy = (occupied_beds / total_hostel_beds * 100) if total_hostel_beds > 0 else 0
+    
+    # Library stats
+    total_books = Book.objects.count()
+    
+    # Active users (logged in within last 24 hours)
+    yesterday = datetime.now() - timedelta(days=1)
+    active_users = User.objects.filter(last_login__gte=yesterday).count()
+    
+    # ============= ADMISSION TRENDS BY ACADEMIC YEAR & GENDER =============
+    admission_trends = Student.objects.values(
+        'intake__academic_year__name',
+        'gender'
+    ).annotate(
+        count=Count('id')
+    ).order_by('intake__academic_year__start_date')
+    
+    # Process data for chart
+    admission_years = {}
+    for item in admission_trends:
+        year = item['intake__academic_year__name']
+        gender = item['gender']
+        count = item['count']
+        
+        if year not in admission_years:
+            admission_years[year] = {'M': 0, 'F': 0, 'O': 0}
+        admission_years[year][gender] = count
+    
+    admission_labels = list(admission_years.keys())
+    male_data = [admission_years[year]['M'] for year in admission_labels]
+    female_data = [admission_years[year]['F'] for year in admission_labels]
+    other_data = [admission_years[year]['O'] for year in admission_labels]
+    
+    # ============= CURRENT YEAR DISTRIBUTION BY YEAR OF STUDY =============
+    if current_academic_year:
+        year_distribution = Student.objects.filter(
+            student_status='active',
+            programme__in=Programme.objects.filter(
+                students__intake__academic_year=current_academic_year
+            )
+        ).values('current_year').annotate(
+            count=Count('id')
+        ).order_by('current_year')
+        
+        year_labels = [f'Year {item["current_year"]}' for item in year_distribution]
+        year_counts = [item['count'] for item in year_distribution]
+    else:
+        year_labels = []
+        year_counts = []
+    
+    # ============= PROGRAMME TYPE DISTRIBUTION =============
+    programme_type_stats = Student.objects.filter(
+        student_status='active'
+    ).values(
+        'programme__programme_type'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    programme_type_labels = [item['programme__programme_type'].title() for item in programme_type_stats]
+    programme_type_counts = [item['count'] for item in programme_type_stats]
+    
+    # ============= TOP 5 PROGRAMMES BY ENROLLMENT =============
+    top_programmes = Student.objects.filter(
+        student_status='active'
+    ).values(
+        'programme__code',
+        'programme__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:5]
+    
+    top_programme_labels = [f"{item['programme__code']}" for item in top_programmes]
+    top_programme_counts = [item['count'] for item in top_programmes]
+    
+    # ============= SEMESTER REPORTING TRENDS (LAST 5 SEMESTERS) =============
+    last_5_semesters = Semester.objects.filter(
+        is_active=True
+    ).order_by('-start_date')[:5]
+    
+    reporting_trends = []
+    for semester in reversed(list(last_5_semesters)):
+        approved_reports = SemesterReport.objects.filter(
+            to_semester=semester,
+            status='approved'
+        ).count()
+        
+        pending_reports = SemesterReport.objects.filter(
+            to_semester=semester,
+            status='pending'
+        ).count()
+        
+        reporting_trends.append({
+            'semester': str(semester.name),
+            'approved': approved_reports,
+            'pending': pending_reports,
+            'total': approved_reports + pending_reports
+        })
+    
+    reporting_labels = [item['semester'] for item in reporting_trends]
+    reporting_approved = [item['approved'] for item in reporting_trends]
+    reporting_pending = [item['pending'] for item in reporting_trends]
+    
+    # ============= STUDENT POPULATION TRENDS (LAST 12 MONTHS) =============
+    twelve_months_ago = datetime.now() - timedelta(days=365)
+    population_trends = Student.objects.filter(
+        created_at__gte=twelve_months_ago
+    ).annotate(
+        month=TruncMonth('created_at')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+    
+    population_labels = [item['month'].strftime('%b %Y') for item in population_trends]
+    population_counts = [item['count'] for item in population_trends]
+    
+    # ============= FEE PAYMENT TRENDS (LAST 5 SEMESTERS) =============
+    fee_payment_trends = []
+    for semester in reversed(list(last_5_semesters)):
+        total_expected = FeeBalance.objects.filter(
+            semester=semester
+        ).aggregate(total=Sum('total_fees'))['total'] or Decimal('0.00')
+        
+        total_paid = FeeBalance.objects.filter(
+            semester=semester
+        ).aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+        
+        fee_payment_trends.append({
+            'semester': str(semester.name),
+            'expected': float(total_expected),
+            'paid': float(total_paid),
+            'percentage': (float(total_paid) / float(total_expected) * 100) if total_expected > 0 else 0
+        })
+    
+    fee_labels = [item['semester'] for item in fee_payment_trends]
+    fee_expected = [item['expected'] for item in fee_payment_trends]
+    fee_paid = [item['paid'] for item in fee_payment_trends]
+    fee_percentages = [item['percentage'] for item in fee_payment_trends]
+    
+    # ============= TOP 5 STUDENTS BY GPA =============
+    top_students = Student.objects.filter(
+        student_status='active'
+    ).select_related('user', 'programme').order_by('-cumulative_gpa')[:5]
+    
+    # ============= GENDER DISTRIBUTION (DONUT CHART) =============
+    gender_distribution = Student.objects.filter(
+        student_status='active'
+    ).values('gender').annotate(
+        count=Count('id')
+    )
+    
+    gender_labels = []
+    gender_counts = []
+    for item in gender_distribution:
+        if item['gender'] == 'M':
+            gender_labels.append('Male')
+        elif item['gender'] == 'F':
+            gender_labels.append('Female')
+        else:
+            gender_labels.append('Other')
+        gender_counts.append(item['count'])
+    
+    # ============= RECENT ACTIVITIES =============
+    # Get recent semester reports
+    recent_reports = SemesterReport.objects.select_related(
+        'student__user',
+        'to_semester'
+    ).order_by('-created_at')[:5]
+    
+    # Get recent fee payments
+    recent_payments = FeePayment.objects.select_related(
+        'student__user'
+    ).filter(
+        status='completed'
+    ).order_by('-payment_date')[:3]
+    
+    # Get recent hostel allocations
+    recent_allocations = HostelAllocation.objects.select_related(
+        'student__user',
+        'bed__room__hostel'
+    ).order_by('-allocation_date')[:2]
+    
+    # Compile all activities
+    recent_activities = []
+    
+    for report in recent_reports:
+        recent_activities.append({
+            'type': 'report',
+            'title': 'Semester Report',
+            'description': f"Y{report.to_year_of_study}S{report.to_semester_number}",
+            'user': report.student.user.get_full_name(),
+            'date': report.created_at,
+            'status': report.status
+        })
+    
+    for payment in recent_payments:
+        recent_activities.append({
+            'type': 'payment',
+            'title': 'Fee Payment',
+            'description': f"Ksh {payment.amount:,.2f}",
+            'user': payment.student.user.get_full_name(),
+            'date': payment.payment_date,
+            'status': payment.status
+        })
+    
+    for allocation in recent_allocations:
+        recent_activities.append({
+            'type': 'hostel',
+            'title': 'Hostel Allocation',
+            'description': f"{allocation.bed.room.hostel.name} - Room {allocation.bed.room.room_number}",
+            'user': allocation.student.user.get_full_name(),
+            'date': allocation.allocation_date,
+            'status': 'approved' if allocation.is_active else 'pending'
+        })
+    
+    # Sort all activities by date
+    recent_activities.sort(key=lambda x: x['date'], reverse=True)
+    recent_activities = recent_activities[:10]
+    
     context = {
         'page_title': 'Admin Dashboard',
         'user': request.user,
+        
+        # Basic stats
+        'total_students': total_students,
+        'total_lecturers': total_lecturers,
+        'total_programmes': total_programmes,
+        'total_units': total_units,
+        'monthly_revenue': monthly_revenue,
+        'hostel_occupancy': round(hostel_occupancy, 1),
+        'total_books': total_books,
+        'active_users': active_users,
+        
+        # Current academic info
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        
+        # Chart data (JSON encoded for JavaScript)
+        'admission_labels': json.dumps(admission_labels),
+        'male_data': json.dumps(male_data),
+        'female_data': json.dumps(female_data),
+        'other_data': json.dumps(other_data),
+        
+        'year_labels': json.dumps(year_labels),
+        'year_counts': json.dumps(year_counts),
+        
+        'programme_type_labels': json.dumps(programme_type_labels),
+        'programme_type_counts': json.dumps(programme_type_counts),
+        
+        'top_programme_labels': json.dumps(top_programme_labels),
+        'top_programme_counts': json.dumps(top_programme_counts),
+        
+        'reporting_labels': json.dumps(reporting_labels),
+        'reporting_approved': json.dumps(reporting_approved),
+        'reporting_pending': json.dumps(reporting_pending),
+        
+        'population_labels': json.dumps(population_labels),
+        'population_counts': json.dumps(population_counts),
+        
+        'fee_labels': json.dumps(fee_labels),
+        'fee_expected': json.dumps(fee_expected),
+        'fee_paid': json.dumps(fee_paid),
+        'fee_percentages': json.dumps(fee_percentages),
+        
+        'gender_labels': json.dumps(gender_labels),
+        'gender_counts': json.dumps(gender_counts),
+        
+        # Top students
+        'top_students': top_students,
+        
+        # Recent activities
+        'recent_activities': recent_activities,
     }
+    
     return render(request, 'admin/dashboard.html', context)
 
 

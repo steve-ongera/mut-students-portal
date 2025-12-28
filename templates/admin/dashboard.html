@@ -3,518 +3,380 @@
 
 {% block title %}Admin Dashboard{% endblock %}
 
-{% block page_title %}Admin Dashboard{% endblock %}
-{% block page_subtitle %}Welcome to the administrative panel{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
 
 {% block content %}
 <div class="dashboard-container">
-    <!-- Welcome Banner -->
-    <div class="content-card mb-4">
-        <div class="d-flex flex-column flex-md-row align-items-center justify-content-between gap-4">
-            <div class="flex-grow-1">
-                <h2 class="mb-2">
-                    Welcome back, <span class="text-primary">{{ user.get_full_name|default:user.username }}</span>
-                </h2>
-                <p class="text-muted mb-0">
-                    You have administrative access to the MUT Portal. Use the sidebar to navigate through different modules and manage the system efficiently.
-                </p>
-                <div class="mt-3">
-                    <span class="badge bg-primary-light text-primary me-2">Admin Access</span>
-                    <span class="badge bg-success-light text-success">Full Permissions</span>
-                </div>
+    <!-- Welcome Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Dashboard Overview</h1>
+                <p class="text-muted mb-0">Welcome back, <span class="fw-medium">{{ user.get_full_name|default:user.username }}</span></p>
             </div>
-            <div class="text-center">
-                <div class="avatar-wrapper">
-                    <img src="{% static 'avatar2.png' %}" alt="User Avatar" class="avatar-lg">
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_academic_year.name }} • {{ current_semester.name }}
                 </div>
-                <p class="small text-muted mt-2">Last login: Today, {% now "H:i" %}</p>
+                <p class="small text-muted mt-2">Last login: {% now "F j, Y, g:i a" %}</p>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row g-4 mb-4">
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-primary">
-                <div class="stat-icon">
-                    <i class="ri-user-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">1,234</h3>
-                    <p class="stat-label">Total Students</p>
-                    <div class="stat-trend">
-                        <i class="ri-arrow-up-line text-success"></i>
-                        <span class="text-success small">12% this month</span>
+    <!-- Key Metrics Grid -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-user-line text-primary"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_students|default:0 }}</h3>
+                        <p class="metric-label mb-0">Total Students</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-arrow-up-line text-success me-1"></i>
+                    <span class="small text-muted">All active students</span>
                 </div>
             </div>
         </div>
         
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-success">
-                <div class="stat-icon">
-                    <i class="ri-team-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">89</h3>
-                    <p class="stat-label">Total Lecturers</p>
-                    <div class="stat-trend">
-                        <i class="ri-arrow-up-line text-success"></i>
-                        <span class="text-success small">5% this month</span>
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-team-line text-success"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_lecturers|default:0 }}</h3>
+                        <p class="metric-label mb-0">Academic Staff</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Teaching faculty</span>
                 </div>
             </div>
         </div>
         
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-warning">
-                <div class="stat-icon">
-                    <i class="ri-book-open-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">45</h3>
-                    <p class="stat-label">Active Programmes</p>
-                    <div class="stat-trend">
-                        <i class="ri-add-line text-info"></i>
-                        <span class="text-info small">3 new this year</span>
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-book-open-line text-warning"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_programmes|default:0 }}</h3>
+                        <p class="metric-label mb-0">Programmes</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-info me-1"></i>
+                    <span class="small text-muted">Active programmes</span>
                 </div>
             </div>
         </div>
         
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-info">
-                <div class="stat-icon">
-                    <i class="ri-file-list-3-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">267</h3>
-                    <p class="stat-label">Total Units</p>
-                    <div class="stat-trend">
-                        <i class="ri-arrow-up-line text-success"></i>
-                        <span class="text-success small">8% updated</span>
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-file-list-3-line text-info"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_units|default:0 }}</h3>
+                        <p class="metric-label mb-0">Course Units</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Available units</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-purple-subtle">
+                        <i class="ri-money-dollar-circle-line text-purple"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">Ksh {{ monthly_revenue|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Monthly Revenue</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-arrow-up-line text-success me-1"></i>
+                    <span class="small text-muted">Current month</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-teal-subtle">
+                        <i class="ri-hotel-line text-teal"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ hostel_occupancy|default:0 }}%</h3>
+                        <p class="metric-label mb-0">Hostel Occupancy</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Capacity utilization</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-indigo-subtle">
+                        <i class="ri-book-2-line text-indigo"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_books|default:0 }}</h3>
+                        <p class="metric-label mb-0">Library Collection</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-book-line text-info me-1"></i>
+                    <span class="small text-muted">Available books</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-gray-subtle">
+                        <i class="ri-user-star-line text-gray"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ active_users|default:0 }}</h3>
+                        <p class="metric-label mb-0">Active Users</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-time-line text-success me-1"></i>
+                    <span class="small text-muted">Last 24 hours</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Second Row Stats -->
-    <div class="row g-4 mb-4">
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-secondary">
-                <div class="stat-icon">
-                    <i class="ri-money-dollar-circle-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">Ksh 4.2M</h3>
-                    <p class="stat-label">Monthly Revenue</p>
-                    <div class="stat-trend">
-                        <i class="ri-arrow-up-line text-success"></i>
-                        <span class="text-success small">18% increase</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-purple">
-                <div class="stat-icon">
-                    <i class="ri-hotel-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">86%</h3>
-                    <p class="stat-label">Hostel Occupancy</p>
-                    <div class="stat-trend">
-                        <i class="ri-check-line text-success"></i>
-                        <span class="text-success small">Optimal</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-teal">
-                <div class="stat-icon">
-                    <i class="ri-book-2-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">5,432</h3>
-                    <p class="stat-label">Library Books</p>
-                    <div class="stat-trend">
-                        <i class="ri-add-line text-info"></i>
-                        <span class="text-info small">234 new</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-xl-3 col-lg-6 col-md-6">
-            <div class="stat-card stat-card-gray">
-                <div class="stat-icon">
-                    <i class="ri-time-line"></i>
-                </div>
-                <div class="stat-content">
-                    <h3 class="stat-value">99.8%</h3>
-                    <p class="stat-label">System Uptime</p>
-                    <div class="stat-trend">
-                        <i class="ri-check-line text-success"></i>
-                        <span class="text-success small">Stable</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Content Area -->
-    <div class="row g-4">
-        <!-- Recent Activities -->
+    <!-- Analytics Section -->
+    <div class="row g-4 mb-5">
+        <!-- Demographic Overview -->
         <div class="col-xl-8">
-            <div class="content-card">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="card-title mb-0">Recent Activities</h5>
-                    <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Admission Trends</h5>
+                    <div class="card-subtitle">By academic year and gender</div>
                 </div>
-                
-                <div class="table-responsive">
-                    <table class="table datatable" id="recentActivities">
-                        <thead>
-                            <tr>
-                                <th>Activity</th>
-                                <th>User</th>
-                                <th>Date</th>
-                                <th>Status</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="activity-icon bg-primary-light">
-                                            <i class="ri-user-add-line text-primary"></i>
-                                        </div>
-                                        <div class="ms-3">
-                                            <p class="mb-0 fw-medium">New Student Registration</p>
-                                            <small class="text-muted">Registration No: SC211/0534/2024</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>John Doe</td>
-                                <td>
-                                    <span class="text-muted">Today</span><br>
-                                    <small>10:24 AM</small>
-                                </td>
-                                <td>
-                                    <span class="badge bg-success rounded-pill">Completed</span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">View</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="activity-icon bg-success-light">
-                                            <i class="ri-file-edit-line text-success"></i>
-                                        </div>
-                                        <div class="ms-3">
-                                            <p class="mb-0 fw-medium">Unit Registration</p>
-                                            <small class="text-muted">CIT 3101: Data Structures</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Jane Smith</td>
-                                <td>
-                                    <span class="text-muted">Today</span><br>
-                                    <small>09:15 AM</small>
-                                </td>
-                                <td>
-                                    <span class="badge bg-success rounded-pill">Completed</span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">View</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="activity-icon bg-info-light">
-                                            <i class="ri-money-dollar-circle-line text-info"></i>
-                                        </div>
-                                        <div class="ms-3">
-                                            <p class="mb-0 fw-medium">Fee Payment</p>
-                                            <small class="text-muted">Ksh 45,000 Semester Fee</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Michael Brown</td>
-                                <td>
-                                    <span class="text-muted">Yesterday</span><br>
-                                    <small>02:45 PM</small>
-                                </td>
-                                <td>
-                                    <span class="badge bg-success rounded-pill">Verified</span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">View</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="activity-icon bg-warning-light">
-                                            <i class="ri-hotel-line text-warning"></i>
-                                        </div>
-                                        <div class="ms-3">
-                                            <p class="mb-0 fw-medium">Hostel Allocation</p>
-                                            <small class="text-muted">Block A, Room 210</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>Sarah Johnson</td>
-                                <td>
-                                    <span class="text-muted">Yesterday</span><br>
-                                    <small>11:30 AM</small>
-                                </td>
-                                <td>
-                                    <span class="badge bg-warning rounded-pill">Pending</span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">Review</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="activity-icon bg-purple-light">
-                                            <i class="ri-book-2-line text-purple"></i>
-                                        </div>
-                                        <div class="ms-3">
-                                            <p class="mb-0 fw-medium">Book Issued</p>
-                                            <small class="text-muted">Introduction to Algorithms</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>David Wilson</td>
-                                <td>
-                                    <span class="text-muted">2 days ago</span><br>
-                                    <small>04:20 PM</small>
-                                </td>
-                                <td>
-                                    <span class="badge bg-success rounded-pill">Issued</span>
-                                </td>
-                                <td>
-                                    <button class="btn btn-sm btn-outline-primary">View</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="card-body">
+                    <canvas id="admissionTrendsChart" height="90"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- Quick Actions & System Status -->
+        
         <div class="col-xl-4">
-            <!-- Quick Actions -->
-            <div class="content-card mb-4">
-                <h5 class="card-title mb-4">Quick Actions</h5>
-                <div class="d-grid gap-3">
-                    <a href="#" class="btn btn-primary d-flex align-items-center justify-content-start py-3">
-                        <i class="ri-user-add-line me-3 fs-5"></i>
-                        <div class="text-start">
-                            <span class="fw-medium">Add New Student</span>
-                            <small class="d-block text-white-50">Register a new student</small>
-                        </div>
-                        <i class="ri-arrow-right-s-line ms-auto"></i>
-                    </a>
-                    
-                    <a href="#" class="btn btn-success d-flex align-items-center justify-content-start py-3">
-                        <i class="ri-team-line me-3 fs-5"></i>
-                        <div class="text-start">
-                            <span class="fw-medium">Add New Lecturer</span>
-                            <small class="d-block text-white-50">Register a new lecturer</small>
-                        </div>
-                        <i class="ri-arrow-right-s-line ms-auto"></i>
-                    </a>
-                    
-                    <a href="#" class="btn btn-info d-flex align-items-center justify-content-start py-3">
-                        <i class="ri-book-open-line me-3 fs-5"></i>
-                        <div class="text-start">
-                            <span class="fw-medium">Create Programme</span>
-                            <small class="d-block text-white-50">Add a new academic programme</small>
-                        </div>
-                        <i class="ri-arrow-right-s-line ms-auto"></i>
-                    </a>
-                    
-                    <a href="#" class="btn btn-warning d-flex align-items-center justify-content-start py-3">
-                        <i class="ri-file-list-3-line me-3 fs-5"></i>
-                        <div class="text-start">
-                            <span class="fw-medium">Add New Unit</span>
-                            <small class="d-block text-white-50">Create a new course unit</small>
-                        </div>
-                        <i class="ri-arrow-right-s-line ms-auto"></i>
-                    </a>
-                    
-                    <a href="#" class="btn btn-secondary d-flex align-items-center justify-content-start py-3">
-                        <i class="ri-calendar-line me-3 fs-5"></i>
-                        <div class="text-start">
-                            <span class="fw-medium">Manage Timetable</span>
-                            <small class="d-block text-white-50">Schedule classes and exams</small>
-                        </div>
-                        <i class="ri-arrow-right-s-line ms-auto"></i>
-                    </a>
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Gender Distribution</h5>
+                    <div class="card-subtitle">Current student population</div>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="genderChart" height="200"></canvas>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- System Status -->
-            <div class="content-card">
-                <h5 class="card-title mb-4">System Status</h5>
-                <div class="system-status">
-                    <div class="status-item">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-medium">Server Status</span>
-                            <span class="badge bg-success rounded-pill">Online</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-success" style="width: 100%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-item mt-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-medium">Database</span>
-                            <span class="badge bg-success rounded-pill">Connected</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-success" style="width: 100%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-item mt-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-medium">Payment Gateway</span>
-                            <span class="badge bg-success rounded-pill">Active</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-success" style="width: 95%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="status-item mt-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="fw-medium">System Load</span>
-                            <span class="badge bg-info rounded-pill">Normal</span>
-                        </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-info" style="width: 65%"></div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-4 pt-3 border-top">
-                        <div class="d-flex justify-content-between">
-                            <div>
-                                <small class="text-muted">Last Backup</small>
-                                <p class="mb-0 fw-medium">2 hours ago</p>
+    <!-- Student Distribution -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Year of Study Distribution</h5>
+                    <div class="card-subtitle">{{ current_academic_year.name }}</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="yearDistributionChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Programme Categories</h5>
+                    <div class="card-subtitle">By type and enrollment</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="programmeTypeChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance & Rankings -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-8">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Top Programmes by Enrollment</h5>
+                    <div class="card-subtitle">Highest student count</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="topProgrammesChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Academic Excellence</h5>
+                    <div class="card-subtitle">Top 5 students by GPA</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ranking-list">
+                        {% for student in top_students %}
+                        <div class="ranking-item">
+                            <div class="rank-number">{{ forloop.counter }}</div>
+                            <div class="rank-info">
+                                <h6 class="mb-0">{{ student.user.get_full_name }}</h6>
+                                <small class="text-muted">{{ student.registration_number }} • {{ student.programme.code }}</small>
                             </div>
-                            <div>
-                                <small class="text-muted">Uptime</small>
-                                <p class="mb-0 fw-medium">99.8%</p>
-                            </div>
-                            <div>
-                                <small class="text-muted">Active Users</small>
-                                <p class="mb-0 fw-medium">247</p>
+                            <div class="rank-score">
+                                <span class="badge bg-primary rounded-pill px-3 py-1">{{ student.cumulative_gpa }}</span>
                             </div>
                         </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No student data available</p>
+                        </div>
+                        {% endfor %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Academic Year Info -->
-    <div class="row g-4 mt-4">
+    <!-- Trends & Monitoring -->
+    <div class="row g-4 mb-5">
         <div class="col-12">
-            <div class="content-card">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <div>
-                        <h5 class="card-title mb-1">Academic Year: 2024/2025</h5>
-                        <p class="text-muted mb-0">Current academic session information</p>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-outline-primary">
-                            <i class="ri-calendar-line me-1"></i> View Calendar
-                        </button>
-                        <button class="btn btn-sm btn-primary">
-                            <i class="ri-settings-3-line me-1"></i> Settings
-                        </button>
-                    </div>
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Semester Reporting Trends</h5>
+                    <div class="card-subtitle">Last 5 academic periods</div>
                 </div>
-                
-                <div class="row">
-                    <div class="col-lg-6">
-                        <div class="academic-period active">
-                            <div class="period-header">
-                                <h6 class="mb-0">Semester 1</h6>
-                                <span class="badge bg-success rounded-pill">Active</span>
-                            </div>
-                            <div class="period-dates mt-3">
-                                <div class="date-item">
-                                    <i class="ri-calendar-check-line text-primary"></i>
-                                    <div class="ms-3">
-                                        <small class="text-muted">Start Date</small>
-                                        <p class="mb-0 fw-medium">September 1, 2024</p>
-                                    </div>
-                                </div>
-                                <div class="date-item mt-2">
-                                    <i class="ri-calendar-close-line text-primary"></i>
-                                    <div class="ms-3">
-                                        <small class="text-muted">End Date</small>
-                                        <p class="mb-0 fw-medium">December 20, 2024</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="period-progress mt-3">
-                                <div class="d-flex justify-content-between mb-1">
-                                    <small>Progress</small>
-                                    <small>65%</small>
-                                </div>
-                                <div class="progress" style="height: 8px;">
-                                    <div class="progress-bar bg-primary" style="width: 65%"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="col-lg-6 mt-4 mt-lg-0">
-                        <div class="academic-period upcoming">
-                            <div class="period-header">
-                                <h6 class="mb-0">Semester 2</h6>
-                                <span class="badge bg-secondary rounded-pill">Upcoming</span>
-                            </div>
-                            <div class="period-dates mt-3">
-                                <div class="date-item">
-                                    <i class="ri-calendar-todo-line text-secondary"></i>
-                                    <div class="ms-3">
-                                        <small class="text-muted">Start Date</small>
-                                        <p class="mb-0 fw-medium">January 15, 2025</p>
-                                    </div>
-                                </div>
-                                <div class="date-item mt-2">
-                                    <i class="ri-calendar-close-line text-secondary"></i>
-                                    <div class="ms-3">
-                                        <small class="text-muted">End Date</small>
-                                        <p class="mb-0 fw-medium">May 15, 2025</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="period-countdown mt-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">Starts in</small>
-                                    <span class="fw-bold text-primary">72 days</span>
-                                </div>
-                            </div>
-                        </div>
+                <div class="card-body">
+                    <canvas id="reportingTrendsChart" height="70"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Student Population Trend</h5>
+                    <div class="card-subtitle">Monthly growth over 12 months</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="populationTrendsChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Fee Collection Analysis</h5>
+                    <div class="card-subtitle">Payment trends by semester</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="feePaymentChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Activities</h5>
+                    <div class="card-subtitle">Latest system events and actions</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="activity-table">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Activity</th>
+                                    <th>User</th>
+                                    <th>Date & Time</th>
+                                    <th class="pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in recent_activities %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="activity-icon me-3">
+                                                <i class="
+                                                    {% if activity.type == 'report' %}ri-file-list-line text-primary{% endif %}
+                                                    {% if activity.type == 'payment' %}ri-money-dollar-circle-line text-success{% endif %}
+                                                    {% if activity.type == 'hostel' %}ri-hotel-line text-warning{% endif %}
+                                                    {% if not activity.type %}ri-notification-line text-muted{% endif %}
+                                                "></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-0 fw-medium">{{ activity.title }}</p>
+                                                <small class="text-muted">{{ activity.description|truncatechars:60 }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">{{ activity.user }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted">
+                                            {{ activity.date|date:"M d, Y" }}<br>
+                                            {{ activity.date|time:"g:i A" }}
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <span class="status-badge status-{{ activity.status|default:'pending' }}">
+                                            {{ activity.status|title|default:"Pending" }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">
+                                        <i class="ri-inbox-line fs-1 mb-3 d-block"></i>
+                                        No recent activities found
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -523,408 +385,652 @@
 </div>
 
 <style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
     .dashboard-container {
-        padding: 0;
+        padding: 0 0.5rem;
     }
-
-    /* Avatar Styles */
-    .avatar-wrapper {
-        width: 100px;
-        height: 100px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 4px solid var(--primary-light);
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
     }
-
-    .avatar-lg {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        object-fit: cover;
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
     }
-
-    /* Stat Cards */
-    .stat-card {
-        background: var(--bg-white);
-        border-radius: var(--radius);
-        border: 1px solid var(--border-color);
-        padding: 24px;
-        height: 100%;
-        transition: var(--transition);
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-lg);
-    }
-
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 4px;
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
         height: 100%;
     }
-
-    .stat-card-primary::before {
-        background-color: #2E7D32;
-    }
-
-    .stat-card-success::before {
-        background-color: #4CAF50;
-    }
-
-    .stat-card-warning::before {
-        background-color: #FF9800;
-    }
-
-    .stat-card-info::before {
-        background-color: #2196F3;
-    }
-
-    .stat-card-secondary::before {
-        background-color: #9C27B0;
-    }
-
-    .stat-card-purple::before {
-        background-color: #673AB7;
-    }
-
-    .stat-card-teal::before {
-        background-color: #009688;
-    }
-
-    .stat-card-gray::before {
-        background-color: #607D8B;
-    }
-
-    .stat-icon {
-        position: absolute;
-        top: 24px;
-        right: 24px;
-        width: 56px;
-        height: 56px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-    }
-
-    .stat-card-primary .stat-icon {
-        background: rgba(46, 125, 50, 0.1);
-        color: #2E7D32;
-    }
-
-    .stat-card-success .stat-icon {
-        background: rgba(76, 175, 80, 0.1);
-        color: #4CAF50;
-    }
-
-    .stat-card-warning .stat-icon {
-        background: rgba(255, 152, 0, 0.1);
-        color: #FF9800;
-    }
-
-    .stat-card-info .stat-icon {
-        background: rgba(33, 150, 243, 0.1);
-        color: #2196F3;
-    }
-
-    .stat-card-secondary .stat-icon {
-        background: rgba(156, 39, 176, 0.1);
-        color: #9C27B0;
-    }
-
-    .stat-card-purple .stat-icon {
-        background: rgba(103, 58, 183, 0.1);
-        color: #673AB7;
-    }
-
-    .stat-card-teal .stat-icon {
-        background: rgba(0, 150, 136, 0.1);
-        color: #009688;
-    }
-
-    .stat-card-gray .stat-icon {
-        background: rgba(96, 125, 139, 0.1);
-        color: #607D8B;
-    }
-
-    .stat-content {
-        padding-right: 70px;
-    }
-
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: 4px;
-        color: var(--text-dark);
-    }
-
-    .stat-label {
-        color: var(--text-medium);
-        font-size: 0.9rem;
-        margin-bottom: 8px;
-    }
-
-    .stat-trend {
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    /* Activity Icons */
-    .activity-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: var(--radius);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-    }
-
-    .bg-primary-light {
-        background: rgba(46, 125, 50, 0.1);
-    }
-
-    .bg-success-light {
-        background: rgba(76, 175, 80, 0.1);
-    }
-
-    .bg-info-light {
-        background: rgba(33, 150, 243, 0.1);
-    }
-
-    .bg-warning-light {
-        background: rgba(255, 152, 0, 0.1);
-    }
-
-    .bg-purple-light {
-        background: rgba(103, 58, 183, 0.1);
-    }
-
-    /* Quick Action Buttons */
-    .btn-primary, .btn-success, .btn-info, .btn-warning, .btn-secondary {
-        border-radius: var(--radius);
-        border: none;
-        text-align: left;
-        transition: var(--transition);
-    }
-
-    .btn-primary:hover, .btn-success:hover, .btn-info:hover, .btn-warning:hover, .btn-secondary:hover {
+    
+    .metric-card:hover {
         transform: translateY(-2px);
         box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
     }
-
-    /* System Status */
-    .system-status {
-        padding: 8px 0;
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
     }
-
-    .status-item {
-        margin-bottom: 20px;
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
     }
-
-    .status-item:last-child {
-        margin-bottom: 0;
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
     }
-
-    /* Academic Period */
-    .academic-period {
-        background: var(--bg-white);
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius);
-        padding: 20px;
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
         height: 100%;
     }
-
-    .academic-period.active {
-        border-left: 4px solid #2E7D32;
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
     }
-
-    .academic-period.upcoming {
-        border-left: 4px solid #9E9E9E;
-    }
-
-    .period-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .date-item {
-        display: flex;
-        align-items: center;
-    }
-
-    .period-progress .progress {
-        border-radius: 4px;
-    }
-
-    .period-countdown {
-        padding: 12px;
-        background: rgba(46, 125, 50, 0.05);
-        border-radius: var(--radius);
-        border: 1px solid rgba(46, 125, 50, 0.1);
-    }
-
-    /* Badge styles */
-    .badge {
-        font-weight: 500;
-        font-size: 0.75rem;
-        padding: 4px 10px;
-    }
-
-    .badge.rounded-pill {
-        padding: 4px 12px;
-    }
-
-    /* Table styles */
-    .datatable {
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .datatable thead th {
-        border-bottom: 2px solid var(--border-color);
-        border-top: none;
+    
+    .card-title {
+        font-size: 1rem;
         font-weight: 600;
-        color: var(--text-medium);
-        padding: 16px 12px;
-        background: var(--bg-light);
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
     }
-
-    .datatable tbody td {
-        padding: 16px 12px;
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Ranking List */
+    .ranking-list {
+        padding: 0.5rem 0;
+    }
+    
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        padding: 0.875rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s ease;
+    }
+    
+    .ranking-item:last-child {
+        border-bottom: none;
+    }
+    
+    .ranking-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    .rank-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-success));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+        margin-right: 1rem;
+    }
+    
+    .rank-info {
+        flex: 1;
+    }
+    
+    .rank-info h6 {
+        font-size: 0.9375rem;
+        font-weight: 500;
+    }
+    
+    .rank-score .badge {
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+    
+    /* Activity Table */
+    .activity-table {
+        overflow-x: auto;
+    }
+    
+    .activity-table .table {
+        margin-bottom: 0;
+    }
+    
+    .activity-table th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        padding: 1rem 0.75rem;
+    }
+    
+    .activity-table td {
+        padding: 1.125rem 0.75rem;
         vertical-align: middle;
-        border-bottom: 1px solid var(--border-color);
+        border-color: var(--color-gray-200);
     }
-
-    .datatable tbody tr:hover {
-        background: rgba(46, 125, 50, 0.02);
+    
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        background: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.125rem;
     }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .stat-card {
-            padding: 20px;
-        }
-
-        .stat-icon {
-            width: 48px;
-            height: 48px;
-            font-size: 24px;
-        }
-
-        .stat-value {
-            font-size: 1.75rem;
-        }
-
-        .avatar-wrapper {
-            width: 80px;
-            height: 80px;
-        }
-
-        .avatar-lg {
-            width: 64px;
-            height: 64px;
-        }
-
-        .content-card {
-            padding: 16px;
-        }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
-
-    @media (max-width: 576px) {
-        .stat-card {
-            padding: 16px;
-        }
-
-        .stat-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 20px;
-            top: 16px;
-            right: 16px;
-        }
-
-        .stat-content {
-            padding-right: 60px;
-        }
-
-        .stat-value {
-            font-size: 1.5rem;
-        }
-
-        .btn {
-            padding: 12px 16px;
-        }
+    
+    .status-approved,
+    .status-completed {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
     }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-rejected {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-purple-subtle { background-color: rgba(156, 39, 176, 0.08); }
+    .bg-teal-subtle { background-color: rgba(0, 150, 136, 0.08); }
+    .bg-indigo-subtle { background-color: rgba(63, 81, 181, 0.08); }
+    .bg-gray-subtle { background-color: rgba(96, 125, 139, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-purple { color: #9C27B0; }
+    .text-teal { color: #009688; }
+    .text-indigo { color: #3F51B5; }
+    .text-gray { color: #607D8B; }
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize DataTable for Recent Activities
-        if ($.fn.DataTable) {
-            $('#recentActivities').DataTable({
-                ordering: false,
-                searching: false,
-                info: false,
-                paging: false,
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#6c757d';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 6;
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+    Chart.defaults.plugins.legend.labels.padding = 20;
+    
+    // Professional Color Palette
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info: '#2196F3',
+        danger: '#F44336',
+        purple: '#9C27B0',
+        teal: '#009688',
+        indigo: '#3F51B5',
+        gray: '#607D8B',
+        lightGray: '#E9ECEF',
+        male: '#2196F3',
+        female: '#E91E63',
+        other: '#9C27B0'
+    };
+    
+    // Chart 1: Admission Trends
+    const admissionCtx = document.getElementById('admissionTrendsChart');
+    if (admissionCtx) {
+        new Chart(admissionCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ admission_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Male',
+                        data: {{ male_data|safe }},
+                        backgroundColor: colors.male,
+                        borderRadius: 4,
+                        borderSkipped: false
+                    },
+                    {
+                        label: 'Female',
+                        data: {{ female_data|safe }},
+                        backgroundColor: colors.female,
+                        borderRadius: 4,
+                        borderSkipped: false
+                    }
+                ]
+            },
+            options: {
                 responsive: true,
-                language: {
-                    emptyTable: "No recent activities found"
-                }
-            });
-        }
-
-        // Add click events to quick action buttons
-        document.querySelectorAll('.btn-primary, .btn-success, .btn-info, .btn-warning, .btn-secondary').forEach(btn => {
-            btn.addEventListener('click', function(e) {
-                if (this.tagName === 'A' && this.getAttribute('href') === '#') {
-                    e.preventDefault();
-                    toastr.info('This feature will be implemented soon.');
-                }
-            });
-        });
-
-        // Update system status dynamically
-        function updateSystemStatus() {
-            const statusItems = document.querySelectorAll('.status-item');
-            statusItems.forEach(item => {
-                const progressBar = item.querySelector('.progress-bar');
-                if (progressBar) {
-                    const currentWidth = parseInt(progressBar.style.width);
-                    const targetWidth = Math.min(100, currentWidth + (Math.random() * 5 - 2.5));
-                    progressBar.style.width = targetWidth + '%';
-                    
-                    // Update badge based on width
-                    const badge = item.querySelector('.badge');
-                    if (badge && targetWidth > 90) {
-                        badge.className = 'badge bg-success rounded-pill';
-                        badge.textContent = 'Excellent';
-                    } else if (badge && targetWidth > 70) {
-                        badge.className = 'badge bg-info rounded-pill';
-                        badge.textContent = 'Good';
-                    } else if (badge && targetWidth > 50) {
-                        badge.className = 'badge bg-warning rounded-pill';
-                        badge.textContent = 'Fair';
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false },
+                        ticks: { color: '#666' }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: { color: '#666' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { color: '#333', padding: 16 }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.parsed.y}`;
+                            },
+                            footer: function(tooltipItems) {
+                                const total = tooltipItems.reduce((sum, item) => sum + item.parsed.y, 0);
+                                return `Total: ${total}`;
+                            }
+                        }
                     }
                 }
-            });
-        }
-
-        // Update status every 30 seconds
-        setInterval(updateSystemStatus, 30000);
-    });
+            }
+        });
+    }
+    
+    // Chart 2: Gender Distribution
+    const genderCtx = document.getElementById('genderChart');
+    if (genderCtx) {
+        new Chart(genderCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ gender_labels|safe }},
+                datasets: [{
+                    data: {{ gender_counts|safe }},
+                    backgroundColor: [colors.male, colors.female, colors.other],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            color: '#333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 3: Year Distribution
+    const yearCtx = document.getElementById('yearDistributionChart');
+    if (yearCtx) {
+        new Chart(yearCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ year_labels|safe }},
+                datasets: [{
+                    data: {{ year_counts|safe }},
+                    backgroundColor: colors.primary,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 4: Programme Type
+    const progTypeCtx = document.getElementById('programmeTypeChart');
+    if (progTypeCtx) {
+        new Chart(progTypeCtx, {
+            type: 'pie',
+            data: {
+                labels: {{ programme_type_labels|safe }},
+                datasets: [{
+                    data: {{ programme_type_counts|safe }},
+                    backgroundColor: [
+                        colors.primary,
+                        colors.info,
+                        colors.warning,
+                        colors.success,
+                        colors.purple
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            padding: 20,
+                            color: '#333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 5: Top Programmes
+    const topProgCtx = document.getElementById('topProgrammesChart');
+    if (topProgCtx) {
+        new Chart(topProgCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ top_programme_labels|safe }},
+                datasets: [{
+                    data: {{ top_programme_counts|safe }},
+                    backgroundColor: colors.success,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 6: Reporting Trends
+    const reportingCtx = document.getElementById('reportingTrendsChart');
+    if (reportingCtx) {
+        new Chart(reportingCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ reporting_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Approved',
+                        data: {{ reporting_approved|safe }},
+                        backgroundColor: colors.success,
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Pending',
+                        data: {{ reporting_pending|safe }},
+                        backgroundColor: colors.warning,
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        grid: { display: false }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { padding: 16 }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 7: Population Trends
+    const popCtx = document.getElementById('populationTrendsChart');
+    if (popCtx) {
+        new Chart(popCtx, {
+            type: 'line',
+            data: {
+                labels: {{ population_labels|safe }},
+                datasets: [{
+                    label: 'New Students',
+                    data: {{ population_counts|safe }},
+                    borderColor: colors.primary,
+                    backgroundColor: 'rgba(46, 125, 50, 0.05)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: colors.primary,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 8: Fee Payment
+    const feeCtx = document.getElementById('feePaymentChart');
+    if (feeCtx) {
+        new Chart(feeCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ fee_labels|safe }},
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Collection Rate',
+                        data: {{ fee_percentages|safe }},
+                        borderColor: colors.success,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        yAxisID: 'y1',
+                        pointBackgroundColor: colors.success,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Expected Revenue',
+                        data: {{ fee_expected|safe }},
+                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                        borderColor: colors.info,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Actual Collection',
+                        data: {{ fee_paid|safe }},
+                        backgroundColor: colors.success,
+                        borderColor: colors.success,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                            callback: function(value) {
+                                return 'Ksh ' + (value / 1000000).toFixed(1) + 'M';
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { padding: 16 }
+                    }
+                }
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
