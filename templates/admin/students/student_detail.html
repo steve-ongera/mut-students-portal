@@ -3,293 +3,410 @@
 
 {% block title %}{{ student.registration_number }} - Details{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Student Details{% endblock %}
 {% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Student Profile Card -->
-    <div class="col-lg-4">
-        <div class="content-card mb-4">
-            <div class="text-center mb-4">
-                <div class="avatar-xxl mx-auto mb-3">
-                    <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
-                         alt="{{ student.user.get_full_name }}" class="rounded-circle">
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_list' %}">Students</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ student.registration_number }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row g-4">
+        <!-- Student Profile Column -->
+        <div class="col-lg-4">
+            <!-- Profile Card -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h5 class="card-title">Student Profile</h5>
                 </div>
-                <h4 class="mb-1">{{ student.user.get_full_name }}</h4>
-                <p class="text-muted mb-2">{{ student.registration_number }}</p>
-                
-                {% if student.student_status == 'active' %}
-                <span class="badge bg-success rounded-pill">Active</span>
-                {% elif student.student_status == 'suspended' %}
-                <span class="badge bg-danger rounded-pill">Suspended</span>
-                {% elif student.student_status == 'deferred' %}
-                <span class="badge bg-warning rounded-pill">Deferred</span>
-                {% elif student.student_status == 'graduated' %}
-                <span class="badge bg-primary rounded-pill">Graduated</span>
-                {% else %}
-                <span class="badge bg-secondary rounded-pill">{{ student.get_student_status_display }}</span>
-                {% endif %}
-            </div>
-            
-            <div class="student-info">
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Email</label>
-                    <p class="mb-0">{{ student.user.email }}</p>
-                </div>
-                
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Phone</label>
-                    <p class="mb-0">{{ student.user.phone_number|default:"Not provided" }}</p>
-                </div>
-                
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Date of Birth</label>
-                    <p class="mb-0">{{ student.date_of_birth }}</p>
-                </div>
-                
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">National ID</label>
-                    <p class="mb-0">{{ student.national_id }}</p>
-                </div>
-                
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Admission Date</label>
-                    <p class="mb-0">{{ student.admission_date }}</p>
-                </div>
-            </div>
-            
-            <div class="mt-4 pt-3 border-top">
-                <div class="d-grid gap-2">
-                    <a href="{% url 'update_student' student.registration_number %}" class="btn btn-primary">
-                        <i class="ri-edit-line me-2"></i> Update Profile
-                    </a>
-                    <a href="{% url 'student_performance' student.registration_number %}" class="btn btn-success">
-                        <i class="ri-bar-chart-line me-2"></i> View Performance
-                    </a>
-                    <a href="{% url 'student_fees' student.registration_number %}" class="btn btn-info">
-                        <i class="ri-money-dollar-circle-line me-2"></i> Fee Management
-                    </a>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Academic Info -->
-        <div class="content-card">
-            <h6 class="card-title mb-3">Academic Information</h6>
-            
-            <div class="info-item mb-3">
-                <label class="text-muted small mb-1">Programme</label>
-                <p class="mb-0 fw-medium">{{ student.programme.name }}</p>
-                <small class="text-muted">{{ student.programme.code }} • {{ student.programme.get_programme_type_display }}</small>
-            </div>
-            
-            <div class="info-item mb-3">
-                <label class="text-muted small mb-1">Current Year/Semester</label>
-                <p class="mb-0">
-                    <span class="badge bg-info me-1">Year {{ student.current_year }}</span>
-                    <span class="badge bg-secondary">Sem {{ student.current_semester }}</span>
-                </p>
-            </div>
-            
-            <div class="info-item mb-3">
-                <label class="text-muted small mb-1">Intake</label>
-                <p class="mb-0">{{ student.intake.name }}</p>
-            </div>
-            
-            <div class="info-item mb-3">
-                <label class="text-muted small mb-1">School/Department</label>
-                <p class="mb-0 small">{{ student.programme.department.school.name }}</p>
-                <p class="mb-0 small text-muted">{{ student.programme.department.name }}</p>
-            </div>
-            
-            <div class="info-item">
-                <label class="text-muted small mb-1">Expected Graduation</label>
-                <p class="mb-0">{{ student.expected_graduation_date|default:"Not set" }}</p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Main Content -->
-    <div class="col-lg-8">
-        <!-- Performance Summary -->
-        <div class="content-card mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h6 class="card-title mb-0">Academic Performance</h6>
-                <a href="{% url 'student_performance' student.registration_number %}" class="btn btn-sm btn-outline-primary">
-                    View Full Report
-                </a>
-            </div>
-            
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="performance-stat">
-                        <div class="stat-value text-primary">{{ student.cumulative_gpa }}</div>
-                        <div class="stat-label">Cumulative GPA</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="performance-stat">
-                        <div class="stat-value text-success">{{ performance_summary.total_units_completed }}</div>
-                        <div class="stat-label">Units Completed</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="performance-stat">
-                        <div class="stat-value text-info">{{ student.total_credit_hours }}</div>
-                        <div class="stat-label">Total Credits</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="performance-stat">
-                        <div class="stat-value text-warning">{{ performance_summary.current_semester_gpa|default:"N/A" }}</div>
-                        <div class="stat-label">Current Semester GPA</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Current Units -->
-        <div class="content-card mb-4">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h6 class="card-title mb-0">Current Semester Units</h6>
-                <span class="badge bg-primary">{{ current_semester.name|default:"No current semester" }}</span>
-            </div>
-            
-            {% if current_units %}
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Unit Code</th>
-                            <th>Unit Name</th>
-                            <th>Credit Hours</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for registration in current_units %}
-                        <tr>
-                            <td>{{ registration.programme_unit.unit.code }}</td>
-                            <td>{{ registration.programme_unit.unit.name }}</td>
-                            <td>{{ registration.programme_unit.unit.credit_hours }}</td>
-                            <td>
-                                <span class="badge bg-success rounded-pill">{{ registration.get_status_display }}</span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-4">
-                <div class="text-muted">
-                    <i class="ri-book-open-line display-4"></i>
-                    <p class="mt-3">No units registered for current semester</p>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        
-        <!-- Fee Status -->
-        <div class="content-card mb-4">
-            <h6 class="card-title mb-4">Fee Status</h6>
-            
-            {% if fee_status %}
-            <div class="fee-status">
-                <div class="mb-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-muted">Semester Balance</span>
-                        <span class="fw-bold {% if fee_status.balance <= 0 %}text-success{% else %}text-danger{% endif %}">
-                            Ksh {{ fee_status.balance|floatformat:2 }}
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <div class="student-avatar-large mb-3">
+                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                 alt="{{ student.user.get_full_name }}" 
+                                 class="rounded-circle">
+                        </div>
+                        <h4 class="student-name mb-1">{{ student.user.get_full_name }}</h4>
+                        <p class="text-muted mb-2">{{ student.registration_number }}</p>
+                        
+                        {% if student.student_status == 'active' %}
+                        <span class="status-badge status-active">
+                            <i class="ri-checkbox-circle-fill me-1"></i>
+                            Active
                         </span>
+                        {% elif student.student_status == 'suspended' %}
+                        <span class="status-badge status-suspended">
+                            <i class="ri-error-warning-fill me-1"></i>
+                            Suspended
+                        </span>
+                        {% elif student.student_status == 'deferred' %}
+                        <span class="status-badge status-deferred">
+                            <i class="ri-pause-circle-fill me-1"></i>
+                            Deferred
+                        </span>
+                        {% elif student.student_status == 'graduated' %}
+                        <span class="status-badge status-graduated">
+                            <i class="ri-graduation-cap-fill me-1"></i>
+                            Graduated
+                        </span>
+                        {% else %}
+                        <span class="status-badge status-other">
+                            {{ student.get_student_status_display }}
+                        </span>
+                        {% endif %}
                     </div>
-                    <div class="progress" style="height: 8px;">
-                        <div class="progress-bar {% if fee_status.balance <= 0 %}bg-success{% else %}bg-warning{% endif %}" 
-                             style="width: {% widthratio fee_status.amount_paid fee_status.total_fees 100 %}%">
+                    
+                    <div class="student-info-list">
+                        <div class="info-item">
+                            <div class="info-label">Email</div>
+                            <div class="info-value">{{ student.user.email }}</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Phone</div>
+                            <div class="info-value">{{ student.user.phone_number|default:"Not provided" }}</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Date of Birth</div>
+                            <div class="info-value">{{ student.date_of_birth|date:"d M Y" }}</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">National ID</div>
+                            <div class="info-value">{{ student.national_id|default:"Not provided" }}</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Admission Date</div>
+                            <div class="info-value">{{ student.admission_date|date:"d M Y" }}</div>
                         </div>
                     </div>
-                    <small class="text-muted">
-                        Paid: Ksh {{ fee_status.amount_paid|floatformat:2 }} / 
-                        Total: Ksh {{ fee_status.total_fees|floatformat:2 }}
-                    </small>
-                </div>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">Status</span>
-                            {% if fee_status.is_cleared %}
-                            <span class="badge bg-success rounded-pill">Cleared</span>
-                            {% else %}
-                            <span class="badge bg-warning rounded-pill">Pending</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span class="text-muted">Last Payment</span>
-                            <span class="fw-medium">{{ fee_status.last_payment_date|date:"d M Y"|default:"No payments" }}</span>
+                    
+                    <div class="action-buttons mt-4 pt-3 border-top">
+                        <div class="d-grid gap-2">
+                            <a href="{% url 'update_student' student.registration_number %}" 
+                               class="btn btn-primary d-flex align-items-center justify-content-center gap-2">
+                                <i class="ri-edit-line fs-5"></i>
+                                Update Profile
+                            </a>
+                            <a href="{% url 'student_performance' student.registration_number %}" 
+                               class="btn btn-success d-flex align-items-center justify-content-center gap-2">
+                                <i class="ri-bar-chart-line fs-5"></i>
+                                View Performance
+                            </a>
+                            <a href="{% url 'student_fees' student.registration_number %}" 
+                               class="btn btn-info d-flex align-items-center justify-content-center gap-2">
+                                <i class="ri-money-dollar-circle-line fs-5"></i>
+                                Fee Management
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <div class="mt-3">
-                <a href="{% url 'student_fees' student.registration_number %}" class="btn btn-sm btn-outline-primary">
-                    View Full Fee History
-                </a>
-                <a href="{% url 'add_fee_payment' student.registration_number %}" class="btn btn-sm btn-primary">
-                    <i class="ri-money-dollar-circle-line me-1"></i> Add Payment
-                </a>
-            </div>
-            {% else %}
-            <div class="text-center py-4">
-                <div class="text-muted">
-                    <i class="ri-money-dollar-circle-line display-4"></i>
-                    <p class="mt-3">No fee information available</p>
+            <!-- Academic Info Card -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h5 class="card-title">Academic Information</h5>
                 </div>
-                <a href="{% url 'add_fee_payment' student.registration_number %}" class="btn btn-primary mt-2">
-                    <i class="ri-money-dollar-circle-line me-1"></i> Add Payment
-                </a>
+                <div class="card-body">
+                    <div class="academic-info">
+                        <div class="info-item">
+                            <div class="info-label">Programme</div>
+                            <div class="info-value">
+                                <strong>{{ student.programme.name }}</strong>
+                                <div class="text-muted small mt-1">
+                                    {{ student.programme.code }} • {{ student.programme.get_programme_type_display }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Year/Semester</div>
+                            <div class="info-value">
+                                <span class="badge bg-info-subtle text-info mb-1">Year {{ student.current_year }}</span>
+                                <span class="badge bg-secondary-subtle text-secondary">Sem {{ student.current_semester }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Intake</div>
+                            <div class="info-value">{{ student.intake.name|default:"Not set" }}</div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">School/Department</div>
+                            <div class="info-value">
+                                <div class="text-muted small">{{ student.programme.department.school.name }}</div>
+                                <div class="text-muted small">{{ student.programme.department.name }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">Expected Graduation</div>
+                            <div class="info-value">{{ student.expected_graduation_date|date:"d M Y"|default:"Not set" }}</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            {% endif %}
         </div>
         
-        <!-- Contact Information -->
-        <div class="content-card">
-            <h6 class="card-title mb-4">Contact Information</h6>
+        <!-- Main Content Column -->
+        <div class="col-lg-8">
+            <!-- Performance Summary Card -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Academic Performance</h5>
+                        <a href="{% url 'student_performance' student.registration_number %}" 
+                           class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                            <span>View Full Report</span>
+                            <i class="ri-arrow-right-line"></i>
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="performance-grid">
+                        <div class="performance-item">
+                            <div class="performance-value text-primary">{{ student.cumulative_gpa|default:"0.00" }}</div>
+                            <div class="performance-label">Cumulative GPA</div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-value text-success">{{ performance_summary.total_units_completed|default:"0" }}</div>
+                            <div class="performance-label">Units Completed</div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-value text-info">{{ student.total_credit_hours|default:"0" }}</div>
+                            <div class="performance-label">Total Credits</div>
+                        </div>
+                        <div class="performance-item">
+                            <div class="performance-value text-warning">{{ performance_summary.current_semester_gpa|default:"N/A" }}</div>
+                            <div class="performance-label">Current Semester GPA</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="contact-section mb-4">
-                        <h6 class="small text-muted mb-3">Permanent Address</h6>
-                        <p class="mb-0">{{ student.permanent_address|default:"Not provided" }}</p>
+            <!-- Current Units Card -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Current Semester Units</h5>
+                        {% if current_semester.name %}
+                        <span class="badge bg-primary d-flex align-items-center gap-1">
+                            <i class="ri-calendar-line"></i>
+                            {{ current_semester.name }}
+                        </span>
+                        {% endif %}
                     </div>
                 </div>
-                
-                <div class="col-md-6">
-                    <div class="contact-section mb-4">
-                        <h6 class="small text-muted mb-3">Current Address</h6>
-                        <p class="mb-0">{{ student.current_address|default:"Not provided" }}</p>
+                <div class="card-body p-0">
+                    {% if current_units %}
+                    <div class="table-container">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>Credit Hours</th>
+                                    <th class="pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for registration in current_units %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <strong>{{ registration.programme_unit.unit.code }}</strong>
+                                    </td>
+                                    <td>{{ registration.programme_unit.unit.name }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            {{ registration.programme_unit.unit.credit_hours }} hrs
+                                        </span>
+                                    </td>
+                                    <td class="pe-4">
+                                        {% if registration.status == 'registered' %}
+                                        <span class="status-badge status-active">
+                                            {{ registration.get_status_display }}
+                                        </span>
+                                        {% else %}
+                                        <span class="status-badge status-other">
+                                            {{ registration.get_status_display }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="contact-section mb-4">
-                        <h6 class="small text-muted mb-3">Emergency Contact</h6>
-                        <p class="mb-0 fw-medium">{{ student.emergency_contact_name|default:"Not provided" }}</p>
-                        <p class="mb-0 small text-muted">{{ student.emergency_contact_phone|default:"" }}</p>
-                        <p class="mb-0 small text-muted">{{ student.emergency_contact_relationship|default:"" }}</p>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="text-center py-5">
+                            <i class="ri-book-open-line display-4 text-muted mb-3"></i>
+                            <h5 class="text-muted mb-2">No units registered</h5>
+                            <p class="text-muted mb-0">No units registered for current semester</p>
+                        </div>
                     </div>
+                    {% endif %}
                 </div>
-                
-                <div class="col-md-6">
-                    <div class="contact-section mb-4">
-                        <h6 class="small text-muted mb-3">Sponsor/Guardian</h6>
-                        <p class="mb-0 fw-medium">{{ student.sponsor_name|default:"Not provided" }}</p>
-                        <p class="mb-0 small text-muted">{{ student.sponsor_phone|default:"" }}</p>
-                        <p class="mb-0 small text-muted">{{ student.sponsor_email|default:"" }}</p>
+            </div>
+            
+            <!-- Fee Status Card -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Fee Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if fee_status %}
+                    <div class="fee-status-container">
+                        <div class="fee-progress mb-4">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Semester Balance</span>
+                                <span class="fw-bold {% if fee_status.balance <= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    Ksh {{ fee_status.balance|floatformat:2 }}
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                {% widthratio fee_status.amount_paid fee_status.total_fees 100 as paid_percentage %}
+                                <div class="progress-bar {% if fee_status.balance <= 0 %}bg-success{% else %}bg-warning{% endif %}"
+                                    style="width: {{ paid_percentage }}%">
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between mt-2">
+                                <small class="text-muted">
+                                    Paid: <strong>Ksh {{ fee_status.amount_paid|floatformat:2 }}</strong>
+                                </small>
+                                <small class="text-muted">
+                                    Total: <strong>Ksh {{ fee_status.total_fees|floatformat:2 }}</strong>
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="fee-details">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="fee-detail-item">
+                                        <div class="detail-label">Status</div>
+                                        <div class="detail-value">
+                                            {% if fee_status.is_cleared %}
+                                            <span class="badge bg-success-subtle text-success">Cleared</span>
+                                            {% else %}
+                                            <span class="badge bg-warning-subtle text-warning">Pending</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="fee-detail-item">
+                                        <div class="detail-label">Last Payment</div>
+                                        <div class="detail-value">
+                                            {{ fee_status.last_payment_date|date:"d M Y"|default:"No payments" }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="fee-actions mt-4">
+                        <a href="{% url 'student_fees' student.registration_number %}" 
+                           class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1">
+                            <i class="ri-history-line"></i>
+                            View Full History
+                        </a>
+                        <a href="{% url 'add_fee_payment' student.registration_number %}" 
+                           class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
+                            <i class="ri-money-dollar-circle-line"></i>
+                            Add Payment
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="text-center py-4">
+                            <i class="ri-money-dollar-circle-line display-4 text-muted mb-3"></i>
+                            <h5 class="text-muted mb-2">No fee information</h5>
+                            <p class="text-muted mb-4">No fee information available for this student</p>
+                            <a href="{% url 'add_fee_payment' student.registration_number %}" 
+                               class="btn btn-primary d-inline-flex align-items-center gap-2">
+                                <i class="ri-money-dollar-circle-line"></i>
+                                Add Payment
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Contact Information Card -->
+            <div class="detail-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="contact-grid">
+                        <div class="contact-item">
+                            <div class="contact-item-header">
+                                <i class="ri-home-4-line text-muted"></i>
+                                <h6 class="mb-0">Permanent Address</h6>
+                            </div>
+                            <div class="contact-item-content">
+                                {{ student.permanent_address|default:"Not provided" }}
+                            </div>
+                        </div>
+                        
+                        <div class="contact-item">
+                            <div class="contact-item-header">
+                                <i class="ri-building-2-line text-muted"></i>
+                                <h6 class="mb-0">Current Address</h6>
+                            </div>
+                            <div class="contact-item-content">
+                                {{ student.current_address|default:"Not provided" }}
+                            </div>
+                        </div>
+                        
+                        <div class="contact-item">
+                            <div class="contact-item-header">
+                                <i class="ri-contacts-line text-muted"></i>
+                                <h6 class="mb-0">Emergency Contact</h6>
+                            </div>
+                            <div class="contact-item-content">
+                                {% if student.emergency_contact_name %}
+                                <strong>{{ student.emergency_contact_name }}</strong>
+                                <div class="text-muted small mt-1">{{ student.emergency_contact_phone|default:"" }}</div>
+                                <div class="text-muted small">{{ student.emergency_contact_relationship|default:"" }}</div>
+                                {% else %}
+                                Not provided
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="contact-item">
+                            <div class="contact-item-header">
+                                <i class="ri-user-heart-line text-muted"></i>
+                                <h6 class="mb-0">Sponsor/Guardian</h6>
+                            </div>
+                            <div class="contact-item-content">
+                                {% if student.sponsor_name %}
+                                <strong>{{ student.sponsor_name }}</strong>
+                                <div class="text-muted small mt-1">{{ student.sponsor_phone|default:"" }}</div>
+                                <div class="text-muted small">{{ student.sponsor_email|default:"" }}</div>
+                                {% else %}
+                                Not provided
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -298,57 +415,370 @@
 </div>
 
 <style>
-    .avatar-xxl {
-        width: 120px;
-        height: 120px;
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --radius-lg: 6px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --shadow-lg: 0 4px 8px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
     
-    .avatar-xxl img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
     }
     
-    .performance-stat {
-        text-align: center;
-        padding: 20px;
-        background: var(--primary-light);
-        border-radius: var(--radius);
-        margin-bottom: 15px;
+    .content-container {
+        padding: 0 0.5rem;
     }
     
-    .performance-stat .stat-value {
-        font-size: 2.5rem;
-        font-weight: 700;
-        line-height: 1;
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
     }
     
-    .performance-stat .stat-label {
-        color: var(--text-light);
-        font-size: 0.9rem;
-        margin-top: 5px;
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
     }
     
-    .info-item label {
-        font-size: 0.85rem;
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
         font-weight: 500;
     }
     
-    .contact-section {
-        padding: 15px;
-        background: var(--bg-light);
-        border-radius: var(--radius);
-        height: 100%;
+    /* Detail Cards */
+    .detail-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
     }
     
+    .detail-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .detail-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+    
+    .detail-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* Student Avatar */
+    .student-avatar-large {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto;
+    }
+    
+    .student-avatar-large img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 3px solid var(--color-gray-200);
+    }
+    
+    .student-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .status-deferred {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-graduated {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* Info Items */
+    .student-info-list,
+    .academic-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        line-height: 1.4;
+    }
+    
+    /* Action Buttons */
+    .action-buttons .btn {
+        padding: 0.75rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .action-buttons .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Performance Grid */
+    .performance-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+    }
+    
+    .performance-item {
+        background: var(--color-gray-100);
+        padding: 1.25rem;
+        border-radius: var(--radius-sm);
+        text-align: center;
+    }
+    
+    .performance-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .performance-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        line-height: 1.2;
+    }
+    
+    /* Table Container */
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 0.875rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Fee Status */
+    .fee-progress .progress {
+        background-color: var(--color-gray-200);
+    }
+    
+    .fee-details {
+        margin-top: 1.5rem;
+    }
+    
+    .fee-detail-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .detail-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .detail-value {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    .fee-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    /* Contact Grid */
+    .contact-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.25rem;
+    }
+    
+    .contact-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .contact-item-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .contact-item-header h6 {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    .contact-item-content {
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        line-height: 1.4;
+        padding-left: 1.75rem;
+    }
+    
+   
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-primary:hover {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    /* Badge Styles */
+    .badge {
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    .bg-info-subtle {
+        background-color: rgba(33, 150, 243, 0.1);
+    }
+    
+    .bg-secondary-subtle {
+        background-color: rgba(108, 117, 125, 0.1);
+    }
+    
+    .bg-success-subtle {
+        background-color: rgba(76, 175, 80, 0.1);
+    }
+    
+    .bg-warning-subtle {
+        background-color: rgba(255, 152, 0, 0.1);
+    }
+    
+    /* Responsive */
     @media (max-width: 768px) {
-        .avatar-xxl {
+        .performance-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .contact-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .student-avatar-large {
             width: 80px;
             height: 80px;
         }
         
-        .performance-stat .stat-value {
-            font-size: 2rem;
+        .performance-value {
+            font-size: 1.75rem;
         }
     }
 </style>

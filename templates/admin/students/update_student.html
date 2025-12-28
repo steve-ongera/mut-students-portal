@@ -3,198 +3,722 @@
 
 {% block title %}Update {{ student.registration_number }}{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Update Student{% endblock %}
 {% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="content-card">
-    <form method="post">
-        {% csrf_token %}
-        
-        <div class="row">
-            <!-- Left Column: Personal Information -->
-            <div class="col-lg-6">
-                <div class="mb-4">
-                    <h5 class="mb-4">Personal Information</h5>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_list' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_detail' student.registration_number %}">{{ student.registration_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Update</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Form Header -->
+    <div class="form-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Update Student Profile</h1>
+                <p class="text-muted mb-0">Edit student information and academic details</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-user-line me-2"></i>
+                    {{ student.registration_number }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Form Card -->
+    <div class="form-card">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            
+            <div class="form-sections-container">
+                <!-- Section 1: Personal Information -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <i class="ri-user-line"></i>
+                        </div>
+                        <h5 class="section-title mb-0">Personal Information</h5>
+                    </div>
                     
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">First Name</label>
-                            <input type="text" name="first_name" class="form-control" 
-                                   value="{{ student.user.first_name }}" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Last Name</label>
-                            <input type="text" name="last_name" class="form-control" 
-                                   value="{{ student.user.last_name }}" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Email Address</label>
-                            <input type="email" name="email" class="form-control" 
-                                   value="{{ student.user.email }}" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Phone Number</label>
-                            <input type="tel" name="phone_number" class="form-control" 
-                                   value="{{ student.user.phone_number }}" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Date of Birth</label>
-                            <input type="date" name="date_of_birth" class="form-control" 
-                                   value="{{ student.date_of_birth|date:'Y-m-d' }}" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Gender</label>
-                            <select name="gender" class="form-select" required>
-                                {% for gender_code, gender_name in gender_choices %}
-                                <option value="{{ gender_code }}" {% if student.gender == gender_code %}selected{% endif %}>
-                                    {{ gender_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
+                    <div class="section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="first_name" class="form-label required">First Name</label>
+                                    <input type="text" 
+                                           id="first_name" 
+                                           name="first_name" 
+                                           class="form-control" 
+                                           value="{{ student.user.first_name }}" 
+                                           required>
+                                    <div class="form-text">Legal first name</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="last_name" class="form-label required">Last Name</label>
+                                    <input type="text" 
+                                           id="last_name" 
+                                           name="last_name" 
+                                           class="form-control" 
+                                           value="{{ student.user.last_name }}" 
+                                           required>
+                                    <div class="form-text">Legal last name</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="email" class="form-label required">Email Address</label>
+                                    <input type="email" 
+                                           id="email" 
+                                           name="email" 
+                                           class="form-control" 
+                                           value="{{ student.user.email }}" 
+                                           required>
+                                    <div class="form-text">Primary contact email</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="phone_number" class="form-label required">Phone Number</label>
+                                    <input type="tel" 
+                                           id="phone_number" 
+                                           name="phone_number" 
+                                           class="form-control" 
+                                           value="{{ student.user.phone_number }}" 
+                                           required>
+                                    <div class="form-text">Primary contact number</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="date_of_birth" class="form-label required">Date of Birth</label>
+                                    <input type="date" 
+                                           id="date_of_birth" 
+                                           name="date_of_birth" 
+                                           class="form-control" 
+                                           value="{{ student.date_of_birth|date:'Y-m-d' }}" 
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="gender" class="form-label required">Gender</label>
+                                    <select id="gender" name="gender" class="form-select" required>
+                                        {% for gender_code, gender_name in gender_choices %}
+                                        <option value="{{ gender_code }}" 
+                                                {% if student.gender == gender_code %}selected{% endif %}>
+                                            {{ gender_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="mb-4">
-                    <h5 class="mb-4">Contact Information</h5>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Permanent Address</label>
-                        <textarea name="permanent_address" class="form-control" rows="3">{{ student.permanent_address }}</textarea>
+                <!-- Section 2: Contact Information -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <i class="ri-map-pin-line"></i>
+                        </div>
+                        <h5 class="section-title mb-0">Contact Information</h5>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">Current Address</label>
-                        <textarea name="current_address" class="form-control" rows="3">{{ student.current_address }}</textarea>
+                    <div class="section-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="permanent_address" class="form-label">Permanent Address</label>
+                                    <textarea id="permanent_address" 
+                                              name="permanent_address" 
+                                              class="form-control" 
+                                              rows="3">{{ student.permanent_address }}</textarea>
+                                    <div class="form-text">Legal permanent residence</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="current_address" class="form-label">Current Address</label>
+                                    <textarea id="current_address" 
+                                              name="current_address" 
+                                              class="form-control" 
+                                              rows="3">{{ student.current_address }}</textarea>
+                                    <div class="form-text">Current residence (if different)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Section 3: Academic Information -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <i class="ri-graduation-cap-line"></i>
+                        </div>
+                        <h5 class="section-title mb-0">Academic Information</h5>
+                    </div>
+                    
+                    <div class="section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="programme" class="form-label required">Programme</label>
+                                    <select id="programme" name="programme" class="form-select" required>
+                                        {% for programme in programmes %}
+                                        <option value="{{ programme.id }}" 
+                                                {% if student.programme.id == programme.id %}selected{% endif %}>
+                                            {{ programme.code }} - {{ programme.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Current study programme</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="current_year" class="form-label required">Current Year</label>
+                                    <select id="current_year" name="current_year" class="form-select" required>
+                                        {% for i in "1234567" %}
+                                        <option value="{{ i }}" 
+                                                {% if student.current_year|stringformat:"i" == i %}selected{% endif %}>
+                                            Year {{ i }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="current_semester" class="form-label required">Current Semester</label>
+                                    <select id="current_semester" name="current_semester" class="form-select" required>
+                                        {% for semester_code, semester_name in semester_choices %}
+                                        <option value="{{ semester_code }}" 
+                                                {% if student.current_semester == semester_code %}selected{% endif %}>
+                                            {{ semester_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="student_status" class="form-label required">Student Status</label>
+                                    <select id="student_status" name="student_status" class="form-select" required>
+                                        {% for status_code, status_name in status_choices %}
+                                        <option value="{{ status_code }}" 
+                                                {% if student.student_status == status_code %}selected{% endif %}>
+                                            {{ status_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Section 4: Emergency Contact -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <i class="ri-contacts-line"></i>
+                        </div>
+                        <h5 class="section-title mb-0">Emergency Contact</h5>
+                    </div>
+                    
+                    <div class="section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="emergency_contact_name" class="form-label">Contact Name</label>
+                                    <input type="text" 
+                                           id="emergency_contact_name" 
+                                           name="emergency_contact_name" 
+                                           class="form-control" 
+                                           value="{{ student.emergency_contact_name }}">
+                                    <div class="form-text">Full name of emergency contact</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="emergency_contact_phone" class="form-label">Contact Phone</label>
+                                    <input type="tel" 
+                                           id="emergency_contact_phone" 
+                                           name="emergency_contact_phone" 
+                                           class="form-control" 
+                                           value="{{ student.emergency_contact_phone }}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="emergency_contact_relationship" class="form-label">Relationship</label>
+                                    <input type="text" 
+                                           id="emergency_contact_relationship" 
+                                           name="emergency_contact_relationship" 
+                                           class="form-control" 
+                                           value="{{ student.emergency_contact_relationship }}" 
+                                           placeholder="e.g., Father, Mother, Guardian">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Section 5: Sponsor Information -->
+                <div class="form-section">
+                    <div class="section-header">
+                        <div class="section-icon">
+                            <i class="ri-user-heart-line"></i>
+                        </div>
+                        <h5 class="section-title mb-0">Sponsor/Guardian Information</h5>
+                    </div>
+                    
+                    <div class="section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="sponsor_name" class="form-label">Sponsor Name</label>
+                                    <input type="text" 
+                                           id="sponsor_name" 
+                                           name="sponsor_name" 
+                                           class="form-control" 
+                                           value="{{ student.sponsor_name }}">
+                                    <div class="form-text">Full name of sponsor or guardian</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="sponsor_phone" class="form-label">Sponsor Phone</label>
+                                    <input type="tel" 
+                                           id="sponsor_phone" 
+                                           name="sponsor_phone" 
+                                           class="form-control" 
+                                           value="{{ student.sponsor_phone }}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="sponsor_email" class="form-label">Sponsor Email</label>
+                                    <input type="email" 
+                                           id="sponsor_email" 
+                                           name="sponsor_email" 
+                                           class="form-control" 
+                                           value="{{ student.sponsor_email }}">
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <!-- Right Column: Academic & Emergency Info -->
-            <div class="col-lg-6">
-                <div class="mb-4">
-                    <h5 class="mb-4">Academic Information</h5>
+            <!-- Form Actions -->
+            <div class="form-actions mt-4 pt-4 border-top">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'student_detail' student.registration_number %}" 
+                       class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                        <i class="ri-arrow-left-line"></i>
+                        Back to Profile
+                    </a>
                     
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Programme</label>
-                            <select name="programme" class="form-select" required>
-                                {% for programme in programmes %}
-                                <option value="{{ programme.id }}" {% if student.programme.id == programme.id %}selected{% endif %}>
-                                    {{ programme.code }} - {{ programme.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="d-flex gap-2">
+                        <button type="reset" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                            <i class="ri-refresh-line"></i>
+                            Reset
+                        </button>
                         
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Current Year</label>
-                            <select name="current_year" class="form-select" required>
-                                {% for i in "1234567" %}
-                                <option value="{{ i }}" {% if student.current_year|stringformat:"i" == i %}selected{% endif %}>
-                                    Year {{ i }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Current Semester</label>
-                            <select name="current_semester" class="form-select" required>
-                                {% for semester_code, semester_name in semester_choices %}
-                                <option value="{{ semester_code }}" {% if student.current_semester == semester_code %}selected{% endif %}>
-                                    {{ semester_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label required">Student Status</label>
-                            <select name="student_status" class="form-select" required>
-                                {% for status_code, status_name in status_choices %}
-                                <option value="{{ status_code }}" {% if student.student_status == status_code %}selected{% endif %}>
-                                    {{ status_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <h5 class="mb-4">Emergency Contact</h5>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Emergency Contact Name</label>
-                            <input type="text" name="emergency_contact_name" class="form-control" 
-                                   value="{{ student.emergency_contact_name }}">
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Emergency Contact Phone</label>
-                            <input type="tel" name="emergency_contact_phone" class="form-control" 
-                                   value="{{ student.emergency_contact_phone }}">
-                        </div>
-                        
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Relationship</label>
-                            <input type="text" name="emergency_contact_relationship" class="form-control" 
-                                   value="{{ student.emergency_contact_relationship }}" placeholder="e.g., Father, Mother, Guardian">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <h5 class="mb-4">Sponsor/Guardian Information</h5>
-                    
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Sponsor Name</label>
-                            <input type="text" name="sponsor_name" class="form-control" 
-                                   value="{{ student.sponsor_name }}">
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Sponsor Phone</label>
-                            <input type="tel" name="sponsor_phone" class="form-control" 
-                                   value="{{ student.sponsor_phone }}">
-                        </div>
-                        
-                        <div class="col-md-12 mb-3">
-                            <label class="form-label">Sponsor Email</label>
-                            <input type="email" name="sponsor_email" class="form-control" 
-                                   value="{{ student.sponsor_email }}">
-                        </div>
+                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2">
+                            <i class="ri-save-line"></i>
+                            Save Changes
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="d-flex justify-content-between mt-4 pt-4 border-top">
-            <a href="{% url 'student_detail' student.registration_number %}" class="btn btn-outline-secondary">
-                <i class="ri-arrow-left-line me-2"></i> Back to Profile
-            </a>
-            <div>
-                <button type="submit" class="btn btn-primary">
-                    <i class="ri-save-line me-2"></i> Save Changes
-                </button>
-            </div>
-        </div>
-    </form>
+        </form>
+    </div>
 </div>
 
 <style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Form Header */
+    .form-header {
+        padding: 1rem 0;
+    }
+    
+    .form-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Form Card */
+    .form-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    /* Form Sections */
+    .form-sections-container {
+        padding: 1.5rem;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .form-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .section-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: white;
+        border: 1px solid var(--color-gray-300);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-primary);
+        font-size: 1.125rem;
+    }
+    
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .section-body {
+        padding: 1.25rem;
+    }
+    
+    /* Form Groups */
+    .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.375rem;
+        display: block;
+    }
+    
     .form-label.required::after {
         content: " *";
-        color: #dc3545;
+        color: var(--color-danger);
+        font-weight: 700;
+    }
+    
+    .form-control,
+    .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.75rem;
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
+    }
+    
+    .form-control::placeholder {
+        color: var(--color-gray-400);
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.375rem;
+    }
+    
+    /* Textarea */
+    textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    /* Select Dropdown */
+    .form-select {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px 12px;
+        padding-right: 2.25rem;
+    }
+    
+    /* Form Actions */
+    .form-actions {
+        background: var(--color-gray-100);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    /* Buttons */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-400);
+        background: var(--color-gray-100);
+        color: var(--color-gray-800);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    /* Badge */
+    .badge {
+        font-weight: 500;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Grid Spacing */
+    .row.g-3 > [class*="col-"] {
+        margin-bottom: 0.75rem;
+    }
+    
+    .row.g-3 {
+        margin-bottom: -0.75rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .form-sections-container {
+            padding: 1rem;
+        }
+        
+        .section-header {
+            padding: 0.875rem 1rem;
+        }
+        
+        .section-body {
+            padding: 1rem;
+        }
+        
+        .form-actions {
+            padding: 1rem;
+        }
+        
+        .form-actions .d-flex {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .form-actions .d-flex > * {
+            width: 100%;
+        }
+        
+        .btn {
+            justify-content: center;
+        }
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Form validation
+    const form = document.querySelector('form');
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        let firstInvalidField = null;
+        
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('is-invalid');
+                
+                if (!firstInvalidField) {
+                    firstInvalidField = field;
+                }
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            
+            // Scroll to first invalid field
+            if (firstInvalidField) {
+                firstInvalidField.focus();
+                firstInvalidField.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }
+            
+            // Show error message
+            if (typeof toastr !== 'undefined') {
+                toastr.error('Please fill in all required fields.');
+            } else {
+                alert('Please fill in all required fields.');
+            }
+        }
+    });
+    
+    // Remove invalid class when user starts typing
+    requiredFields.forEach(field => {
+        field.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+            }
+        });
+    });
+    
+    // Reset button functionality
+    const resetButton = form.querySelector('button[type="reset"]');
+    if (resetButton) {
+        resetButton.addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset all form fields? All changes will be lost.')) {
+                form.reset();
+                requiredFields.forEach(field => {
+                    field.classList.remove('is-invalid');
+                });
+            }
+        });
+    }
+    
+    // Add invalid styling
+    const style = document.createElement('style');
+    style.textContent = `
+        .is-invalid {
+            border-color: var(--color-danger) !important;
+        }
+        
+        .is-invalid:focus {
+            box-shadow: 0 0 0 0.2rem rgba(244, 67, 54, 0.15) !important;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
 {% endblock %}
