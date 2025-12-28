@@ -113,7 +113,7 @@ urlpatterns = [
     
     # ============= ALL UNITS =============
     path('units/', views.units_list, name='units_list'),
-    path('units/add/', views.unit_form, name='unit_add'),
+    path('units/add/', views.unit_form, name='unit_form'),
     path('units/<int:pk>/', views.unit_detail, name='unit_detail'),
     path('units/<int:pk>/update/', views.unit_form, name='unit_update'),
     path('units/<int:pk>/delete/', views.unit_delete, name='unit_delete'),

@@ -1,8 +1,325 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Page Title{% endblock %}
+{% block title %}Units Management{% endblock %}
+
+{% block page_title %}Units Management{% endblock %}
+{% block page_subtitle %}Manage course units, prerequisites, and unit assignments{% endblock %}
 
 {% block content %}
-<!-- Content goes here -->
+<div class="content-card">
+    <!-- Header with Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h5 class="card-title mb-0">All Units</h5>
+            <p class="text-muted mb-0">{{ total_units }} unit(s) found</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                <i class="ri-filter-line me-1"></i> Filter
+            </button>
+            <a href="#" class="btn btn-sm btn-primary">
+                <i class="ri-add-line me-1"></i> Add Unit
+            </a>
+            <button class="btn btn-sm btn-success">
+                <i class="ri-download-line me-1"></i> Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" class="form-control" name="search" placeholder="Search by unit code or name..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit">
+                <i class="ri-search-line"></i> Search
+            </button>
+        </div>
+    </form>
+
+    <!-- Units Table -->
+    <div class="table-responsive">
+        <table class="table datatable" id="unitsTable">
+            <thead>
+                <tr>
+                    <th>Unit Code</th>
+                    <th>Unit Name</th>
+                    <th>Department</th>
+                    <th>Level</th>
+                    <th>Credit Hours</th>
+                    <th>Programmes</th>
+                    <th>Status</th>
+                    <th width="250">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for unit in units %}
+                <tr>
+                    <td>
+                        <strong class="text-primary">{{ unit.code }}</strong>
+                    </td>
+                    <td>
+                        <div>
+                            <p class="mb-0 fw-medium">{{ unit.name }}</p>
+                            {% if unit.prerequisites.exists %}
+                            <small class="text-muted">
+                                <i class="ri-links-line"></i> 
+                                Prerequisites: {{ unit.prerequisites.count }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        <div>
+                            <p class="mb-0">{{ unit.department.code }}</p>
+                            <small class="text-muted">{{ unit.department.name }}</small>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge bg-info rounded-pill">
+                            {{ unit.get_unit_level_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary rounded-pill">
+                            {{ unit.credit_hours }} CH
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge bg-primary rounded-pill">
+                            {{ unit.programme_count }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if unit.is_active %}
+                        <span class="badge bg-success rounded-pill">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger rounded-pill">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{% url 'unit_detail' unit.pk %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="View Details">
+                                <i class="ri-eye-line"></i>
+                            </a>
+                            
+                            <a href="#" 
+                               class="btn btn-sm btn-outline-warning" 
+                               title="Edit">
+                                <i class="ri-edit-line"></i>
+                            </a>
+                            
+                            <button type="button"
+                                    class="btn btn-sm btn-outline-info" 
+                                    title="Prerequisites"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#prerequisitesModal{{ unit.pk }}">
+                                <i class="ri-links-line"></i>
+                            </button>
+                            
+                            <form method="post" action="{% url 'unit_delete' unit.pk %}" 
+                                  style="display: inline;"
+                                  onsubmit="return confirm('Are you sure you want to delete {{ unit.code }}? This action cannot be undone.');">
+                                {% csrf_token %}
+                                <button type="submit" 
+                                        class="btn btn-sm btn-outline-danger" 
+                                        title="Delete">
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                
+                <!-- Prerequisites Modal for each unit -->
+                <div class="modal fade" id="prerequisitesModal{{ unit.pk }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">{{ unit.code }} - Prerequisites</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="text-primary">Prerequisites (Required Before)</h6>
+                                        {% if unit.prerequisites.exists %}
+                                        <ul class="list-group">
+                                            {% for prereq in unit.prerequisites.all %}
+                                            <li class="list-group-item">
+                                                <strong>{{ prereq.code }}</strong> - {{ prereq.name }}
+                                                <br><small class="text-muted">{{ prereq.credit_hours }} CH</small>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% else %}
+                                        <p class="text-muted">No prerequisites required</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="text-success">Required For (Unlocks)</h6>
+                                        {% if unit.required_for.exists %}
+                                        <ul class="list-group">
+                                            {% for req in unit.required_for.all %}
+                                            <li class="list-group-item">
+                                                <strong>{{ req.code }}</strong> - {{ req.name }}
+                                                <br><small class="text-muted">{{ req.credit_hours }} CH</small>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% else %}
+                                        <p class="text-muted">Not a prerequisite for any unit</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <div class="text-muted">
+                            <i class="ri-file-list-line display-4"></i>
+                            <p class="mt-3">No units found</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if units.has_other_pages %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if units.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ units.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                    <i class="ri-arrow-left-line"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for i in units.paginator.page_range %}
+                {% if units.number == i %}
+                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ i }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if units.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ units.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                    <i class="ri-arrow-right-line"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Units</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Department</label>
+                        <select name="department" class="form-select">
+                            <option value="">All Departments</option>
+                            {% for department in departments %}
+                            <option value="{{ department.id }}" {% if department_filter == department.id|stringformat:"i" %}selected{% endif %}>
+                                {{ department.code }} - {{ department.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Unit Level</label>
+                        <select name="level" class="form-select">
+                            <option value="">All Levels</option>
+                            {% for level_code, level_name in unit_levels %}
+                            <option value="{{ level_code }}" {% if level_filter == level_code %}selected{% endif %}>
+                                {{ level_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'units_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn-sm i {
+        font-size: 1rem;
+    }
+    
+    .btn-sm:hover {
+        transform: translateY(-2px);
+        transition: transform 0.2s ease;
+    }
+    
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .badge {
+        font-weight: 500;
+        padding: 0.35em 0.65em;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize DataTable
+    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#unitsTable')) {
+        $('#unitsTable').DataTable({
+            ordering: true,
+            searching: false,
+            paging: false,
+            info: false,
+            responsive: true,
+            autoWidth: false,
+            columnDefs: [
+                { orderable: false, targets: [7] }
+            ]
+        });
+    }
+});
+</script>
 {% endblock %}
