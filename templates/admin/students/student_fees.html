@@ -1,0 +1,558 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Student Fees - {{ student.registration_number }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Student Fee Management{% endblock %}
+{% block page_subtitle %}Manage fees and payments for {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_list' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_detail' student.registration_number %}">{{ student.registration_number }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Fees</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Student Info Header -->
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <div class="student-avatar me-3">
+                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                 alt="{{ student.user.get_full_name }}" 
+                                 class="rounded-circle"
+                                 style="width: 60px; height: 60px; object-fit: cover; border: 3px solid var(--color-gray-200);">
+                        </div>
+                        <div>
+                            <h4 class="mb-1 fw-semibold">{{ student.user.get_full_name }}</h4>
+                            <p class="mb-0 text-muted">
+                                {{ student.registration_number }} | {{ student.programme.code }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <a href="{% url 'add_fee_payment' student.registration_number %}" 
+                       class="btn btn-primary">
+                        <i class="ri-add-line me-2"></i>Record Payment
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="summary-card total-owed">
+                <div class="summary-icon">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-label">Total Owed</div>
+                    <div class="summary-value">KES {{ summary.total_fees_owed|floatformat:2 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card total-paid">
+                <div class="summary-icon">
+                    <i class="ri-check-double-line"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-label">Total Paid</div>
+                    <div class="summary-value">KES {{ summary.total_paid|floatformat:2 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card outstanding">
+                <div class="summary-icon">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-label">Outstanding Semesters</div>
+                    <div class="summary-value">{{ summary.outstanding_semesters }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="summary-card cleared">
+                <div class="summary-icon">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="summary-content">
+                    <div class="summary-label">Cleared Semesters</div>
+                    <div class="summary-value">{{ summary.cleared_semesters }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Fee Structure -->
+    {% if current_fee_structure %}
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Current Fee Structure</h5>
+            <div class="card-subtitle">Year {{ student.current_year }} - Semester {{ student.current_semester }}</div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="fee-item">
+                        <span class="fee-label">Tuition Fee</span>
+                        <span class="fee-amount">KES {{ current_fee_structure.tuition_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fee-item">
+                        <span class="fee-label">Activity Fee</span>
+                        <span class="fee-amount">KES {{ current_fee_structure.activity_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fee-item">
+                        <span class="fee-label">Examination Fee</span>
+                        <span class="fee-amount">KES {{ current_fee_structure.examination_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fee-item">
+                        <span class="fee-label">Library Fee</span>
+                        <span class="fee-amount">KES {{ current_fee_structure.library_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fee-item">
+                        <span class="fee-label">Medical Fee</span>
+                        <span class="fee-amount">KES {{ current_fee_structure.medical_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fee-item">
+                        <span class="fee-label">Technology Fee</span>
+                        <span class="fee-amount">KES {{ current_fee_structure.technology_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="fee-item">
+                        <span class="fee-label">Other Fees</span>
+                        <span class="fee-amount">KES {{ current_fee_structure.other_fees|floatformat:2 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="fee-item total">
+                        <span class="fee-label fw-bold">Total Fee</span>
+                        <span class="fee-amount fw-bold">KES {{ current_fee_structure.total_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Fee Balances by Semester -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Fee Balances by Semester</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Academic Year</th>
+                            <th>Semester</th>
+                            <th>Total Fees</th>
+                            <th>Amount Paid</th>
+                            <th>Balance</th>
+                            <th>Last Payment</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for balance in fee_balances %}
+                        <tr>
+                            <td>{{ balance.academic_year.name }}</td>
+                            <td>Semester {{ balance.semester.semester_number }}</td>
+                            <td>KES {{ balance.total_fees|floatformat:2 }}</td>
+                            <td class="text-success">KES {{ balance.amount_paid|floatformat:2 }}</td>
+                            <td class="{% if balance.balance > 0 %}text-danger{% else %}text-success{% endif %} fw-semibold">
+                                KES {{ balance.balance|floatformat:2 }}
+                            </td>
+                            <td>
+                                {% if balance.last_payment_date %}
+                                    {{ balance.last_payment_date|date:"d M Y" }}
+                                {% else %}
+                                    <span class="text-muted">No payments</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if balance.is_cleared %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>Cleared
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-error-warning-fill me-1"></i>Outstanding
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-list-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No fee balances recorded</h5>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment History -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Payment History</h5>
+            <div class="card-subtitle">{{ fee_payments|length }} payment(s) recorded</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Semester</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Reference</th>
+                            <th>Receipt No.</th>
+                            <th>Processed By</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in fee_payments %}
+                        <tr>
+                            <td>{{ payment.payment_date|date:"d M Y, H:i" }}</td>
+                            <td>
+                                {{ payment.semester.academic_year.name }}<br>
+                                <small class="text-muted">Sem {{ payment.semester.semester_number }}</small>
+                            </td>
+                            <td class="fw-semibold text-success">KES {{ payment.amount|floatformat:2 }}</td>
+                            <td>
+                                <span class="badge bg-light text-dark">
+                                    {{ payment.get_payment_method_display }}
+                                </span>
+                            </td>
+                            <td><code class="small">{{ payment.transaction_reference }}</code></td>
+                            <td>
+                                {% if payment.receipt_number %}
+                                    <span class="badge bg-info-subtle text-info">{{ payment.receipt_number }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if payment.processed_by %}
+                                    {{ payment.processed_by.get_full_name }}
+                                {% else %}
+                                    <span class="text-muted">System</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if payment.status == 'completed' %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>Completed
+                                </span>
+                                {% elif payment.status == 'pending' %}
+                                <span class="status-badge status-deferred">
+                                    <i class="ri-time-line me-1"></i>Pending
+                                </span>
+                                {% elif payment.status == 'failed' %}
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-close-circle-fill me-1"></i>Failed
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-other">
+                                    {{ payment.get_status_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-wallet-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No payments recorded</h5>
+                                    <p class="text-muted mb-3">Start by recording the first payment</p>
+                                    <a href="{% url 'add_fee_payment' student.registration_number %}" 
+                                       class="btn btn-primary">
+                                        <i class="ri-add-line me-2"></i>Record Payment
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Summary Cards */
+    .summary-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .summary-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+    
+    .summary-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .summary-content {
+        flex: 1;
+    }
+    
+    .summary-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+    
+    .summary-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+    }
+    
+    .total-owed .summary-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .total-paid .summary-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .outstanding .summary-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .cleared .summary-icon {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    /* Fee Items */
+    .fee-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+    }
+    
+    .fee-item.total {
+        background: rgba(46, 125, 50, 0.1);
+        border: 1px solid rgba(46, 125, 50, 0.2);
+    }
+    
+    .fee-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    .fee-amount {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Table Styles */
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .status-deferred {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    .bg-info-subtle {
+        background-color: rgba(33, 150, 243, 0.08);
+    }
+    
+    .text-info {
+        color: var(--color-info);
+    }
+    
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    code {
+        background: var(--color-gray-100);
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}

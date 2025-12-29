@@ -1,0 +1,506 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Record Fee Payment - {{ student.registration_number }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Record Fee Payment{% endblock %}
+{% block page_subtitle %}Record a new fee payment for {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_list' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_detail' student.registration_number %}">{{ student.registration_number }}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_fees' student.registration_number %}">Fees</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Record Payment</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Payment Form Card -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Details</h5>
+                    <div class="card-subtitle">Fill in the payment information</div>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="paymentForm">
+                        {% csrf_token %}
+                        
+                        <div class="row g-3">
+                            <!-- Semester -->
+                            <div class="col-md-6">
+                                <label for="semester" class="form-label required">Semester</label>
+                                <select class="form-select" id="semester" name="semester" required>
+                                    <option value="">Select Semester</option>
+                                    {% for semester in semesters %}
+                                    <option value="{{ semester.id }}" 
+                                            data-year="{{ semester.academic_year.name }}"
+                                            data-sem="{{ semester.get_semester_number_display }}">
+                                        {{ semester.academic_year.name }} - {{ semester.get_semester_number_display }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Select the semester for this payment</div>
+                            </div>
+
+                            <!-- Amount -->
+                            <div class="col-md-6">
+                                <label for="amount" class="form-label required">Amount (KES)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KES</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="amount" 
+                                           name="amount" 
+                                           step="0.01" 
+                                           min="1" 
+                                           required
+                                           placeholder="0.00">
+                                </div>
+                                <div class="form-text">Enter the payment amount</div>
+                            </div>
+
+                            <!-- Payment Method -->
+                            <div class="col-md-6">
+                                <label for="payment_method" class="form-label required">Payment Method</label>
+                                <select class="form-select" id="payment_method" name="payment_method" required>
+                                    <option value="">Select Method</option>
+                                    {% for method_code, method_name in payment_methods %}
+                                    <option value="{{ method_code }}">{{ method_name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">How was the payment made?</div>
+                            </div>
+
+                            <!-- Transaction Reference -->
+                            <div class="col-md-6">
+                                <label for="transaction_reference" class="form-label required">Transaction Reference</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="transaction_reference" 
+                                       name="transaction_reference" 
+                                       required
+                                       placeholder="e.g., MPESA-ABC123XYZ">
+                                <div class="form-text">Unique transaction ID or reference</div>
+                            </div>
+
+                            <!-- Payment Date -->
+                            <div class="col-md-6">
+                                <label for="payment_date" class="form-label">Payment Date</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="payment_date" 
+                                       name="payment_date"
+                                       value="{{ today }}">
+                                <div class="form-text">Leave empty to use today's date</div>
+                            </div>
+
+                            <!-- Remarks -->
+                            <div class="col-12">
+                                <label for="remarks" class="form-label">Remarks</label>
+                                <textarea class="form-control" 
+                                          id="remarks" 
+                                          name="remarks" 
+                                          rows="3"
+                                          placeholder="Any additional notes about this payment..."></textarea>
+                                <div class="form-text">Optional notes or comments</div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                            <a href="{% url 'student_fees' student.registration_number %}" 
+                               class="btn btn-outline-secondary">
+                                <i class="ri-close-line me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-check-line me-2"></i>Record Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Student Info Card -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="student-info-detail">
+                        <div class="text-center mb-3">
+                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                 alt="{{ student.user.get_full_name }}" 
+                                 class="rounded-circle mb-2"
+                                 style="width: 80px; height: 80px; object-fit: cover; border: 3px solid var(--color-gray-200);">
+                            <h5 class="mb-1">{{ student.user.get_full_name }}</h5>
+                            <p class="text-muted mb-0">{{ student.registration_number }}</p>
+                        </div>
+                        
+                        <div class="info-group">
+                            <div class="info-item">
+                                <span class="info-label">Programme</span>
+                                <span class="info-value">{{ student.programme.code }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Year/Semester</span>
+                                <span class="info-value">Year {{ student.current_year }} - Sem {{ student.current_semester }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Status</span>
+                                <span class="info-value">
+                                    <span class="badge bg-success-subtle text-success">
+                                        {{ student.get_student_status_display }}
+                                    </span>
+                                </span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Email</span>
+                                <span class="info-value text-truncate">{{ student.user.email }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Phone</span>
+                                <span class="info-value">{{ student.user.phone_number|default:"Not provided" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Guidelines -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Guidelines</h5>
+                </div>
+                <div class="card-body">
+                    <div class="guidelines">
+                        <div class="guideline-item">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                            <p>Verify all payment details before recording</p>
+                        </div>
+                        <div class="guideline-item">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                            <p>Ensure transaction reference is unique</p>
+                        </div>
+                        <div class="guideline-item">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                            <p>Double-check the payment amount</p>
+                        </div>
+                        <div class="guideline-item">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                            <p>Select the correct semester</p>
+                        </div>
+                        <div class="guideline-item">
+                            <i class="ri-alert-line text-warning"></i>
+                            <p>Payment records cannot be deleted once created</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Form Styles */
+    .form-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .form-label.required::after {
+        content: " *";
+        color: var(--color-danger);
+    }
+    
+    .form-control, .form-select {
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-300);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    .form-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .input-group-text {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-300);
+        border-right: none;
+        font-weight: 500;
+        color: var(--color-gray-600);
+    }
+    
+    /* Student Info Detail */
+    .student-info-detail {
+        padding: 0.5rem 0;
+    }
+    
+    .info-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        padding: 0.625rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+    
+    .info-value {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+        text-align: right;
+        max-width: 60%;
+    }
+    
+    /* Guidelines */
+    .guidelines {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .guideline-item {
+        display: flex;
+        align-items: start;
+        gap: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .guideline-item i {
+        font-size: 1.125rem;
+        margin-top: 0.125rem;
+        flex-shrink: 0;
+    }
+    
+    .guideline-item p {
+        margin: 0;
+        color: var(--color-gray-800);
+        line-height: 1.5;
+    }
+    
+    /* Badge */
+    .bg-success-subtle {
+        background-color: rgba(76, 175, 80, 0.08);
+    }
+    
+    .text-success {
+        color: var(--color-success);
+    }
+    
+    /* Button Styles */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background-color: #267029;
+        border-color: #267029;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        color: var(--color-gray-600);
+        border-color: var(--color-gray-300);
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('paymentForm');
+    
+    // Set today's date if payment_date field exists
+    const paymentDateField = document.getElementById('payment_date');
+    if (paymentDateField && !paymentDateField.value) {
+        const today = new Date().toISOString().split('T')[0];
+        paymentDateField.value = today;
+    }
+    
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const amount = parseFloat(document.getElementById('amount').value);
+        const semester = document.getElementById('semester').value;
+        const paymentMethod = document.getElementById('payment_method').value;
+        const transactionRef = document.getElementById('transaction_reference').value;
+        
+        // Validate amount
+        if (isNaN(amount) || amount <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid payment amount greater than 0.');
+            return false;
+        }
+        
+        // Validate semester
+        if (!semester) {
+            e.preventDefault();
+            alert('Please select a semester.');
+            return false;
+        }
+        
+        // Validate payment method
+        if (!paymentMethod) {
+            e.preventDefault();
+            alert('Please select a payment method.');
+            return false;
+        }
+        
+        // Validate transaction reference
+        if (!transactionRef.trim()) {
+            e.preventDefault();
+            alert('Please enter a transaction reference.');
+            return false;
+        }
+        
+        // Confirm submission
+        const semesterText = document.getElementById('semester').selectedOptions[0].text;
+        const methodText = document.getElementById('payment_method').selectedOptions[0].text;
+        
+        const confirmed = confirm(
+            `Please confirm the payment details:\n\n` +
+            `Semester: ${semesterText}\n` +
+            `Amount: KES ${amount.toFixed(2)}\n` +
+            `Method: ${methodText}\n` +
+            `Reference: ${transactionRef}\n\n` +
+            `This action cannot be undone. Proceed?`
+        );
+        
+        if (!confirmed) {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // Format amount on blur
+    const amountField = document.getElementById('amount');
+    amountField.addEventListener('blur', function() {
+        const value = parseFloat(this.value);
+        if (!isNaN(value)) {
+            this.value = value.toFixed(2);
+        }
+    });
+});
+</script>
+{% endblock %}
