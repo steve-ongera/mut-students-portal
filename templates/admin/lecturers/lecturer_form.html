@@ -3,6 +3,10 @@
 
 {% block title %}{% if is_edit %}Edit{% else %}Add{% endif %} Lecturer{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}{% if is_edit %}Edit Lecturer{% else %}Add New Lecturer{% endif %}{% endblock %}
 {% block page_subtitle %}{% if is_edit %}Update lecturer information{% else %}Enter new lecturer details{% endif %}{% endblock %}
 
@@ -13,9 +17,9 @@
         <li class="breadcrumb-item"><a href="{% url 'lecturer_list' %}">Lecturers</a></li>
         {% if is_edit %}
         <li class="breadcrumb-item"><a href="{% url 'lecturer_detail' lecturer.employee_number %}">{{ lecturer.employee_number }}</a></li>
-        <li class="breadcrumb-item active">Edit</li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
         {% else %}
-        <li class="breadcrumb-item active">Add Lecturer</li>
+        <li class="breadcrumb-item active" aria-current="page">Add Lecturer</li>
         {% endif %}
     </ol>
 </nav>
@@ -56,7 +60,7 @@
 
                             <!-- First Name -->
                             <div class="col-md-6">
-                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                <label class="form-label required">First Name</label>
                                 {{ user_form.first_name }}
                                 {% if user_form.first_name.errors %}
                                 <div class="invalid-feedback d-block">
@@ -67,7 +71,7 @@
 
                             <!-- Last Name -->
                             <div class="col-md-6">
-                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <label class="form-label required">Last Name</label>
                                 {{ user_form.last_name }}
                                 {% if user_form.last_name.errors %}
                                 <div class="invalid-feedback d-block">
@@ -78,7 +82,7 @@
 
                             <!-- Email -->
                             <div class="col-md-6">
-                                <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                                <label class="form-label required">Email Address</label>
                                 {{ user_form.email }}
                                 {% if user_form.email.errors %}
                                 <div class="invalid-feedback d-block">
@@ -89,7 +93,7 @@
 
                             <!-- Username -->
                             <div class="col-md-6">
-                                <label class="form-label">Username <span class="text-danger">*</span></label>
+                                <label class="form-label required">Username</label>
                                 {{ user_form.username }}
                                 <small class="form-text text-muted d-block">
                                     Will be auto-generated from email if left blank
@@ -163,7 +167,7 @@
                         <div class="row g-3">
                             <!-- Employee Number -->
                             <div class="col-md-6">
-                                <label class="form-label">Employee Number <span class="text-danger">*</span></label>
+                                <label class="form-label required">Employee Number</label>
                                 {{ lecturer_form.employee_number }}
                                 {% if lecturer_form.employee_number.errors %}
                                 <div class="invalid-feedback d-block">
@@ -174,7 +178,7 @@
 
                             <!-- Department -->
                             <div class="col-md-6">
-                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                                <label class="form-label required">Department</label>
                                 {{ lecturer_form.department }}
                                 {% if lecturer_form.department.errors %}
                                 <div class="invalid-feedback d-block">
@@ -185,7 +189,7 @@
 
                             <!-- Designation -->
                             <div class="col-md-6">
-                                <label class="form-label">Designation <span class="text-danger">*</span></label>
+                                <label class="form-label required">Designation</label>
                                 {{ lecturer_form.designation }}
                                 {% if lecturer_form.designation.errors %}
                                 <div class="invalid-feedback d-block">
@@ -196,7 +200,7 @@
 
                             <!-- Hire Date -->
                             <div class="col-md-6">
-                                <label class="form-label">Hire Date <span class="text-danger">*</span></label>
+                                <label class="form-label required">Hire Date</label>
                                 {{ lecturer_form.hire_date }}
                                 {% if lecturer_form.hire_date.errors %}
                                 <div class="invalid-feedback d-block">
@@ -232,7 +236,7 @@
 
                             <!-- Active Status -->
                             <div class="col-12">
-                                <div class="form-check">
+                                <div class="form-check form-switch">
                                     {{ lecturer_form.is_active }}
                                     <label class="form-check-label" for="{{ lecturer_form.is_active.id_for_label }}">
                                         Active Status
@@ -257,7 +261,7 @@
                         <div class="row g-3">
                             <!-- Qualification -->
                             <div class="col-12">
-                                <label class="form-label">Highest Qualification <span class="text-danger">*</span></label>
+                                <label class="form-label required">Highest Qualification</label>
                                 {{ lecturer_form.qualification }}
                                 <small class="form-text text-muted d-block">
                                     e.g., PhD in Computer Science, MSc in Mathematics
@@ -301,13 +305,13 @@
                 </div>
 
                 <!-- Form Actions -->
-                <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex justify-content-between align-items-center mb-4">
                     <a href="{% if is_edit %}{% url 'lecturer_detail' lecturer.employee_number %}{% else %}{% url 'lecturer_list' %}{% endif %}" 
                        class="btn btn-outline-secondary">
-                        <i class="ri-arrow-left-line me-2"></i>Cancel
+                        <i class="ri-close-line me-2"></i>Cancel
                     </a>
                     <button type="submit" class="btn btn-primary">
-                        <i class="ri-save-line me-2"></i>
+                        <i class="ri-check-line me-2"></i>
                         {% if is_edit %}Update Lecturer{% else %}Add Lecturer{% endif %}
                     </button>
                 </div>
@@ -317,29 +321,84 @@
 </div>
 
 <style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Management Cards */
     .management-card {
         background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
         overflow: hidden;
     }
     
     .management-card .card-header {
         padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid #e9ecef;
-        background: #f8f9fa;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
     }
     
     .management-card .card-title {
         font-size: 1rem;
         font-weight: 600;
+        color: var(--color-gray-800);
         margin-bottom: 0;
+        display: flex;
+        align-items: center;
     }
     
     .management-card .card-body {
         padding: 1.5rem;
     }
     
+    /* Profile Preview */
     .profile-preview {
         width: 80px;
         height: 80px;
@@ -350,50 +409,151 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border: 2px solid #e9ecef;
+        border: 3px solid var(--color-gray-200);
     }
     
+    /* Form Styles */
     .form-label {
         font-weight: 500;
+        color: var(--color-gray-800);
         margin-bottom: 0.5rem;
-        color: #495057;
+        font-size: 0.875rem;
+    }
+    
+    .form-label.required::after {
+        content: " *";
+        color: var(--color-danger);
     }
     
     .form-control, .form-select {
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-300);
         padding: 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
     
     .form-control:focus, .form-select:focus {
-        border-color: #2E7D32;
-        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.1);
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
     }
     
-    .text-danger {
-        color: #dc3545;
+    .form-control.is-invalid, .form-select.is-invalid {
+        border-color: var(--color-danger);
     }
     
+    .form-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .invalid-feedback {
+        font-size: 0.8125rem;
+        color: var(--color-danger);
+        margin-top: 0.25rem;
+    }
+    
+    /* Form Check (Checkbox/Switch) */
+    .form-check {
+        padding-left: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-check-input {
+        float: none;
+        margin-right: 0.5rem;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        font-size: 0.9375rem;
+    }
+    
+    /* Form Switch */
+    .form-switch .form-check-input {
+        width: 3em;
+        height: 1.5em;
+        cursor: pointer;
+    }
+    
+    /* Button Styles */
     .btn {
         padding: 0.625rem 1.25rem;
-        border-radius: 8px;
+        font-size: 0.9375rem;
         font-weight: 500;
+        border-radius: var(--radius-md);
         transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
     
     .btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
     }
     
     .btn-primary {
-        background: #2E7D32;
-        border-color: #2E7D32;
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
     }
     
     .btn-primary:hover {
-        background: #1B5E20;
-        border-color: #1B5E20;
+        background-color: #267029;
+        border-color: #267029;
+        color: white;
+    }
+    
+    .btn-outline-secondary {
+        color: var(--color-gray-600);
+        border-color: var(--color-gray-300);
+        background-color: white;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+    
+    /* File Input Styling */
+    .form-control[type="file"] {
+        padding: 0.5rem 0.875rem;
+    }
+    
+    .form-control[type="file"]::-webkit-file-upload-button {
+        padding: 0.375rem 0.75rem;
+        margin-right: 0.75rem;
+        background-color: var(--color-gray-100);
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        color: var(--color-gray-800);
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    
+    .form-control[type="file"]::-webkit-file-upload-button:hover {
+        background-color: var(--color-gray-200);
+    }
+    
+    /* Textarea Styling */
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical;
     }
 </style>
 
@@ -407,6 +567,21 @@ document.addEventListener('DOMContentLoaded', function() {
         profileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                // Validate file size (max 2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('File size must be less than 2MB');
+                    this.value = '';
+                    return;
+                }
+                
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+                if (!validTypes.includes(file.type)) {
+                    alert('Please select a valid image file (JPG, PNG)');
+                    this.value = '';
+                    return;
+                }
+                
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     profilePreview.src = e.target.result;
@@ -420,9 +595,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('lecturerForm');
     if (form) {
         form.addEventListener('submit', function(e) {
-            const requiredFields = form.querySelectorAll('[required]');
             let isValid = true;
             
+            // Check required fields
+            const requiredFields = form.querySelectorAll('[required]');
             requiredFields.forEach(field => {
                 if (!field.value.trim()) {
                     isValid = false;
@@ -432,27 +608,97 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
             
+            // Validate email format
+            const emailField = form.querySelector('[name="email"]');
+            if (emailField && emailField.value) {
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailPattern.test(emailField.value)) {
+                    isValid = false;
+                    emailField.classList.add('is-invalid');
+                    alert('Please enter a valid email address');
+                }
+            }
+            
+            // Validate phone number format (optional but if provided should be valid)
+            const phoneField = form.querySelector('[name="phone_number"]');
+            if (phoneField && phoneField.value) {
+                const phonePattern = /^[0-9+\-\s()]{10,}$/;
+                if (!phonePattern.test(phoneField.value)) {
+                    isValid = false;
+                    phoneField.classList.add('is-invalid');
+                    alert('Please enter a valid phone number');
+                }
+            }
+            
             if (!isValid) {
                 e.preventDefault();
-                alert('Please fill in all required fields.');
+                // Scroll to first invalid field
+                const firstInvalid = form.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.focus();
+                }
             }
+        });
+        
+        // Remove is-invalid class on input
+        const allInputs = form.querySelectorAll('.form-control, .form-select');
+        allInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
         });
     }
     
     // Password match validation
-    const password = document.querySelector('[name="password"]');
-    const confirmPassword = document.querySelector('[name="confirm_password"]');
+    const password = form.querySelector('[name="password"]');
+    const confirmPassword = form.querySelector('[name="confirm_password"]');
     
     if (password && confirmPassword) {
-        confirmPassword.addEventListener('blur', function() {
+        const validatePasswords = function() {
             if (password.value && confirmPassword.value) {
                 if (password.value !== confirmPassword.value) {
                     confirmPassword.setCustomValidity('Passwords do not match');
                     confirmPassword.classList.add('is-invalid');
+                    
+                    // Add or update error message
+                    let errorDiv = confirmPassword.parentElement.querySelector('.password-error');
+                    if (!errorDiv) {
+                        errorDiv = document.createElement('div');
+                        errorDiv.className = 'invalid-feedback d-block password-error';
+                        confirmPassword.parentElement.appendChild(errorDiv);
+                    }
+                    errorDiv.textContent = 'Passwords do not match';
                 } else {
                     confirmPassword.setCustomValidity('');
                     confirmPassword.classList.remove('is-invalid');
+                    
+                    // Remove error message
+                    const errorDiv = confirmPassword.parentElement.querySelector('.password-error');
+                    if (errorDiv) {
+                        errorDiv.remove();
+                    }
                 }
+            }
+        };
+        
+        confirmPassword.addEventListener('blur', validatePasswords);
+        password.addEventListener('input', function() {
+            if (confirmPassword.value) {
+                validatePasswords();
+            }
+        });
+    }
+    
+    // Auto-generate username from email if empty
+    const emailInput = form.querySelector('[name="email"]');
+    const usernameInput = form.querySelector('[name="username"]');
+    
+    if (emailInput && usernameInput && !usernameInput.value) {
+        emailInput.addEventListener('blur', function() {
+            if (this.value && !usernameInput.value) {
+                const username = this.value.split('@')[0];
+                usernameInput.value = username;
             }
         });
     }

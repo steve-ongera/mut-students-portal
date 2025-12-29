@@ -3,37 +3,45 @@
 
 {% block title %}{{ lecturer.user.get_full_name }} - Lecturer Details{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Lecturer Details{% endblock %}
-{% block page_subtitle %}{{ lecturer.employee_number }} - {{ lecturer.user.get_full_name }}{% endblock %}
+{% block page_subtitle %}View detailed information for {{ lecturer.user.get_full_name }}{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="{% url 'lecturer_list' %}">Lecturers</a></li>
-        <li class="breadcrumb-item active">{{ lecturer.employee_number }}</li>
+        <li class="breadcrumb-item active" aria-current="page">{{ lecturer.employee_number }}</li>
     </ol>
 </nav>
 
 <div class="content-container">
-    <!-- Header Actions -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h3 class="mb-1">{{ lecturer.user.get_full_name }}</h3>
-            <p class="text-muted mb-0">{{ lecturer.employee_number }}</p>
-        </div>
-        <div class="d-flex gap-2">
-            <a href="{% url 'lecturer_workload' lecturer.employee_number %}" class="btn btn-outline-info">
-                <i class="ri-file-list-3-line me-2"></i>View Workload
-            </a>
-            <a href="{% url 'update_lecturer' lecturer.employee_number %}" class="btn btn-warning">
-                <i class="ri-edit-line me-2"></i>Edit
-            </a>
-            <a href="{% url 'delete_lecturer' lecturer.employee_number %}" 
-               class="btn btn-danger"
-               onclick="return confirm('Are you sure?')">
-                <i class="ri-delete-bin-line me-2"></i>Delete
-            </a>
+    <!-- Page Header with Actions -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">{{ lecturer.user.get_full_name }}</h1>
+                <p class="text-muted mb-0">{{ lecturer.employee_number }} | {{ lecturer.get_designation_display }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'lecturer_workload' lecturer.employee_number %}" 
+                   class="btn btn-outline-info">
+                    <i class="ri-file-list-3-line me-2"></i>Workload
+                </a>
+                <a href="{% url 'update_lecturer' lecturer.employee_number %}" 
+                   class="btn btn-warning">
+                    <i class="ri-edit-line me-2"></i>Edit
+                </a>
+                <a href="{% url 'delete_lecturer' lecturer.employee_number %}" 
+                   class="btn btn-danger"
+                   onclick="return confirm('Are you sure you want to delete this lecturer? This action cannot be undone.')">
+                    <i class="ri-delete-bin-line me-2"></i>Delete
+                </a>
+            </div>
         </div>
     </div>
 
@@ -48,38 +56,57 @@
                              alt="{{ lecturer.user.get_full_name }}" 
                              class="rounded-circle">
                     </div>
-                    <h4 class="mb-1">{{ lecturer.user.get_full_name }}</h4>
+                    <h4 class="mb-1 fw-semibold">{{ lecturer.user.get_full_name }}</h4>
                     <p class="text-muted mb-2">{{ lecturer.get_designation_display }}</p>
                     {% if lecturer.is_active %}
-                    <span class="badge bg-success">Active</span>
+                    <span class="status-badge status-active">
+                        <i class="ri-checkbox-circle-fill me-1"></i>Active
+                    </span>
                     {% else %}
-                    <span class="badge bg-danger">Inactive</span>
+                    <span class="status-badge status-suspended">
+                        <i class="ri-close-circle-fill me-1"></i>Inactive
+                    </span>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Quick Stats -->
+            <!-- Quick Statistics -->
             <div class="management-card mb-4">
                 <div class="card-header">
                     <h5 class="card-title">Quick Statistics</h5>
                 </div>
                 <div class="card-body">
                     <div class="stat-item">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted">Current Units</span>
-                            <span class="fw-bold fs-5 text-primary">{{ current_units_count }}</span>
+                        <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="stat-icon bg-primary-subtle">
+                                    <i class="ri-book-open-line text-primary"></i>
+                                </div>
+                                <span class="text-muted">Current Units</span>
+                            </div>
+                            <span class="fw-bold fs-4 text-primary">{{ current_units_count }}</span>
                         </div>
                     </div>
                     <div class="stat-item">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <span class="text-muted">Total Units Taught</span>
-                            <span class="fw-bold fs-5 text-info">{{ total_units_taught }}</span>
+                        <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="stat-icon bg-info-subtle">
+                                    <i class="ri-stack-line text-info"></i>
+                                </div>
+                                <span class="text-muted">Total Units Taught</span>
+                            </div>
+                            <span class="fw-bold fs-4 text-info">{{ total_units_taught }}</span>
                         </div>
                     </div>
                     <div class="stat-item">
                         <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-muted">Total Allocations</span>
-                            <span class="fw-bold fs-5 text-success">{{ total_allocations }}</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="stat-icon bg-success-subtle">
+                                    <i class="ri-list-check-2 text-success"></i>
+                                </div>
+                                <span class="text-muted">Total Allocations</span>
+                            </div>
+                            <span class="fw-bold fs-4 text-success">{{ total_allocations }}</span>
                         </div>
                     </div>
                 </div>
@@ -91,26 +118,38 @@
                     <h5 class="card-title">Contact Information</h5>
                 </div>
                 <div class="card-body">
-                    <div class="info-item mb-3">
-                        <small class="text-muted d-block mb-1">Email</small>
-                        <a href="mailto:{{ lecturer.user.email }}" class="text-decoration-none">
-                            {{ lecturer.user.email }}
-                        </a>
+                    <div class="info-group">
+                        <div class="info-item">
+                            <span class="info-label">
+                                <i class="ri-mail-line me-2"></i>Email
+                            </span>
+                            <span class="info-value">
+                                <a href="mailto:{{ lecturer.user.email }}" class="text-decoration-none">
+                                    {{ lecturer.user.email }}
+                                </a>
+                            </span>
+                        </div>
+                        {% if lecturer.user.phone_number %}
+                        <div class="info-item">
+                            <span class="info-label">
+                                <i class="ri-phone-line me-2"></i>Phone
+                            </span>
+                            <span class="info-value">
+                                <a href="tel:{{ lecturer.user.phone_number }}" class="text-decoration-none">
+                                    {{ lecturer.user.phone_number }}
+                                </a>
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% if lecturer.office_location %}
+                        <div class="info-item">
+                            <span class="info-label">
+                                <i class="ri-map-pin-line me-2"></i>Office Location
+                            </span>
+                            <span class="info-value">{{ lecturer.office_location }}</span>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% if lecturer.user.phone_number %}
-                    <div class="info-item mb-3">
-                        <small class="text-muted d-block mb-1">Phone</small>
-                        <a href="tel:{{ lecturer.user.phone_number }}" class="text-decoration-none">
-                            {{ lecturer.user.phone_number }}
-                        </a>
-                    </div>
-                    {% endif %}
-                    {% if lecturer.office_location %}
-                    <div class="info-item">
-                        <small class="text-muted d-block mb-1">Office Location</small>
-                        <span>{{ lecturer.office_location }}</span>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -123,45 +162,45 @@
                     <h5 class="card-title">Basic Information</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
+                    <div class="row g-4">
                         <div class="col-md-6">
-                            <div class="info-item">
-                                <small class="text-muted d-block mb-1">Employee Number</small>
-                                <strong>{{ lecturer.employee_number }}</strong>
+                            <div class="info-group-item">
+                                <span class="info-label-block">Employee Number</span>
+                                <span class="info-value-block">{{ lecturer.employee_number }}</span>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="info-item">
-                                <small class="text-muted d-block mb-1">Department</small>
-                                <strong>{{ lecturer.department.name }}</strong>
-                                <small class="text-muted d-block">{{ lecturer.department.school.name }}</small>
+                            <div class="info-group-item">
+                                <span class="info-label-block">Department</span>
+                                <span class="info-value-block">{{ lecturer.department.name }}</span>
+                                <small class="text-muted d-block mt-1">{{ lecturer.department.school.name }}</small>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="info-item">
-                                <small class="text-muted d-block mb-1">Designation</small>
-                                <strong>{{ lecturer.get_designation_display }}</strong>
+                            <div class="info-group-item">
+                                <span class="info-label-block">Designation</span>
+                                <span class="info-value-block">{{ lecturer.get_designation_display }}</span>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="info-item">
-                                <small class="text-muted d-block mb-1">Hire Date</small>
-                                <strong>{{ lecturer.hire_date|date:"F d, Y" }}</strong>
+                            <div class="info-group-item">
+                                <span class="info-label-block">Hire Date</span>
+                                <span class="info-value-block">{{ lecturer.hire_date|date:"F d, Y" }}</span>
                             </div>
                         </div>
                         {% if lecturer.contract_end_date %}
                         <div class="col-md-6">
-                            <div class="info-item">
-                                <small class="text-muted d-block mb-1">Contract End Date</small>
-                                <strong>{{ lecturer.contract_end_date|date:"F d, Y" }}</strong>
+                            <div class="info-group-item">
+                                <span class="info-label-block">Contract End Date</span>
+                                <span class="info-value-block">{{ lecturer.contract_end_date|date:"F d, Y" }}</span>
                             </div>
                         </div>
                         {% endif %}
                         {% if lecturer.user.id_number %}
                         <div class="col-md-6">
-                            <div class="info-item">
-                                <small class="text-muted d-block mb-1">ID Number</small>
-                                <strong>{{ lecturer.user.id_number }}</strong>
+                            <div class="info-group-item">
+                                <span class="info-label-block">ID Number</span>
+                                <span class="info-value-block">{{ lecturer.user.id_number }}</span>
                             </div>
                         </div>
                         {% endif %}
@@ -175,16 +214,22 @@
                     <h5 class="card-title">Academic Qualifications</h5>
                 </div>
                 <div class="card-body">
-                    <div class="info-item mb-3">
-                        <small class="text-muted d-block mb-1">Qualification</small>
-                        <strong>{{ lecturer.qualification }}</strong>
+                    <div class="row g-4">
+                        <div class="col-12">
+                            <div class="info-group-item">
+                                <span class="info-label-block">Qualification</span>
+                                <span class="info-value-block">{{ lecturer.qualification }}</span>
+                            </div>
+                        </div>
+                        {% if lecturer.specialization %}
+                        <div class="col-12">
+                            <div class="info-group-item">
+                                <span class="info-label-block">Specialization</span>
+                                <p class="info-value-block mb-0">{{ lecturer.specialization }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% if lecturer.specialization %}
-                    <div class="info-item">
-                        <small class="text-muted d-block mb-1">Specialization</small>
-                        <p class="mb-0">{{ lecturer.specialization }}</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -195,7 +240,9 @@
                     <h5 class="card-title">Consultation Hours</h5>
                 </div>
                 <div class="card-body">
-                    <p class="mb-0" style="white-space: pre-line;">{{ lecturer.consultation_hours }}</p>
+                    <div class="consultation-hours">
+                        <p class="mb-0" style="white-space: pre-line;">{{ lecturer.consultation_hours }}</p>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -204,7 +251,8 @@
             {% if current_semester %}
             <div class="management-card mb-4">
                 <div class="card-header">
-                    <h5 class="card-title">Current Semester Units ({{ current_semester }})</h5>
+                    <h5 class="card-title">Current Semester Units</h5>
+                    <div class="card-subtitle">{{ current_semester }}</div>
                 </div>
                 <div class="card-body p-0">
                     {% if current_allocations %}
@@ -223,22 +271,26 @@
                                 <tr>
                                     <td><strong>{{ allocation.programme_unit.unit.code }}</strong></td>
                                     <td>{{ allocation.programme_unit.unit.name }}</td>
-                                    <td>{{ allocation.programme_unit.programme.code }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            {{ allocation.programme_unit.programme.code }}
+                                        </span>
+                                    </td>
                                     <td>
                                         {% if 'approved' in allocation.status %}
-                                        <span class="badge bg-success">
-                                            {{ allocation.get_status_display }}
+                                        <span class="status-badge status-active">
+                                            <i class="ri-checkbox-circle-fill me-1"></i>{{ allocation.get_status_display }}
                                         </span>
                                         {% elif allocation.status == 'pending' %}
-                                        <span class="badge bg-warning">
-                                            {{ allocation.get_status_display }}
+                                        <span class="status-badge status-deferred">
+                                            <i class="ri-time-line me-1"></i>{{ allocation.get_status_display }}
                                         </span>
                                         {% elif allocation.status == 'rejected' %}
-                                        <span class="badge bg-danger">
-                                            {{ allocation.get_status_display }}
+                                        <span class="status-badge status-suspended">
+                                            <i class="ri-close-circle-fill me-1"></i>{{ allocation.get_status_display }}
                                         </span>
                                         {% else %}
-                                        <span class="badge bg-secondary">
+                                        <span class="status-badge status-other">
                                             {{ allocation.get_status_display }}
                                         </span>
                                         {% endif %}
@@ -249,7 +301,9 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center py-4">
+                    <div class="empty-state">
+                        <i class="ri-book-open-line display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted">No units allocated</h5>
                         <p class="text-muted mb-0">No units allocated for current semester</p>
                     </div>
                     {% endif %}
@@ -260,7 +314,8 @@
             <!-- Unit Allocation History -->
             <div class="management-card">
                 <div class="card-header">
-                    <h5 class="card-title">Recent Unit Allocations</h5>
+                    <h5 class="card-title">Unit Allocation History</h5>
+                    <div class="card-subtitle">Recent unit allocations across all semesters</div>
                 </div>
                 <div class="card-body p-0">
                     {% if all_allocations %}
@@ -279,27 +334,35 @@
                                 {% for allocation in all_allocations %}
                                 <tr>
                                     <td>{{ allocation.semester.academic_year.name }}</td>
-                                    <td>{{ allocation.semester.name }}</td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info">
+                                            {{ allocation.semester.get_semester_number_display }}
+                                        </span>
+                                    </td>
                                     <td>
                                         <strong>{{ allocation.programme_unit.unit.code }}</strong>
-                                        <small class="text-muted d-block">{{ allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                                        <small class="text-muted d-block">{{ allocation.programme_unit.unit.name|truncatechars:35 }}</small>
                                     </td>
-                                    <td>{{ allocation.programme_unit.programme.code }}</td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">
+                                            {{ allocation.programme_unit.programme.code }}
+                                        </span>
+                                    </td>
                                     <td>
                                         {% if 'approved' in allocation.status %}
-                                        <span class="badge bg-success">
-                                            {{ allocation.get_status_display }}
+                                        <span class="status-badge status-active">
+                                            <i class="ri-checkbox-circle-fill me-1"></i>{{ allocation.get_status_display }}
                                         </span>
                                         {% elif allocation.status == 'pending' %}
-                                        <span class="badge bg-warning">
-                                            {{ allocation.get_status_display }}
+                                        <span class="status-badge status-deferred">
+                                            <i class="ri-time-line me-1"></i>{{ allocation.get_status_display }}
                                         </span>
                                         {% elif allocation.status == 'rejected' %}
-                                        <span class="badge bg-danger">
-                                            {{ allocation.get_status_display }}
+                                        <span class="status-badge status-suspended">
+                                            <i class="ri-close-circle-fill me-1"></i>{{ allocation.get_status_display }}
                                         </span>
                                         {% else %}
-                                        <span class="badge bg-secondary">
+                                        <span class="status-badge status-other">
                                             {{ allocation.get_status_display }}
                                         </span>
                                         {% endif %}
@@ -310,8 +373,10 @@
                         </table>
                     </div>
                     {% else %}
-                    <div class="text-center py-4">
-                        <p class="text-muted mb-0">No unit allocations found</p>
+                    <div class="empty-state">
+                        <i class="ri-history-line display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted">No allocation history</h5>
+                        <p class="text-muted mb-0">No unit allocations found for this lecturer</p>
                     </div>
                     {% endif %}
                 </div>
@@ -321,6 +386,101 @@
 </div>
 
 <style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Profile Avatar */
     .profile-avatar {
         width: 120px;
         height: 120px;
@@ -331,50 +491,190 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border: 3px solid #e9ecef;
+        border: 3px solid var(--color-gray-200);
     }
     
-    .management-card {
-        background: white;
-        border: 1px solid #e9ecef;
-        border-radius: 12px;
-        overflow: hidden;
+    /* Statistics */
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
     }
     
-    .management-card .card-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid #e9ecef;
-        background: #f8f9fa;
+    .bg-primary-subtle {
+        background-color: rgba(46, 125, 50, 0.08);
     }
     
-    .management-card .card-title {
-        font-size: 1rem;
-        font-weight: 600;
-        margin-bottom: 0;
+    .bg-info-subtle {
+        background-color: rgba(33, 150, 243, 0.08);
     }
     
-    .management-card .card-body {
-        padding: 1.5rem;
+    .bg-success-subtle {
+        background-color: rgba(76, 175, 80, 0.08);
     }
     
-    .info-item small {
+    .text-info {
+        color: var(--color-info);
+    }
+    
+    /* Info Groups */
+    .info-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+    }
+    
+    .info-value {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+        text-align: right;
+    }
+    
+    .info-value a {
+        color: var(--color-primary);
+    }
+    
+    .info-value a:hover {
+        color: #267029;
+    }
+    
+    /* Info Group Items (for grid layouts) */
+    .info-group-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .info-label-block {
         font-size: 0.75rem;
+        color: var(--color-gray-600);
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        font-weight: 600;
     }
     
+    .info-value-block {
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .status-deferred {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* Table Styles */
     .table thead th {
         font-size: 0.8125rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: #6c757d;
-        background: #f8f9fa;
-        border-bottom: 1px solid #e9ecef;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
     }
     
     .table tbody tr:hover {
         background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Button Styles */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Consultation Hours */
+    .consultation-hours {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        font-size: 0.9375rem;
+        line-height: 1.6;
     }
 </style>
 {% endblock %}
