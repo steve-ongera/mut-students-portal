@@ -7,171 +7,224 @@
 {% block page_subtitle %}Report for {{ current_semester }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <!-- Eligibility Check Card -->
-            <div class="content-card mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="card-title mb-0">
-                        <i class="ri-file-list-3-line me-2"></i>
-                        Semester Reporting
-                    </h5>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'semester_report_history' %}">Report History</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Submit Report</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Eligibility Header -->
+    <div class="eligibility-header mb-4">
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-file-list-3-line me-2"></i>
+                    Semester Reporting
+                </h5>
+                <div class="eligibility-status">
                     {% if is_eligible %}
-                    <span class="badge bg-success">Eligible</span>
+                    <span class="status-badge status-success">
+                        <i class="ri-check-line me-1"></i>
+                        Eligible
+                    </span>
                     {% else %}
-                    <span class="badge bg-danger">Not Eligible</span>
+                    <span class="status-badge status-danger">
+                        <i class="ri-close-line me-1"></i>
+                        Not Eligible
+                    </span>
                     {% endif %}
                 </div>
-
-                <!-- Student Information -->
-                <div class="info-section mb-4">
-                    <h6 class="section-title">Student Information</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">Registration Number:</span>
-                                <span class="info-value">{{ student.registration_number }}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Programme:</span>
-                                <span class="info-value">{{ student.programme.name }}</span>
-                            </div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Student Information Grid -->
+                <div class="info-grid mb-4">
+                    <div class="info-section">
+                        <h6 class="section-title mb-3">Student Information</h6>
+                        <div class="info-row">
+                            <span class="info-label">Registration Number</span>
+                            <span class="info-value">{{ student.registration_number }}</span>
                         </div>
-                        <div class="col-md-6">
-                            <div class="info-item">
-                                <span class="info-label">Current Year:</span>
-                                <span class="info-value">Year {{ student.current_year }}</span>
+                        <div class="info-row">
+                            <span class="info-label">Programme</span>
+                            <span class="info-value">{{ student.programme.name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Study Year</span>
+                            <span class="info-value">Year {{ student.current_year }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Current Semester</span>
+                            <span class="info-value">Semester {{ student.current_semester }}</span>
+                        </div>
+                    </div>
+
+                    <div class="info-section">
+                        <h6 class="section-title mb-3">Progression Flow</h6>
+                        <div class="progression-container">
+                            <div class="progression-from">
+                                <div class="progression-label">From</div>
+                                <div class="progression-value">
+                                    Year {{ student.current_year }},<br>
+                                    Semester {{ student.current_semester }}
+                                </div>
                             </div>
-                            <div class="info-item">
-                                <span class="info-label">Current Semester:</span>
-                                <span class="info-value">Semester {{ student.current_semester }}</span>
+                            <div class="progression-arrow">
+                                <i class="ri-arrow-right-line"></i>
+                            </div>
+                            <div class="progression-to">
+                                <div class="progression-label">To</div>
+                                <div class="progression-value">
+                                    Year {{ next_year }},<br>
+                                    Semester {{ next_semester_number }}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Progression Details -->
-                <div class="info-section mb-4">
-                    <h6 class="section-title">Progression Details</h6>
-                    <div class="progression-flow">
-                        <div class="progression-item">
-                            <div class="progression-label">From</div>
-                            <div class="progression-value">
-                                Year {{ student.current_year }}, Semester {{ student.current_semester }}
-                            </div>
+                <!-- Academic Performance -->
+                {% if previous_gpa %}
+                <div class="performance-section mb-4">
+                    <h6 class="section-title mb-3">Academic Performance</h6>
+                    <div class="performance-grid">
+                        <div class="performance-item">
+                            <div class="performance-label">Previous GPA</div>
+                            <div class="performance-value">{{ previous_gpa.semester_gpa }}</div>
                         </div>
-                        <div class="progression-arrow">
-                            <i class="ri-arrow-right-line"></i>
+                        <div class="performance-item">
+                            <div class="performance-label">Cumulative GPA</div>
+                            <div class="performance-value">{{ student.cumulative_gpa }}</div>
                         </div>
-                        <div class="progression-item">
-                            <div class="progression-label">To</div>
-                            <div class="progression-value">
-                                Year {{ next_year }}, Semester {{ next_semester_number }}
-                            </div>
+                        <div class="performance-item">
+                            <div class="performance-label">Credits Earned</div>
+                            <div class="performance-value">{{ student.total_credit_hours }}</div>
                         </div>
                     </div>
                 </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
-                <!-- Eligibility Checks -->
-                <div class="info-section mb-4">
-                    <h6 class="section-title">Eligibility Checks</h6>
-                    
-                    <!-- Academic Check -->
-                    <div class="check-item {% if failed_units_count <= 2 %}check-pass{% else %}check-fail{% endif %}">
+    <!-- Eligibility Checks -->
+    <div class="checks-container mb-4">
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">Eligibility Checks</h5>
+                <div class="card-subtitle">Requirements for next semester reporting</div>
+            </div>
+            
+            <div class="card-body">
+                <!-- Academic Requirements -->
+                <div class="check-card {% if failed_units_count <= 2 %}check-success{% else %}check-danger{% endif %}">
+                    <div class="check-header">
                         <div class="check-icon">
                             {% if failed_units_count <= 2 %}
-                            <i class="ri-checkbox-circle-line text-success"></i>
+                            <i class="ri-checkbox-circle-line"></i>
                             {% else %}
-                            <i class="ri-close-circle-line text-danger"></i>
+                            <i class="ri-close-circle-line"></i>
                             {% endif %}
                         </div>
-                        <div class="check-content">
-                            <div class="check-title">Academic Requirements</div>
-                            <div class="check-description">
-                                You have <strong>{{ failed_units_count }}</strong> failed unit(s)
-                                {% if failed_units_count <= 2 %}
-                                <span class="text-success">(Maximum 2 allowed)</span>
-                                {% else %}
-                                <span class="text-danger">(Exceeds maximum of 2)</span>
-                                {% endif %}
-                            </div>
-                            {% if failed_units_count > 2 %}
-                            <div class="alert alert-danger mt-2 mb-0">
-                                <i class="ri-error-warning-line me-1"></i>
-                                You must clear at least <strong>{{ failed_units_count|add:"-2" }}</strong> failed unit(s) through resit exams before you can report for the next semester.
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Financial Check -->
-                    <div class="check-item {% if fee_balance.is_cleared %}check-pass{% else %}check-warning{% endif %}">
-                        <div class="check-icon">
-                            {% if fee_balance.is_cleared %}
-                            <i class="ri-checkbox-circle-line text-success"></i>
+                        <div class="check-title">Academic Requirements</div>
+                        <div class="check-status">
+                            {% if failed_units_count <= 2 %}
+                            <span class="text-success">Passed</span>
                             {% else %}
-                            <i class="ri-error-warning-line text-warning"></i>
-                            {% endif %}
-                        </div>
-                        <div class="check-content">
-                            <div class="check-title">Financial Clearance</div>
-                            <div class="check-description">
-                                {% if fee_balance %}
-                                Fee Balance: <strong>Ksh {{ fee_balance.balance|floatformat:2 }}</strong>
-                                {% if fee_balance.is_cleared %}
-                                <span class="text-success">(Cleared)</span>
-                                {% else %}
-                                <span class="text-warning">(Outstanding)</span>
-                                {% endif %}
-                                {% else %}
-                                No fee balance information available
-                                {% endif %}
-                            </div>
-                            {% if fee_balance and not fee_balance.is_cleared %}
-                            <div class="alert alert-warning mt-2 mb-0">
-                                <i class="ri-information-line me-1"></i>
-                                You can report with a fee balance, but you must clear your fees to access full services.
-                            </div>
+                            <span class="text-danger">Failed</span>
                             {% endif %}
                         </div>
                     </div>
-
-                    <!-- Academic Performance -->
-                    {% if previous_gpa %}
-                    <div class="check-item check-info">
-                        <div class="check-icon">
-                            <i class="ri-line-chart-line text-info"></i>
+                    <div class="check-body">
+                        <p class="check-description">
+                            Maximum of 2 failed units allowed for progression.
+                            You have <strong>{{ failed_units_count }}</strong> failed unit(s).
+                        </p>
+                        {% if failed_units_count > 2 %}
+                        <div class="check-alert check-alert-danger">
+                            <i class="ri-error-warning-line me-2"></i>
+                            You must clear at least <strong>{{ failed_units_count|add:"-2" }}</strong> 
+                            failed unit(s) through resit exams before progression.
                         </div>
-                        <div class="check-content">
-                            <div class="check-title">Academic Performance</div>
-                            <div class="check-description">
-                                Previous Semester GPA: <strong>{{ previous_gpa.semester_gpa }}</strong><br>
-                                Cumulative GPA: <strong>{{ student.cumulative_gpa }}</strong><br>
-                                Total Credits Earned: <strong>{{ student.total_credit_hours }}</strong>
-                            </div>
-                        </div>
+                        {% endif %}
                     </div>
-                    {% endif %}
                 </div>
 
-                <!-- Report Form -->
-                {% if is_eligible %}
+                <!-- Financial Clearance -->
+                <div class="check-card {% if fee_balance.is_cleared %}check-success{% else %}check-warning{% endif %}">
+                    <div class="check-header">
+                        <div class="check-icon">
+                            {% if fee_balance.is_cleared %}
+                            <i class="ri-checkbox-circle-line"></i>
+                            {% else %}
+                            <i class="ri-error-warning-line"></i>
+                            {% endif %}
+                        </div>
+                        <div class="check-title">Financial Clearance</div>
+                        <div class="check-status">
+                            {% if fee_balance.is_cleared %}
+                            <span class="text-success">Cleared</span>
+                            {% else %}
+                            <span class="text-warning">Warning</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="check-body">
+                        <p class="check-description">
+                            {% if fee_balance %}
+                            Current balance: <strong>Ksh {{ fee_balance.balance|floatformat:2 }}</strong>
+                            {% else %}
+                            No fee balance information available
+                            {% endif %}
+                        </p>
+                        {% if fee_balance and not fee_balance.is_cleared %}
+                        <div class="check-alert check-alert-warning">
+                            <i class="ri-information-line me-2"></i>
+                            You can report with a fee balance, but full services require cleared fees.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Submission -->
+    <div class="submission-container">
+        <div class="management-card">
+            {% if is_eligible %}
+            <div class="card-header">
+                <h5 class="card-title">Submit Semester Report</h5>
+                <div class="card-subtitle">Ready for next semester progression</div>
+            </div>
+            
+            <div class="card-body">
                 <form method="post" id="reportForm">
                     {% csrf_token %}
                     
-                    <div class="alert alert-info">
-                        <i class="ri-information-line me-2"></i>
-                        <strong>Important:</strong> By submitting this report, you confirm that:
-                        <ul class="mb-0 mt-2">
-                            <li>All information provided is accurate</li>
-                            <li>You understand the progression requirements</li>
-                            <li>You will enroll in units after approval</li>
-                        </ul>
+                    <!-- Confirmation Alert -->
+                    <div class="confirmation-alert">
+                        <div class="alert-header">
+                            <i class="ri-information-line me-2"></i>
+                            <strong>Important Notice</strong>
+                        </div>
+                        <div class="alert-body">
+                            <p>By submitting this report, you confirm that:</p>
+                            <ul class="confirmation-list">
+                                <li>All provided information is accurate and complete</li>
+                                <li>You understand the progression requirements and consequences</li>
+                                <li>You will enroll in required units upon approval</li>
+                                <li>You are aware of the fee payment requirements</li>
+                            </ul>
+                        </div>
                     </div>
 
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg">
+                    <!-- Action Buttons -->
+                    <div class="action-buttons">
+                        <button type="submit" class="btn btn-primary">
                             <i class="ri-send-plane-line me-2"></i>
                             Submit Semester Report
                         </button>
@@ -181,19 +234,31 @@
                         </a>
                     </div>
                 </form>
-                {% else %}
-                <div class="alert alert-danger">
-                    <h6 class="alert-heading">
+            </div>
+            {% else %}
+            <div class="card-header">
+                <h5 class="card-title">Progression Blocked</h5>
+                <div class="card-subtitle">Eligibility requirements not met</div>
+            </div>
+            
+            <div class="card-body">
+                <div class="ineligible-alert">
+                    <div class="alert-header">
                         <i class="ri-error-warning-line me-2"></i>
-                        Not Eligible to Report
-                    </h6>
-                    <p class="mb-0">
-                        You cannot report for the next semester because you have {{ failed_units_count }} failed units. 
-                        You must register for resit exams and pass at least {{ failed_units_count|add:"-2" }} unit(s) 
-                        to become eligible.
-                    </p>
-                    <hr>
-                    <div class="d-flex gap-2">
+                        <strong>Not Eligible to Report</strong>
+                    </div>
+                    <div class="alert-body">
+                        <p>
+                            You cannot report for the next semester because you have 
+                            <strong>{{ failed_units_count }}</strong> failed units. 
+                            The maximum allowed for progression is 2 failed units.
+                        </p>
+                        <p class="mb-0">
+                            To become eligible, you must register for resit exams and pass 
+                            at least <strong>{{ failed_units_count|add:"-2" }}</strong> unit(s).
+                        </p>
+                    </div>
+                    <div class="alert-actions">
                         <a href="{% url 'resit_exam_registration' %}" class="btn btn-warning">
                             <i class="ri-file-text-line me-2"></i>
                             Register for Resit Exams
@@ -204,148 +269,628 @@
                         </a>
                     </div>
                 </div>
-                {% endif %}
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <style>
-    .info-section {
-        padding: 20px;
-        background: var(--bg-light);
-        border-radius: var(--radius);
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
-
-    .section-title {
-        font-weight: 600;
-        color: var(--text-dark);
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid var(--border-color);
+    
+    .content-container {
+        padding: 0 0.5rem;
+        max-width: 900px;
+        margin: 0 auto;
     }
-
-    .info-item {
-        padding: 8px 0;
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
         display: flex;
         justify-content: space-between;
         align-items: center;
     }
-
-    .info-label {
-        color: var(--text-medium);
-        font-size: 0.9rem;
-    }
-
-    .info-value {
+    
+    .management-card .card-title {
+        font-size: 1rem;
         font-weight: 600;
-        color: var(--text-dark);
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
     }
-
-    .progression-flow {
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Status Badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-success {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+    
+    .status-danger {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+    }
+    
+    /* Info Grid */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+    }
+    
+    .info-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+    
+    .info-value {
+        font-weight: 500;
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        text-align: right;
+    }
+    
+    /* Progression Container */
+    .progression-container {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 20px;
-        padding: 20px;
+        gap: 2rem;
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
     }
-
-    .progression-item {
+    
+    .progression-from, .progression-to {
         text-align: center;
-        padding: 20px;
+        padding: 1.5rem;
         background: white;
-        border-radius: var(--radius);
-        border: 2px solid var(--primary-color);
-        min-width: 200px;
+        border-radius: var(--radius-md);
+        border: 2px solid var(--color-primary);
+        min-width: 150px;
+        transition: transform 0.3s ease;
     }
-
+    
+    .progression-from:hover, .progression-to:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
     .progression-label {
-        font-size: 0.85rem;
-        color: var(--text-medium);
-        margin-bottom: 8px;
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
-
+    
     .progression-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 700;
-        color: var(--primary-color);
+        color: var(--color-primary);
+        line-height: 1.3;
     }
-
+    
     .progression-arrow {
         font-size: 2rem;
-        color: var(--primary-color);
-    }
-
-    .check-item {
+        color: var(--color-primary);
         display: flex;
-        gap: 15px;
-        padding: 15px;
-        background: white;
-        border-radius: var(--radius);
-        margin-bottom: 15px;
-        border-left: 4px solid transparent;
+        align-items: center;
     }
-
-    .check-item.check-pass {
-        border-left-color: #4CAF50;
+    
+    /* Performance Section */
+    .performance-section {
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    .performance-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+    
+    .performance-item {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .performance-item:hover {
+        background: white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .performance-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .performance-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+    
+    /* Check Cards */
+    .check-card {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .check-card:last-child {
+        margin-bottom: 0;
+    }
+    
+    .check-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .check-card.check-success {
+        border-left: 4px solid var(--color-success);
         background: rgba(76, 175, 80, 0.05);
     }
-
-    .check-item.check-fail {
-        border-left-color: #f44336;
-        background: rgba(244, 67, 54, 0.05);
-    }
-
-    .check-item.check-warning {
-        border-left-color: #FF9800;
+    
+    .check-card.check-warning {
+        border-left: 4px solid var(--color-warning);
         background: rgba(255, 152, 0, 0.05);
     }
-
-    .check-item.check-info {
-        border-left-color: #2196F3;
-        background: rgba(33, 150, 243, 0.05);
+    
+    .check-card.check-danger {
+        border-left: 4px solid var(--color-danger);
+        background: rgba(244, 67, 54, 0.05);
     }
-
+    
+    .check-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
     .check-icon {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         flex-shrink: 0;
     }
-
-    .check-content {
-        flex-grow: 1;
+    
+    .check-success .check-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
     }
-
+    
+    .check-warning .check-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .check-danger .check-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
     .check-title {
+        flex: 1;
         font-weight: 600;
-        color: var(--text-dark);
-        margin-bottom: 5px;
+        font-size: 1rem;
+        color: var(--color-gray-800);
     }
-
+    
+    .check-status {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .check-body {
+        padding-left: 3.25rem;
+    }
+    
     .check-description {
-        color: var(--text-medium);
-        font-size: 0.9rem;
+        color: var(--color-gray-800);
+        font-size: 0.9375rem;
+        line-height: 1.5;
+        margin-bottom: 0.75rem;
     }
-
+    
+    /* Check Alerts */
+    .check-alert {
+        padding: 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .check-alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+        color: #b71c1c;
+    }
+    
+    .check-alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid rgba(255, 152, 0, 0.2);
+        color: #e65100;
+    }
+    
+    /* Confirmation Alert */
+    .confirmation-alert {
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .alert-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        color: #0d47a1;
+    }
+    
+    .alert-body {
+        color: var(--color-gray-800);
+    }
+    
+    .confirmation-list {
+        margin: 1rem 0 0 1.5rem;
+        padding: 0;
+    }
+    
+    .confirmation-list li {
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+    
+    /* Ineligible Alert */
+    .ineligible-alert {
+        background: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+    }
+    
+    .ineligible-alert .alert-header {
+        color: #b71c1c;
+    }
+    
+    .alert-body p {
+        margin-bottom: 1rem;
+        font-size: 0.9375rem;
+        line-height: 1.6;
+    }
+    
+    /* Action Buttons */
+    .action-buttons, .alert-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.625rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn:active {
+        transform: translateY(0);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    .btn-warning {
+        background: var(--color-warning);
+        border-color: var(--color-warning);
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        background: #f57c00;
+        border-color: #f57c00;
+    }
+    
+    /* Responsive */
     @media (max-width: 768px) {
-        .progression-flow {
-            flex-direction: column;
+        .content-container {
+            padding: 0 0.25rem;
         }
-
+        
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .info-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        
+        .progression-container {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
         .progression-arrow {
             transform: rotate(90deg);
         }
-
-        .progression-item {
+        
+        .performance-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .check-header {
+            flex-wrap: wrap;
+        }
+        
+        .check-status {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        
+        .action-buttons, .alert-actions {
+            flex-direction: column;
+        }
+        
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .management-card .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .eligibility-status {
+            align-self: flex-start;
+        }
+        
+        .progression-from, .progression-to {
             min-width: 100%;
+        }
+        
+        .check-body {
+            padding-left: 0;
+        }
+        
+        .confirmation-alert, .ineligible-alert {
+            padding: 1rem;
         }
     }
 </style>
 
 <script>
-    document.getElementById('reportForm')?.addEventListener('submit', function(e) {
-        const btn = this.querySelector('button[type="submit"]');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+document.addEventListener('DOMContentLoaded', function() {
+    // Form submission handling
+    const reportForm = document.getElementById('reportForm');
+    if (reportForm) {
+        reportForm.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                // Disable button and show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <i class="ri-loader-4-line animate-spin me-2"></i>
+                    Processing Report...
+                `;
+                submitBtn.classList.add('disabled');
+            }
+        });
+    }
+    
+    // Add animations to progression flow
+    const progressionItems = document.querySelectorAll('.progression-from, .progression-to');
+    
+    progressionItems.forEach((item, index) => {
+        setTimeout(() => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(20px)';
+            item.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, 100);
+        }, index * 300);
     });
+    
+    // Add hover effects to check cards
+    const checkCards = document.querySelectorAll('.check-card');
+    
+    checkCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.boxShadow = 'var(--shadow-md)';
+        });
+    });
+    
+    // Add animation to status badges
+    const statusBadges = document.querySelectorAll('.status-badge');
+    
+    statusBadges.forEach(badge => {
+        badge.style.transform = 'scale(0.9)';
+        badge.style.transition = 'transform 0.3s ease';
+        
+        setTimeout(() => {
+            badge.style.transform = 'scale(1)';
+        }, 200);
+    });
+});
+
+// Loading animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

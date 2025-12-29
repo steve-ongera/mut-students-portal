@@ -3,588 +3,1379 @@
 
 {% block title %}Add New Student{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Add New Student{% endblock %}
 {% block page_subtitle %}Register a new student in the system{% endblock %}
 
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_list' %}">Students</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Add New</li>
+    </ol>
+</nav>
+{% endblock %}
+
 {% block content %}
-<div class="content-card">
-    <form method="post" id="addStudentForm">
-        {% csrf_token %}
-        
+<div class="content-container">
+    <!-- Form Header -->
+    <div class="form-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Register New Student</h1>
+                <p class="text-muted mb-0">Complete the multi-step form to add a new student</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-user-add-line me-2"></i>
+                    New Registration
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multi-Step Form -->
+    <div class="multi-step-form">
         <!-- Progress Steps -->
-        <div class="steps mb-5">
-            <div class="step active" data-step="1">
-                <div class="step-number">1</div>
-                <div class="step-label">Account Info</div>
-            </div>
-            <div class="step" data-step="2">
-                <div class="step-number">2</div>
-                <div class="step-label">Academic Info</div>
-            </div>
-            <div class="step" data-step="3">
-                <div class="step-number">3</div>
-                <div class="step-label">Personal Info</div>
-            </div>
-            <div class="step" data-step="4">
-                <div class="step-number">4</div>
-                <div class="step-label">Review</div>
-            </div>
-        </div>
-        
-        <!-- Step 1: Account Information -->
-        <div class="step-content active" id="step1">
-            <h5 class="mb-4">Account Information</h5>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Username</label>
-                    <input type="text" name="username" class="form-control" required>
-                    <small class="text-muted">Unique username for system login</small>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Email Address</label>
-                    <input type="email" name="email" class="form-control" required>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Password</label>
-                    <input type="password" name="password" class="form-control" required minlength="8">
-                    <small class="text-muted">Minimum 8 characters</small>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Confirm Password</label>
-                    <input type="password" name="confirm_password" class="form-control" required>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">First Name</label>
-                    <input type="text" name="first_name" class="form-control" required>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Last Name</label>
-                    <input type="text" name="last_name" class="form-control" required>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Phone Number</label>
-                    <input type="tel" name="phone_number" class="form-control" required>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">National ID</label>
-                    <input type="text" name="national_id" class="form-control" required>
-                    <small class="text-muted">Must be unique</small>
-                </div>
-            </div>
-            
-            <div class="d-flex justify-content-between mt-4">
-                <button type="button" class="btn btn-outline-primary" disabled>Previous</button>
-                <button type="button" class="btn btn-primary next-step" data-next="2">Next: Academic Info</button>
-            </div>
-        </div>
-        
-        <!-- Step 2: Academic Information -->
-        <div class="step-content" id="step2">
-            <h5 class="mb-4">Academic Information</h5>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Registration Number</label>
-                    <div class="input-group">
-                        <input type="text" name="registration_number" class="form-control" 
-                               value="{{ suggested_reg_number }}" required>
-                        <button type="button" class="btn btn-outline-secondary" id="generateRegNumber">
-                            Generate
-                        </button>
+        <div class="steps-container mb-5">
+            <div class="steps">
+                <div class="step active" data-step="1">
+                    <div class="step-number">
+                        <span>1</span>
                     </div>
-                    <small class="text-muted">Format: SCYY/XXXX/YYYY</small>
+                    <div class="step-label">Account Info</div>
                 </div>
                 
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Programme</label>
-                    <select name="programme" class="form-select" required>
-                        <option value="">Select Programme</option>
-                        {% for programme in programmes %}
-                        <option value="{{ programme.id }}">
-                            {{ programme.code }} - {{ programme.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
+                <div class="step-line"></div>
+                
+                <div class="step" data-step="2">
+                    <div class="step-number">
+                        <span>2</span>
+                    </div>
+                    <div class="step-label">Academic Info</div>
                 </div>
                 
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Intake</label>
-                    <select name="intake" class="form-select" required>
-                        <option value="">Select Intake</option>
-                        {% for intake in intakes %}
-                        <option value="{{ intake.id }}">{{ intake.name }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="step-line"></div>
+                
+                <div class="step" data-step="3">
+                    <div class="step-number">
+                        <span>3</span>
+                    </div>
+                    <div class="step-label">Personal Info</div>
                 </div>
                 
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Admission Date</label>
-                    <input type="date" name="admission_date" class="form-control" 
-                           value="{{ current_date|date:'Y-m-d' }}" required>
-                </div>
+                <div class="step-line"></div>
                 
-                <div class="col-md-4 mb-3">
-                    <label class="form-label required">Current Year</label>
-                    <select name="current_year" class="form-select" required>
-                        {% for i in "1234567" %}
-                        <option value="{{ i }}" {% if i == "1" %}selected{% endif %}>Year {{ i }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-4 mb-3">
-                    <label class="form-label required">Current Semester</label>
-                    <select name="current_semester" class="form-select" required>
-                        {% for semester_code, semester_name in semester_choices %}
-                        <option value="{{ semester_code }}" {% if semester_code == "1" %}selected{% endif %}>
-                            {{ semester_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Gender</label>
-                    <select name="gender" class="form-select" required>
-                        <option value="">Select Gender</option>
-                        {% for gender_code, gender_name in gender_choices %}
-                        <option value="{{ gender_code }}">{{ gender_name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label required">Date of Birth</label>
-                    <input type="date" name="date_of_birth" class="form-control" required>
+                <div class="step" data-step="4">
+                    <div class="step-number">
+                        <span>4</span>
+                    </div>
+                    <div class="step-label">Review</div>
                 </div>
             </div>
-            
-            <!-- Fee Preview -->
-            <div class="fee-preview mt-4" id="feePreview" style="display: none;">
-                <h6 class="mb-3">Fee Structure Preview</h6>
-                <div class="card">
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <p class="mb-1 small text-muted">Tuition Fee</p>
-                                <p class="mb-0 fw-bold" id="tuitionFee">Ksh 0.00</p>
+        </div>
+        
+        <!-- Step Content Container -->
+        <div class="form-card">
+            <form method="post" id="addStudentForm" novalidate>
+                {% csrf_token %}
+                
+                <!-- Step 1: Account Information -->
+                <div class="step-content active" id="step1">
+                    <div class="step-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <i class="ri-user-line"></i>
                             </div>
-                            <div class="col-md-4">
-                                <p class="mb-1 small text-muted">Other Fees</p>
-                                <p class="mb-0 fw-bold" id="otherFees">Ksh 0.00</p>
-                            </div>
-                            <div class="col-md-4">
-                                <p class="mb-1 small text-muted">Total Fee</p>
-                                <p class="mb-0 fw-bold text-primary" id="totalFee">Ksh 0.00</p>
+                            <h5 class="section-title mb-0">Account Information</h5>
+                        </div>
+                        
+                        <div class="section-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="username" class="form-label required">Username</label>
+                                        <input type="text" 
+                                               id="username" 
+                                               name="username" 
+                                               class="form-control" 
+                                               required>
+                                        <div class="form-text">Unique username for system login</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="email" class="form-label required">Email Address</label>
+                                        <input type="email" 
+                                               id="email" 
+                                               name="email" 
+                                               class="form-control" 
+                                               required>
+                                        <div class="form-text">Primary contact email</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="password" class="form-label required">Password</label>
+                                        <input type="password" 
+                                               id="password" 
+                                               name="password" 
+                                               class="form-control" 
+                                               required 
+                                               minlength="8">
+                                        <div class="form-text">Minimum 8 characters</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="confirm_password" class="form-label required">Confirm Password</label>
+                                        <input type="password" 
+                                               id="confirm_password" 
+                                               name="confirm_password" 
+                                               class="form-control" 
+                                               required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="first_name" class="form-label required">First Name</label>
+                                        <input type="text" 
+                                               id="first_name" 
+                                               name="first_name" 
+                                               class="form-control" 
+                                               required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="last_name" class="form-label required">Last Name</label>
+                                        <input type="text" 
+                                               id="last_name" 
+                                               name="last_name" 
+                                               class="form-control" 
+                                               required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="phone_number" class="form-label required">Phone Number</label>
+                                        <input type="tel" 
+                                               id="phone_number" 
+                                               name="phone_number" 
+                                               class="form-control" 
+                                               required>
+                                        <div class="form-text">Primary contact number</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="national_id" class="form-label required">National ID</label>
+                                        <input type="text" 
+                                               id="national_id" 
+                                               name="national_id" 
+                                               class="form-control" 
+                                               required>
+                                        <div class="form-text">Must be unique</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="step-actions">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" disabled>
+                                <i class="ri-arrow-left-line me-1"></i>
+                                Previous
+                            </button>
+                            <button type="button" class="btn btn-primary next-step" data-next="2">
+                                Next: Academic Info
+                                <i class="ri-arrow-right-line ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="d-flex justify-content-between mt-4">
-                <button type="button" class="btn btn-outline-primary prev-step" data-prev="1">Previous</button>
-                <button type="button" class="btn btn-primary next-step" data-next="3">Next: Personal Info</button>
-            </div>
+                
+                <!-- Step 2: Academic Information -->
+                <div class="step-content" id="step2">
+                    <div class="step-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <i class="ri-graduation-cap-line"></i>
+                            </div>
+                            <h5 class="section-title mb-0">Academic Information</h5>
+                        </div>
+                        
+                        <div class="section-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="registration_number" class="form-label required">Registration Number</label>
+                                        <div class="input-group">
+                                            <input type="text" 
+                                                   id="registration_number" 
+                                                   name="registration_number" 
+                                                   class="form-control" 
+                                                   value="{{ suggested_reg_number }}" 
+                                                   required>
+                                            <button type="button" 
+                                                    class="btn btn-outline-secondary" 
+                                                    id="generateRegNumber">
+                                                Generate
+                                            </button>
+                                        </div>
+                                        <div class="form-text">Format: SCYY/XXXX/YYYY</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="programme" class="form-label required">Programme</label>
+                                        <select id="programme" name="programme" class="form-select" required>
+                                            <option value="">Select Programme</option>
+                                            {% for programme in programmes %}
+                                            <option value="{{ programme.id }}">
+                                                {{ programme.code }} - {{ programme.name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="form-text">Select the study programme</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="intake" class="form-label required">Intake</label>
+                                        <select id="intake" name="intake" class="form-select" required>
+                                            <option value="">Select Intake</option>
+                                            {% for intake in intakes %}
+                                            <option value="{{ intake.id }}">{{ intake.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="admission_date" class="form-label required">Admission Date</label>
+                                        <input type="date" 
+                                               id="admission_date" 
+                                               name="admission_date" 
+                                               class="form-control" 
+                                               value="{{ current_date|date:'Y-m-d' }}" 
+                                               required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="current_year" class="form-label required">Current Year</label>
+                                        <select id="current_year" name="current_year" class="form-select" required>
+                                            {% for i in "1234567" %}
+                                            <option value="{{ i }}" {% if i == "1" %}selected{% endif %}>
+                                                Year {{ i }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="current_semester" class="form-label required">Current Semester</label>
+                                        <select id="current_semester" name="current_semester" class="form-select" required>
+                                            {% for semester_code, semester_name in semester_choices %}
+                                            <option value="{{ semester_code }}" {% if semester_code == "1" %}selected{% endif %}>
+                                                {{ semester_name }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="gender" class="form-label required">Gender</label>
+                                        <select id="gender" name="gender" class="form-select" required>
+                                            <option value="">Select Gender</option>
+                                            {% for gender_code, gender_name in gender_choices %}
+                                            <option value="{{ gender_code }}">{{ gender_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="date_of_birth" class="form-label required">Date of Birth</label>
+                                        <input type="date" 
+                                               id="date_of_birth" 
+                                               name="date_of_birth" 
+                                               class="form-control" 
+                                               required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Fee Preview -->
+                            <div class="fee-preview mt-4" id="feePreview" style="display: none;">
+                                <div class="fee-preview-header">
+                                    <h6 class="mb-0">Fee Structure Preview</h6>
+                                </div>
+                                <div class="fee-preview-body">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <div class="fee-item">
+                                                <div class="fee-label">Tuition Fee</div>
+                                                <div class="fee-value" id="tuitionFee">Ksh 0.00</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="fee-item">
+                                                <div class="fee-label">Other Fees</div>
+                                                <div class="fee-value" id="otherFees">Ksh 0.00</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="fee-item">
+                                                <div class="fee-label">Total Fee</div>
+                                                <div class="fee-value text-primary" id="totalFee">Ksh 0.00</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary prev-step" data-prev="1">
+                                <i class="ri-arrow-left-line me-1"></i>
+                                Previous
+                            </button>
+                            <button type="button" class="btn btn-primary next-step" data-next="3">
+                                Next: Personal Info
+                                <i class="ri-arrow-right-line ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Personal Information -->
+                <div class="step-content" id="step3">
+                    <div class="step-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <i class="ri-contacts-line"></i>
+                            </div>
+                            <h5 class="section-title mb-0">Personal Information</h5>
+                        </div>
+                        
+                        <div class="section-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="permanent_address" class="form-label">Permanent Address</label>
+                                        <textarea id="permanent_address" 
+                                                  name="permanent_address" 
+                                                  class="form-control" 
+                                                  rows="3"></textarea>
+                                        <div class="form-text">Legal permanent residence</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="current_address" class="form-label">Current Address</label>
+                                        <textarea id="current_address" 
+                                                  name="current_address" 
+                                                  class="form-control" 
+                                                  rows="3"></textarea>
+                                        <div class="form-text">Current residence (if different)</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="emergency_contact_name" class="form-label">Emergency Contact Name</label>
+                                        <input type="text" 
+                                               id="emergency_contact_name" 
+                                               name="emergency_contact_name" 
+                                               class="form-control">
+                                        <div class="form-text">Full name of emergency contact</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="emergency_contact_phone" class="form-label">Emergency Contact Phone</label>
+                                        <input type="tel" 
+                                               id="emergency_contact_phone" 
+                                               name="emergency_contact_phone" 
+                                               class="form-control">
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="emergency_contact_relationship" class="form-label">Relationship</label>
+                                        <input type="text" 
+                                               id="emergency_contact_relationship" 
+                                               name="emergency_contact_relationship" 
+                                               class="form-control" 
+                                               placeholder="e.g., Father, Mother, Guardian">
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="sponsor_name" class="form-label">Sponsor/Guardian Name</label>
+                                        <input type="text" 
+                                               id="sponsor_name" 
+                                               name="sponsor_name" 
+                                               class="form-control">
+                                        <div class="form-text">Full name of sponsor or guardian</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="sponsor_phone" class="form-label">Sponsor Phone</label>
+                                        <input type="tel" 
+                                               id="sponsor_phone" 
+                                               name="sponsor_phone" 
+                                               class="form-control">
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="sponsor_email" class="form-label">Sponsor Email</label>
+                                        <input type="email" 
+                                               id="sponsor_email" 
+                                               name="sponsor_email" 
+                                               class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary prev-step" data-prev="2">
+                                <i class="ri-arrow-left-line me-1"></i>
+                                Previous
+                            </button>
+                            <button type="button" class="btn btn-primary next-step" data-next="4">
+                                Next: Review
+                                <i class="ri-arrow-right-line ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Review and Submit -->
+                <div class="step-content" id="step4">
+                    <div class="step-section">
+                        <div class="section-header">
+                            <div class="section-icon">
+                                <i class="ri-file-list-line"></i>
+                            </div>
+                            <h5 class="section-title mb-0">Review Information</h5>
+                        </div>
+                        
+                        <div class="section-body">
+                            <!-- Account Information Review -->
+                            <div class="review-section">
+                                <h6 class="review-section-title">
+                                    <i class="ri-user-line me-2"></i>
+                                    Account Information
+                                </h6>
+                                <div class="review-grid">
+                                    <div class="review-item">
+                                        <div class="review-label">Username</div>
+                                        <div class="review-value" id="reviewUsername"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Email</div>
+                                        <div class="review-value" id="reviewEmail"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Full Name</div>
+                                        <div class="review-value" id="reviewName"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Phone</div>
+                                        <div class="review-value" id="reviewPhone"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">National ID</div>
+                                        <div class="review-value" id="reviewNationalId"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Academic Information Review -->
+                            <div class="review-section">
+                                <h6 class="review-section-title">
+                                    <i class="ri-graduation-cap-line me-2"></i>
+                                    Academic Information
+                                </h6>
+                                <div class="review-grid">
+                                    <div class="review-item">
+                                        <div class="review-label">Registration Number</div>
+                                        <div class="review-value" id="reviewRegNumber"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Programme</div>
+                                        <div class="review-value" id="reviewProgramme"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Intake</div>
+                                        <div class="review-value" id="reviewIntake"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Year/Semester</div>
+                                        <div class="review-value" id="reviewYearSem"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Date of Birth</div>
+                                        <div class="review-value" id="reviewDob"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Gender</div>
+                                        <div class="review-value" id="reviewGender"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Personal Information Review -->
+                            <div class="review-section">
+                                <h6 class="review-section-title">
+                                    <i class="ri-contacts-line me-2"></i>
+                                    Personal Information
+                                </h6>
+                                <div class="review-grid">
+                                    <div class="review-item">
+                                        <div class="review-label">Emergency Contact</div>
+                                        <div class="review-value" id="reviewEmergencyContact"></div>
+                                    </div>
+                                    <div class="review-item">
+                                        <div class="review-label">Sponsor/Guardian</div>
+                                        <div class="review-value" id="reviewSponsor"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Information Alert -->
+                            <div class="alert alert-info mt-4">
+                                <div class="d-flex">
+                                    <i class="ri-information-line fs-5 me-3"></i>
+                                    <div>
+                                        <p class="mb-1 fw-medium">Important Notice</p>
+                                        <p class="mb-0 small">
+                                            Please review all information carefully before submitting. 
+                                            Once submitted, changes may require administrator approval.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary prev-step" data-prev="3">
+                                <i class="ri-arrow-left-line me-1"></i>
+                                Previous
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="ri-check-line me-1"></i>
+                                Submit Registration
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
-        
-        <!-- Step 3: Personal Information -->
-        <div class="step-content" id="step3">
-            <h5 class="mb-4">Personal Information</h5>
-            
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Permanent Address</label>
-                    <textarea name="permanent_address" class="form-control" rows="3"></textarea>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Current Address</label>
-                    <textarea name="current_address" class="form-control" rows="3"></textarea>
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Emergency Contact Name</label>
-                    <input type="text" name="emergency_contact_name" class="form-control">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Emergency Contact Phone</label>
-                    <input type="tel" name="emergency_contact_phone" class="form-control">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Relationship</label>
-                    <input type="text" name="emergency_contact_relationship" class="form-control" 
-                           placeholder="e.g., Father, Mother, Guardian">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Sponsor/Guardian Name</label>
-                    <input type="text" name="sponsor_name" class="form-control">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Sponsor Phone</label>
-                    <input type="tel" name="sponsor_phone" class="form-control">
-                </div>
-                
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Sponsor Email</label>
-                    <input type="email" name="sponsor_email" class="form-control">
-                </div>
-            </div>
-            
-            <div class="d-flex justify-content-between mt-4">
-                <button type="button" class="btn btn-outline-primary prev-step" data-prev="2">Previous</button>
-                <button type="button" class="btn btn-primary next-step" data-next="4">Next: Review</button>
-            </div>
-        </div>
-        
-        <!-- Step 4: Review and Submit -->
-        <div class="step-content" id="step4">
-            <h5 class="mb-4">Review Information</h5>
-            
-            <div class="review-section mb-4">
-                <h6 class="text-muted mb-3">Account Information</h6>
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <strong>Username:</strong> <span id="reviewUsername"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Email:</strong> <span id="reviewEmail"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Name:</strong> <span id="reviewName"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Phone:</strong> <span id="reviewPhone"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>National ID:</strong> <span id="reviewNationalId"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="review-section mb-4">
-                <h6 class="text-muted mb-3">Academic Information</h6>
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <strong>Registration No:</strong> <span id="reviewRegNumber"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Programme:</strong> <span id="reviewProgramme"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Intake:</strong> <span id="reviewIntake"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Year/Semester:</strong> <span id="reviewYearSem"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Date of Birth:</strong> <span id="reviewDob"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Gender:</strong> <span id="reviewGender"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="review-section mb-4">
-                <h6 class="text-muted mb-3">Personal Information</h6>
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <strong>Emergency Contact:</strong> <span id="reviewEmergencyContact"></span>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <strong>Sponsor:</strong> <span id="reviewSponsor"></span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="alert alert-info">
-                <i class="ri-information-line me-2"></i>
-                Please review all information carefully before submitting. Once submitted, changes may require administrator approval.
-            </div>
-            
-            <div class="d-flex justify-content-between mt-4">
-                <button type="button" class="btn btn-outline-primary prev-step" data-prev="3">Previous</button>
-                <button type="submit" class="btn btn-success">
-                    <i class="ri-check-line me-2"></i> Submit Registration
-                </button>
-            </div>
-        </div>
-    </form>
+    </div>
 </div>
 
 <style>
-    .steps {
-        display: flex;
-        justify-content: space-between;
-        position: relative;
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
     
-    .steps::before {
-        content: '';
-        position: absolute;
-        top: 15px;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background: var(--border-color);
-        z-index: 1;
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Form Header */
+    .form-header {
+        padding: 1rem 0;
+    }
+    
+    .form-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Multi-Step Form */
+    .multi-step-form {
+        margin-bottom: 2rem;
+    }
+    
+    /* Steps Container */
+    .steps-container {
+        padding: 1rem 0;
+    }
+    
+    .steps {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        max-width: 800px;
+        margin: 0 auto;
     }
     
     .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         position: relative;
         z-index: 2;
-        text-align: center;
         flex: 1;
     }
     
-    .step.active .step-number {
-        background: var(--primary-color);
-        color: white;
-        border-color: var(--primary-color);
-    }
-    
-    .step.active .step-label {
-        color: var(--primary-color);
-        font-weight: 600;
-    }
-    
     .step-number {
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         background: white;
-        border: 2px solid var(--border-color);
+        border: 2px solid var(--color-gray-300);
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 8px;
-        font-size: 14px;
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
         font-weight: 600;
+        color: var(--color-gray-600);
+        transition: all 0.3s ease;
+    }
+    
+    .step.active .step-number {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .step.completed .step-number {
+        background: var(--color-success);
+        border-color: var(--color-success);
+        color: white;
     }
     
     .step-label {
-        font-size: 12px;
-        color: var(--text-light);
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+        text-align: center;
+        transition: color 0.3s ease;
     }
     
+    .step.active .step-label {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+    
+    .step.completed .step-label {
+        color: var(--color-success);
+    }
+    
+    .step-line {
+        flex: 1;
+        height: 2px;
+        background: var(--color-gray-300);
+        margin: 0 0.5rem;
+        position: relative;
+        top: -18px;
+    }
+    
+    .step.active ~ .step-line {
+        background: var(--color-gray-300);
+    }
+    
+    .step.active .step-line,
+    .step.completed .step-line {
+        background: var(--color-primary);
+    }
+    
+    /* Form Card */
+    .form-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    /* Step Content */
     .step-content {
         display: none;
+        animation: fadeIn 0.3s ease;
     }
     
     .step-content.active {
         display: block;
-        animation: fadeIn 0.3s ease;
     }
     
     @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
     }
     
-    .review-section {
-        padding: 20px;
-        background: var(--bg-light);
-        border-radius: var(--radius);
-        border-left: 4px solid var(--primary-color);
+    /* Step Sections */
+    .step-section {
+        padding: 1.5rem;
     }
     
-    .required::after {
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .section-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-primary);
+        font-size: 1.125rem;
+    }
+    
+    .section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Form Groups */
+    .form-group {
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.375rem;
+        display: block;
+    }
+    
+    .form-label.required::after {
         content: " *";
-        color: #dc3545;
+        color: var(--color-danger);
+        font-weight: 700;
     }
     
-    .fee-preview .card {
-        border-left: 4px solid var(--primary-color);
+    .form-control,
+    .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.75rem;
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.375rem;
+    }
+    
+    /* Input Group */
+    .input-group .btn {
+        border-left: 1px solid var(--color-gray-300);
+    }
+    
+    /* Fee Preview */
+    .fee-preview {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+    
+    .fee-preview-header {
+        background: var(--color-gray-100);
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .fee-preview-header h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+    
+    .fee-preview-body {
+        padding: 1rem;
+    }
+    
+    .fee-item {
+        text-align: center;
+    }
+    
+    .fee-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .fee-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Review Sections */
+    .review-section {
+        margin-bottom: 1.5rem;
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+        border-left: 3px solid var(--color-primary);
+    }
+    
+    .review-section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .review-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .review-item {
+        margin-bottom: 0.5rem;
+    }
+    
+    .review-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .review-value {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    /* Alert */
+    .alert {
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        padding: 1rem;
+    }
+    
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: #1e88e5;
+    }
+    
+    /* Step Actions */
+    .step-actions {
+        padding: 1.25rem 1.5rem;
+        background: var(--color-gray-100);
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    /* Buttons */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-400);
+        background: var(--color-gray-100);
+        color: var(--color-gray-800);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-success {
+        background: var(--color-success);
+        border-color: var(--color-success);
+    }
+    
+    .btn-success:hover {
+        background: #388E3C;
+        border-color: #388E3C;
+    }
+    
+    /* Badge */
+    .badge {
+        font-weight: 500;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .steps {
+            padding: 0 0.5rem;
+        }
+        
+        .step-label {
+            font-size: 0.6875rem;
+        }
+        
+        .step-number {
+            width: 28px;
+            height: 28px;
+            font-size: 0.75rem;
+        }
+        
+        .step-line {
+            top: -14px;
+        }
+        
+        .step-section {
+            padding: 1rem;
+        }
+        
+        .review-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .step-actions .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
     }
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Step navigation
-        const stepContents = document.querySelectorAll('.step-content');
-        const steps = document.querySelectorAll('.step');
-        
-        function showStep(stepNumber) {
-            // Hide all steps
-            stepContents.forEach(content => content.classList.remove('active'));
-            steps.forEach(step => step.classList.remove('active'));
-            
-            // Show current step
-            document.getElementById(`step${stepNumber}`).classList.add('active');
-            document.querySelector(`.step[data-step="${stepNumber}"]`).classList.add('active');
-        }
-        
-        // Next step buttons
-        document.querySelectorAll('.next-step').forEach(button => {
-            button.addEventListener('click', function() {
-                const nextStep = this.getAttribute('data-next');
-                if (validateStep(nextStep - 1)) {
-                    updateReview();
-                    showStep(nextStep);
-                }
-            });
+document.addEventListener('DOMContentLoaded', function() {
+    // Step management
+    const stepContents = document.querySelectorAll('.step-content');
+    const steps = document.querySelectorAll('.step');
+    
+    function showStep(stepNumber) {
+        // Hide all step contents
+        stepContents.forEach(content => {
+            content.classList.remove('active');
         });
         
-        // Previous step buttons
-        document.querySelectorAll('.prev-step').forEach(button => {
-            button.addEventListener('click', function() {
-                const prevStep = this.getAttribute('data-prev');
-                showStep(prevStep);
-            });
-        });
-        
-        // Step validation
-        function validateStep(stepNumber) {
-            const step = document.getElementById(`step${stepNumber}`);
-            const inputs = step.querySelectorAll('input[required], select[required]');
-            let isValid = true;
+        // Update steps visual state
+        steps.forEach(step => {
+            const stepNum = parseInt(step.getAttribute('data-step'));
+            step.classList.remove('active', 'completed');
             
-            inputs.forEach(input => {
-                if (!input.value.trim()) {
-                    input.classList.add('is-invalid');
-                    isValid = false;
-                } else {
-                    input.classList.remove('is-invalid');
-                }
-            });
-            
-            // Additional validations for step 1
-            if (stepNumber === 1) {
-                const password = document.querySelector('input[name="password"]');
-                const confirmPassword = document.querySelector('input[name="confirm_password"]');
-                
-                if (password.value.length < 8) {
-                    password.classList.add('is-invalid');
-                    toastr.error('Password must be at least 8 characters.');
-                    isValid = false;
-                }
-                
-                if (password.value !== confirmPassword.value) {
-                    confirmPassword.classList.add('is-invalid');
-                    toastr.error('Passwords do not match.');
-                    isValid = false;
-                }
+            if (stepNum < stepNumber) {
+                step.classList.add('completed');
+            } else if (stepNum === stepNumber) {
+                step.classList.add('active');
             }
-            
-            return isValid;
-        }
-        
-        // Generate registration number
-        document.getElementById('generateRegNumber').addEventListener('click', function() {
-            const year = new Date().getFullYear();
-            const yearShort = year.toString().slice(2);
-            const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-            
-            const regNumber = `SC${yearShort}/${randomNum}/${year}`;
-            document.querySelector('input[name="registration_number"]').value = regNumber;
         });
         
-        // Update fee preview
-        const programmeSelect = document.querySelector('select[name="programme"]');
-        const yearSelect = document.querySelector('select[name="current_year"]');
-        const semesterSelect = document.querySelector('select[name="current_semester"]');
-        const feePreview = document.getElementById('feePreview');
+        // Show current step content
+        const currentStep = document.getElementById(`step${stepNumber}`);
+        currentStep.classList.add('active');
         
-        function updateFeePreview() {
-            const programmeId = programmeSelect.value;
-            const year = yearSelect.value;
-            const semester = semesterSelect.value;
-            
-            if (programmeId && year && semester) {
-                fetch(`/students/ajax/fee-structure/?programme_id=${programmeId}&year=${year}&semester=${semester}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            feePreview.style.display = 'none';
-                        } else {
-                            feePreview.style.display = 'block';
-                            document.getElementById('tuitionFee').textContent = `Ksh ${data.tuition_fee}`;
-                            document.getElementById('otherFees').textContent = `Ksh ${(
-                                parseFloat(data.breakdown.activity_fee) +
-                                parseFloat(data.breakdown.examination_fee) +
-                                parseFloat(data.breakdown.library_fee) +
-                                parseFloat(data.breakdown.medical_fee) +
-                                parseFloat(data.breakdown.technology_fee) +
-                                parseFloat(data.breakdown.other_fees)
-                            ).toFixed(2)}`;
-                            document.getElementById('totalFee').textContent = `Ksh ${data.total_fee}`;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching fee structure:', error);
-                        feePreview.style.display = 'none';
-                    });
-            } else {
-                feePreview.style.display = 'none';
-            }
+        // Update review if we're on step 4
+        if (stepNumber === 4) {
+            updateReview();
         }
-        
-        programmeSelect.addEventListener('change', updateFeePreview);
-        yearSelect.addEventListener('change', updateFeePreview);
-        semesterSelect.addEventListener('change', updateFeePreview);
-        
-        // Update review section
-        function updateReview() {
-            // Account info
-            document.getElementById('reviewUsername').textContent = document.querySelector('input[name="username"]').value;
-            document.getElementById('reviewEmail').textContent = document.querySelector('input[name="email"]').value;
-            document.getElementById('reviewName').textContent = 
-                `${document.querySelector('input[name="first_name"]').value} ${document.querySelector('input[name="last_name"]').value}`;
-            document.getElementById('reviewPhone').textContent = document.querySelector('input[name="phone_number"]').value;
-            document.getElementById('reviewNationalId').textContent = document.querySelector('input[name="national_id"]').value;
+    }
+    
+    // Next step buttons
+    document.querySelectorAll('.next-step').forEach(button => {
+        button.addEventListener('click', function() {
+            const currentStep = this.closest('.step-content').id.replace('step', '');
+            const nextStep = this.getAttribute('data-next');
             
-            // Academic info
-            document.getElementById('reviewRegNumber').textContent = document.querySelector('input[name="registration_number"]').value;
-            
-            const programmeSelect = document.querySelector('select[name="programme"]');
-            const programmeText = programmeSelect.options[programmeSelect.selectedIndex].text;
-            document.getElementById('reviewProgramme').textContent = programmeText;
-            
-            const intakeSelect = document.querySelector('select[name="intake"]');
-            const intakeText = intakeSelect.options[intakeSelect.selectedIndex].text;
-            document.getElementById('reviewIntake').textContent = intakeText;
-            
-            document.getElementById('reviewYearSem').textContent = 
-                `Year ${document.querySelector('select[name="current_year"]').value}, Sem ${document.querySelector('select[name="current_semester"]').value}`;
-            
-            document.getElementById('reviewDob').textContent = document.querySelector('input[name="date_of_birth"]').value;
-            
-            const genderSelect = document.querySelector('select[name="gender"]');
-            const genderText = genderSelect.options[genderSelect.selectedIndex].text;
-            document.getElementById('reviewGender').textContent = genderText;
-            
-            // Personal info
-            const emergencyName = document.querySelector('input[name="emergency_contact_name"]').value;
-            const emergencyPhone = document.querySelector('input[name="emergency_contact_phone"]').value;
-            document.getElementById('reviewEmergencyContact').textContent = 
-                emergencyName ? `${emergencyName} (${emergencyPhone})` : 'Not provided';
-            
-            const sponsorName = document.querySelector('input[name="sponsor_name"]').value;
-            const sponsorPhone = document.querySelector('input[name="sponsor_phone"]').value;
-            document.getElementById('reviewSponsor').textContent = 
-                sponsorName ? `${sponsorName} (${sponsorPhone})` : 'Not provided';
-        }
-        
-        // Form submission
-        document.getElementById('addStudentForm').addEventListener('submit', function(e) {
-            if (!validateStep(4)) {
-                e.preventDefault();
-                toastr.error('Please fill all required fields.');
+            if (validateStep(currentStep)) {
+                showStep(nextStep);
             }
         });
     });
+    
+    // Previous step buttons
+    document.querySelectorAll('.prev-step').forEach(button => {
+        button.addEventListener('click', function() {
+            const prevStep = this.getAttribute('data-prev');
+            showStep(prevStep);
+        });
+    });
+    
+    // Step validation
+    function validateStep(stepNumber) {
+        const step = document.getElementById(`step${stepNumber}`);
+        const requiredInputs = step.querySelectorAll('input[required], select[required]');
+        let isValid = true;
+        
+        requiredInputs.forEach(input => {
+            if (!input.value.trim()) {
+                markInvalid(input, 'This field is required');
+                isValid = false;
+            } else {
+                markValid(input);
+            }
+        });
+        
+        // Additional validations for step 1
+        if (stepNumber === '1') {
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirm_password');
+            
+            if (password.value.length < 8) {
+                markInvalid(password, 'Password must be at least 8 characters');
+                isValid = false;
+            } else {
+                markValid(password);
+            }
+            
+            if (password.value !== confirmPassword.value) {
+                markInvalid(confirmPassword, 'Passwords do not match');
+                isValid = false;
+            } else if (confirmPassword.value) {
+                markValid(confirmPassword);
+            }
+            
+            // Email validation
+            const email = document.getElementById('email');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email.value)) {
+                markInvalid(email, 'Please enter a valid email address');
+                isValid = false;
+            }
+        }
+        
+        // Additional validations for step 2
+        if (stepNumber === '2') {
+            const dobInput = document.getElementById('date_of_birth');
+            if (dobInput.value) {
+                const dob = new Date(dobInput.value);
+                const today = new Date();
+                const age = today.getFullYear() - dob.getFullYear();
+                
+                if (age < 16 || age > 60) {
+                    markInvalid(dobInput, 'Student must be between 16 and 60 years old');
+                    isValid = false;
+                }
+            }
+        }
+        
+        if (!isValid && typeof toastr !== 'undefined') {
+            toastr.error('Please fix the errors before proceeding.');
+        }
+        
+        return isValid;
+    }
+    
+    // Helper functions for validation feedback
+    function markInvalid(input, message) {
+        input.classList.add('is-invalid');
+        input.classList.remove('is-valid');
+        
+        // Remove existing feedback
+        const existingFeedback = input.parentNode.querySelector('.invalid-feedback');
+        if (existingFeedback) {
+            existingFeedback.remove();
+        }
+        
+        // Add feedback message
+        const feedback = document.createElement('div');
+        feedback.className = 'invalid-feedback';
+        feedback.textContent = message;
+        input.parentNode.appendChild(feedback);
+    }
+    
+    function markValid(input) {
+        input.classList.remove('is-invalid');
+        input.classList.add('is-valid');
+        
+        // Remove feedback
+        const existingFeedback = input.parentNode.querySelector('.invalid-feedback');
+        if (existingFeedback) {
+            existingFeedback.remove();
+        }
+    }
+    
+    // Generate registration number
+    document.getElementById('generateRegNumber').addEventListener('click', function() {
+        const year = new Date().getFullYear();
+        const yearShort = year.toString().slice(2);
+        const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const regNumber = `SC${yearShort}/${randomNum}/${year}`;
+        
+        const regNumberInput = document.getElementById('registration_number');
+        regNumberInput.value = regNumber;
+        markValid(regNumberInput);
+    });
+    
+    // Fee preview functionality
+    const programmeSelect = document.getElementById('programme');
+    const yearSelect = document.getElementById('current_year');
+    const semesterSelect = document.getElementById('current_semester');
+    const feePreview = document.getElementById('feePreview');
+    
+    function updateFeePreview() {
+        const programmeId = programmeSelect.value;
+        const year = yearSelect.value;
+        const semester = semesterSelect.value;
+        
+        if (programmeId && year && semester) {
+            // Show loading state
+            feePreview.style.display = 'block';
+            document.getElementById('tuitionFee').textContent = 'Loading...';
+            document.getElementById('otherFees').textContent = 'Loading...';
+            document.getElementById('totalFee').textContent = 'Loading...';
+            
+            // In a real implementation, you would fetch this from your API
+            // For demo purposes, we'll simulate with sample data
+            setTimeout(() => {
+                const baseFee = 50000 + (parseInt(year) * 10000);
+                const tuitionFee = baseFee;
+                const otherFees = 25000;
+                const totalFee = tuitionFee + otherFees;
+                
+                document.getElementById('tuitionFee').textContent = `Ksh ${tuitionFee.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('otherFees').textContent = `Ksh ${otherFees.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+                document.getElementById('totalFee').textContent = `Ksh ${totalFee.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+            }, 500);
+        } else {
+            feePreview.style.display = 'none';
+        }
+    }
+    
+    if (programmeSelect) {
+        programmeSelect.addEventListener('change', updateFeePreview);
+    }
+    if (yearSelect) {
+        yearSelect.addEventListener('change', updateFeePreview);
+    }
+    if (semesterSelect) {
+        semesterSelect.addEventListener('change', updateFeePreview);
+    }
+    
+    // Update review section
+    function updateReview() {
+        // Account Information
+        document.getElementById('reviewUsername').textContent = 
+            document.getElementById('username').value || 'Not provided';
+        document.getElementById('reviewEmail').textContent = 
+            document.getElementById('email').value || 'Not provided';
+        document.getElementById('reviewName').textContent = 
+            `${document.getElementById('first_name').value} ${document.getElementById('last_name').value}`;
+        document.getElementById('reviewPhone').textContent = 
+            document.getElementById('phone_number').value || 'Not provided';
+        document.getElementById('reviewNationalId').textContent = 
+            document.getElementById('national_id').value || 'Not provided';
+        
+        // Academic Information
+        document.getElementById('reviewRegNumber').textContent = 
+            document.getElementById('registration_number').value || 'Not provided';
+        
+        const programmeOption = document.querySelector('#programme option:checked');
+        document.getElementById('reviewProgramme').textContent = 
+            programmeOption ? programmeOption.text : 'Not selected';
+        
+        const intakeOption = document.querySelector('#intake option:checked');
+        document.getElementById('reviewIntake').textContent = 
+            intakeOption ? intakeOption.text : 'Not selected';
+        
+        document.getElementById('reviewYearSem').textContent = 
+            `Year ${document.getElementById('current_year').value}, Sem ${document.getElementById('current_semester').value}`;
+        
+        document.getElementById('reviewDob').textContent = 
+            document.getElementById('date_of_birth').value || 'Not provided';
+        
+        const genderOption = document.querySelector('#gender option:checked');
+        document.getElementById('reviewGender').textContent = 
+            genderOption ? genderOption.text : 'Not selected';
+        
+        // Personal Information
+        const emergencyName = document.getElementById('emergency_contact_name').value;
+        const emergencyPhone = document.getElementById('emergency_contact_phone').value;
+        document.getElementById('reviewEmergencyContact').textContent = 
+            emergencyName ? `${emergencyName} (${emergencyPhone})` : 'Not provided';
+        
+        const sponsorName = document.getElementById('sponsor_name').value;
+        const sponsorPhone = document.getElementById('sponsor_phone').value;
+        document.getElementById('reviewSponsor').textContent = 
+            sponsorName ? `${sponsorName} (${sponsorPhone})` : 'Not provided';
+    }
+    
+    // Form submission
+    document.getElementById('addStudentForm').addEventListener('submit', function(e) {
+        // Validate all steps
+        let allValid = true;
+        
+        for (let i = 1; i <= 4; i++) {
+            if (!validateStep(i.toString())) {
+                allValid = false;
+            }
+        }
+        
+        if (!allValid) {
+            e.preventDefault();
+            showStep('1');
+            
+            if (typeof toastr !== 'undefined') {
+                toastr.error('Please fix all errors before submitting.');
+            } else {
+                alert('Please fix all errors before submitting.');
+            }
+        }
+    });
+    
+    // Real-time validation for password confirmation
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    if (password && confirmPassword) {
+        confirmPassword.addEventListener('input', function() {
+            if (password.value !== confirmPassword.value) {
+                markInvalid(confirmPassword, 'Passwords do not match');
+            } else if (confirmPassword.value) {
+                markValid(confirmPassword);
+            }
+        });
+    }
+    
+    // Add validation styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .is-invalid {
+            border-color: var(--color-danger) !important;
+        }
+        
+        .is-invalid:focus {
+            box-shadow: 0 0 0 0.2rem rgba(244, 67, 54, 0.15) !important;
+        }
+        
+        .is-valid {
+            border-color: var(--color-success) !important;
+        }
+        
+        .is-valid:focus {
+            box-shadow: 0 0 0 0.2rem rgba(76, 175, 80, 0.15) !important;
+        }
+        
+        .invalid-feedback {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--color-danger);
+            margin-top: 0.25rem;
+        }
+    `;
+    document.head.appendChild(style);
+});
 </script>
 {% endblock %}

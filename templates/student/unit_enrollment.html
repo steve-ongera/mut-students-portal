@@ -7,365 +7,1112 @@
 {% block page_subtitle %}Enroll for {{ current_semester }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-lg-10 mx-auto">
-            <!-- Enrollment Period Info -->
-            <div class="alert alert-info mb-4">
-                <div class="d-flex align-items-center">
-                    <i class="ri-calendar-line fs-3 me-3"></i>
-                    <div>
-                        <h6 class="mb-1">Enrollment Period</h6>
-                        <p class="mb-0">
-                            <strong>Normal Units:</strong> {{ enrollment_period.start_date|date:"M d, Y H:i" }} - {{ enrollment_period.end_date|date:"M d, Y H:i" }}
-                            {% if enrollment_period.resit_start_date %}
-                            <br><strong>Resit Units:</strong> {{ enrollment_period.resit_start_date|date:"M d, Y H:i" }} - {{ enrollment_period.resit_end_date|date:"M d, Y H:i" }}
-                            {% endif %}
-                        </p>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'semester_report_status' report_id=0 %}">Report Status</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Unit Enrollment</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Enrollment Period Alert -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="ri-calendar-line me-2"></i>
+                Enrollment Period
+            </h5>
+        </div>
+        
+        <div class="card-body">
+            <div class="enrollment-period-info">
+                <div class="period-item">
+                    <div class="period-label">Normal Units</div>
+                    <div class="period-dates">
+                        <span class="period-start">{{ enrollment_period.start_date|date:"M d, Y H:i" }}</span>
+                        <i class="ri-arrow-right-line mx-2"></i>
+                        <span class="period-end">{{ enrollment_period.end_date|date:"M d, Y H:i" }}</span>
                     </div>
                 </div>
-            </div>
-
-            <form method="post" id="enrollmentForm">
-                {% csrf_token %}
                 
-                <div class="row">
-                    <!-- Available Units -->
-                    <div class="col-lg-8">
-                        <div class="content-card mb-4">
-                            <h5 class="card-title mb-4">
-                                <i class="ri-book-2-line me-2"></i>
-                                Available Units
-                            </h5>
+                {% if enrollment_period.resit_start_date %}
+                <div class="period-item">
+                    <div class="period-label">Resit Units</div>
+                    <div class="period-dates">
+                        <span class="period-start">{{ enrollment_period.resit_start_date|date:"M d, Y H:i" }}</span>
+                        <i class="ri-arrow-right-line mx-2"></i>
+                        <span class="period-end">{{ enrollment_period.resit_end_date|date:"M d, Y H:i" }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
-                            {% if available_units %}
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th width="50">
-                                                <input type="checkbox" id="selectAllNormal" class="form-check-input">
-                                            </th>
-                                            <th>Unit Code</th>
-                                            <th>Unit Name</th>
-                                            <th>Credits</th>
-                                            <th>Type</th>
-                                            <th>Lecturer</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for programme_unit in available_units %}
-                                        <tr>
-                                            <td>
-                                                <input type="checkbox" 
-                                                       name="units" 
-                                                       value="{{ programme_unit.id }}"
-                                                       class="form-check-input normal-unit"
-                                                       {% if programme_unit.id in enrolled_units %}disabled checked{% endif %}>
-                                            </td>
-                                            <td>
-                                                <strong>{{ programme_unit.unit.code }}</strong>
-                                            </td>
-                                            <td>
-                                                <div>{{ programme_unit.unit.name }}</div>
-                                                <small class="text-muted">{{ programme_unit.unit.get_unit_level_display }}</small>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-primary">{{ programme_unit.unit.credit_hours }} CH</span>
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-{% if programme_unit.unit_type == 'core' %}success{% elif programme_unit.unit_type == 'elective' %}info{% else %}secondary{% endif %}">
-                                                    {{ programme_unit.get_unit_type_display }}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {% with allocation=programme_unit.allocations.first %}
-                                                {% if allocation and allocation.lecturer %}
-                                                <small>{{ allocation.lecturer.user.get_full_name }}</small>
-                                                {% else %}
-                                                <small class="text-muted">Not Assigned</small>
-                                                {% endif %}
-                                                {% endwith %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+    <form method="post" id="enrollmentForm">
+        {% csrf_token %}
+        
+        <div class="enrollment-grid">
+            <!-- Available Units Column -->
+            <div class="enrollment-column">
+                <!-- Normal Units Section -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-book-2-line me-2"></i>
+                            Available Units
+                        </h5>
+                        <div class="card-actions">
+                            <div class="form-check">
+                                <input type="checkbox" id="selectAllNormal" class="form-check-input">
+                                <label class="form-check-label small" for="selectAllNormal">
+                                    Select All
+                                </label>
                             </div>
-                            {% else %}
-                            <div class="text-center py-5">
-                                <i class="ri-book-open-line display-4 text-muted"></i>
-                                <p class="mt-3 text-muted">No units available for enrollment</p>
-                            </div>
-                            {% endif %}
                         </div>
-
-                        <!-- Failed Units (Resit) -->
-                        {% if failed_units_offered %}
-                        <div class="content-card">
-                            <h5 class="card-title mb-4">
-                                <i class="ri-refresh-line me-2 text-warning"></i>
-                                Units Available for Resit
-                            </h5>
-
-                            <div class="alert alert-warning mb-3">
-                                <i class="ri-information-line me-2"></i>
-                                <strong>Note:</strong> These are units you previously failed. Enrolling for resit will allow you to retake the final exam.
-                                A resit fee of <strong>Ksh 2,000</strong> per unit applies.
-                            </div>
-
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th width="50">
-                                                <input type="checkbox" id="selectAllResit" class="form-check-input">
-                                            </th>
-                                            <th>Unit Code</th>
-                                            <th>Unit Name</th>
-                                            <th>Previous Grade</th>
-                                            <th>Previous Marks</th>
-                                            <th>Failed In</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for result in failed_units_offered %}
-                                        <tr>
-                                            <td>
-                                                <input type="checkbox" 
-                                                       name="resit_units" 
-                                                       value="{{ result.id }}"
-                                                       class="form-check-input resit-unit"
-                                                       data-fee="2000">
-                                            </td>
-                                            <td>
-                                                <strong>{{ result.programme_unit.unit.code }}</strong>
-                                            </td>
-                                            <td>
-                                                {{ result.programme_unit.unit.name }}
-                                            </td>
-                                            <td>
-                                                <span class="badge bg-danger">{{ result.grade }}</span>
-                                            </td>
-                                            <td>
-                                                {{ result.total_marks|floatformat:2 }}%
-                                            </td>
-                                            <td>
-                                                <small class="text-muted">{{ result.semester }}</small>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        {% if available_units %}
+                        <div class="units-table-container">
+                            <table class="units-table">
+                                <thead>
+                                    <tr>
+                                        <th class="select-column"></th>
+                                        <th class="code-column">Code</th>
+                                        <th class="name-column">Unit Name</th>
+                                        <th class="credits-column">Credits</th>
+                                        <th class="type-column">Type</th>
+                                        <th class="lecturer-column">Lecturer</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for programme_unit in available_units %}
+                                    <tr class="unit-row {% if programme_unit.id in enrolled_units %}enrolled{% endif %}">
+                                        <td class="select-cell">
+                                            <input type="checkbox" 
+                                                   name="units" 
+                                                   value="{{ programme_unit.id }}"
+                                                   class="form-check-input normal-unit"
+                                                   id="unit-{{ programme_unit.id }}"
+                                                   {% if programme_unit.id in enrolled_units %}disabled checked{% endif %}>
+                                        </td>
+                                        <td class="code-cell">
+                                            <label for="unit-{{ programme_unit.id }}" class="unit-code">
+                                                {{ programme_unit.unit.code }}
+                                            </label>
+                                        </td>
+                                        <td class="name-cell">
+                                            <div class="unit-name">{{ programme_unit.unit.name }}</div>
+                                            <div class="unit-level">{{ programme_unit.unit.get_unit_level_display }}</div>
+                                        </td>
+                                        <td class="credits-cell">
+                                            <span class="credits-badge">{{ programme_unit.unit.credit_hours }} CH</span>
+                                        </td>
+                                        <td class="type-cell">
+                                            <span class="unit-type unit-type-{{ programme_unit.unit_type }}">
+                                                {{ programme_unit.get_unit_type_display }}
+                                            </span>
+                                        </td>
+                                        <td class="lecturer-cell">
+                                            {% with allocation=programme_unit.allocations.first %}
+                                            {% if allocation and allocation.lecturer %}
+                                            <span class="lecturer-name">{{ allocation.lecturer.user.get_full_name }}</span>
+                                            {% else %}
+                                            <span class="lecturer-none">Not Assigned</span>
+                                            {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="ri-book-open-line"></i>
+                            <h5>No Units Available</h5>
+                            <p>No units are available for enrollment at this time</p>
                         </div>
                         {% endif %}
                     </div>
+                </div>
 
-                    <!-- Summary Sidebar -->
-                    <div class="col-lg-4">
-                        <div class="content-card sticky-top" style="top: 20px;">
-                            <h5 class="card-title mb-4">Enrollment Summary</h5>
-
-                            <!-- Selected Units -->
-                            <div class="summary-section mb-4">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-muted">Normal Units</span>
-                                    <span class="badge bg-primary" id="normalCount">0</span>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-muted">Resit Units</span>
-                                    <span class="badge bg-warning" id="resitCount">0</span>
-                                </div>
-                                <hr>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <strong>Total Units</strong>
-                                    <strong><span id="totalCount">0</span></strong>
-                                </div>
-                            </div>
-
-                            <!-- Credit Hours -->
-                            <div class="summary-section mb-4">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted">Total Credit Hours</span>
-                                    <strong><span id="totalCredits">0</span> CH</strong>
-                                </div>
-                            </div>
-
-                            <!-- Fees -->
-                            <div class="summary-section mb-4">
-                                <h6 class="mb-3">Fee Breakdown</h6>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <span class="text-muted">Resit Fees</span>
-                                    <span>Ksh <span id="resitFees">0</span></span>
-                                </div>
-                                {% if fee_balance and not fee_balance.is_cleared %}
-                                <div class="alert alert-warning mt-3 mb-0 small">
-                                    <i class="ri-error-warning-line me-1"></i>
-                                    Outstanding fee balance: <strong>Ksh {{ fee_balance.balance|floatformat:2 }}</strong>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Actions -->
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
-                                    <i class="ri-check-line me-2"></i>
-                                    Confirm Enrollment
-                                </button>
-                                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
-                                    <i class="ri-close-line me-2"></i>
-                                    Cancel
-                                </a>
-                            </div>
-
-                            <!-- Help Text -->
-                            <div class="alert alert-info mt-3 mb-0 small">
-                                <i class="ri-information-line me-1"></i>
-                                Select the units you want to enroll in and click "Confirm Enrollment" to proceed.
+                <!-- Resit Units Section -->
+                {% if failed_units_offered %}
+                <div class="management-card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-refresh-line me-2"></i>
+                            Units Available for Resit
+                        </h5>
+                        <div class="card-actions">
+                            <div class="form-check">
+                                <input type="checkbox" id="selectAllResit" class="form-check-input">
+                                <label class="form-check-label small" for="selectAllResit">
+                                    Select All
+                                </label>
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="card-body">
+                        <div class="resit-notice mb-4">
+                            <div class="notice-header">
+                                <i class="ri-information-line me-2"></i>
+                                <strong>Important Notice</strong>
+                            </div>
+                            <div class="notice-body">
+                                <p>
+                                    These are units you previously failed. Enrolling for resit will allow you to retake the final exam.
+                                    A resit fee of <strong>Ksh 2,000 per unit</strong> applies.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="units-table-container">
+                            <table class="units-table">
+                                <thead>
+                                    <tr>
+                                        <th class="select-column"></th>
+                                        <th class="code-column">Code</th>
+                                        <th class="name-column">Unit Name</th>
+                                        <th class="grade-column">Previous Grade</th>
+                                        <th class="marks-column">Previous Marks</th>
+                                        <th class="semester-column">Failed In</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in failed_units_offered %}
+                                    <tr class="unit-row resit-row">
+                                        <td class="select-cell">
+                                            <input type="checkbox" 
+                                                   name="resit_units" 
+                                                   value="{{ result.id }}"
+                                                   class="form-check-input resit-unit"
+                                                   id="resit-{{ result.id }}"
+                                                   data-fee="2000">
+                                        </td>
+                                        <td class="code-cell">
+                                            <label for="resit-{{ result.id }}" class="unit-code">
+                                                {{ result.programme_unit.unit.code }}
+                                            </label>
+                                        </td>
+                                        <td class="name-cell">
+                                            <div class="unit-name">{{ result.programme_unit.unit.name }}</div>
+                                        </td>
+                                        <td class="grade-cell">
+                                            <span class="grade-badge grade-{{ result.grade|lower }}">
+                                                {{ result.grade }}
+                                            </span>
+                                        </td>
+                                        <td class="marks-cell">
+                                            <div class="marks-value">{{ result.total_marks|floatformat:2 }}%</div>
+                                        </td>
+                                        <td class="semester-cell">
+                                            <div class="semester-info">{{ result.semester }}</div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
-            </form>
+                {% endif %}
+            </div>
+
+            <!-- Summary Column -->
+            <div class="summary-column">
+                <div class="management-card sticky-summary">
+                    <div class="card-header">
+                        <h5 class="card-title">Enrollment Summary</h5>
+                    </div>
+                    
+                    <div class="card-body">
+                        <!-- Unit Counts -->
+                        <div class="summary-section">
+                            <div class="summary-header">Selected Units</div>
+                            <div class="counts-grid">
+                                <div class="count-item">
+                                    <div class="count-label">Normal Units</div>
+                                    <div class="count-value">
+                                        <span class="badge bg-primary" id="normalCount">0</span>
+                                    </div>
+                                </div>
+                                <div class="count-item">
+                                    <div class="count-label">Resit Units</div>
+                                    <div class="count-value">
+                                        <span class="badge bg-warning" id="resitCount">0</span>
+                                    </div>
+                                </div>
+                                <div class="count-item total-item">
+                                    <div class="count-label">Total Units</div>
+                                    <div class="count-value">
+                                        <strong id="totalCount">0</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Credit Hours -->
+                        <div class="summary-section">
+                            <div class="summary-header">Credit Hours</div>
+                            <div class="credits-info">
+                                <div class="credits-value" id="totalCredits">0</div>
+                                <div class="credits-label">Credit Hours</div>
+                            </div>
+                        </div>
+
+                        <!-- Fee Breakdown -->
+                        <div class="summary-section">
+                            <div class="summary-header">Fee Breakdown</div>
+                            <div class="fee-items">
+                                <div class="fee-item">
+                                    <span class="fee-label">Resit Fees</span>
+                                    <span class="fee-value">Ksh <span id="resitFees">0</span></span>
+                                </div>
+                                {% if fee_balance and not fee_balance.is_cleared %}
+                                <div class="fee-warning">
+                                    <i class="ri-error-warning-line me-2"></i>
+                                    <div>
+                                        <strong>Outstanding Balance</strong>
+                                        <div class="fee-amount">Ksh {{ fee_balance.balance|floatformat:2 }}</div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+                                <i class="ri-check-line me-2"></i>
+                                Confirm Enrollment
+                            </button>
+                            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="ri-close-line me-2"></i>
+                                Cancel
+                            </a>
+                        </div>
+
+                        <!-- Help Text -->
+                        <div class="help-text">
+                            <i class="ri-information-line me-2"></i>
+                            Select units to enroll in and click "Confirm Enrollment" to proceed.
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
+    </form>
 </div>
 
 <style>
-    .summary-section {
-        padding: 15px;
-        background: var(--bg-light);
-        border-radius: var(--radius);
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
-
-    .table td {
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Enrollment Period Info */
+    .enrollment-period-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .period-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .period-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+    }
+    
+    .period-dates {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Enrollment Grid */
+    .enrollment-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    .enrollment-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .summary-column {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .sticky-summary {
+        position: sticky;
+        top: 1rem;
+    }
+    
+    /* Units Table */
+    .units-table-container {
+        overflow-x: auto;
+    }
+    
+    .units-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .units-table th {
+        background: var(--color-gray-100);
+        border-bottom: 2px solid var(--color-gray-200);
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--color-gray-700);
+        font-size: 0.8125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .units-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
         vertical-align: middle;
     }
-
+    
+    .unit-row:hover {
+        background: var(--color-gray-100);
+    }
+    
+    .unit-row.enrolled {
+        opacity: 0.7;
+        background: rgba(76, 175, 80, 0.05);
+    }
+    
+    /* Table Columns */
+    .select-column, .select-cell {
+        width: 40px;
+        text-align: center;
+    }
+    
+    .code-column, .code-cell {
+        width: 100px;
+    }
+    
+    .name-column, .name-cell {
+        min-width: 250px;
+    }
+    
+    .credits-column, .credits-cell {
+        width: 80px;
+    }
+    
+    .type-column, .type-cell {
+        width: 100px;
+    }
+    
+    .lecturer-column, .lecturer-cell {
+        width: 150px;
+    }
+    
+    /* Form Check */
+    .form-check {
+        margin: 0;
+    }
+    
     .form-check-input {
-        cursor: pointer;
         width: 18px;
         height: 18px;
+        cursor: pointer;
+        border: 2px solid var(--color-gray-300);
+        margin: 0;
     }
-
+    
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
     .form-check-input:disabled {
+        background-color: var(--color-gray-200);
+        border-color: var(--color-gray-300);
         cursor: not-allowed;
     }
-
-    .sticky-top {
-        position: sticky;
+    
+    .form-check-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        cursor: pointer;
+        user-select: none;
     }
-
-    @media (max-width: 991px) {
-        .sticky-top {
-            position: relative !important;
-            top: 0 !important;
+    
+    /* Unit Details */
+    .unit-code {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .unit-name {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .unit-level {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+    }
+    
+    .credits-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    /* Unit Type Badges */
+    .unit-type {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .unit-type-core {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+    
+    .unit-type-elective {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+    }
+    
+    .unit-type-required {
+        background: rgba(158, 158, 158, 0.1);
+        color: var(--color-gray-600);
+        border: 1px solid rgba(158, 158, 158, 0.2);
+    }
+    
+    /* Lecturer Info */
+    .lecturer-name {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+    }
+    
+    .lecturer-none {
+        font-size: 0.8125rem;
+        color: var(--color-gray-500);
+        font-style: italic;
+    }
+    
+    /* Resit Notice */
+    .resit-notice {
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid rgba(255, 152, 0, 0.2);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .notice-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #e65100;
+    }
+    
+    .notice-body p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: #e65100;
+        line-height: 1.5;
+    }
+    
+    /* Resit Row Styles */
+    .resit-row:hover {
+        background: rgba(255, 152, 0, 0.05);
+    }
+    
+    .grade-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .grade-d, .grade-e, .grade-f {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+    }
+    
+    .marks-value {
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    .semester-info {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h5 {
+        font-size: 1rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: var(--color-gray-500);
+        font-size: 0.875rem;
+        margin: 0;
+    }
+    
+    /* Summary Section */
+    .summary-section {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .summary-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .summary-header {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Counts Grid */
+    .counts-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .count-item {
+        text-align: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+    }
+    
+    .total-item {
+        background: rgba(46, 125, 50, 0.1);
+        border: 1px solid rgba(46, 125, 50, 0.2);
+    }
+    
+    .count-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .count-value {
+        font-weight: 700;
+        color: var(--color-gray-800);
+    }
+    
+    .badge {
+        padding: 0.375rem 0.75rem;
+        font-weight: 600;
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Credits Info */
+    .credits-info {
+        text-align: center;
+        padding: 1.5rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .credits-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .credits-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Fee Items */
+    .fee-items {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .fee-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+    }
+    
+    .fee-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    .fee-value {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .fee-warning {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid rgba(255, 152, 0, 0.2);
+        border-radius: var(--radius-sm);
+        color: #e65100;
+        font-size: 0.875rem;
+    }
+    
+    .fee-amount {
+        font-weight: 600;
+        margin-top: 0.25rem;
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn:active {
+        transform: translateY(0);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    /* Help Text */
+    .help-text {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+        border-radius: var(--radius-sm);
+        color: #0d47a1;
+        font-size: 0.8125rem;
+        line-height: 1.4;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+        .enrollment-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .sticky-summary {
+            position: relative;
+            top: 0;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0 0.25rem;
+        }
+        
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .counts-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .units-table {
+            font-size: 0.8125rem;
+        }
+        
+        .units-table th, .units-table td {
+            padding: 0.5rem;
+        }
+        
+        .credits-info {
+            padding: 1rem;
+        }
+        
+        .credits-value {
+            font-size: 1.5rem;
+        }
+        
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .management-card .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .card-actions {
+            align-self: flex-start;
+        }
+        
+        .period-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .period-dates {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+        
+        .period-dates i {
+            display: none;
         }
     }
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const normalCheckboxes = document.querySelectorAll('.normal-unit:not(:disabled)');
-        const resitCheckboxes = document.querySelectorAll('.resit-unit');
-        const selectAllNormal = document.getElementById('selectAllNormal');
-        const selectAllResit = document.getElementById('selectAllResit');
-        const submitBtn = document.getElementById('submitBtn');
-
-        function updateSummary() {
-            let normalCount = 0;
-            let resitCount = 0;
-            let totalCredits = 0;
-            let resitFees = 0;
-
-            // Count normal units
-            normalCheckboxes.forEach(checkbox => {
-                if (checkbox.checked) {
-                    normalCount++;
-                    // Get credit hours from row
-                    const row = checkbox.closest('tr');
-                    const creditsText = row.querySelector('.badge.bg-primary').textContent;
-                    const credits = parseInt(creditsText.match(/\d+/)[0]);
-                    totalCredits += credits;
-                }
-            });
-
-            // Count resit units
-            resitCheckboxes.forEach(checkbox => {
-                if (checkbox.checked) {
-                    resitCount++;
-                    resitFees += parseInt(checkbox.dataset.fee);
-                    // Get credit hours from row
-                    const row = checkbox.closest('tr');
-                    const code = row.querySelector('strong').textContent;
-                    // Find corresponding unit in available units for credits
-                    // For simplicity, assume resit units are 3 credits
-                    totalCredits += 3;
-                }
-            });
-
-            // Update UI
-            document.getElementById('normalCount').textContent = normalCount;
-            document.getElementById('resitCount').textContent = resitCount;
-            document.getElementById('totalCount').textContent = normalCount + resitCount;
-            document.getElementById('totalCredits').textContent = totalCredits;
-            document.getElementById('resitFees').textContent = resitFees.toLocaleString();
-
-            // Enable/disable submit button
-            submitBtn.disabled = (normalCount + resitCount) === 0;
-        }
-
-        // Select all normal units
-        selectAllNormal?.addEventListener('change', function() {
-            normalCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            updateSummary();
-        });
-
-        // Select all resit units
-        selectAllResit?.addEventListener('change', function() {
-            resitCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-            });
-            updateSummary();
-        });
-
-        // Individual checkboxes
+document.addEventListener('DOMContentLoaded', function() {
+    // Get elements
+    const normalCheckboxes = document.querySelectorAll('.normal-unit:not(:disabled)');
+    const resitCheckboxes = document.querySelectorAll('.resit-unit');
+    const selectAllNormal = document.getElementById('selectAllNormal');
+    const selectAllResit = document.getElementById('selectAllResit');
+    const submitBtn = document.getElementById('submitBtn');
+    const normalCountEl = document.getElementById('normalCount');
+    const resitCountEl = document.getElementById('resitCount');
+    const totalCountEl = document.getElementById('totalCount');
+    const totalCreditsEl = document.getElementById('totalCredits');
+    const resitFeesEl = document.getElementById('resitFees');
+    
+    // Update summary function
+    function updateSummary() {
+        let normalCount = 0;
+        let resitCount = 0;
+        let totalCredits = 0;
+        let resitFees = 0;
+        
+        // Count normal units and credits
         normalCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updateSummary);
+            if (checkbox.checked) {
+                normalCount++;
+                const row = checkbox.closest('tr');
+                const creditsText = row.querySelector('.credits-badge').textContent;
+                const credits = parseInt(creditsText.match(/\d+/)[0]);
+                totalCredits += credits;
+            }
         });
-
+        
+        // Count resit units and fees
         resitCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', updateSummary);
-        });
-
-        // Form submission
-        document.getElementById('enrollmentForm').addEventListener('submit', function(e) {
-            const normalCount = document.querySelectorAll('.normal-unit:checked').length;
-            const resitCount = document.querySelectorAll('.resit-unit:checked').length;
-
-            if (normalCount + resitCount === 0) {
-                e.preventDefault();
-                alert('Please select at least one unit to enroll.');
-                return;
+            if (checkbox.checked) {
+                resitCount++;
+                resitFees += parseInt(checkbox.dataset.fee);
+                // Resit units are typically 3 credit hours
+                totalCredits += 3;
             }
-
-            if (resitCount > 0) {
-                const totalFee = resitCount * 2000;
-                if (!confirm(`You are enrolling for ${resitCount} resit unit(s). Total resit fee: Ksh ${totalFee.toLocaleString()}. Do you want to proceed?`)) {
-                    e.preventDefault();
-                    return;
-                }
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
         });
-
-        // Initial summary update
+        
+        // Update UI
+        normalCountEl.textContent = normalCount;
+        resitCountEl.textContent = resitCount;
+        totalCountEl.textContent = normalCount + resitCount;
+        totalCreditsEl.textContent = totalCredits;
+        resitFeesEl.textContent = resitFees.toLocaleString();
+        
+        // Update submit button
+        submitBtn.disabled = (normalCount + resitCount) === 0;
+        submitBtn.textContent = submitBtn.disabled ? 'Select Units to Enroll' : 'Confirm Enrollment';
+    }
+    
+    // Select all normal units
+    selectAllNormal?.addEventListener('change', function() {
+        normalCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
         updateSummary();
     });
+    
+    // Select all resit units
+    selectAllResit?.addEventListener('change', function() {
+        resitCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateSummary();
+    });
+    
+    // Individual checkbox changes
+    normalCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSummary);
+    });
+    
+    resitCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSummary);
+    });
+    
+    // Form submission
+    const enrollmentForm = document.getElementById('enrollmentForm');
+    enrollmentForm.addEventListener('submit', function(e) {
+        const normalCount = document.querySelectorAll('.normal-unit:checked').length;
+        const resitCount = document.querySelectorAll('.resit-unit:checked').length;
+        
+        // Validate at least one unit selected
+        if (normalCount + resitCount === 0) {
+            e.preventDefault();
+            alert('Please select at least one unit to enroll.');
+            return;
+        }
+        
+        // Confirm resit fees
+        if (resitCount > 0) {
+            const totalFee = resitCount * 2000;
+            const confirmMessage = `You are enrolling for ${resitCount} resit unit(s).\n\n` +
+                                 `Total resit fee: Ksh ${totalFee.toLocaleString()}\n\n` +
+                                 `Do you want to proceed with enrollment?`;
+            
+            if (!confirm(confirmMessage)) {
+                e.preventDefault();
+                return;
+            }
+        }
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ri-loader-4-line animate-spin me-2"></i>Processing...';
+    });
+    
+    // Add row hover effects
+    const unitRows = document.querySelectorAll('.unit-row');
+    unitRows.forEach(row => {
+        const checkbox = row.querySelector('input[type="checkbox"]');
+        
+        row.addEventListener('click', function(e) {
+            // Don't trigger if clicking on the checkbox itself
+            if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL') {
+                return;
+            }
+            
+            if (checkbox && !checkbox.disabled) {
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+        
+        // Add visual feedback
+        row.addEventListener('mouseenter', function() {
+            if (!checkbox || checkbox.disabled) return;
+            this.style.backgroundColor = 'rgba(46, 125, 50, 0.05)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            if (!checkbox || checkbox.disabled) return;
+            this.style.backgroundColor = '';
+        });
+    });
+    
+    // Initial summary update
+    updateSummary();
+});
+
+// Loading animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

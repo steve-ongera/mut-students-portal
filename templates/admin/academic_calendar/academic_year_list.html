@@ -3,350 +3,330 @@
 
 {% block title %}Academic Years{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Academic Years{% endblock %}
 {% block page_subtitle %}Manage academic years and semesters{% endblock %}
 
-{% block extra_css %}
-<style>
-    .semester-card {
-        transition: all 0.3s ease;
-        border-left: 3px solid #dee2e6;
-    }
-    .semester-card:hover {
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-        transform: translateY(-2px);
-    }
-    .semester-card.current {
-        border-left-color: #0d6efd;
-        background-color: #f8f9ff;
-    }
-    .year-row {
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-    .year-row:hover {
-        background-color: #f8f9fa;
-    }
-    .collapse-icon {
-        transition: transform 0.3s;
-        display: inline-block;
-    }
-    .collapse-icon.collapsed {
-        transform: rotate(-90deg);
-    }
-    
-    /* Dropdown styles */
-    .dropdown-toggle::after {
-        display: none !important;
-    }
-    
-    .semester-dropdown {
-        position: relative;
-    }
-    
-    .semester-dropdown-menu {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        z-index: 1000;
-        display: none;
-        min-width: 200px;
-        padding: 0.5rem 0;
-        margin: 0.125rem 0 0;
-        background-color: #fff;
-        border: 1px solid rgba(0,0,0,.15);
-        border-radius: 0.375rem;
-        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.175);
-    }
-    
-    .semester-dropdown-menu.show {
-        display: block;
-    }
-    
-    .semester-dropdown-item {
-        display: block;
-        width: 100%;
-        padding: 0.5rem 1rem;
-        clear: both;
-        font-weight: 400;
-        color: #212529;
-        text-align: inherit;
-        text-decoration: none;
-        white-space: nowrap;
-        background-color: transparent;
-        border: 0;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-    
-    .semester-dropdown-item:hover {
-        background-color: #f8f9fa;
-        color: #1e2125;
-    }
-    
-    .semester-dropdown-item.text-danger:hover {
-        background-color: #f8d7da;
-        color: #842029;
-    }
-    
-    .semester-dropdown-divider {
-        height: 0;
-        margin: 0.5rem 0;
-        overflow: hidden;
-        border-top: 1px solid rgba(0,0,0,.15);
-    }
-    
-    .semester-dropdown-toggle {
-        background: transparent;
-        border: none;
-        padding: 0.25rem 0.5rem;
-        cursor: pointer;
-        border-radius: 0.25rem;
-        transition: background-color 0.2s;
-    }
-    
-    .semester-dropdown-toggle:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .semester-dropdown-toggle i {
-        font-size: 1.2rem;
-        color: #6c757d;
-    }
-</style>
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Academic Years</li>
+    </ol>
+</nav>
 {% endblock %}
 
 {% block content %}
-<div class="content-card">
-    <!-- Header with Actions -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h5 class="card-title mb-0">All Academic Years</h5>
-            <p class="text-muted mb-0">{{ total_years }} academic year(s) found</p>
-        </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                <i class="ri-filter-line me-1"></i> Filter
-            </button>
-            <a href="{% url 'add_academic_year' %}" class="btn btn-sm btn-primary">
-                <i class="ri-add-line me-1"></i> Add Academic Year
-            </a>
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Academic Years Management</h1>
+                <p class="text-muted mb-0">Manage academic years, semesters, and enrollment periods</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ total_years }} academic year(s)
+                </span>
+            </div>
         </div>
     </div>
 
-    <!-- Current Academic Year & Semester Alert -->
-    <div class="row mb-4">
+    <!-- Current Status Cards -->
+    <div class="row g-3 mb-4">
+        {% if current_year %}
         <div class="col-md-6">
-            {% if current_year %}
-            <div class="alert alert-info d-flex align-items-center mb-0">
-                <i class="ri-calendar-line me-2 fs-5"></i>
-                <div>
-                    <strong>Current Academic Year:</strong> {{ current_year.name }}
-                    <br>
-                    <small>{{ current_year.start_date|date:"F d, Y" }} - {{ current_year.end_date|date:"F d, Y" }}</small>
+            <div class="status-card">
+                <div class="status-icon bg-info-subtle">
+                    <i class="ri-calendar-line text-info"></i>
+                </div>
+                <div class="status-content">
+                    <div class="status-title">Current Academic Year</div>
+                    <div class="status-value">{{ current_year.name }}</div>
+                    <div class="status-detail">
+                        {{ current_year.start_date|date:"M d, Y" }} - {{ current_year.end_date|date:"M d, Y" }}
+                    </div>
                 </div>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
+        
+        {% if current_semester %}
         <div class="col-md-6">
-            {% if current_semester %}
-            <div class="alert alert-primary d-flex align-items-center mb-0">
-                <i class="ri-bookmark-line me-2 fs-5"></i>
-                <div>
-                    <strong>Current Semester:</strong> {{ current_semester.name }}
-                    <br>
-                    <small>{{ current_semester.start_date|date:"F d, Y" }} - {{ current_semester.end_date|date:"F d, Y" }}</small>
+            <div class="status-card">
+                <div class="status-icon bg-primary-subtle">
+                    <i class="ri-bookmark-line text-primary"></i>
+                </div>
+                <div class="status-content">
+                    <div class="status-title">Current Semester</div>
+                    <div class="status-value">{{ current_semester.name }}</div>
+                    <div class="status-detail">
+                        {{ current_semester.start_date|date:"M d, Y" }} - {{ current_semester.end_date|date:"M d, Y" }}
+                    </div>
                 </div>
             </div>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 
-    <!-- Search Bar -->
-    <form method="get" class="mb-4">
-        <div class="input-group">
-            <input type="text" class="form-control" name="search" placeholder="Search by academic year name..." value="{{ search_query }}">
-            <button class="btn btn-primary" type="submit">
-                <i class="ri-search-line"></i> Search
-            </button>
+    <!-- Management Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Academic Years</h5>
+            <div class="card-subtitle">{{ total_years }} academic year(s) found</div>
         </div>
-    </form>
-
-    <!-- Academic Years Table -->
-    <div class="table-responsive">
-        <table class="table table-hover" id="academicYearsTable">
-            <thead>
-                <tr>
-                    <th width="40"></th>
-                    <th>Academic Year</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Duration</th>
-                    <th>Semesters</th>
-                    <th>Status</th>
-                    <th>Current</th>
-                    <th width="250">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for year in academic_years %}
-                <tr class="year-row" data-bs-toggle="collapse" data-bs-target="#semesters-{{ year.id }}" aria-expanded="false">
-                    <td>
-                        <i class="ri-arrow-down-s-line collapse-icon collapsed"></i>
-                    </td>
-                    <td>
-                        <strong class="text-primary fs-6">{{ year.name }}</strong>
-                    </td>
-                    <td>
-                        <i class="ri-calendar-line text-muted me-1"></i>
-                        {{ year.start_date|date:"M d, Y" }}
-                    </td>
-                    <td>
-                        <i class="ri-calendar-check-line text-muted me-1"></i>
-                        {{ year.end_date|date:"M d, Y" }}
-                    </td>
-                    <td>
-                        {% widthratio year.end_date.toordinal year.start_date.toordinal 1 as days %}
-                        <span class="badge bg-secondary rounded-pill">
-                            {{ days|add:"-1" }} days
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge bg-info rounded-pill">
-                            <i class="ri-bookmark-line me-1"></i>{{ year.semester_count }} Semester{{ year.semester_count|pluralize }}
-                        </span>
-                    </td>
-                    <td onclick="event.stopPropagation()">
-                        {% if year.is_active %}
-                        <span class="badge bg-success rounded-pill">Active</span>
-                        {% else %}
-                        <span class="badge bg-secondary rounded-pill">Inactive</span>
-                        {% endif %}
-                    </td>
-                    <td onclick="event.stopPropagation()">
-                        {% if year.is_current %}
-                        <span class="badge bg-primary rounded-pill">
-                            <i class="ri-star-fill me-1"></i>Current
-                        </span>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                    <td onclick="event.stopPropagation()">
-                        <div class="d-flex gap-1">
-                            <a href="{% url 'academic_year_detail' year.pk %}" 
-                               class="btn btn-sm btn-outline-primary" 
-                               title="View Details">
-                                <i class="ri-eye-line"></i>
-                            </a>
-                            
-                            <a href="{% url 'update_academic_year' year.pk %}" 
-                               class="btn btn-sm btn-outline-warning" 
-                               title="Update">
-                                <i class="ri-edit-line"></i>
-                            </a>
-                            
-                            {% if not year.is_current %}
-                            <button type="button" 
-                                    class="btn btn-sm btn-outline-info set-current-year-btn" 
-                                    data-year-id="{{ year.pk }}"
-                                    data-year-name="{{ year.name }}"
-                                    title="Set as Current">
-                                <i class="ri-star-line"></i>
-                            </button>
-                            {% endif %}
-                            
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-danger delete-year-btn" 
-                                    data-year-id="{{ year.pk }}"
-                                    data-year-name="{{ year.name }}"
-                                    title="Delete">
-                                <i class="ri-delete-bin-line"></i>
+        
+        <div class="card-body">
+            <!-- Search and Actions -->
+            <div class="management-actions mb-4">
+                <form method="get" class="mb-3">
+                    <div class="search-container">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="ri-search-line text-muted"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control border-start-0 ps-0" 
+                                   name="search" 
+                                   placeholder="Search by academic year name..." 
+                                   value="{{ search_query }}">
+                            <button class="btn btn-primary px-4" type="submit">
+                                Search
                             </button>
                         </div>
-                    </td>
-                </tr>
-                <!-- Collapsible Semesters Row -->
-                <tr>
-                    <td colspan="9" class="p-0">
-                        <div class="collapse" id="semesters-{{ year.id }}">
-                            <div class="card card-body bg-light border-0">
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <h6 class="mb-0">
-                                        <i class="ri-bookmark-line me-2"></i>Semesters for {{ year.name }}
-                                    </h6>
-                                    <button class="btn btn-sm btn-success add-semester-btn" 
-                                            data-year-id="{{ year.id }}"
-                                            data-year-name="{{ year.name }}">
-                                        <i class="ri-add-line me-1"></i> Add Semester
+                    </div>
+                </form>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#filterModal">
+                            <i class="ri-filter-line fs-5"></i>
+                            <span>Filter</span>
+                        </button>
+                    </div>
+                    
+                    <a href="{% url 'add_academic_year' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                        <i class="ri-add-line fs-5"></i>
+                        <span>Add Academic Year</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Academic Years Table -->
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="academicYearsTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4" width="40"></th>
+                            <th>Academic Year</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Semesters</th>
+                            <th>Status</th>
+                            <th>Current</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for year in academic_years %}
+                        <tr class="academic-year-row" 
+                            data-bs-toggle="collapse" 
+                            data-bs-target="#semesters-{{ year.id }}">
+                            <td class="ps-4">
+                                <div class="collapse-toggle">
+                                    <i class="ri-arrow-down-s-line"></i>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="academic-year-info">
+                                    <strong>{{ year.name }}</strong>
+                                    <small class="text-muted d-block">
+                                        {% widthratio year.end_date.toordinal year.start_date.toordinal 1 as days %}
+                                        {{ days|add:"-1" }} days
+                                    </small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="date-info">
+                                    <i class="ri-calendar-line text-muted me-1"></i>
+                                    {{ year.start_date|date:"M d, Y" }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="date-info">
+                                    <i class="ri-calendar-check-line text-muted me-1"></i>
+                                    {{ year.end_date|date:"M d, Y" }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">
+                                    <i class="ri-bookmark-line me-1"></i>
+                                    {{ year.semester_count }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if year.is_active %}
+                                <span class="status-badge status-active">
+                                    Active
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-inactive">
+                                    Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if year.is_current %}
+                                <span class="badge bg-primary-subtle text-primary">
+                                    <i class="ri-star-fill me-1"></i>
+                                    Current
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons">
+                                    <a href="{% url 'academic_year_detail' year.pk %}" 
+                                       class="btn btn-icon btn-outline-primary btn-sm" 
+                                       title="View Details"
+                                       data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    
+                                    <a href="{% url 'update_academic_year' year.pk %}" 
+                                       class="btn btn-icon btn-outline-warning btn-sm" 
+                                       title="Update"
+                                       data-bs-toggle="tooltip">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                    
+                                    {% if not year.is_current %}
+                                    <button type="button" 
+                                            class="btn btn-icon btn-outline-info btn-sm set-current-year-btn" 
+                                            data-year-id="{{ year.pk }}"
+                                            data-year-name="{{ year.name }}"
+                                            title="Set as Current"
+                                            data-bs-toggle="tooltip">
+                                        <i class="ri-star-line"></i>
+                                    </button>
+                                    {% endif %}
+                                    
+                                    <button type="button"
+                                            class="btn btn-icon btn-outline-danger btn-sm delete-year-btn" 
+                                            data-year-id="{{ year.pk }}"
+                                            data-year-name="{{ year.name }}"
+                                            title="Delete"
+                                            data-bs-toggle="tooltip">
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </div>
-                                
-                                <div class="row semesters-container" id="semesters-container-{{ year.id }}">
-                                    <div class="col-12 text-center py-3">
-                                        <div class="spinner-border text-primary" role="status">
-                                            <span class="visually-hidden">Loading...</span>
+                            </td>
+                        </tr>
+                        
+                        <!-- Semesters Collapse Row -->
+                        <tr class="semesters-row">
+                            <td colspan="8" class="p-0">
+                                <div class="collapse" id="semesters-{{ year.id }}">
+                                    <div class="semesters-container">
+                                        <div class="semesters-header">
+                                            <h6 class="mb-0">
+                                                <i class="ri-bookmark-line me-2"></i>
+                                                Semesters for {{ year.name }}
+                                            </h6>
+                                            <button class="btn btn-sm btn-primary add-semester-btn" 
+                                                    data-year-id="{{ year.id }}"
+                                                    data-year-name="{{ year.name }}">
+                                                <i class="ri-add-line me-1"></i>
+                                                Add Semester
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="semesters-grid" id="semesters-grid-{{ year.id }}">
+                                            <div class="loading-spinner">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="9" class="text-center py-5">
-                        <div class="text-muted">
-                            <i class="ri-calendar-2-line display-4"></i>
-                            <p class="mt-3">No academic years found</p>
-                            <a href="{% url 'add_academic_year' %}" class="btn btn-primary mt-2">
-                                <i class="ri-add-line me-1"></i> Add First Academic Year
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-calendar-2-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted mb-2">No academic years found</h5>
+                                    <p class="text-muted mb-4">Get started by adding your first academic year</p>
+                                    <a href="{% url 'add_academic_year' %}" class="btn btn-primary">
+                                        <i class="ri-add-line me-1"></i>
+                                        Add Academic Year
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <!-- Pagination -->
     {% if academic_years.has_other_pages %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if academic_years.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ academic_years.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
-                    <i class="ri-arrow-left-line"></i>
-                </a>
-            </li>
-            {% endif %}
-            
-            {% for i in academic_years.paginator.page_range %}
-                {% if academic_years.number == i %}
-                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
-                {% else %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if academic_years.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ i }}</a>
+                    <a class="page-link" 
+                       href="?page={{ academic_years.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
                 </li>
                 {% endif %}
-            {% endfor %}
-            
-            {% if academic_years.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ academic_years.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
-                    <i class="ri-arrow-right-line"></i>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
+                
+                {% for i in academic_years.paginator.page_range %}
+                    {% if academic_years.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > academic_years.number|add:'-3' and i < academic_years.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if academic_years.has_next %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ academic_years.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
     {% endif %}
 </div>
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="get">
                 <div class="modal-header">
@@ -375,119 +355,182 @@
 
 <!-- Add/Edit Semester Modal -->
 <div class="modal fade" id="semesterModal" tabindex="-1">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="semesterModalTitle">Add Semester</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form id="semesterForm">
+            
+            <form id="semesterForm" novalidate>
                 {% csrf_token %}
                 <input type="hidden" id="semester_id" name="semester_id">
                 <input type="hidden" id="academic_year_id" name="academic_year_id">
                 
                 <div class="modal-body">
-                    <!-- Semester Basic Information -->
-                    <h6 class="mb-3 text-primary">
-                        <i class="ri-bookmark-line me-2"></i>Semester Information
-                    </h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="semester_number" class="form-label">Semester Number <span class="text-danger">*</span></label>
-                            <select class="form-select" id="semester_number" name="semester_number" required>
-                                <option value="">Select Semester</option>
-                                <option value="1">Semester 1</option>
-                                <option value="2">Semester 2</option>
-                                <option value="3">Semester 3</option>
-                            </select>
-                        </div>
+                    <!-- Basic Information -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Basic Information</h6>
                         
-                        <div class="col-md-6 mb-3">
-                            <label for="name" class="form-label">Semester Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., Semester 1 - 2024/2025">
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="start_date" class="form-label">Semester Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="start_date" name="start_date" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="end_date" class="form-label">Semester End Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="end_date" name="end_date" required>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="registration_start_date" class="form-label">Registration Start <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="registration_start_date" name="registration_start_date" required>
-                            <small class="text-muted">When students can register for the semester</small>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="registration_end_date" class="form-label">Registration End <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="registration_end_date" name="registration_end_date" required>
-                        </div>
-                        
-                        <div class="col-12 mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
-                                <label class="form-check-label" for="is_active">
-                                    Active Semester
-                                </label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="semester_number" class="form-label required">Semester Number</label>
+                                    <select class="form-select" id="semester_number" name="semester_number" required>
+                                        <option value="">Select Semester</option>
+                                        <option value="1">Semester 1</option>
+                                        <option value="2">Semester 2</option>
+                                        <option value="3">Semester 3</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="name" class="form-label required">Semester Name</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="name" 
+                                           name="name" 
+                                           required 
+                                           placeholder="e.g., Semester 1 - 2024/2025">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="start_date" class="form-label required">Start Date</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="start_date" 
+                                           name="start_date" 
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="end_date" class="form-label required">End Date</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="end_date" 
+                                           name="end_date" 
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="registration_start_date" class="form-label required">Registration Start</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="registration_start_date" 
+                                           name="registration_start_date" 
+                                           required>
+                                    <div class="form-text">When students can register for the semester</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="registration_end_date" class="form-label required">Registration End</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="registration_end_date" 
+                                           name="registration_end_date" 
+                                           required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="is_active" 
+                                           name="is_active" 
+                                           checked>
+                                    <label class="form-check-label" for="is_active">
+                                        Active Semester
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
-
-                    <hr class="my-4">
-
-                    <!-- Unit Enrollment Period -->
-                    <h6 class="mb-3 text-primary">
-                        <i class="ri-file-list-3-line me-2"></i>Unit Enrollment Period
-                    </h6>
-                    <div class="alert alert-info alert-dismissible fade show" role="alert">
-                        <i class="ri-information-line me-2"></i>
-                        <small>This defines when students can enroll in units for this semester. Leave blank to set up later.</small>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
                     
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="enrollment_start_date" class="form-label">Enrollment Start Date & Time</label>
-                            <input type="datetime-local" class="form-control" id="enrollment_start_date" name="enrollment_start_date">
-                            <small class="text-muted">When unit enrollment opens</small>
+                    <!-- Unit Enrollment Period -->
+                    <div class="form-section">
+                        <h6 class="section-title mb-3">Unit Enrollment Period</h6>
+                        
+                        <div class="alert alert-info mb-3">
+                            <div class="d-flex">
+                                <i class="ri-information-line fs-5 me-2"></i>
+                                <small>This defines when students can enroll in units for this semester. Leave blank to set up later.</small>
+                            </div>
                         </div>
                         
-                        <div class="col-md-6 mb-3">
-                            <label for="enrollment_end_date" class="form-label">Enrollment End Date & Time</label>
-                            <input type="datetime-local" class="form-control" id="enrollment_end_date" name="enrollment_end_date">
-                            <small class="text-muted">When unit enrollment closes</small>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="resit_enrollment_start_date" class="form-label">Resit Enrollment Start</label>
-                            <input type="datetime-local" class="form-control" id="resit_enrollment_start_date" name="resit_enrollment_start_date">
-                            <small class="text-muted">Optional: For resit/supplementary exams</small>
-                        </div>
-                        
-                        <div class="col-md-6 mb-3">
-                            <label for="resit_enrollment_end_date" class="form-label">Resit Enrollment End</label>
-                            <input type="datetime-local" class="form-control" id="resit_enrollment_end_date" name="resit_enrollment_end_date">
-                            <small class="text-muted">Optional: For resit/supplementary exams</small>
-                        </div>
-
-                        <div class="col-12 mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="enrollment_is_active" name="enrollment_is_active" checked>
-                                <label class="form-check-label" for="enrollment_is_active">
-                                    Enrollment Period Active
-                                </label>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="enrollment_start_date" class="form-label">Enrollment Start</label>
+                                    <input type="datetime-local" 
+                                           class="form-control" 
+                                           id="enrollment_start_date" 
+                                           name="enrollment_start_date">
+                                    <div class="form-text">When unit enrollment opens</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="enrollment_end_date" class="form-label">Enrollment End</label>
+                                    <input type="datetime-local" 
+                                           class="form-control" 
+                                           id="enrollment_end_date" 
+                                           name="enrollment_end_date">
+                                    <div class="form-text">When unit enrollment closes</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="resit_enrollment_start_date" class="form-label">Resit Start</label>
+                                    <input type="datetime-local" 
+                                           class="form-control" 
+                                           id="resit_enrollment_start_date" 
+                                           name="resit_enrollment_start_date">
+                                    <div class="form-text">Optional: For resit/supplementary exams</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="resit_enrollment_end_date" class="form-label">Resit End</label>
+                                    <input type="datetime-local" 
+                                           class="form-control" 
+                                           id="resit_enrollment_end_date" 
+                                           name="resit_enrollment_end_date">
+                                    <div class="form-text">Optional: For resit/supplementary exams</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="enrollment_is_active" 
+                                           name="enrollment_is_active" 
+                                           checked>
+                                    <label class="form-check-label" for="enrollment_is_active">
+                                        Enrollment Period Active
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary" id="saveSemesterBtn">
                         <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                         <span class="btn-text">Save Semester</span>
@@ -498,8 +541,663 @@
     </div>
 </div>
 
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Status Cards */
+    .status-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .status-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .status-content {
+        flex: 1;
+    }
+    
+    .status-title {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0.125rem 0;
+    }
+    
+    .status-detail {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Management Actions */
+    .management-actions .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+    }
+    
+    .management-actions .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 0.875rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 0.875rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    /* Academic Year Row */
+    .academic-year-row {
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    
+    .academic-year-row:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .collapse-toggle {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-gray-600);
+        transition: transform 0.3s ease;
+    }
+    
+    .academic-year-row.collapsed .collapse-toggle i {
+        transform: rotate(-90deg);
+    }
+    
+    .academic-year-info {
+        line-height: 1.2;
+    }
+    
+    .academic-year-info strong {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .date-info {
+        display: flex;
+        align-items: center;
+        font-size: 0.875rem;
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-inactive {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 0.375rem;
+    }
+    
+    .btn-icon {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-1px);
+    }
+    
+    /* Semesters Container */
+    .semesters-row td {
+        padding: 0 !important;
+        border-top: none;
+    }
+    
+    .semesters-container {
+        background: var(--color-gray-100);
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem;
+    }
+    
+    .semesters-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--color-gray-300);
+    }
+    
+    .semesters-header h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .semesters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+    
+    .loading-spinner {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    /* Semester Card */
+    .semester-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .semester-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .semester-card.current {
+        border-left: 3px solid var(--color-primary);
+    }
+    
+    .semester-card .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 0.75rem 1rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .semester-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0 0 0.25rem 0;
+    }
+    
+    .semester-badges {
+        display: flex;
+        gap: 0.25rem;
+        flex-wrap: wrap;
+    }
+    
+    .semester-card .dropdown-toggle {
+        padding: 0.25rem;
+        color: var(--color-gray-600);
+        background: transparent;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .semester-card .dropdown-toggle:hover {
+        background: var(--color-gray-200);
+    }
+    
+    .semester-card .dropdown-menu {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-md);
+        min-width: 180px;
+    }
+    
+    .semester-card .dropdown-item {
+        font-size: 0.8125rem;
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .semester-card .dropdown-item i {
+        font-size: 1rem;
+    }
+    
+    .semester-card .card-body {
+        padding: 1rem;
+    }
+    
+    .semester-dates {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .semester-date-item {
+        display: flex;
+        align-items: flex-start;
+        font-size: 0.8125rem;
+    }
+    
+    .semester-date-item i {
+        margin-top: 0.125rem;
+        margin-right: 0.5rem;
+        color: var(--color-gray-600);
+    }
+    
+    .enrollment-period {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    .enrollment-period h7 {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    /* Pagination */
+    .pagination-container {
+        padding: 1rem 0;
+    }
+    
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 1.25rem;
+    }
+    
+    .modal-body {
+        padding: 1.25rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1rem 1.25rem;
+    }
+    
+    /* Form Sections */
+    .form-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    /* Form Controls */
+    .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.375rem;
+        display: block;
+    }
+    
+    .form-label.required::after {
+        content: " *";
+        color: var(--color-danger);
+        font-weight: 700;
+    }
+    
+    .form-control,
+    .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.375rem;
+    }
+    
+    /* Checkbox */
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+        border-color: var(--color-primary);
+    }
+    
+    /* Alert */
+    .alert {
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        padding: 0.75rem 1rem;
+    }
+    
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: #1e88e5;
+    }
+    
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-primary:hover {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    
+    .text-info { color: var(--color-info); }
+    .text-primary { color: var(--color-primary); }
+    
+    /* Badge Styles */
+    .badge {
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .semesters-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .semesters-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .action-buttons {
+            flex-wrap: wrap;
+        }
+        
+        .table {
+            font-size: 0.875rem;
+        }
+        
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+    }
+</style>
 {% endblock %}
-
 {% block extra_js %}
 <script>
     const csrfToken = '{{ csrf_token }}';

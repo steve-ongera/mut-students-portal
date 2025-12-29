@@ -3,191 +3,130 @@
 
 {% block title %}{{ programme.code }} - Unit Structure{% endblock %}
 
-{% block page_title %}{{ programme.name }}{% endblock %}
-{% block page_subtitle %}{{ programme.code }} - Manage Unit Structure{% endblock %}
-
 {% block extra_css %}
-<style>
-    .programme-info {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 12px;
-        padding: 2rem;
-        margin-bottom: 2rem;
-    }
-    
-    .year-tab {
-        border: 2px solid #e9ecef;
-        border-radius: 10px;
-        transition: all 0.3s;
-        cursor: pointer;
-        padding: 1rem;
-        text-align: center;
-    }
-    
-    .year-tab:hover {
-        border-color: #667eea;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-    }
-    
-    .year-tab.active {
-        border-color: #667eea;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-    }
-    
-    .semester-section {
-        background: white;
-        border-radius: 10px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    .semester-header {
-        border-bottom: 2px solid #667eea;
-        padding-bottom: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .unit-card {
-        background: #f8f9fa;
-        border-left: 4px solid #667eea;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 0.75rem;
-        transition: all 0.3s;
-    }
-    
-    .unit-card:hover {
-        transform: translateX(5px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-    
-    .unit-card.elective {
-        border-left-color: #f59e0b;
-    }
-    
-    .unit-card.common {
-        border-left-color: #10b981;
-    }
-    
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: #6c757d;
-    }
-    
-    .badge-credit {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-    }
-    
-    .loading-spinner {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 300px;
-    }
-    
-    .unit-actions {
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-    
-    .unit-card:hover .unit-actions {
-        opacity: 1;
-    }
-    
-    .add-unit-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    
-    .add-unit-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-</style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Unit Structure{% endblock %}
+{% block page_subtitle %}{{ programme.code }} - {{ programme.name }}{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programme_list' %}">Programmes</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programme_detail' programme.id %}">{{ programme.code }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Unit Structure</li>
+    </ol>
+</nav>
 {% endblock %}
 
 {% block content %}
-<!-- Programme Info Card -->
-<div class="programme-info">
-    <div class="row align-items-center">
-        <div class="col-md-8">
-            <h3 class="mb-2">{{ programme.name }}</h3>
-            <p class="mb-2"><strong>Code:</strong> {{ programme.code }}</p>
-            <p class="mb-2"><strong>Department:</strong> {{ programme.department.name }}</p>
-            <p class="mb-0"><strong>School:</strong> {{ programme.department.school.name }}</p>
-        </div>
-        <div class="col-md-4 text-end">
-            <div class="mb-2">
-                <span class="badge bg-light text-dark fs-6">
-                    <i class="ri-time-line me-1"></i>{{ programme.duration_years }} Years
-                </span>
+<div class="content-container">
+    <!-- Programme Header -->
+    <div class="programme-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <h1 class="h3 fw-semibold mb-0">{{ programme.name }}</h1>
+                    <span class="badge bg-primary-subtle text-primary">
+                        {{ programme.code }}
+                    </span>
+                </div>
+                <div class="programme-details">
+                    <div class="d-flex flex-wrap gap-3">
+                        <span class="text-muted">
+                            <i class="ri-building-line me-1"></i>
+                            {{ programme.department.name }}
+                        </span>
+                        <span class="text-muted">
+                            <i class="ri-school-line me-1"></i>
+                            {{ programme.department.school.name }}
+                        </span>
+                        <span class="text-muted">
+                            <i class="ri-time-line me-1"></i>
+                            {{ programme.duration_years }} Years
+                        </span>
+                    </div>
+                </div>
             </div>
-            <div>
-                <span class="badge bg-light text-dark fs-6">
-                    <i class="ri-bookmark-line me-1"></i>{{ programme.total_semesters }} Semesters
-                </span>
+            <div class="col-md-4 text-end">
+                <div class="programme-meta d-flex justify-content-end gap-2 mb-2">
+                    <span class="badge bg-light text-dark">
+                        <i class="ri-bookmark-line me-1"></i>
+                        {{ programme.total_semesters }} Semesters
+                    </span>
+                    <span class="badge bg-light text-dark">
+                        <i class="ri-graduation-cap-line me-1"></i>
+                        {{ programme.get_programme_type_display }}
+                    </span>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Controls -->
-<div class="content-card mb-4">
-    <div class="row align-items-center">
-        <div class="col-md-6">
-            <label class="form-label mb-2">Academic Year</label>
-            <select id="academicYearSelect" class="form-select">
-                {% for year in academic_years %}
-                <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
-                    {{ year.name }}
-                </option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-6 text-end">
-            <button class="btn btn-outline-primary" id="copyUnitsBtn">
-                <i class="ri-file-copy-line me-2"></i>Copy from Another Year
-            </button>
-            <a href="{% url 'programme_detail' programme.id %}" class="btn btn-outline-secondary">
-                <i class="ri-arrow-left-line me-2"></i>Back to Programme
-            </a>
+    <!-- Controls Card -->
+    <div class="control-card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label class="form-label">Academic Year</label>
+                        <select id="academicYearSelect" class="form-select">
+                            {% for year in academic_years %}
+                            <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                                {{ year.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button class="btn btn-outline-primary d-flex align-items-center gap-2" id="copyUnitsBtn">
+                            <i class="ri-file-copy-line"></i>
+                            <span>Copy from Another Year</span>
+                        </button>
+                        <a href="{% url 'programme_detail' programme.id %}" class="btn btn-outline-secondary d-flex align-items-center gap-2">
+                            <i class="ri-arrow-left-line"></i>
+                            <span>Back to Programme</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Year Tabs -->
-<div class="content-card mb-4">
-    <div class="row" id="yearTabs">
-        <!-- Will be populated dynamically -->
+    <!-- Year Tabs Card -->
+    <div class="tabs-card mb-4">
+        <div class="card-body">
+            <div class="row" id="yearTabs">
+                <!-- Will be populated dynamically -->
+                <div class="col-12 text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
-<!-- Semesters Content -->
-<div id="semestersContent">
-    <div class="loading-spinner">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
+    <!-- Semesters Content -->
+    <div id="semestersContent">
+        <div class="loading-state">
+            <div class="spinner-container">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-3">Loading unit structure...</p>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Add Unit Modal -->
 <div class="modal fade" id="addUnitModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Add Unit</h5>
@@ -196,34 +135,49 @@
             <div class="modal-body">
                 <div class="mb-3">
                     <label class="form-label">Search Units</label>
-                    <input type="text" class="form-control" id="unitSearch" placeholder="Search by code or name...">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="ri-search-line"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control" 
+                               id="unitSearch" 
+                               placeholder="Search by unit code or name...">
+                    </div>
                 </div>
                 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label">Unit Level</label>
-                        <select class="form-select" id="unitLevelFilter">
-                            <option value="">All Levels</option>
-                            <option value="100">Level 100</option>
-                            <option value="200">Level 200</option>
-                            <option value="300">Level 300</option>
-                            <option value="400">Level 400</option>
-                            <option value="500">Level 500</option>
-                            <option value="600">Level 600</option>
-                        </select>
+                        <div class="form-group">
+                            <label class="form-label">Unit Level</label>
+                            <select class="form-select" id="unitLevelFilter">
+                                <option value="">All Levels</option>
+                                <option value="100">Level 100</option>
+                                <option value="200">Level 200</option>
+                                <option value="300">Level 300</option>
+                                <option value="400">Level 400</option>
+                                <option value="500">Level 500</option>
+                                <option value="600">Level 600</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Unit Type</label>
-                        <select class="form-select" id="unitTypeSelect">
-                            <option value="core">Core</option>
-                            <option value="elective">Elective</option>
-                            <option value="common">Common Unit</option>
-                        </select>
+                        <div class="form-group">
+                            <label class="form-label">Unit Type</label>
+                            <select class="form-select" id="unitTypeSelect">
+                                <option value="core">Core</option>
+                                <option value="elective">Elective</option>
+                                <option value="common">Common Unit</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
-                <div id="unitsList" style="max-height: 400px; overflow-y: auto;">
-                    <!-- Will be populated dynamically -->
+                <div id="unitsList" class="units-list-container">
+                    <div class="text-center py-4">
+                        <i class="ri-search-line display-4 text-muted"></i>
+                        <p class="text-muted mt-3">Search for units to add</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -232,10 +186,10 @@
 
 <!-- Copy Units Modal -->
 <div class="modal fade" id="copyUnitsModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Copy Units from Another Academic Year</h5>
+                <h5 class="modal-title">Copy Units</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -248,22 +202,517 @@
                     </select>
                 </div>
                 <div class="alert alert-info">
-                    <i class="ri-information-line me-2"></i>
-                    This will copy all units from the selected academic year to the current year.
+                    <div class="d-flex">
+                        <i class="ri-information-line fs-5 me-2"></i>
+                        <div>
+                            <p class="mb-1 fw-medium">Important Notice</p>
+                            <p class="mb-0 small">
+                                This will copy all units from the selected academic year to the current year.
+                                Existing units in the current year will be preserved.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="confirmCopyBtn">
-                    <i class="ri-file-copy-line me-2"></i>Copy Units
+                    <i class="ri-file-copy-line me-1"></i>
+                    Copy Units
                 </button>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="deleteUnitModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div class="mb-3">
+                    <div class="icon-container bg-danger-subtle rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                        <i class="ri-delete-bin-line fs-3 text-danger"></i>
+                    </div>
+                </div>
+                <h5 class="modal-title mb-3">Remove Unit</h5>
+                <p class="text-muted mb-0">Are you sure you want to remove this unit from the programme?</p>
+            </div>
+            <div class="modal-footer border-top-0 justify-content-center">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Remove Unit</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Programme Header */
+    .programme-header {
+        padding: 1.25rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .programme-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .programme-details {
+        margin-top: 0.75rem;
+    }
+    
+    /* Cards */
+    .control-card,
+    .tabs-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .control-card .card-body,
+    .tabs-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* Form Controls */
+    .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.375rem;
+        display: block;
+    }
+    
+    .form-control,
+    .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
+    }
+    
+    /* Year Tabs */
+    .year-tab {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background: white;
+    }
+    
+    .year-tab:hover {
+        border-color: var(--color-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .year-tab.active {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .year-tab h4 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .year-tab p {
+        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
+        color: inherit;
+    }
+    
+    .year-tab small {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    
+    /* Loading State */
+    .loading-state {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 300px;
+    }
+    
+    .spinner-container {
+        text-align: center;
+    }
+    
+    /* Semester Sections */
+    .semester-section {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+    }
+    
+    .semester-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .semester-header h5 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .semester-meta {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Unit Cards */
+    .unit-card {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        padding: 0.875rem;
+        margin-bottom: 0.5rem;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .unit-card:hover {
+        background: white;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .unit-card.core {
+        border-left: 3px solid var(--color-primary);
+    }
+    
+    .unit-card.elective {
+        border-left: 3px solid var(--color-warning);
+    }
+    
+    .unit-card.common {
+        border-left: 3px solid var(--color-success);
+    }
+    
+    .unit-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .unit-code {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .unit-meta {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .unit-name {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        line-height: 1.4;
+        margin-bottom: 0.5rem;
+    }
+    
+    .unit-actions {
+        display: flex;
+        gap: 0.25rem;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+    
+    .unit-card:hover .unit-actions {
+        opacity: 1;
+    }
+    
+    /* Empty States */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 1.25rem;
+    }
+    
+    .modal-body {
+        padding: 1.25rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1rem 1.25rem;
+    }
+    
+    .units-list-container {
+        max-height: 300px;
+        overflow-y: auto;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem;
+    }
+    
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-primary:hover {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-400);
+        background: var(--color-gray-100);
+        color: var(--color-gray-800);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-danger {
+        background: var(--color-danger);
+        border-color: var(--color-danger);
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #D32F2F;
+        border-color: #D32F2F;
+        color: white;
+    }
+    
+    .btn-icon {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+    
+    .btn-add {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+    
+    .btn-add:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    /* Badge Styles */
+    .badge {
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+    }
+    
+    .badge-credit {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+        font-weight: 600;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.1); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
+    .text-info { color: var(--color-info); }
+    
+    /* Alert */
+    .alert {
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        padding: 0.75rem 1rem;
+    }
+    
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: #1e88e5;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .semester-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .unit-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .unit-meta {
+            flex-wrap: wrap;
+        }
+        
+        .control-card .row {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .control-card .text-end {
+            text-align: left !important;
+        }
+        
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+
 <script>
 const programmeId = {{ programme.id }};
 const csrfToken = '{{ csrf_token }}';

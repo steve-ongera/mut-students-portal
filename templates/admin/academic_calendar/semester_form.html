@@ -1,7 +1,3 @@
-
-<!-- ===================== SEMESTER FORM TEMPLATE ===================== -->
-<!-- File: templates/admin/academic_calendar/semester_form.html -->
-
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
@@ -11,156 +7,1203 @@
 {% block page_subtitle %}{% if semester %}Update semester details{% else %}Create a new semester{% endif %}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-10 mx-auto">
-        <div class="content-card">
-            <form method="post" novalidate>
-                {% csrf_token %}
-                
-                <div class="mb-4">
-                    <h5 class="card-title">
-                        <i class="ri-calendar-event-line me-2"></i>
-                        Semester Information
-                    </h5>
-                    <p class="text-muted small">Enter the details for the semester</p>
-                </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'semester_list' %}">Semesters</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+    </ol>
+</nav>
 
-                <!-- Academic Year Selection -->
-                <div class="mb-3">
-                    <label for="{{ form.academic_year.id_for_label }}" class="form-label">
-                        {{ form.academic_year.label }}
-                        <span class="text-danger">*</span>
-                    </label>
-                    {{ form.academic_year }}
-                    {% if form.academic_year.errors %}
-                    <div class="text-danger small mt-1">{{ form.academic_year.errors.0 }}</div>
+<div class="content-container">
+    <div class="form-container">
+        <!-- Main Form Card -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-calendar-event-line me-2"></i>
+                    Semester Information
+                </h5>
+                <div class="card-subtitle">
+                    {% if semester %}
+                    Update existing semester details
+                    {% else %}
+                    Create a new semester for the academic calendar
                     {% endif %}
                 </div>
-
-                <!-- Semester Basic Info -->
-                <div class="row">
-                    <div class="col-md-8 mb-3">
-                        <label for="{{ form.name.id_for_label }}" class="form-label">
-                            {{ form.name.label }}
-                            <span class="text-danger">*</span>
-                        </label>
-                        {{ form.name }}
-                        {% if form.name.help_text %}
-                        <small class="form-text text-muted">{{ form.name.help_text }}</small>
-                        {% endif %}
-                        {% if form.name.errors %}
-                        <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="col-md-4 mb-3">
-                        <label for="{{ form.semester_number.id_for_label }}" class="form-label">
-                            {{ form.semester_number.label }}
-                            <span class="text-danger">*</span>
-                        </label>
-                        {{ form.semester_number }}
-                        {% if form.semester_number.errors %}
-                        <div class="text-danger small mt-1">{{ form.semester_number.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Semester Dates -->
-                <div class="mb-4">
-                    <h6 class="text-primary mb-3">Semester Period</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.start_date.id_for_label }}" class="form-label">
-                                {{ form.start_date.label }}
-                                <span class="text-danger">*</span>
+            </div>
+            
+            <div class="card-body">
+                <form method="post" novalidate id="semesterForm">
+                    {% csrf_token %}
+                    
+                    <!-- Academic Year Selection -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Academic Year</h6>
+                        <div class="form-group">
+                            <label for="{{ form.academic_year.id_for_label }}" class="form-label">
+                                {{ form.academic_year.label }}
+                                <span class="required">*</span>
                             </label>
-                            {{ form.start_date }}
-                            {% if form.start_date.errors %}
-                            <div class="text-danger small mt-1">{{ form.start_date.errors.0 }}</div>
+                            <div class="select-wrapper">
+                                {{ form.academic_year }}
+                                <i class="ri-arrow-down-s-line select-icon"></i>
+                            </div>
+                            {% if form.academic_year.help_text %}
+                            <div class="form-help">{{ form.academic_year.help_text }}</div>
                             {% endif %}
-                        </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.end_date.id_for_label }}" class="form-label">
-                                {{ form.end_date.label }}
-                                <span class="text-danger">*</span>
-                            </label>
-                            {{ form.end_date }}
-                            {% if form.end_date.errors %}
-                            <div class="text-danger small mt-1">{{ form.end_date.errors.0 }}</div>
+                            {% if form.academic_year.errors %}
+                            <div class="form-error">{{ form.academic_year.errors.0 }}</div>
                             {% endif %}
                         </div>
                     </div>
-                </div>
-
-                <!-- Registration Dates -->
-                <div class="mb-4">
-                    <h6 class="text-primary mb-3">Registration Period</h6>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.registration_start_date.id_for_label }}" class="form-label">
-                                {{ form.registration_start_date.label }}
-                                <span class="text-danger">*</span>
-                            </label>
-                            {{ form.registration_start_date }}
-                            {% if form.registration_start_date.errors %}
-                            <div class="text-danger small mt-1">{{ form.registration_start_date.errors.0 }}</div>
-                            {% endif %}
+                    
+                    <!-- Semester Basic Information -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Basic Information</h6>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    {{ form.name.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="ri-calendar-event-line"></i>
+                                    </span>
+                                    {{ form.name }}
+                                </div>
+                                {% if form.name.help_text %}
+                                <div class="form-help">{{ form.name.help_text }}</div>
+                                {% endif %}
+                                {% if form.name.errors %}
+                                <div class="form-error">{{ form.name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.semester_number.id_for_label }}" class="form-label">
+                                    {{ form.semester_number.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="select-wrapper">
+                                    {{ form.semester_number }}
+                                    <i class="ri-arrow-down-s-line select-icon"></i>
+                                </div>
+                                {% if form.semester_number.errors %}
+                                <div class="form-error">{{ form.semester_number.errors.0 }}</div>
+                                {% endif %}
+                            </div>
                         </div>
-
-                        <div class="col-md-6 mb-3">
-                            <label for="{{ form.registration_end_date.id_for_label }}" class="form-label">
-                                {{ form.registration_end_date.label }}
-                                <span class="text-danger">*</span>
+                    </div>
+                    
+                    <!-- Semester Period -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Semester Period</h6>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                    {{ form.start_date.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group date-input">
+                                    <span class="input-group-text">
+                                        <i class="ri-calendar-check-line"></i>
+                                    </span>
+                                    {{ form.start_date }}
+                                    <button type="button" class="btn btn-outline-secondary date-clear" data-target="{{ form.start_date.id_for_label }}">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
+                                {% if form.start_date.errors %}
+                                <div class="form-error">{{ form.start_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.end_date.id_for_label }}" class="form-label">
+                                    {{ form.end_date.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group date-input">
+                                    <span class="input-group-text">
+                                        <i class="ri-calendar-close-line"></i>
+                                    </span>
+                                    {{ form.end_date }}
+                                    <button type="button" class="btn btn-outline-secondary date-clear" data-target="{{ form.end_date.id_for_label }}">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
+                                {% if form.end_date.errors %}
+                                <div class="form-error">{{ form.end_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="date-preview mt-3">
+                            <div class="preview-label">Duration:</div>
+                            <div class="preview-value" id="semesterDurationPreview">-</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Registration Period -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Registration Period</h6>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="{{ form.registration_start_date.id_for_label }}" class="form-label">
+                                    {{ form.registration_start_date.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group date-input">
+                                    <span class="input-group-text">
+                                        <i class="ri-edit-box-line"></i>
+                                    </span>
+                                    {{ form.registration_start_date }}
+                                    <button type="button" class="btn btn-outline-secondary date-clear" data-target="{{ form.registration_start_date.id_for_label }}">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
+                                {% if form.registration_start_date.errors %}
+                                <div class="form-error">{{ form.registration_start_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.registration_end_date.id_for_label }}" class="form-label">
+                                    {{ form.registration_end_date.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group date-input">
+                                    <span class="input-group-text">
+                                        <i class="ri-checkbox-circle-line"></i>
+                                    </span>
+                                    {{ form.registration_end_date }}
+                                    <button type="button" class="btn btn-outline-secondary date-clear" data-target="{{ form.registration_end_date.id_for_label }}">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
+                                {% if form.registration_end_date.errors %}
+                                <div class="form-error">{{ form.registration_end_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="date-preview mt-3">
+                            <div class="preview-label">Registration Duration:</div>
+                            <div class="preview-value" id="registrationDurationPreview">-</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Settings -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Status Settings</h6>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    {{ form.is_current }}
+                                    <label class="form-check-label" for="{{ form.is_current.id_for_label }}">
+                                        {{ form.is_current.label }}
+                                    </label>
+                                    {% if form.is_current.help_text %}
+                                    <div class="form-help">{{ form.is_current.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        {{ form.is_active.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    {% if form.description %}
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Additional Information</h6>
+                        <div class="form-group">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                {{ form.description.label }}
                             </label>
-                            {{ form.registration_end_date }}
-                            {% if form.registration_end_date.errors %}
-                            <div class="text-danger small mt-1">{{ form.registration_end_date.errors.0 }}</div>
+                            <div class="textarea-wrapper">
+                                {{ form.description }}
+                                <div class="textarea-counter">
+                                    <span id="charCount">0</span>/500 characters
+                                </div>
+                            </div>
+                            {% if form.description.help_text %}
+                            <div class="form-help">{{ form.description.help_text }}</div>
+                            {% endif %}
+                            {% if form.description.errors %}
+                            <div class="form-error">{{ form.description.errors.0 }}</div>
                             {% endif %}
                         </div>
                     </div>
-                </div>
-
-                <!-- Status Checkboxes -->
-                <div class="mb-3">
-                    <div class="form-check">
-                        {{ form.is_current }}
-                        <label class="form-check-label" for="{{ form.is_current.id_for_label }}">
-                            {{ form.is_current.label }}
-                        </label>
-                        {% if form.is_current.help_text %}
-                        <small class="form-text text-muted d-block">{{ form.is_current.help_text }}</small>
+                    {% endif %}
+                    
+                    <!-- Form Errors -->
+                    {% if form.non_field_errors %}
+                    <div class="alert-message alert-danger mb-4">
+                        <div class="alert-header">
+                            <i class="ri-error-warning-line me-2"></i>
+                            <strong>Form Errors</strong>
+                        </div>
+                        <div class="alert-body">
+                            {{ form.non_field_errors }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Field-specific errors -->
+                    {% for field in form %}
+                        {% if field.errors and field.name not in "is_current is_active" %}
+                        <div class="alert-message alert-warning mb-3">
+                            <div class="alert-header">
+                                <i class="ri-alert-line me-2"></i>
+                                <strong>{{ field.label }} Error</strong>
+                            </div>
+                            <div class="alert-body">
+                                {{ field.errors.0 }}
+                            </div>
+                        </div>
                         {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Action Buttons -->
+                    <div class="form-actions mt-4 pt-4 border-top">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{% url 'semester_list' %}" class="btn btn-outline-secondary">
+                                    <i class="ri-arrow-left-line me-2"></i>
+                                    Cancel
+                                </a>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                    <i class="ri-save-line me-2"></i>
+                                    {{ button_text }}
+                                </button>
+                                {% if semester %}
+                                <a href="{% url 'semester_detail' semester.pk %}" class="btn btn-outline-secondary">
+                                    <i class="ri-eye-line me-2"></i>
+                                    View Details
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Form Help Section -->
+        <div class="form-help-card">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-information-line me-2"></i>
+                        Semester Guidelines
+                    </h5>
+                </div>
+                
+                <div class="card-body">
+                    <div class="help-content">
+                        <div class="help-item">
+                            <i class="ri-calendar-event-line text-primary me-2"></i>
+                            <div>
+                                <h6 class="help-title">Naming Convention</h6>
+                                <p class="help-text">
+                                    Use descriptive names like "Spring 2024", "Fall 2024", or "Semester 1 2024/2025".
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="help-item">
+                            <i class="ri-time-line text-success me-2"></i>
+                            <div>
+                                <h6 class="help-title">Date Ranges</h6>
+                                <p class="help-text">
+                                    Ensure registration period falls within the semester period. Typically 2-4 weeks before semester starts.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="help-item">
+                            <i class="ri-toggle-line text-warning me-2"></i>
+                            <div>
+                                <h6 class="help-title">Current Semester</h6>
+                                <p class="help-text">
+                                    Only one semester can be marked as "Current". Setting this will update all related academic activities.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="help-item">
+                            <i class="ri-checkbox-circle-line text-info me-2"></i>
+                            <div>
+                                <h6 class="help-title">Active Status</h6>
+                                <p class="help-text">
+                                    Only active semesters will be available for student enrollment and unit registration.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="help-item">
+                            <i class="ri-calendar-2-line text-danger me-2"></i>
+                            <div>
+                                <h6 class="help-title">Important Notes</h6>
+                                <p class="help-text">
+                                    Ensure dates don't overlap with other semesters in the same academic year.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="mb-4">
-                    <div class="form-check">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                            {{ form.is_active.label }}
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Form Errors -->
-                {% if form.non_field_errors %}
-                <div class="alert alert-danger">
-                    {{ form.non_field_errors }}
-                </div>
-                {% endif %}
-
-                <!-- Action Buttons -->
-                <div class="d-flex gap-2 justify-content-end">
-                    <a href="{% url 'semester_list' %}" class="btn btn-outline-secondary">
-                        <i class="ri-arrow-left-line me-1"></i> Cancel
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ri-save-line me-1"></i> {{ button_text }}
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --input-border: var(--color-gray-300);
+        --input-focus: var(--color-primary);
+        --input-error: var(--color-danger);
+        --input-success: var(--color-success);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Form Container */
+    .form-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    @media (max-width: 992px) {
+        .form-container {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Form Sections */
+    .form-section {
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .form-section:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+    
+    /* Form Grid */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    /* Form Group */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Form Label */
+    .form-label {
+        display: block;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .required {
+        color: var(--color-danger);
+        margin-left: 0.25rem;
+    }
+    
+    /* Select Wrapper */
+    .select-wrapper {
+        position: relative;
+    }
+    
+    .select-icon {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--color-gray-600);
+        pointer-events: none;
+    }
+    
+    /* Form Controls */
+    input[type="text"],
+    input[type="date"],
+    textarea,
+    select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--input-border);
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        background: white;
+        transition: all 0.2s ease;
+        font-family: var(--font-family);
+    }
+    
+    select {
+        appearance: none;
+        padding-right: 2.5rem;
+    }
+    
+    input[type="text"]:focus,
+    input[type="date"]:focus,
+    textarea:focus,
+    select:focus {
+        outline: none;
+        border-color: var(--input-focus);
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+    }
+    
+    /* Input Groups */
+    .input-group {
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+    
+    .input-group-text {
+        background: var(--color-gray-100);
+        border: 1px solid var(--input-border);
+        border-right: none;
+        color: var(--color-gray-600);
+        padding: 0.75rem 0.75rem;
+    }
+    
+    /* Date Input */
+    .date-input {
+        position: relative;
+    }
+    
+    .date-clear {
+        border-left: none;
+        background: white;
+        color: var(--color-gray-600);
+        padding: 0.75rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .date-clear:hover {
+        color: var(--color-danger);
+        background: rgba(244, 67, 54, 0.1);
+    }
+    
+    /* Date Preview */
+    .date-preview {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .preview-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        margin-right: 1rem;
+    }
+    
+    .preview-value {
+        font-weight: 600;
+        color: var(--color-primary);
+        font-size: 0.9375rem;
+    }
+    
+    /* Form Switches */
+    .form-check {
+        display: flex;
+        align-items: center;
+        padding-left: 0;
+        margin-bottom: 0.75rem;
+    }
+    
+    .form-switch {
+        padding-left: 3.5rem;
+    }
+    
+    .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        margin-left: -3.5rem;
+        background-color: var(--color-gray-300);
+        border: none;
+        cursor: pointer;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.25);
+    }
+    
+    .form-check-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    /* Textarea */
+    .textarea-wrapper {
+        position: relative;
+    }
+    
+    textarea {
+        resize: vertical;
+        min-height: 100px;
+        padding-bottom: 2rem;
+    }
+    
+    .textarea-counter {
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.75rem;
+        font-size: 0.75rem;
+        color: var(--color-gray-500);
+        background: white;
+        padding: 0.125rem 0.25rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Form Help & Error */
+    .form-help {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+        line-height: 1.4;
+    }
+    
+    .form-error {
+        font-size: 0.8125rem;
+        color: var(--color-danger);
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .form-error::before {
+        content: '⚠';
+        font-size: 0.875rem;
+    }
+    
+    /* Alert Messages */
+    .alert-message {
+        padding: 0.75rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        margin-bottom: 1rem;
+    }
+    
+    .alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        border-color: rgba(244, 67, 54, 0.2);
+        color: #b71c1c;
+    }
+    
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.2);
+        color: #e65100;
+    }
+    
+    .alert-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .alert-body {
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+    
+    /* Form Actions */
+    .form-actions {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.625rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        font-family: var(--font-family);
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn:active {
+        transform: translateY(0);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    /* Form Help Card */
+    .form-help-card {
+        height: fit-content;
+    }
+    
+    .help-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .help-item {
+        display: flex;
+        gap: 0.75rem;
+    }
+    
+    .help-item i {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+    
+    .help-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .help-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        line-height: 1.5;
+        margin: 0;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0 0.25rem;
+        }
+        
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .btn-group {
+            width: 100%;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .date-preview {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .input-group-text {
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        input[type="text"],
+        input[type="date"],
+        textarea,
+        select {
+            padding: 0.5rem;
+        }
+        
+        .select-icon {
+            right: 0.5rem;
+        }
+        
+        .help-item {
+            flex-direction: column;
+            gap: 0.5rem;
+            text-align: center;
+        }
+        
+        .help-item i {
+            align-self: center;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('semesterForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const startDateInput = document.querySelector('input[name="start_date"]');
+    const endDateInput = document.querySelector('input[name="end_date"]');
+    const registrationStartInput = document.querySelector('input[name="registration_start_date"]');
+    const registrationEndInput = document.querySelector('input[name="registration_end_date"]');
+    const semesterDurationPreview = document.getElementById('semesterDurationPreview');
+    const registrationDurationPreview = document.getElementById('registrationDurationPreview');
+    const nameInput = document.querySelector('input[name="name"]');
+    const descriptionTextarea = document.querySelector('textarea[name="description"]');
+    const charCount = document.getElementById('charCount');
+    const isCurrentCheckbox = document.querySelector('input[name="is_current"]');
+    const academicYearSelect = document.querySelector('select[name="academic_year"]');
+    
+    // Form submission handler
+    form.addEventListener('submit', function(e) {
+        // Validate form before submission
+        if (!validateForm()) {
+            e.preventDefault();
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ri-loader-4-line animate-spin me-2"></i>Processing...';
+    });
+    
+    // Calculate durations
+    function calculateDurations() {
+        // Semester duration
+        if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (startDate && endDate && startDate < endDate) {
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                const diffMonths = Math.floor(diffDays / 30);
+                const diffWeeks = Math.floor(diffDays / 7);
+                
+                let durationText = '';
+                if (diffMonths >= 2) {
+                    durationText = `${diffMonths} months (${diffWeeks} weeks)`;
+                } else {
+                    durationText = `${diffDays} days (${diffWeeks} weeks)`;
+                }
+                
+                semesterDurationPreview.textContent = durationText;
+                semesterDurationPreview.style.color = 'var(--color-success)';
+            } else {
+                semesterDurationPreview.textContent = 'Invalid date range';
+                semesterDurationPreview.style.color = 'var(--color-danger)';
+            }
+        } else {
+            semesterDurationPreview.textContent = '-';
+            semesterDurationPreview.style.color = 'var(--color-gray-600)';
+        }
+        
+        // Registration duration
+        if (registrationStartInput && registrationEndInput && registrationStartInput.value && registrationEndInput.value) {
+            const regStart = new Date(registrationStartInput.value);
+            const regEnd = new Date(registrationEndInput.value);
+            
+            if (regStart && regEnd && regStart < regEnd) {
+                const diffTime = Math.abs(regEnd - regStart);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let durationText = '';
+                if (diffDays > 7) {
+                    const diffWeeks = Math.floor(diffDays / 7);
+                    durationText = `${diffWeeks} weeks (${diffDays} days)`;
+                } else {
+                    durationText = `${diffDays} days`;
+                }
+                
+                registrationDurationPreview.textContent = durationText;
+                registrationDurationPreview.style.color = 'var(--color-success)';
+            } else {
+                registrationDurationPreview.textContent = 'Invalid date range';
+                registrationDurationPreview.style.color = 'var(--color-danger)';
+            }
+        } else {
+            registrationDurationPreview.textContent = '-';
+            registrationDurationPreview.style.color = 'var(--color-gray-600)';
+        }
+    }
+    
+    // Add event listeners for date inputs
+    [startDateInput, endDateInput, registrationStartInput, registrationEndInput].forEach(input => {
+        if (input) {
+            input.addEventListener('change', calculateDurations);
+        }
+    });
+    
+    // Initial calculation if dates are pre-filled
+    calculateDurations();
+    
+    // Name input validation
+    if (nameInput) {
+        nameInput.addEventListener('input', function() {
+            const value = this.value.trim();
+            
+            if (value.length > 0) {
+                this.style.borderColor = 'var(--color-success)';
+                this.style.boxShadow = '0 0 0 3px rgba(76, 175, 80, 0.1)';
+            } else {
+                this.style.borderColor = 'var(--input-border)';
+                this.style.boxShadow = 'none';
+            }
+        });
+    }
+    
+    // Character counter for description
+    if (descriptionTextarea && charCount) {
+        descriptionTextarea.addEventListener('input', function() {
+            const length = this.value.length;
+            charCount.textContent = length;
+            
+            if (length > 500) {
+                charCount.style.color = 'var(--color-danger)';
+                this.style.borderColor = 'var(--color-danger)';
+            } else if (length > 450) {
+                charCount.style.color = 'var(--color-warning)';
+                this.style.borderColor = 'var(--color-warning)';
+            } else {
+                charCount.style.color = 'var(--color-gray-500)';
+                this.style.borderColor = 'var(--input-border)';
+            }
+        });
+        
+        // Initial count
+        charCount.textContent = descriptionTextarea.value.length;
+    }
+    
+    // Clear date button functionality
+    const clearButtons = document.querySelectorAll('.date-clear');
+    clearButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const targetInput = document.getElementById(targetId);
+            if (targetInput) {
+                targetInput.value = '';
+                targetInput.dispatchEvent(new Event('change'));
+                targetInput.focus();
+            }
+        });
+    });
+    
+    // Warn about current semester
+    if (isCurrentCheckbox) {
+        isCurrentCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                const message = "Setting this as the current semester will:\n" +
+                              "1. Unmark any other current semester\n" +
+                              "2. Update all related academic activities\n" +
+                              "3. Affect student enrollment and unit registration\n\n" +
+                              "Are you sure you want to proceed?";
+                
+                if (!confirm(message)) {
+                    this.checked = false;
+                }
+            }
+        });
+    }
+    
+    // Validate dates against academic year
+    function validateAgainstAcademicYear() {
+        if (!academicYearSelect || !academicYearSelect.value || !startDateInput || !endDateInput) {
+            return true;
+        }
+        
+        const selectedYearId = academicYearSelect.value;
+        const startDate = startDateInput.value ? new Date(startDateInput.value) : null;
+        const endDate = endDateInput.value ? new Date(endDateInput.value) : null;
+        
+        // In a real implementation, you would fetch the academic year dates
+        // For now, we'll just do basic validation
+        if (startDate && endDate && endDate <= startDate) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Form validation
+    function validateForm() {
+        let isValid = true;
+        
+        // Check required fields
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                markFieldError(field, 'This field is required');
+                isValid = false;
+            } else {
+                clearFieldError(field);
+            }
+        });
+        
+        // Validate date ranges
+        if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (endDate <= startDate) {
+                markFieldError(endDateInput, 'End date must be after start date');
+                isValid = false;
+            }
+        }
+        
+        if (registrationStartInput && registrationEndInput && registrationStartInput.value && registrationEndInput.value) {
+            const regStart = new Date(registrationStartInput.value);
+            const regEnd = new Date(registrationEndInput.value);
+            
+            if (regEnd <= regStart) {
+                markFieldError(registrationEndInput, 'Registration end date must be after start date');
+                isValid = false;
+            }
+        }
+        
+        // Validate registration dates against semester dates
+        if (startDateInput && registrationStartInput && startDateInput.value && registrationStartInput.value) {
+            const semesterStart = new Date(startDateInput.value);
+            const regStart = new Date(registrationStartInput.value);
+            
+            if (regStart >= semesterStart) {
+                markFieldError(registrationStartInput, 'Registration should start before semester begins');
+                isValid = false;
+            }
+        }
+        
+        // Validate name
+        if (nameInput && nameInput.value) {
+            if (nameInput.value.length < 3) {
+                markFieldError(nameInput, 'Semester name must be at least 3 characters');
+                isValid = false;
+            }
+        }
+        
+        return isValid;
+    }
+    
+    function markFieldError(field, message) {
+        field.style.borderColor = 'var(--color-danger)';
+        field.style.boxShadow = '0 0 0 3px rgba(244, 67, 54, 0.1)';
+        
+        // Remove existing error message
+        let errorDiv = field.parentNode.querySelector('.field-error');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'field-error form-error';
+            field.parentNode.appendChild(errorDiv);
+        }
+        errorDiv.textContent = message;
+    }
+    
+    function clearFieldError(field) {
+        field.style.borderColor = 'var(--input-border)';
+        field.style.boxShadow = 'none';
+        
+        const errorDiv = field.parentNode.querySelector('.field-error');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+    
+    // Add focus styles to form inputs
+    const formInputs = form.querySelectorAll('input, textarea, select');
+    formInputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentNode.classList.add('focused');
+        });
+        
+        input.addEventListener('blur', function() {
+            this.parentNode.classList.remove('focused');
+        });
+    });
+});
+
+// Loading animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .focused .input-group-text {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+    
+    .field-error {
+        animation: shake 0.5s ease;
+    }
+    
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+    
+    select.focused {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%232E7D32' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 16px 12px;
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}

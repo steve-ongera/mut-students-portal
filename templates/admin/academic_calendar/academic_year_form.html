@@ -1,6 +1,3 @@
-<!-- ===================== ACADEMIC YEAR FORM TEMPLATE ===================== -->
-<!-- File: templates/admin/academic_calendar/academic_year_form.html -->
-
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
@@ -10,101 +7,1012 @@
 {% block page_subtitle %}{% if academic_year %}Update academic year details{% else %}Create a new academic year{% endif %}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <div class="col-lg-8 mx-auto">
-        <div class="content-card">
-            <form method="post" novalidate>
-                {% csrf_token %}
-                
-                <div class="mb-4">
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'academic_year_list' %}">Academic Years</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ title }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="form-container">
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-calendar-line me-2"></i>
+                    Academic Year Information
+                </h5>
+                <div class="card-subtitle">
+                    {% if academic_year %}
+                    Update existing academic year details
+                    {% else %}
+                    Create a new academic year for the institution
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <form method="post" novalidate id="academicYearForm">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information Section -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Basic Information</h6>
+                        <div class="form-grid">
+                            <!-- Academic Year Name -->
+                            <div class="form-group">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    {{ form.name.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="ri-calendar-event-line"></i>
+                                    </span>
+                                    {{ form.name }}
+                                </div>
+                                {% if form.name.help_text %}
+                                <div class="form-help">{{ form.name.help_text }}</div>
+                                {% endif %}
+                                {% if form.name.errors %}
+                                <div class="form-error">{{ form.name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Year Code (if exists) -->
+                            {% if form.code %}
+                            <div class="form-group">
+                                <label for="{{ form.code.id_for_label }}" class="form-label">
+                                    {{ form.code.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="ri-hashtag"></i>
+                                    </span>
+                                    {{ form.code }}
+                                </div>
+                                {% if form.code.help_text %}
+                                <div class="form-help">{{ form.code.help_text }}</div>
+                                {% endif %}
+                                {% if form.code.errors %}
+                                <div class="form-error">{{ form.code.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Date Range Section -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Date Range</h6>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="{{ form.start_date.id_for_label }}" class="form-label">
+                                    {{ form.start_date.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group date-input">
+                                    <span class="input-group-text">
+                                        <i class="ri-calendar-check-line"></i>
+                                    </span>
+                                    {{ form.start_date }}
+                                    <button type="button" class="btn btn-outline-secondary date-clear" data-target="{{ form.start_date.id_for_label }}">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
+                                {% if form.start_date.errors %}
+                                <div class="form-error">{{ form.start_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="{{ form.end_date.id_for_label }}" class="form-label">
+                                    {{ form.end_date.label }}
+                                    <span class="required">*</span>
+                                </label>
+                                <div class="input-group date-input">
+                                    <span class="input-group-text">
+                                        <i class="ri-calendar-close-line"></i>
+                                    </span>
+                                    {{ form.end_date }}
+                                    <button type="button" class="btn btn-outline-secondary date-clear" data-target="{{ form.end_date.id_for_label }}">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
+                                {% if form.end_date.errors %}
+                                <div class="form-error">{{ form.end_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="date-preview mt-3">
+                            <div class="preview-label">Duration:</div>
+                            <div class="preview-value" id="durationPreview">-</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status Section -->
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Status Settings</h6>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    {{ form.is_current }}
+                                    <label class="form-check-label" for="{{ form.is_current.id_for_label }}">
+                                        {{ form.is_current.label }}
+                                    </label>
+                                    {% if form.is_current.help_text %}
+                                    <div class="form-help">{{ form.is_current.help_text }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <div class="form-check form-switch">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        {{ form.is_active.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    {% if form.description %}
+                    <div class="form-section mb-4">
+                        <h6 class="section-title mb-3">Additional Information</h6>
+                        <div class="form-group">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                {{ form.description.label }}
+                            </label>
+                            <div class="textarea-wrapper">
+                                {{ form.description }}
+                                <div class="textarea-counter">
+                                    <span id="charCount">0</span>/500 characters
+                                </div>
+                            </div>
+                            {% if form.description.help_text %}
+                            <div class="form-help">{{ form.description.help_text }}</div>
+                            {% endif %}
+                            {% if form.description.errors %}
+                            <div class="form-error">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Form Errors -->
+                    {% if form.non_field_errors %}
+                    <div class="alert-message alert-danger mb-4">
+                        <div class="alert-header">
+                            <i class="ri-error-warning-line me-2"></i>
+                            <strong>Form Errors</strong>
+                        </div>
+                        <div class="alert-body">
+                            {{ form.non_field_errors }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Field-specific errors -->
+                    {% for field in form %}
+                        {% if field.errors and field.name not in "is_current is_active" %}
+                        <div class="alert-message alert-warning mb-3">
+                            <div class="alert-header">
+                                <i class="ri-alert-line me-2"></i>
+                                <strong>{{ field.label }} Error</strong>
+                            </div>
+                            <div class="alert-body">
+                                {{ field.errors.0 }}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Action Buttons -->
+                    <div class="form-actions mt-4 pt-4 border-top">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{% url 'academic_year_list' %}" class="btn btn-outline-secondary">
+                                    <i class="ri-arrow-left-line me-2"></i>
+                                    Cancel
+                                </a>
+                            </div>
+                            <div class="btn-group">
+                                <button type="submit" class="btn btn-primary" id="submitBtn">
+                                    <i class="ri-save-line me-2"></i>
+                                    {{ button_text }}
+                                </button>
+                                {% if academic_year %}
+                                <a href="{% url 'academic_year_detail' academic_year.pk %}" class="btn btn-outline-secondary">
+                                    <i class="ri-eye-line me-2"></i>
+                                    View Details
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Form Help Section -->
+        <div class="form-help-card">
+            <div class="management-card">
+                <div class="card-header">
                     <h5 class="card-title">
-                        <i class="ri-calendar-line me-2"></i>
-                        Academic Year Information
+                        <i class="ri-information-line me-2"></i>
+                        Guidelines & Information
                     </h5>
-                    <p class="text-muted small">Enter the details for the academic year</p>
                 </div>
-
-                <!-- Academic Year Name -->
-                <div class="mb-3">
-                    <label for="{{ form.name.id_for_label }}" class="form-label">
-                        {{ form.name.label }}
-                        <span class="text-danger">*</span>
-                    </label>
-                    {{ form.name }}
-                    {% if form.name.help_text %}
-                    <small class="form-text text-muted">{{ form.name.help_text }}</small>
-                    {% endif %}
-                    {% if form.name.errors %}
-                    <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
-                    {% endif %}
-                </div>
-
-                <!-- Date Range -->
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.start_date.id_for_label }}" class="form-label">
-                            {{ form.start_date.label }}
-                            <span class="text-danger">*</span>
-                        </label>
-                        {{ form.start_date }}
-                        {% if form.start_date.errors %}
-                        <div class="text-danger small mt-1">{{ form.start_date.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label for="{{ form.end_date.id_for_label }}" class="form-label">
-                            {{ form.end_date.label }}
-                            <span class="text-danger">*</span>
-                        </label>
-                        {{ form.end_date }}
-                        {% if form.end_date.errors %}
-                        <div class="text-danger small mt-1">{{ form.end_date.errors.0 }}</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Status Checkboxes -->
-                <div class="mb-3">
-                    <div class="form-check">
-                        {{ form.is_current }}
-                        <label class="form-check-label" for="{{ form.is_current.id_for_label }}">
-                            {{ form.is_current.label }}
-                        </label>
-                        {% if form.is_current.help_text %}
-                        <small class="form-text text-muted d-block">{{ form.is_current.help_text }}</small>
-                        {% endif %}
+                
+                <div class="card-body">
+                    <div class="help-content">
+                        <div class="help-item">
+                            <i class="ri-lightbulb-flash-line text-primary me-2"></i>
+                            <div>
+                                <h6 class="help-title">Naming Convention</h6>
+                                <p class="help-text">
+                                    Use the format "YYYY/YYYY" (e.g., "2024/2025") for the academic year name.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="help-item">
+                            <i class="ri-calendar-line text-success me-2"></i>
+                            <div>
+                                <h6 class="help-title">Date Range</h6>
+                                <p class="help-text">
+                                    Ensure the end date is after the start date. Typically, an academic year spans 12 months.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="help-item">
+                            <i class="ri-toggle-line text-warning me-2"></i>
+                            <div>
+                                <h6 class="help-title">Current Academic Year</h6>
+                                <p class="help-text">
+                                    Only one academic year can be marked as "Current". Setting this will automatically update other years.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="help-item">
+                            <i class="ri-checkbox-circle-line text-info me-2"></i>
+                            <div>
+                                <h6 class="help-title">Active Status</h6>
+                                <p class="help-text">
+                                    Only active academic years will be available for intake creation and student enrollment.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="mb-4">
-                    <div class="form-check">
-                        {{ form.is_active }}
-                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                            {{ form.is_active.label }}
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Form Errors -->
-                {% if form.non_field_errors %}
-                <div class="alert alert-danger">
-                    {{ form.non_field_errors }}
-                </div>
-                {% endif %}
-
-                <!-- Action Buttons -->
-                <div class="d-flex gap-2 justify-content-end">
-                    <a href="{% url 'academic_year_list' %}" class="btn btn-outline-secondary">
-                        <i class="ri-arrow-left-line me-1"></i> Cancel
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ri-save-line me-1"></i> {{ button_text }}
-                    </button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --input-border: var(--color-gray-300);
+        --input-focus: var(--color-primary);
+        --input-error: var(--color-danger);
+        --input-success: var(--color-success);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Form Container */
+    .form-container {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    @media (max-width: 992px) {
+        .form-container {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Form Sections */
+    .form-section {
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .form-section:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+    
+    /* Form Grid */
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    /* Form Group */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    /* Form Label */
+    .form-label {
+        display: block;
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .required {
+        color: var(--color-danger);
+        margin-left: 0.25rem;
+    }
+    
+    /* Input Groups */
+    .input-group {
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+    
+    .input-group-text {
+        background: var(--color-gray-100);
+        border: 1px solid var(--input-border);
+        border-right: none;
+        color: var(--color-gray-600);
+        padding: 0.75rem 0.75rem;
+    }
+    
+    /* Form Controls */
+    input[type="text"],
+    input[type="date"],
+    textarea,
+    select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid var(--input-border);
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        background: white;
+        transition: all 0.2s ease;
+        font-family: var(--font-family);
+    }
+    
+    input[type="text"]:focus,
+    input[type="date"]:focus,
+    textarea:focus,
+    select:focus {
+        outline: none;
+        border-color: var(--input-focus);
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+    }
+    
+    /* Date Input */
+    .date-input {
+        position: relative;
+    }
+    
+    .date-clear {
+        border-left: none;
+        background: white;
+        color: var(--color-gray-600);
+        padding: 0.75rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .date-clear:hover {
+        color: var(--color-danger);
+        background: rgba(244, 67, 54, 0.1);
+    }
+    
+    /* Date Preview */
+    .date-preview {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .preview-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        margin-right: 1rem;
+    }
+    
+    .preview-value {
+        font-weight: 600;
+        color: var(--color-primary);
+        font-size: 0.9375rem;
+    }
+    
+    /* Form Switches */
+    .form-check {
+        display: flex;
+        align-items: center;
+        padding-left: 0;
+        margin-bottom: 0.75rem;
+    }
+    
+    .form-switch {
+        padding-left: 3.5rem;
+    }
+    
+    .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        margin-left: -3.5rem;
+        background-color: var(--color-gray-300);
+        border: none;
+        cursor: pointer;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.25);
+    }
+    
+    .form-check-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    /* Textarea */
+    .textarea-wrapper {
+        position: relative;
+    }
+    
+    textarea {
+        resize: vertical;
+        min-height: 100px;
+        padding-bottom: 2rem;
+    }
+    
+    .textarea-counter {
+        position: absolute;
+        bottom: 0.5rem;
+        right: 0.75rem;
+        font-size: 0.75rem;
+        color: var(--color-gray-500);
+        background: white;
+        padding: 0.125rem 0.25rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Form Help & Error */
+    .form-help {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+        line-height: 1.4;
+    }
+    
+    .form-error {
+        font-size: 0.8125rem;
+        color: var(--color-danger);
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .form-error::before {
+        content: '⚠';
+        font-size: 0.875rem;
+    }
+    
+    /* Alert Messages */
+    .alert-message {
+        padding: 0.75rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        margin-bottom: 1rem;
+    }
+    
+    .alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        border-color: rgba(244, 67, 54, 0.2);
+        color: #b71c1c;
+    }
+    
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.2);
+        color: #e65100;
+    }
+    
+    .alert-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .alert-body {
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+    
+    /* Form Actions */
+    .form-actions {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+    }
+    
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.625rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        font-family: var(--font-family);
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn:active {
+        transform: translateY(0);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    /* Form Help Card */
+    .form-help-card {
+        height: fit-content;
+    }
+    
+    .help-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .help-item {
+        display: flex;
+        gap: 0.75rem;
+    }
+    
+    .help-item i {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+    
+    .help-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .help-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        line-height: 1.5;
+        margin: 0;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0 0.25rem;
+        }
+        
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .btn-group {
+            width: 100%;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .date-preview {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .input-group-text {
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        input[type="text"],
+        input[type="date"],
+        textarea,
+        select {
+            padding: 0.5rem;
+        }
+        
+        .help-item {
+            flex-direction: column;
+            gap: 0.5rem;
+            text-align: center;
+        }
+        
+        .help-item i {
+            align-self: center;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('academicYearForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const startDateInput = document.querySelector('input[name="start_date"]');
+    const endDateInput = document.querySelector('input[name="end_date"]');
+    const durationPreview = document.getElementById('durationPreview');
+    const nameInput = document.querySelector('input[name="name"]');
+    const descriptionTextarea = document.querySelector('textarea[name="description"]');
+    const charCount = document.getElementById('charCount');
+    
+    // Form submission handler
+    form.addEventListener('submit', function(e) {
+        // Validate form before submission
+        if (!validateForm()) {
+            e.preventDefault();
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ri-loader-4-line animate-spin me-2"></i>Processing...';
+    });
+    
+    // Calculate duration on date change
+    function calculateDuration() {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        
+        if (startDate && endDate && startDate < endDate) {
+            const diffTime = Math.abs(endDate - startDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            const diffMonths = Math.floor(diffDays / 30);
+            
+            let durationText = '';
+            if (diffMonths >= 12) {
+                const years = Math.floor(diffMonths / 12);
+                const months = diffMonths % 12;
+                durationText = `${years} year${years > 1 ? 's' : ''}`;
+                if (months > 0) {
+                    durationText += `, ${months} month${months > 1 ? 's' : ''}`;
+                }
+            } else {
+                durationText = `${diffMonths} month${diffMonths > 1 ? 's' : ''}`;
+            }
+            
+            durationPreview.textContent = durationText;
+            durationPreview.style.color = 'var(--color-success)';
+        } else {
+            durationPreview.textContent = 'Invalid date range';
+            durationPreview.style.color = 'var(--color-danger)';
+        }
+    }
+    
+    // Add event listeners for date inputs
+    if (startDateInput && endDateInput) {
+        startDateInput.addEventListener('change', calculateDuration);
+        endDateInput.addEventListener('change', calculateDuration);
+        
+        // Initial calculation if dates are pre-filled
+        if (startDateInput.value && endDateInput.value) {
+            calculateDuration();
+        }
+    }
+    
+    // Name input validation
+    if (nameInput) {
+        nameInput.addEventListener('input', function() {
+            const value = this.value.trim();
+            const pattern = /^\d{4}\/\d{4}$/; // YYYY/YYYY format
+            
+            if (pattern.test(value)) {
+                this.style.borderColor = 'var(--color-success)';
+                this.style.boxShadow = '0 0 0 3px rgba(76, 175, 80, 0.1)';
+            } else {
+                this.style.borderColor = 'var(--input-border)';
+                this.style.boxShadow = 'none';
+            }
+        });
+    }
+    
+    // Character counter for description
+    if (descriptionTextarea && charCount) {
+        descriptionTextarea.addEventListener('input', function() {
+            const length = this.value.length;
+            charCount.textContent = length;
+            
+            if (length > 500) {
+                charCount.style.color = 'var(--color-danger)';
+                this.style.borderColor = 'var(--color-danger)';
+            } else if (length > 450) {
+                charCount.style.color = 'var(--color-warning)';
+                this.style.borderColor = 'var(--color-warning)';
+            } else {
+                charCount.style.color = 'var(--color-gray-500)';
+                this.style.borderColor = 'var(--input-border)';
+            }
+        });
+        
+        // Initial count
+        charCount.textContent = descriptionTextarea.value.length;
+    }
+    
+    // Clear date button functionality
+    const clearButtons = document.querySelectorAll('.date-clear');
+    clearButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const targetInput = document.getElementById(targetId);
+            if (targetInput) {
+                targetInput.value = '';
+                targetInput.dispatchEvent(new Event('change'));
+                targetInput.focus();
+            }
+        });
+    });
+    
+    // Form validation
+    function validateForm() {
+        let isValid = true;
+        
+        // Check required fields
+        const requiredFields = form.querySelectorAll('[required]');
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                markFieldError(field, 'This field is required');
+                isValid = false;
+            } else {
+                clearFieldError(field);
+            }
+        });
+        
+        // Validate date range
+        if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            
+            if (endDate <= startDate) {
+                markFieldError(endDateInput, 'End date must be after start date');
+                isValid = false;
+            }
+        }
+        
+        // Validate year name format
+        if (nameInput && nameInput.value) {
+            const pattern = /^\d{4}\/\d{4}$/;
+            if (!pattern.test(nameInput.value.trim())) {
+                markFieldError(nameInput, 'Please use format: YYYY/YYYY (e.g., 2024/2025)');
+                isValid = false;
+            }
+        }
+        
+        return isValid;
+    }
+    
+    function markFieldError(field, message) {
+        field.style.borderColor = 'var(--color-danger)';
+        field.style.boxShadow = '0 0 0 3px rgba(244, 67, 54, 0.1)';
+        
+        // Remove existing error message
+        let errorDiv = field.parentNode.querySelector('.field-error');
+        if (!errorDiv) {
+            errorDiv = document.createElement('div');
+            errorDiv.className = 'field-error form-error';
+            field.parentNode.appendChild(errorDiv);
+        }
+        errorDiv.textContent = message;
+    }
+    
+    function clearFieldError(field) {
+        field.style.borderColor = 'var(--input-border)';
+        field.style.boxShadow = 'none';
+        
+        const errorDiv = field.parentNode.querySelector('.field-error');
+        if (errorDiv) {
+            errorDiv.remove();
+        }
+    }
+    
+    // Add focus styles to form inputs
+    const formInputs = form.querySelectorAll('input, textarea, select');
+    formInputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentNode.classList.add('focused');
+        });
+        
+        input.addEventListener('blur', function() {
+            this.parentNode.classList.remove('focused');
+        });
+    });
+});
+
+// Loading animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .focused .input-group-text {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+    
+    .field-error {
+        animation: shake 0.5s ease;
+    }
+    
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

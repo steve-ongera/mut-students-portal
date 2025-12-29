@@ -3,235 +3,263 @@
 
 {% block title %}Units Management{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Units Management{% endblock %}
 {% block page_subtitle %}Manage course units, prerequisites, and unit assignments{% endblock %}
 
+
 {% block content %}
-<div class="content-card">
-    <!-- Header with Actions -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h5 class="card-title mb-0">All Units</h5>
-            <p class="text-muted mb-0">{{ total_units }} unit(s) found</p>
-        </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                <i class="ri-filter-line me-1"></i> Filter
-            </button>
-            <a href="#" class="btn btn-sm btn-primary">
-                <i class="ri-add-line me-1"></i> Add Unit
-            </a>
-            <button class="btn btn-sm btn-success">
-                <i class="ri-download-line me-1"></i> Export
-            </button>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Units</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Course Units Management</h1>
+                <p class="text-muted mb-0">Manage course units, prerequisites, and unit assignments</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-file-list-line me-2"></i>
+                    {{ total_units }} unit(s)
+                </span>
+            </div>
         </div>
     </div>
 
-    <!-- Search Bar -->
-    <form method="get" class="mb-4">
-        <div class="input-group">
-            <input type="text" class="form-control" name="search" placeholder="Search by unit code or name..." value="{{ search_query }}">
-            <button class="btn btn-primary" type="submit">
-                <i class="ri-search-line"></i> Search
-            </button>
+    <!-- Management Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Course Units</h5>
+            <div class="card-subtitle">{{ total_units }} unit(s) found</div>
         </div>
-    </form>
-
-    <!-- Units Table -->
-    <div class="table-responsive">
-        <table class="table datatable" id="unitsTable">
-            <thead>
-                <tr>
-                    <th>Unit Code</th>
-                    <th>Unit Name</th>
-                    <th>Department</th>
-                    <th>Level</th>
-                    <th>Credit Hours</th>
-                    <th>Programmes</th>
-                    <th>Status</th>
-                    <th width="250">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for unit in units %}
-                <tr>
-                    <td>
-                        <strong class="text-primary">{{ unit.code }}</strong>
-                    </td>
-                    <td>
-                        <div>
-                            <p class="mb-0 fw-medium">{{ unit.name }}</p>
-                            {% if unit.prerequisites.exists %}
-                            <small class="text-muted">
-                                <i class="ri-links-line"></i> 
-                                Prerequisites: {{ unit.prerequisites.count }}
-                            </small>
-                            {% endif %}
-                        </div>
-                    </td>
-                    <td>
-                        <div>
-                            <p class="mb-0">{{ unit.department.code }}</p>
-                            <small class="text-muted">{{ unit.department.name }}</small>
-                        </div>
-                    </td>
-                    <td>
-                        <span class="badge bg-info rounded-pill">
-                            {{ unit.get_unit_level_display }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge bg-secondary rounded-pill">
-                            {{ unit.credit_hours }} CH
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge bg-primary rounded-pill">
-                            {{ unit.programme_count }}
-                        </span>
-                    </td>
-                    <td>
-                        {% if unit.is_active %}
-                        <span class="badge bg-success rounded-pill">Active</span>
-                        {% else %}
-                        <span class="badge bg-danger rounded-pill">Inactive</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <div class="d-flex gap-1">
-                            <a href="{% url 'unit_detail' unit.pk %}" 
-                               class="btn btn-sm btn-outline-primary" 
-                               title="View Details">
-                                <i class="ri-eye-line"></i>
-                            </a>
-                            
-                            <a href="#" 
-                               class="btn btn-sm btn-outline-warning" 
-                               title="Edit">
-                                <i class="ri-edit-line"></i>
-                            </a>
-                            
-                            <button type="button"
-                                    class="btn btn-sm btn-outline-info" 
-                                    title="Prerequisites"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#prerequisitesModal{{ unit.pk }}">
-                                <i class="ri-links-line"></i>
+        
+        <div class="card-body">
+            <!-- Search and Actions -->
+            <div class="management-actions mb-4">
+                <form method="get" class="mb-3">
+                    <div class="search-container">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="ri-search-line text-muted"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control border-start-0 ps-0" 
+                                   name="search" 
+                                   placeholder="Search by unit code or name..." 
+                                   value="{{ search_query }}">
+                            <button class="btn btn-primary px-4" type="submit">
+                                Search
                             </button>
-                            
-                            <form method="post" action="{% url 'unit_delete' unit.pk %}" 
-                                  style="display: inline;"
-                                  onsubmit="return confirm('Are you sure you want to delete {{ unit.code }}? This action cannot be undone.');">
-                                {% csrf_token %}
-                                <button type="submit" 
-                                        class="btn btn-sm btn-outline-danger" 
-                                        title="Delete">
-                                    <i class="ri-delete-bin-line"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                
-                <!-- Prerequisites Modal for each unit -->
-                <div class="modal fade" id="prerequisitesModal{{ unit.pk }}" tabindex="-1">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">{{ unit.code }} - Prerequisites</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <h6 class="text-primary">Prerequisites (Required Before)</h6>
-                                        {% if unit.prerequisites.exists %}
-                                        <ul class="list-group">
-                                            {% for prereq in unit.prerequisites.all %}
-                                            <li class="list-group-item">
-                                                <strong>{{ prereq.code }}</strong> - {{ prereq.name }}
-                                                <br><small class="text-muted">{{ prereq.credit_hours }} CH</small>
-                                            </li>
-                                            {% endfor %}
-                                        </ul>
-                                        {% else %}
-                                        <p class="text-muted">No prerequisites required</p>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h6 class="text-success">Required For (Unlocks)</h6>
-                                        {% if unit.required_for.exists %}
-                                        <ul class="list-group">
-                                            {% for req in unit.required_for.all %}
-                                            <li class="list-group-item">
-                                                <strong>{{ req.code }}</strong> - {{ req.name }}
-                                                <br><small class="text-muted">{{ req.credit_hours }} CH</small>
-                                            </li>
-                                            {% endfor %}
-                                        </ul>
-                                        {% else %}
-                                        <p class="text-muted">Not a prerequisite for any unit</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            </div>
                         </div>
                     </div>
+                </form>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#filterModal">
+                            <i class="ri-filter-line fs-5"></i>
+                            <span>Filter</span>
+                        </button>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <a href="#" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                            <i class="ri-add-line fs-5"></i>
+                            <span>Add Unit</span>
+                        </a>
+                        <button class="btn btn-sm btn-success d-flex align-items-center gap-1">
+                            <i class="ri-download-line fs-5"></i>
+                            <span>Export</span>
+                        </button>
+                    </div>
                 </div>
-                {% empty %}
-                <tr>
-                    <td colspan="8" class="text-center py-5">
-                        <div class="text-muted">
-                            <i class="ri-file-list-line display-4"></i>
-                            <p class="mt-3">No units found</p>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+            </div>
+            
+            <!-- Units Table -->
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="unitsTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Unit Code</th>
+                            <th>Unit Details</th>
+                            <th>Department</th>
+                            <th>Level</th>
+                            <th>Credits</th>
+                            <th>Programmes</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for unit in units %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="unit-code">
+                                    <strong>{{ unit.code }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="unit-info">
+                                    <h6 class="mb-1">{{ unit.name }}</h6>
+                                    {% if unit.prerequisites.exists %}
+                                    <small class="text-muted d-flex align-items-center gap-1">
+                                        <i class="ri-links-line"></i>
+                                        Prerequisites: {{ unit.prerequisites.count }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="department-info">
+                                    <div class="fw-medium">{{ unit.department.code }}</div>
+                                    <small class="text-muted">{{ unit.department.name|truncatechars:20 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">
+                                    {{ unit.get_unit_level_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-secondary">
+                                    {{ unit.credit_hours }} CH
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary-subtle text-primary">
+                                    {{ unit.programme_count }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if unit.is_active %}
+                                <span class="status-badge status-active">
+                                    Active
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-inactive">
+                                    Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons">
+                                    <a href="{% url 'unit_detail' unit.pk %}" 
+                                       class="btn btn-icon btn-outline-primary btn-sm" 
+                                       title="View Details"
+                                       data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    
+                                    <a href="#" 
+                                       class="btn btn-icon btn-outline-warning btn-sm" 
+                                       title="Edit"
+                                       data-bs-toggle="tooltip">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                    
+                                    <button type="button"
+                                            class="btn btn-icon btn-outline-info btn-sm" 
+                                            title="Prerequisites"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#prerequisitesModal{{ unit.pk }}"
+                                            data-bs-toggle="tooltip">
+                                        <i class="ri-links-line"></i>
+                                    </button>
+                                    
+                                    <form method="post" 
+                                          action="{% url 'unit_delete' unit.pk %}" 
+                                          class="d-inline"
+                                          onsubmit="return confirm('Are you sure you want to delete {{ unit.code }}? This action cannot be undone.');">
+                                        {% csrf_token %}
+                                        <button type="submit" 
+                                                class="btn btn-icon btn-outline-danger btn-sm" 
+                                                title="Delete"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-list-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted mb-2">No units found</h5>
+                                    <p class="text-muted mb-4">Get started by adding your first course unit</p>
+                                    <a href="#" class="btn btn-primary">
+                                        <i class="ri-add-line me-1"></i>
+                                        Add Unit
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <!-- Pagination -->
     {% if units.has_other_pages %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if units.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ units.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
-                    <i class="ri-arrow-left-line"></i>
-                </a>
-            </li>
-            {% endif %}
-            
-            {% for i in units.paginator.page_range %}
-                {% if units.number == i %}
-                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
-                {% else %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if units.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ i }}</a>
+                    <a class="page-link" 
+                       href="?page={{ units.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
                 </li>
                 {% endif %}
-            {% endfor %}
-            
-            {% if units.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ units.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
-                    <i class="ri-arrow-right-line"></i>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
+                
+                {% for i in units.paginator.page_range %}
+                    {% if units.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > units.number|add:'-3' and i < units.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if units.has_next %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ units.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if level_filter %}&level={{ level_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
     {% endif %}
 </div>
 
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="get">
                 <div class="modal-header">
@@ -244,7 +272,8 @@
                         <select name="department" class="form-select">
                             <option value="">All Departments</option>
                             {% for department in departments %}
-                            <option value="{{ department.id }}" {% if department_filter == department.id|stringformat:"i" %}selected{% endif %}>
+                            <option value="{{ department.id }}" 
+                                    {% if department_filter == department.id|stringformat:"i" %}selected{% endif %}>
                                 {{ department.code }} - {{ department.name }}
                             </option>
                             {% endfor %}
@@ -255,7 +284,8 @@
                         <select name="level" class="form-select">
                             <option value="">All Levels</option>
                             {% for level_code, level_name in unit_levels %}
-                            <option value="{{ level_code }}" {% if level_filter == level_code %}selected{% endif %}>
+                            <option value="{{ level_code }}" 
+                                    {% if level_filter == level_code %}selected{% endif %}>
                                 {{ level_name }}
                             </option>
                             {% endfor %}
@@ -279,47 +309,639 @@
     </div>
 </div>
 
+<!-- Prerequisites Modals (Dynamically generated for each unit) -->
+{% for unit in units %}
+<div class="modal fade" id="prerequisitesModal{{ unit.pk }}" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ unit.code }} - {{ unit.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="prerequisites-container">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="prerequisites-section">
+                                <div class="section-header">
+                                    <i class="ri-links-line text-primary"></i>
+                                    <h6 class="mb-0">Prerequisites (Required Before)</h6>
+                                </div>
+                                {% if unit.prerequisites.exists %}
+                                <div class="prerequisites-list">
+                                    {% for prereq in unit.prerequisites.all %}
+                                    <div class="prerequisite-item">
+                                        <div class="prerequisite-header">
+                                            <strong>{{ prereq.code }}</strong>
+                                            <span class="badge bg-secondary-subtle text-secondary">
+                                                {{ prereq.credit_hours }} CH
+                                            </span>
+                                        </div>
+                                        <div class="prerequisite-name">{{ prereq.name }}</div>
+                                        <div class="prerequisite-department">
+                                            <small class="text-muted">{{ prereq.department.code }}</small>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="empty-state-small">
+                                    <i class="ri-check-line text-muted"></i>
+                                    <span class="text-muted">No prerequisites required</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="prerequisites-section">
+                                <div class="section-header">
+                                    <i class="ri-arrow-right-line text-success"></i>
+                                    <h6 class="mb-0">Required For (Unlocks)</h6>
+                                </div>
+                                {% if unit.required_for.exists %}
+                                <div class="prerequisites-list">
+                                    {% for req in unit.required_for.all %}
+                                    <div class="prerequisite-item">
+                                        <div class="prerequisite-header">
+                                            <strong>{{ req.code }}</strong>
+                                            <span class="badge bg-secondary-subtle text-secondary">
+                                                {{ req.credit_hours }} CH
+                                            </span>
+                                        </div>
+                                        <div class="prerequisite-name">{{ req.name }}</div>
+                                        <div class="prerequisite-department">
+                                            <small class="text-muted">{{ req.department.code }}</small>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="empty-state-small">
+                                    <i class="ri-information-line text-muted"></i>
+                                    <span class="text-muted">Not a prerequisite for any unit</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary">
+                    <i class="ri-edit-line me-1"></i>
+                    Edit Prerequisites
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
 <style>
-    .btn-sm {
-        padding: 0.25rem 0.5rem;
-        font-size: 0.875rem;
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
     
-    .btn-sm i {
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Management Actions */
+    .management-actions .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+    }
+    
+    .management-actions .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 0.875rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 0.875rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Unit Information */
+    .unit-code strong {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .unit-info h6 {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+        line-height: 1.2;
+    }
+    
+    .department-info .fw-medium {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-inactive {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 0.375rem;
+    }
+    
+    .btn-icon {
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-1px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    /* Pagination */
+    .pagination-container {
+        padding: 1rem 0;
+    }
+    
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 1.25rem;
+    }
+    
+    .modal-body {
+        padding: 1.25rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1rem 1.25rem;
+    }
+    
+    /* Prerequisites Container */
+    .prerequisites-container {
+        padding: 0.5rem;
+    }
+    
+    .prerequisites-section {
+        height: 100%;
+    }
+    
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .section-header h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+    
+    .section-header i {
         font-size: 1rem;
     }
     
-    .btn-sm:hover {
-        transform: translateY(-2px);
-        transition: transform 0.2s ease;
+    .prerequisites-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        max-height: 300px;
+        overflow-y: auto;
+        padding-right: 0.5rem;
     }
     
-    .table td {
-        vertical-align: middle;
+    .prerequisite-item {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        padding: 0.75rem;
+        transition: all 0.2s ease;
     }
     
+    .prerequisite-item:hover {
+        background: white;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .prerequisite-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.25rem;
+    }
+    
+    .prerequisite-header strong {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .prerequisite-name {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+        line-height: 1.2;
+    }
+    
+    .prerequisite-department {
+        font-size: 0.75rem;
+    }
+    
+    .empty-state-small {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state-small i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Form Controls */
+    .form-control,
+    .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
+    }
+    
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-primary:hover {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1); }
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    .text-primary { color: var(--color-primary); }
+    
+    /* Badge Styles */
     .badge {
         font-weight: 500;
-        padding: 0.35em 0.65em;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .prerequisites-list {
+            max-height: 200px;
+        }
+        
+        .action-buttons {
+            flex-wrap: wrap;
+        }
+        
+        .table {
+            font-size: 0.875rem;
+        }
+        
+        .modal-dialog {
+            margin: 0.5rem;
+        }
     }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize DataTable
-    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#unitsTable')) {
-        $('#unitsTable').DataTable({
-            ordering: true,
-            searching: false,
-            paging: false,
-            info: false,
-            responsive: true,
-            autoWidth: false,
-            columnDefs: [
-                { orderable: false, targets: [7] }
-            ]
-        });
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize DataTable if available
+    if (typeof $.fn.DataTable !== 'undefined') {
+        if (!$.fn.DataTable.isDataTable('#unitsTable')) {
+            $('#unitsTable').DataTable({
+                ordering: true,
+                searching: false,
+                paging: false,
+                info: false,
+                responsive: true,
+                autoWidth: false,
+                columnDefs: [
+                    { orderable: false, targets: [7] }
+                ],
+                language: {
+                    emptyTable: "No units found"
+                }
+            });
+        }
     }
+    
+    // Handle delete confirmation with custom alert
+    document.querySelectorAll('form[onsubmit*="confirm"]').forEach(form => {
+        const originalOnsubmit = form.onsubmit;
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            
+            // Extract unit code from the confirmation message
+            const messageMatch = originalOnsubmit.toString().match(/confirm\('([^']+)'/);
+            const confirmMessage = messageMatch ? messageMatch[1] : 'Are you sure you want to delete this unit?';
+            
+            // Create custom confirmation modal
+            const modalHtml = `
+                <div class="modal fade" id="deleteConfirmationModal" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header border-bottom-0">
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body text-center py-4">
+                                <div class="mb-3">
+                                    <div class="icon-container bg-danger-subtle rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                                        <i class="ri-delete-bin-line fs-3 text-danger"></i>
+                                    </div>
+                                </div>
+                                <h5 class="modal-title mb-3">Confirm Deletion</h5>
+                                <p class="text-muted mb-0">${confirmMessage}</p>
+                            </div>
+                            <div class="modal-footer border-top-0 justify-content-center">
+                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete Unit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to document
+            const modalContainer = document.createElement('div');
+            modalContainer.innerHTML = modalHtml;
+            document.body.appendChild(modalContainer);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('deleteConfirmationModal'));
+            modal.show();
+            
+            // Handle delete confirmation
+            document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+                // Submit the form
+                form.submit();
+                modal.hide();
+            });
+            
+            // Remove modal from DOM when hidden
+            document.getElementById('deleteConfirmationModal').addEventListener('hidden.bs.modal', function() {
+                modalContainer.remove();
+            });
+        };
+    });
 });
 </script>
 {% endblock %}

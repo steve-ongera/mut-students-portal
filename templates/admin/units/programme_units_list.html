@@ -3,166 +3,617 @@
 
 {% block title %}Programme Units Management{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Programme Units Management{% endblock %}
 {% block page_subtitle %}Select a programme to manage its unit structure{% endblock %}
 
-{% block extra_css %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Programme Units</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Programme Units Management</h1>
+                <p class="text-muted mb-0">Select a programme to manage its unit structure and curriculum</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-book-line me-2"></i>
+                    {{ programmes.count }} programme(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Programmes</h5>
+            <div class="card-subtitle">{{ programmes.count }} programme(s) found</div>
+        </div>
+        
+        <div class="card-body">
+            <!-- Search and Filters -->
+            <div class="management-actions mb-4">
+                <form method="get" class="mb-3">
+                    <div class="search-container">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="ri-search-line text-muted"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control border-start-0 ps-0" 
+                                   name="search" 
+                                   placeholder="Search programmes by name or code..." 
+                                   value="{{ search_query }}">
+                            <button class="btn btn-primary px-4" type="submit">
+                                Search
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 dropdown-toggle" 
+                                    type="button" 
+                                    data-bs-toggle="dropdown">
+                                <i class="ri-filter-line fs-5"></i>
+                                <span>Filter</span>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="?">All Programmes</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><h6 class="dropdown-header">By School</h6></li>
+                                <!-- Add school filters here dynamically -->
+                                <li><a class="dropdown-item" href="?school=all">All Schools</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Programmes Grid -->
+            <div class="programmes-grid">
+                {% for programme in programmes %}
+                <div class="programme-card" onclick="window.location.href='{% url 'programme_units_structure' programme.id %}'">
+                    <div class="programme-header">
+                        <span class="programme-code">{{ programme.code }}</span>
+                        <div class="programme-badges">
+                            <span class="badge bg-primary-subtle text-primary">
+                                {{ programme.get_programme_type_display }}
+                            </span>
+                            <span class="badge bg-secondary-subtle text-secondary">
+                                {{ programme.get_study_mode_display }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="programme-body">
+                        <h6 class="programme-name">{{ programme.name }}</h6>
+                        <div class="programme-details">
+                            <div class="detail-item">
+                                <i class="ri-building-line"></i>
+                                <span>{{ programme.department.school.name }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="ri-folder-line"></i>
+                                <span>{{ programme.department.name }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="programme-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">{{ programme.duration_years }}</div>
+                            <div class="stat-label">Years</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{{ programme.total_semesters }}</div>
+                            <div class="stat-label">Semesters</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{{ programme.unit_count|default:"0" }}</div>
+                            <div class="stat-label">Units</div>
+                        </div>
+                    </div>
+                    
+                    <div class="programme-footer">
+                        <button class="btn btn-sm btn-primary">
+                            <i class="ri-settings-4-line me-1"></i>
+                            Manage Units
+                        </button>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <div class="text-center py-5">
+                        <i class="ri-book-line display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted mb-2">No programmes found</h5>
+                        <p class="text-muted mb-4">No programmes match your search criteria</p>
+                        <a href="?" class="btn btn-outline-primary">
+                            <i class="ri-refresh-line me-1"></i>
+                            Clear Search
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if programmes.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if programmes.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ programmes.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in programmes.paginator.page_range %}
+                    {% if programmes.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > programmes.number|add:'-3' and i < programmes.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if programmes.has_next %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ programmes.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
 <style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Management Actions */
+    .management-actions .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+    }
+    
+    .management-actions .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .dropdown-menu {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .dropdown-item {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    .dropdown-item:hover {
+        background: var(--color-gray-100);
+    }
+    
+    .dropdown-divider {
+        margin: 0.5rem 0;
+        border-color: var(--color-gray-200);
+    }
+    
+    .dropdown-header {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Programmes Grid */
+    .programmes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.25rem;
+    }
+    
+    /* Programme Card */
     .programme-card {
-        border: 2px solid #e9ecef;
-        border-radius: 12px;
-        padding: 1.5rem;
-        transition: all 0.3s;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
         cursor: pointer;
+        display: flex;
+        flex-direction: column;
         height: 100%;
     }
     
     .programme-card:hover {
-        border-color: #667eea;
-        transform: translateY(-5px);
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.2);
+        border-color: var(--color-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
     }
     
-    .programme-code {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        display: inline-block;
-        font-weight: bold;
+    .programme-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
         margin-bottom: 1rem;
     }
     
+    .programme-code {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .programme-badges {
+        display: flex;
+        gap: 0.375rem;
+    }
+    
+    .programme-body {
+        flex: 1;
+        margin-bottom: 1rem;
+    }
+    
+    .programme-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.75rem;
+        line-height: 1.3;
+    }
+    
+    .programme-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .detail-item i {
+        font-size: 0.875rem;
+        color: var(--color-gray-500);
+    }
+    
+    /* Programme Stats */
     .programme-stats {
         display: flex;
-        gap: 1rem;
-        margin-top: 1rem;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
     }
     
     .stat-item {
         flex: 1;
         text-align: center;
-        padding: 0.5rem;
-        background: #f8f9fa;
-        border-radius: 8px;
     }
     
     .stat-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #667eea;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        line-height: 1;
+        margin-bottom: 0.25rem;
     }
     
     .stat-label {
-        font-size: 0.85rem;
-        color: #6c757d;
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Programme Footer */
+    .programme-footer {
+        margin-top: auto;
+    }
+    
+    .programme-footer .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        grid-column: 1 / -1;
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    /* Pagination */
+    .pagination-container {
+        padding: 1rem 0;
+    }
+    
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-primary:hover {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    /* Badge Styles */
+    .badge {
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-secondary { color: var(--color-gray-600); }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .programmes-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .programme-stats {
+            gap: 0.5rem;
+        }
+        
+        .management-actions .d-flex {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .dropdown {
+            width: 100%;
+        }
+        
+        .management-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
     }
 </style>
-{% endblock %}
 
-{% block content %}
-<div class="content-card">
-    <!-- Search and Filters -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <form method="get" class="mb-0">
-                <div class="input-group">
-                    <input type="text" class="form-control" name="search" placeholder="Search programmes..." value="{{ search_query }}">
-                    <button class="btn btn-primary" type="submit">
-                        <i class="ri-search-line"></i>
-                    </button>
-                </div>
-            </form>
-        </div>
-        <div class="col-md-6 text-end">
-            <div class="btn-group">
-                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="ri-filter-line me-1"></i> Filter
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="?">All Programmes</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><h6 class="dropdown-header">By School</h6></li>
-                    <!-- Add school filters dynamically -->
-                </ul>
-            </div>
-        </div>
-    </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add click event to all programme cards
+    const programmeCards = document.querySelectorAll('.programme-card');
     
-    <!-- Programmes Grid -->
-    <div class="row">
-        {% for programme in programmes %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="programme-card" onclick="window.location.href='{% url 'programme_units_structure' programme.id %}'">
-                <div class="programme-code">{{ programme.code }}</div>
-                <h5 class="mb-2">{{ programme.name }}</h5>
-                <p class="text-muted small mb-0">
-                    <i class="ri-building-line me-1"></i>{{ programme.department.school.name }}
-                </p>
-                <p class="text-muted small">
-                    <i class="ri-folder-line me-1"></i>{{ programme.department.name }}
-                </p>
-                
-                <div class="programme-stats">
-                    <div class="stat-item">
-                        <div class="stat-value">{{ programme.duration_years }}</div>
-                        <div class="stat-label">Years</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">{{ programme.total_semesters }}</div>
-                        <div class="stat-label">Semesters</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value">{{ programme.unit_count }}</div>
-                        <div class="stat-label">Units</div>
-                    </div>
-                </div>
-                
-                <div class="mt-3">
-                    <span class="badge bg-primary">{{ programme.get_programme_type_display }}</span>
-                    <span class="badge bg-secondary">{{ programme.get_study_mode_display }}</span>
-                </div>
-            </div>
-        </div>
-        {% empty %}
-        <div class="col-12 text-center py-5">
-            <i class="ri-book-line display-1 text-muted"></i>
-            <p class="mt-3 text-muted">No programmes found</p>
-        </div>
-        {% endfor %}
-    </div>
+    programmeCards.forEach(card => {
+        // Remove the default onclick and add proper event listener
+        card.addEventListener('click', function(e) {
+            // Don't navigate if user clicked on a button inside the card
+            if (!e.target.closest('.btn')) {
+                const url = this.getAttribute('onclick')?.match(/href='([^']+)'/)?.[1];
+                if (url) {
+                    window.location.href = url;
+                }
+            }
+        });
+    });
     
-    <!-- Pagination -->
-    {% if programmes.has_other_pages %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if programmes.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ programmes.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
-                    <i class="ri-arrow-left-line"></i>
-                </a>
-            </li>
-            {% endif %}
-            
-            {% for i in programmes.paginator.page_range %}
-                {% if programmes.number == i %}
-                <li class="page-item active"><span class="page-link">{{ i }}</span></li>
-                {% else %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
-                </li>
-                {% endif %}
-            {% endfor %}
-            
-            {% if programmes.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ programmes.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
-                    <i class="ri-arrow-right-line"></i>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
-</div>
+    // Add keyboard navigation support
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && document.activeElement.classList.contains('programme-card')) {
+            document.activeElement.click();
+        }
+    });
+});
+</script>
 {% endblock %}

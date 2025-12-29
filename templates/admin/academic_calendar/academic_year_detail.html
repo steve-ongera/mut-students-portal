@@ -1,7 +1,3 @@
-
-<!-- ===================== ACADEMIC YEAR DETAIL TEMPLATE ===================== -->
-<!-- File: templates/admin/academic_calendar/academic_year_detail.html -->
-
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
@@ -11,346 +7,1261 @@
 {% block page_subtitle %}View and manage academic year details{% endblock %}
 
 {% block content %}
-<!-- Quick Stats Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="content-card">
-            <div class="d-flex align-items-center">
-                <div class="flex-shrink-0">
-                    <div class="avatar-icon bg-primary bg-opacity-10 text-primary rounded-circle p-3">
-                        <i class="ri-group-line fs-4"></i>
-                    </div>
-                </div>
-                <div class="flex-grow-1 ms-3">
-                    <h6 class="mb-0 text-muted">Total Students</h6>
-                    <h3 class="mb-0">{{ total_students }}</h3>
-                </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'academic_year_list' %}">Academic Years</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ academic_year.name }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Quick Stats -->
+    <div class="stats-grid mb-4">
+        <div class="stat-card stat-card-primary">
+            <div class="stat-icon">
+                <i class="ri-group-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ total_students }}</div>
+                <div class="stat-label">Total Students</div>
             </div>
         </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="content-card">
-            <div class="d-flex align-items-center">
-                <div class="flex-shrink-0">
-                    <div class="avatar-icon bg-success bg-opacity-10 text-success rounded-circle p-3">
-                        <i class="ri-book-open-line fs-4"></i>
-                    </div>
-                </div>
-                <div class="flex-grow-1 ms-3">
-                    <h6 class="mb-0 text-muted">Programmes</h6>
-                    <h3 class="mb-0">{{ programmes.count }}</h3>
-                </div>
+        
+        <div class="stat-card stat-card-success">
+            <div class="stat-icon">
+                <i class="ri-book-open-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ programmes.count }}</div>
+                <div class="stat-label">Programmes</div>
             </div>
         </div>
-    </div>
-    
-    <div class="col-md-4">
-        <div class="content-card">
-            <div class="d-flex align-items-center">
-                <div class="flex-shrink-0">
-                    <div class="avatar-icon bg-warning bg-opacity-10 text-warning rounded-circle p-3">
-                        <i class="ri-time-line fs-4"></i>
-                    </div>
-                </div>
-                <div class="flex-grow-1 ms-3">
-                    <h6 class="mb-0 text-muted">Application</h6>
+        
+        <div class="stat-card stat-card-info">
+            <div class="stat-icon">
+                <i class="ri-calendar-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ academic_year.start_date|date:"M Y" }}</div>
+                <div class="stat-label">Start Date</div>
+            </div>
+        </div>
+        
+        <div class="stat-card stat-card-{% if application_open %}success{% else %}warning{% endif %}">
+            <div class="stat-icon">
+                <i class="ri-time-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">
                     {% if application_open %}
-                    <h5 class="mb-0 text-success">Open</h5>
+                    Open
                     {% else %}
-                    <h5 class="mb-0 text-danger">Closed</h5>
+                    Closed
                     {% endif %}
                 </div>
+                <div class="stat-label">Applications</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="content-grid">
+        <!-- Left Column - Academic Year Details -->
+        <div class="content-column">
+            <!-- Academic Year Information -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-information-line me-2"></i>
+                        Academic Year Information
+                    </h5>
+                    <div class="card-actions">
+                        <a href="{% url 'update_academic_year' academic_year.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="ri-edit-line me-1"></i>
+                            Edit
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <div class="details-grid">
+                        <div class="detail-section">
+                            <h6 class="section-title mb-3">Basic Information</h6>
+                            <div class="detail-row">
+                                <span class="detail-label">Year Name</span>
+                                <span class="detail-value">{{ academic_year.name }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Year Code</span>
+                                <span class="detail-value badge bg-primary">{{ academic_year.code }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Status</span>
+                                <span class="status-badge status-{% if academic_year.is_active %}active{% else %}inactive{% endif %}">
+                                    {% if academic_year.is_active %}
+                                    Active
+                                    {% else %}
+                                    Inactive
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="detail-section">
+                            <h6 class="section-title mb-3">Academic Period</h6>
+                            <div class="detail-row">
+                                <span class="detail-label">Start Date</span>
+                                <span class="detail-value">
+                                    <i class="ri-calendar-check-line me-1"></i>
+                                    {{ academic_year.start_date|date:"F d, Y" }}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">End Date</span>
+                                <span class="detail-value">
+                                    <i class="ri-calendar-check-line me-1"></i>
+                                    {{ academic_year.end_date|date:"F d, Y" }}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Duration</span>
+                                <span class="detail-value">{{ academic_year.duration_days }} days</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timeline -->
+                    <div class="timeline-section mt-4">
+                        <h6 class="section-title mb-3">Academic Timeline</h6>
+                        <div class="timeline">
+                            <div class="timeline-item timeline-current">
+                                <div class="timeline-marker">
+                                    <i class="ri-play-circle-line"></i>
+                                </div>
+                                <div class="timeline-content">
+                                    <h6>Academic Year Start</h6>
+                                    <p>{{ academic_year.start_date|date:"M d, Y" }}</p>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker">
+                                    <i class="ri-calendar-line"></i>
+                                </div>
+                                <div class="timeline-content">
+                                    <h6>Mid-Year Break</h6>
+                                    <p>August - September</p>
+                                </div>
+                            </div>
+                            <div class="timeline-item">
+                                <div class="timeline-marker">
+                                    <i class="ri-checkbox-circle-line"></i>
+                                </div>
+                                <div class="timeline-content">
+                                    <h6>Academic Year End</h6>
+                                    <p>{{ academic_year.end_date|date:"M d, Y" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Associated Intakes -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-group-line me-2"></i>
+                        Associated Intakes
+                    </h5>
+                    <div class="card-subtitle">{{ intakes.count }} intake(s)</div>
+                </div>
+                
+                <div class="card-body">
+                    {% if intakes %}
+                    <div class="intakes-list">
+                        {% for intake in intakes %}
+                        <div class="intake-item">
+                            <div class="intake-header">
+                                <div class="intake-name">{{ intake.name }}</div>
+                                <div class="intake-status">
+                                    <span class="status-badge status-{% if intake.is_active %}active{% else %}inactive{% endif %}">
+                                        {% if intake.is_active %}
+                                        Active
+                                        {% else %}
+                                        Inactive
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="intake-details">
+                                <div class="intake-info">
+                                    <span class="intake-label">Intake Number</span>
+                                    <span class="intake-value">{{ intake.intake_number }}</span>
+                                </div>
+                                <div class="intake-info">
+                                    <span class="intake-label">Start Date</span>
+                                    <span class="intake-value">{{ intake.start_date|date:"M d, Y" }}</span>
+                                </div>
+                                <div class="intake-info">
+                                    <span class="intake-label">Application Deadline</span>
+                                    <span class="intake-value">{{ intake.application_deadline|date:"M d, Y" }}</span>
+                                </div>
+                            </div>
+                            <div class="intake-actions">
+                                <a href="{% url 'intake_detail' intake.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line me-1"></i>
+                                    View
+                                </a>
+                                <a href="{% url 'update_intake' intake.pk %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="ri-edit-line me-1"></i>
+                                    Edit
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="ri-group-line"></i>
+                        <h5>No Intakes Found</h5>
+                        <p>No intakes are associated with this academic year</p>
+                        <a href="#" class="btn btn-primary">
+                            <i class="ri-add-line me-1"></i>
+                            Create Intake
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Statistics & Students -->
+        <div class="content-column">
+            <!-- Programme Distribution -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-bar-chart-line me-2"></i>
+                        Programme Distribution
+                    </h5>
+                    <div class="card-subtitle">Students by programme</div>
+                </div>
+                
+                <div class="card-body">
+                    {% if programmes %}
+                    <div class="programme-stats">
+                        {% for programme in programmes %}
+                        <div class="programme-item">
+                            <div class="programme-header">
+                                <div class="programme-code">{{ programme.programme__code }}</div>
+                                <div class="programme-count">{{ programme.count }} students</div>
+                            </div>
+                            <div class="programme-name">{{ programme.programme__name }}</div>
+                            <div class="programme-progress">
+                                <div class="progress-info">
+                                    <span>Distribution</span>
+                                    <span>{% widthratio programme.count total_students 100 %}%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill" 
+                                         style="width: {% widthratio programme.count total_students 100 %}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="ri-bar-chart-line"></i>
+                        <h5>No Programme Data</h5>
+                        <p>No programme distribution data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Students -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-user-line me-2"></i>
+                        Students ({{ total_students }})
+                    </h5>
+                    <div class="card-actions">
+                        <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    {% if students %}
+                    <div class="students-list">
+                        {% for student in students|slice:":10" %}
+                        <div class="student-item">
+                            <div class="student-avatar">
+                                <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                     alt="{{ student.user.get_full_name }}" class="avatar-sm">
+                            </div>
+                            <div class="student-info">
+                                <div class="student-name">{{ student.user.get_full_name }}</div>
+                                <div class="student-meta">
+                                    <span class="student-id">{{ student.registration_number }}</span>
+                                    <span class="student-programme">{{ student.programme.code }}</span>
+                                    <span class="student-year">Year {{ student.current_year }}</span>
+                                </div>
+                            </div>
+                            <div class="student-status">
+                                <span class="status-badge status-{{ student.student_status }}">
+                                    {{ student.get_student_status_display }}
+                                </span>
+                            </div>
+                            <div class="student-actions">
+                                <a href="{% url 'student_detail' student.registration_number %}" 
+                                   class="btn btn-sm btn-outline-primary" 
+                                   title="View Details">
+                                    <i class="ri-eye-line"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if total_students > 10 %}
+                    <div class="text-center mt-3">
+                        <a href="#" class="btn btn-outline-primary">
+                            <i class="ri-arrow-down-line me-1"></i>
+                            Show More Students
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="ri-user-line"></i>
+                        <h5>No Students</h5>
+                        <p>No students enrolled in this academic year</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons mt-4">
+        <div class="d-flex justify-content-between">
+            <div>
+                <a href="{% url 'academic_year_list' %}" class="btn btn-outline-secondary">
+                    <i class="ri-arrow-left-line me-2"></i>
+                    Back to List
+                </a>
+            </div>
+            <div class="btn-group">
+                <a href="#" class="btn btn-primary">
+                    <i class="ri-add-line me-2"></i>
+                    Create Intake
+                </a>
+                <a href="{% url 'update_academic_year' academic_year.pk %}" class="btn btn-outline-primary">
+                    <i class="ri-edit-line me-2"></i>
+                    Edit Year
+                </a>
+                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="ri-delete-bin-line me-2"></i>
+                    Delete
+                </button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Intake Details -->
-<div class="row">
-    <div class="col-lg-4">
-        <div class="content-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="card-title mb-0">
-                    <i class="ri-information-line me-2"></i>
-                    Intake Details
-                </h5>
-                {% for intake in intakes %}
-                <a href="{% url 'update_intake' intake.pk %}" class="btn btn-sm btn-outline-primary">
-                    <i class="ri-edit-line me-1"></i> Edit
-                </a>
-                {% endfor %}
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Intake Name</label>
-                <h5 class="text-primary mb-0">{{ intake.name }}</h5>
-            </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Intake Number</label>
-                <p class="mb-0">
-                    <span class="badge bg-info rounded-pill">{{ intake.intake_number }}</span>
-                </p>
-            </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Academic Year</label>
-                <p class="mb-0 fw-medium">
-                    {% for acdemic_year in academic_years %}
-                    <a href="{% url 'academic_year_detail' intake.academic_year.pk %}" class="text-decoration-none">
-                        {{ intake.academic_year.name }}
-                    </a>
-                    {% endfor %}
-                </p>
-            </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Intake Month</label>
-                <p class="mb-0">
-                    <span class="badge bg-secondary rounded-pill">
-                        <i class="ri-calendar-line me-1"></i>
-                        {{ intake.get_month_display }}
-                    </span>
-                </p>
-            </div>
-            
-            <hr>
-            
-            <h6 class="text-primary mb-3">Important Dates</h6>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Intake Start Date</label>
-                <p class="mb-0 fw-medium">
-                    <i class="ri-calendar-check-line me-1"></i>
-                    {{ intake.start_date|date:"F d, Y" }}
-                </p>
-            </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Application Deadline</label>
-                <p class="mb-0 fw-medium">
-                    <i class="ri-time-line me-1"></i>
-                    {{ intake.application_deadline|date:"F d, Y" }}
-                </p>
-            </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Application Status</label>
-                <div>
-                    {% if application_open %}
-                    <span class="badge bg-success">
-                        <i class="ri-checkbox-circle-fill me-1"></i>Open for Applications
-                    </span>
-                    {% else %}
-                    <span class="badge bg-danger">
-                        <i class="ri-close-circle-fill me-1"></i>Applications Closed
-                    </span>
-                    {% endif %}
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone.
                 </div>
+                <p>Are you sure you want to delete the academic year <strong>"{{ academic_year.name }}"</strong>?</p>
+                <p class="text-muted small mb-0">
+                    This will also delete all associated intakes, semesters, and academic records.
+                </p>
             </div>
-            
-            <hr>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Status</label>
-                <div>
-                    {% if intake.is_active %}
-                    <span class="badge bg-success">Active</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Inactive</span>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <hr>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Created</label>
-                <p class="mb-0 small">{{ intake.created_at|date:"F d, Y g:i A" }}</p>
-            </div>
-            
-            <div class="mb-3">
-                <label class="text-muted small mb-1">Last Updated</label>
-                <p class="mb-0 small">{{ intake.updated_at|date:"F d, Y g:i A" }}</p>
-            </div>
-            
-            <hr>
-            
-            <div class="d-grid gap-2">
-                <a href="{% url 'intake_list' %}" class="btn btn-outline-secondary">
-                    <i class="ri-arrow-left-line me-1"></i> Back to List
-                </a>
-                
-                <form action="#" method="post">
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{% url 'delete_academic_year' academic_year.pk %}" method="post" class="d-inline">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-danger w-100" 
-                            onclick="return confirm('Are you sure you want to delete {{ intake.name }}?')">
-                        <i class="ri-delete-bin-line me-1"></i> Delete
+                    <button type="submit" class="btn btn-danger">
+                        <i class="ri-delete-bin-line me-2"></i>
+                        Delete Academic Year
                     </button>
                 </form>
             </div>
         </div>
     </div>
-    
-    <div class="col-lg-8">
-        <!-- Programme Distribution -->
-        <div class="content-card mb-4">
-            <h5 class="card-title mb-3">
-                <i class="ri-bar-chart-line me-2"></i>
-                Students by Programme
-            </h5>
-            
-            {% if programmes %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Programme Code</th>
-                            <th>Programme Name</th>
-                            <th>Number of Students</th>
-                            <th>Percentage</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for programme in programmes %}
-                        <tr>
-                            <td>
-                                <span class="badge bg-info rounded-pill">{{ programme.programme__code }}</span>
-                            </td>
-                            <td>{{ programme.programme__name }}</td>
-                            <td>
-                                <strong>{{ programme.count }}</strong>
-                            </td>
-                            <td>
-                                {% widthratio programme.count total_students 100 as percentage %}
-                                <div class="progress" style="height: 20px;">
-                                    <div class="progress-bar bg-primary" role="progressbar" 
-                                         style="width: {{ percentage }}%;" 
-                                         aria-valuenow="{{ percentage }}" 
-                                         aria-valuemin="0" 
-                                         aria-valuemax="100">
-                                        {{ percentage }}%
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-5 text-muted">
-                <i class="ri-bar-chart-line display-4"></i>
-                <p class="mt-3">No programme data available</p>
-            </div>
-            {% endif %}
-        </div>
-        
-        <!-- Students List -->
-        <div class="content-card">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h5 class="card-title mb-0">
-                    <i class="ri-user-line me-2"></i>
-                    Students ({{ total_students }})
-                </h5>
-            </div>
-            
-            {% if students %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Registration No.</th>
-                            <th>Full Name</th>
-                            <th>Programme</th>
-                            <th>Year</th>
-                            <th>Status</th>
-                            <th width="100">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for student in students %}
-                        <tr>
-                            <td>
-                                <strong class="text-primary">{{ student.registration_number }}</strong>
-                            </td>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-xs me-2">
-                                        <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
-                                             alt="{{ student.user.get_full_name }}" class="rounded-circle">
-                                    </div>
-                                    <div>
-                                        <p class="mb-0">{{ student.user.get_full_name }}</p>
-                                        <small class="text-muted">{{ student.user.email }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-info rounded-pill">{{ student.programme.code }}</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-secondary rounded-pill">Year {{ student.current_year }}</span>
-                            </td>
-                            <td>
-                                {% if student.student_status == 'active' %}
-                                <span class="badge bg-success rounded-pill">Active</span>
-                                {% elif student.student_status == 'suspended' %}
-                                <span class="badge bg-danger rounded-pill">Suspended</span>
-                                {% elif student.student_status == 'deferred' %}
-                                <span class="badge bg-warning rounded-pill">Deferred</span>
-                                {% elif student.student_status == 'graduated' %}
-                                <span class="badge bg-primary rounded-pill">Graduated</span>
-                                {% else %}
-                                <span class="badge bg-secondary rounded-pill">{{ student.get_student_status_display }}</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'student_detail' student.registration_number %}" 
-                                   class="btn btn-sm btn-outline-primary" 
-                                   title="View">
-                                    <i class="ri-eye-line"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% if total_students > 20 %}
-            <div class="text-center mt-3">
-                <a href="#" class="btn btn-sm btn-outline-primary">View All Students</a>
-            </div>
-            {% endif %}
-            {% else %}
-            <div class="text-center py-5 text-muted">
-                <i class="ri-user-line display-4"></i>
-                <p class="mt-3">No students in this intake yet</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
 </div>
 
 <style>
-    .avatar-icon {
-        width: 56px;
-        height: 56px;
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    /* Stat Card */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+    }
+    
+    .stat-card-primary::before { background-color: var(--color-primary); }
+    .stat-card-success::before { background-color: var(--color-success); }
+    .stat-card-warning::before { background-color: var(--color-warning); }
+    .stat-card-info::before { background-color: var(--color-info); }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
     }
     
-    .avatar-xs {
-        width: 32px;
-        height: 32px;
+    .stat-card-primary .stat-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
     }
     
-    .avatar-xs img {
-        width: 100%;
+    .stat-card-success .stat-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .stat-card-warning .stat-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .stat-card-info .stat-icon {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .stat-content {
+        flex: 1;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Content Grid */
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+    
+    .content-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Details Grid */
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+    }
+    
+    .detail-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+    
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+    
+    .detail-value {
+        font-weight: 500;
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    /* Status Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+    
+    .status-inactive {
+        background: rgba(158, 158, 158, 0.1);
+        color: var(--color-gray-600);
+        border: 1px solid rgba(158, 158, 158, 0.2);
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+        border: 1px solid rgba(255, 152, 0, 0.2);
+    }
+    
+    /* Timeline */
+    .timeline-section {
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.875rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--color-gray-200);
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -2rem;
+        top: 0;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        z-index: 1;
+    }
+    
+    .timeline-current .timeline-marker {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .timeline-content {
+        padding-left: 1rem;
+    }
+    
+    .timeline-content h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .timeline-content p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    /* Intakes List */
+    .intakes-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .intake-item {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .intake-item:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .intake-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+    
+    .intake-name {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        font-size: 0.9375rem;
+    }
+    
+    .intake-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+    
+    .intake-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .intake-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .intake-value {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    .intake-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    /* Programme Stats */
+    .programme-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .programme-item {
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .programme-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .programme-code {
+        background: var(--color-primary);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .programme-count {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    .programme-name {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.75rem;
+    }
+    
+    .programme-progress {
+        margin-top: 0.5rem;
+    }
+    
+    .progress-info {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: var(--color-text-muted);
+        margin-bottom: 0.25rem;
+    }
+    
+    .progress-bar-container {
+        height: 6px;
+        background: var(--color-gray-200);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .progress-bar-fill {
         height: 100%;
+        background: var(--color-primary);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+    
+    /* Students List */
+    .students-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .student-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        transition: all 0.3s ease;
+    }
+    
+    .student-item:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .student-avatar .avatar-sm {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
         object-fit: cover;
+        border: 2px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .student-info {
+        flex: 1;
+    }
+    
+    .student-name {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .student-meta {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .student-id, .student-programme, .student-year {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+    }
+    
+    .student-programme {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+        padding: 0.125rem 0.375rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    .student-year {
+        background: rgba(158, 158, 158, 0.1);
+        color: var(--color-gray-600);
+        padding: 0.125rem 0.375rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    .student-status {
+        flex-shrink: 0;
+    }
+    
+    .status-active, .student-status .status-badge[class*="status-active"] {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+    
+    .status-suspended, .student-status .status-badge[class*="status-suspended"] {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+    }
+    
+    .status-deferred, .student-status .status-badge[class*="status-deferred"] {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+        border: 1px solid rgba(255, 152, 0, 0.2);
+    }
+    
+    .status-graduated, .student-status .status-badge[class*="status-graduated"] {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+    }
+    
+    .student-actions .btn {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 2rem 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h5 {
+        font-size: 1rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: var(--color-gray-500);
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Action Buttons */
+    .action-buttons .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.625rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+    }
+    
+    .action-buttons .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-outline-danger {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-danger:hover {
+        border-color: var(--color-danger);
+        background: var(--color-danger);
+        color: white;
+    }
+    
+    .btn-danger {
+        background: var(--color-danger);
+        border-color: var(--color-danger);
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #d32f2f;
+        border-color: #d32f2f;
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    /* Modal */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-md);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1rem 1.5rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0 0.25rem;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .details-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .intake-details {
+            grid-template-columns: 1fr;
+        }
+        
+        .action-buttons .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .btn-group {
+            width: 100%;
+        }
+        
+        .btn-group .btn {
+            flex: 1;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .management-card .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        
+        .card-actions {
+            align-self: flex-start;
+        }
+        
+        .student-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .student-status, .student-actions {
+            align-self: flex-end;
+        }
+        
+        .modal-dialog {
+            margin: 0.5rem;
+        }
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add hover effects to stat cards
+    const statCards = document.querySelectorAll('.stat-card');
+    
+    statCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'none';
+        });
+    });
+    
+    // Add animations to timeline items
+    const timelineItems = document.querySelectorAll('.timeline-item');
+    
+    timelineItems.forEach((item, index) => {
+        setTimeout(() => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            item.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 100);
+        }, index * 200);
+    });
+    
+    // Add click handlers to intake items
+    const intakeItems = document.querySelectorAll('.intake-item');
+    
+    intakeItems.forEach(item => {
+        item.style.cursor = 'pointer';
+        item.addEventListener('click', function(e) {
+            if (!e.target.closest('.intake-actions')) {
+                const viewLink = this.querySelector('.intake-actions a[href*="view"]');
+                if (viewLink) {
+                    window.location.href = viewLink.href;
+                }
+            }
+        });
+    });
+    
+    // Add animation to progress bars
+    const progressBars = document.querySelectorAll('.progress-bar-fill');
+    
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+            bar.style.width = width;
+        }, 300);
+    });
+    
+    // Handle delete confirmation
+    const deleteModal = document.getElementById('deleteModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('shown.bs.modal', function() {
+            const deleteBtn = this.querySelector('.btn-danger');
+            deleteBtn.focus();
+        });
+    }
+});
+
+// Add some visual effects
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .stat-card {
+        animation: fadeInUp 0.5s ease forwards;
+    }
+    
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+    
+    .intake-item, .programme-item, .student-item {
+        transition: all 0.3s ease;
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}

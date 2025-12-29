@@ -1,4 +1,3 @@
-<!-- semester_report_status.html -->
 {% extends 'student/student_base.html' %}
 {% load static %}
 
@@ -8,95 +7,244 @@
 {% block page_subtitle %}{{ report.to_semester }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <div class="content-card">
-                <!-- Status Header -->
-                <div class="status-header text-center mb-4 p-4">
-                    {% if report.status == 'approved' %}
-                    <i class="ri-checkbox-circle-line text-success" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3 mb-2">Report Approved</h4>
-                    <p class="text-muted">Your semester report has been approved. You can now enroll in units.</p>
-                    {% elif report.status == 'pending' %}
-                    <i class="ri-time-line text-warning" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3 mb-2">Report Pending</h4>
-                    <p class="text-muted">Your semester report is awaiting approval.</p>
-                    {% elif report.status == 'rejected' %}
-                    <i class="ri-close-circle-line text-danger" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3 mb-2">Report Rejected</h4>
-                    <p class="text-muted">Your semester report has been rejected.</p>
-                    {% endif %}
-                </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'semester_report_history' %}">Report History</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Report Status</li>
+    </ol>
+</nav>
 
-                <!-- Report Details -->
-                <div class="report-details">
-                    <h6 class="section-title mb-3">Report Details</h6>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="detail-item">
-                                <span class="detail-label">Report Date</span>
-                                <span class="detail-value">{{ report.report_date|date:"M d, Y H:i" }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">From</span>
-                                <span class="detail-value">Year {{ report.from_year_of_study }}, Semester {{ report.from_semester_number }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">To</span>
-                                <span class="detail-value">Year {{ report.to_year_of_study }}, Semester {{ report.to_semester_number }}</span>
-                            </div>
+<div class="content-container">
+    <div class="status-container">
+        <!-- Status Header Card -->
+        <div class="management-card mb-4">
+            <div class="card-body text-center p-5">
+                {% if report.status == 'approved' %}
+                <div class="status-icon approved mb-3">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <h3 class="status-title mb-2">Report Approved</h3>
+                <p class="status-description text-muted mb-4">
+                    Your semester report has been approved. You can now enroll in units for the next semester.
+                </p>
+                <a href="{% url 'unit_enrollment' %}" class="btn btn-primary">
+                    <i class="ri-book-2-line me-2"></i>
+                    Enroll in Units
+                </a>
+                {% elif report.status == 'pending' %}
+                <div class="status-icon pending mb-3">
+                    <i class="ri-time-line"></i>
+                </div>
+                <h3 class="status-title mb-2">Report Pending</h3>
+                <p class="status-description text-muted mb-4">
+                    Your semester report is awaiting approval from the academic department.
+                    Please check back later for updates.
+                </p>
+                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-primary">
+                    <i class="ri-home-line me-2"></i>
+                    Return to Dashboard
+                </a>
+                {% elif report.status == 'rejected' %}
+                <div class="status-icon rejected mb-3">
+                    <i class="ri-close-circle-line"></i>
+                </div>
+                <h3 class="status-title mb-2">Report Rejected</h3>
+                <p class="status-description text-muted mb-4">
+                    Your semester report has been rejected. Please review the details below and take appropriate action.
+                </p>
+                <button class="btn btn-outline-primary" onclick="window.location.href='{% url 'submit_semester_report' %}'">
+                    <i class="ri-refresh-line me-2"></i>
+                    Resubmit Report
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Report Details Card -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">Report Details</h5>
+                <div class="card-subtitle">Semester {{ report.to_semester_number }}</div>
+            </div>
+            
+            <div class="card-body">
+                <div class="details-grid">
+                    <!-- Report Information -->
+                    <div class="details-section">
+                        <h6 class="section-title mb-3">Report Information</h6>
+                        <div class="detail-row">
+                            <span class="detail-label">Report Date</span>
+                            <span class="detail-value">{{ report.report_date|date:"M d, Y H:i" }}</span>
                         </div>
-                        <div class="col-md-6">
-                            <div class="detail-item">
-                                <span class="detail-label">Status</span>
-                                <span class="badge bg-{% if report.status == 'approved' %}success{% elif report.status == 'pending' %}warning{% else %}danger{% endif %}">
-                                    {{ report.get_status_display }}
-                                </span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Failed Units</span>
-                                <span class="detail-value">{{ report.failed_units_count }}</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="detail-label">Fee Balance</span>
-                                <span class="detail-value">Ksh {{ report.fee_balance|floatformat:2 }}</span>
-                            </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Report Status</span>
+                            <span class="status-badge status-{{ report.status }}">
+                                {{ report.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Submitted To</span>
+                            <span class="detail-value">{{ report.to_semester }}</span>
                         </div>
                     </div>
 
+                    <!-- Academic Progress -->
+                    <div class="details-section">
+                        <h6 class="section-title mb-3">Academic Progress</h6>
+                        <div class="detail-row">
+                            <span class="detail-label">From</span>
+                            <span class="detail-value">
+                                Year {{ report.from_year_of_study }}, Semester {{ report.from_semester_number }}
+                            </span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">To</span>
+                            <span class="detail-value">
+                                Year {{ report.to_year_of_study }}, Semester {{ report.to_semester_number }}
+                            </span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Failed Units</span>
+                            <span class="detail-value {% if report.failed_units_count > 0 %}text-danger{% endif %}">
+                                {{ report.failed_units_count }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Financial Information -->
+                    <div class="details-section">
+                        <h6 class="section-title mb-3">Financial Information</h6>
+                        <div class="detail-row">
+                            <span class="detail-label">Fee Balance</span>
+                            <span class="detail-value {% if report.fee_balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                Ksh {{ report.fee_balance|floatformat:2 }}
+                            </span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Fee Status</span>
+                            <span class="detail-value">
+                                {% if report.fee_balance > 0 %}
+                                <span class="text-warning">Outstanding Balance</span>
+                                {% else %}
+                                <span class="text-success">Cleared</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% if report.fee_balance > 0 %}
+                        <div class="detail-row">
+                            <a href="{% url 'student_fee_payment' %}" class="btn btn-sm btn-outline-warning mt-2">
+                                <i class="ri-money-dollar-circle-line me-1"></i>
+                                Pay Outstanding Balance
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Messages Section -->
+                <div class="messages-section mt-4">
                     {% if report.rejection_reason %}
-                    <div class="alert alert-danger mt-3">
-                        <strong>Rejection Reason:</strong><br>
-                        {{ report.rejection_reason }}
+                    <div class="alert-message alert-danger">
+                        <div class="alert-header">
+                            <i class="ri-error-warning-line me-2"></i>
+                            <strong>Rejection Reason</strong>
+                        </div>
+                        <div class="alert-body">
+                            {{ report.rejection_reason }}
+                        </div>
                     </div>
                     {% endif %}
 
                     {% if report.remarks %}
-                    <div class="alert alert-info mt-3">
-                        <strong>Remarks:</strong><br>
-                        {{ report.remarks }}
+                    <div class="alert-message alert-info">
+                        <div class="alert-header">
+                            <i class="ri-information-line me-2"></i>
+                            <strong>Remarks</strong>
+                        </div>
+                        <div class="alert-body">
+                            {{ report.remarks }}
+                        </div>
                     </div>
                     {% endif %}
                 </div>
 
-                <!-- Actions -->
-                <div class="d-flex gap-2 justify-content-center mt-4">
-                    {% if report.status == 'approved' %}
-                    <a href="{% url 'unit_enrollment' %}" class="btn btn-primary">
-                        <i class="ri-book-2-line me-2"></i>
-                        Enroll in Units
-                    </a>
-                    {% endif %}
-                    <a href="{% url 'semester_report_history' %}" class="btn btn-outline-secondary">
-                        <i class="ri-history-line me-2"></i>
-                        View History
-                    </a>
-                    <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
-                        <i class="ri-home-line me-2"></i>
-                        Dashboard
-                    </a>
+                <!-- Action Buttons -->
+                <div class="action-buttons mt-4 pt-4 border-top">
+                    <div class="d-flex justify-content-center gap-2">
+                        <a href="{% url 'semester_report_history' %}" class="btn btn-outline-primary">
+                            <i class="ri-history-line me-2"></i>
+                            View Report History
+                        </a>
+                        <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                            <i class="ri-home-line me-2"></i>
+                            Return to Dashboard
+                        </a>
+                        {% if report.status == 'approved' %}
+                        <a href="{% url 'unit_enrollment' %}" class="btn btn-primary">
+                            <i class="ri-book-2-line me-2"></i>
+                            Enroll in Units
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Status Timeline -->
+                <div class="status-timeline mt-4">
+                    <h6 class="section-title mb-3">Status Timeline</h6>
+                    <div class="timeline">
+                        <div class="timeline-item {% if report.status != 'pending' %}completed{% endif %}">
+                            <div class="timeline-marker">
+                                <i class="ri-file-upload-line"></i>
+                            </div>
+                            <div class="timeline-content">
+                                <h6>Report Submitted</h6>
+                                <p>{{ report.report_date|date:"M d, Y H:i" }}</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item {% if report.status == 'approved' %}completed{% elif report.status == 'rejected' %}rejected{% endif %}">
+                            <div class="timeline-marker">
+                                {% if report.status == 'approved' %}
+                                <i class="ri-check-line"></i>
+                                {% elif report.status == 'rejected' %}
+                                <i class="ri-close-line"></i>
+                                {% else %}
+                                <i class="ri-time-line"></i>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-content">
+                                <h6>Department Review</h6>
+                                <p>
+                                    {% if report.status == 'approved' %}
+                                    Approved on {{ report.report_date|date:"M d, Y" }}
+                                    {% elif report.status == 'rejected' %}
+                                    Rejected on {{ report.report_date|date:"M d, Y" }}
+                                    {% else %}
+                                    Under review
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="timeline-item {% if report.status == 'approved' %}completed{% else %}pending{% endif %}">
+                            <div class="timeline-marker">
+                                {% if report.status == 'approved' %}
+                                <i class="ri-check-line"></i>
+                                {% else %}
+                                <i class="ri-book-line"></i>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-content">
+                                <h6>Unit Enrollment</h6>
+                                <p>
+                                    {% if report.status == 'approved' %}
+                                    Ready for enrollment
+                                    {% else %}
+                                    Awaiting approval
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -104,43 +252,529 @@
 </div>
 
 <style>
-    .status-header {
-        background: var(--bg-light);
-        border-radius: var(--radius);
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 5px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
-
-    .report-details {
-        padding: 20px;
-        background: var(--bg-light);
-        border-radius: var(--radius);
+    
+    .content-container {
+        padding: 0 0.5rem;
+        max-width: 900px;
+        margin: 0 auto;
     }
-
-    .detail-item {
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Status Container */
+    .status-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Status Header */
+    .status-icon {
+        font-size: 4rem;
+        display: inline-block;
+    }
+    
+    .status-icon.approved {
+        color: var(--color-success);
+    }
+    
+    .status-icon.pending {
+        color: var(--color-warning);
+    }
+    
+    .status-icon.rejected {
+        color: var(--color-danger);
+    }
+    
+    .status-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .status-description {
+        font-size: 1rem;
+        max-width: 600px;
+        margin: 0 auto;
+        line-height: 1.5;
+    }
+    
+    /* Details Grid */
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+    }
+    
+    .details-section {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+    
+    .detail-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid var(--border-color);
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
     }
-
-    .detail-item:last-child {
+    
+    .detail-row:last-child {
         border-bottom: none;
     }
-
+    
     .detail-label {
-        color: var(--text-medium);
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
     }
-
+    
     .detail-value {
-        font-weight: 600;
-        color: var(--text-dark);
+        font-weight: 500;
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
     }
-
-    .section-title {
+    
+    /* Status Badge */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
         font-weight: 600;
-        color: var(--text-dark);
-        padding-bottom: 10px;
-        border-bottom: 2px solid var(--border-color);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-approved {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+        border: 1px solid rgba(255, 152, 0, 0.2);
+    }
+    
+    .status-rejected {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+    }
+    
+    /* Alert Messages */
+    .messages-section {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .alert-message {
+        padding: 1rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+    }
+    
+    .alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        border-color: rgba(244, 67, 54, 0.2);
+        color: #b71c1c;
+    }
+    
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: #0d47a1;
+    }
+    
+    .alert-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .alert-body {
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+    
+    /* Action Buttons */
+    .action-buttons .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.625rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+    }
+    
+    .action-buttons .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-primary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+        border-color: var(--color-primary);
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+    
+    .btn-outline-warning {
+        border-color: var(--color-warning);
+        color: var(--color-warning);
+        background: transparent;
+    }
+    
+    .btn-outline-warning:hover {
+        background: var(--color-warning);
+        color: white;
+    }
+    
+    /* Status Timeline */
+    .status-timeline {
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.875rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--color-gray-200);
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -2rem;
+        top: 0;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+    }
+    
+    .timeline-item.completed .timeline-marker {
+        background: var(--color-success);
+        border-color: var(--color-success);
+        color: white;
+    }
+    
+    .timeline-item.rejected .timeline-marker {
+        background: var(--color-danger);
+        border-color: var(--color-danger);
+        color: white;
+    }
+    
+    .timeline-item.completed::before {
+        background: var(--color-success);
+    }
+    
+    .timeline-content {
+        padding-left: 1rem;
+    }
+    
+    .timeline-content h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .timeline-content p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0 0.25rem;
+        }
+        
+        .status-title {
+            font-size: 1.25rem;
+        }
+        
+        .status-icon {
+            font-size: 3rem;
+        }
+        
+        .details-grid {
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+        
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .action-buttons .btn {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .action-buttons .d-flex {
+            flex-direction: column;
+        }
+        
+        .timeline {
+            padding-left: 1.5rem;
+        }
+        
+        .timeline::before {
+            left: 0.625rem;
+        }
+        
+        .timeline-marker {
+            left: -1.5rem;
+            width: 1.5rem;
+            height: 1.5rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .status-description {
+            font-size: 0.875rem;
+        }
+        
+        .detail-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.25rem;
+        }
+        
+        .detail-label, .detail-value {
+            width: 100%;
+        }
+        
+        .status-badge {
+            align-self: flex-start;
+        }
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add animation to timeline items
+    const timelineItems = document.querySelectorAll('.timeline-item');
+    
+    timelineItems.forEach((item, index) => {
+        setTimeout(() => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateX(-20px)';
+            item.style.transition = 'all 0.5s ease';
+            
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateX(0)';
+            }, 100);
+        }, index * 200);
+    });
+    
+    // Add hover effect to action buttons
+    const actionButtons = document.querySelectorAll('.action-buttons .btn');
+    
+    actionButtons.forEach(btn => {
+        btn.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+            this.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.1)';
+        });
+        
+        btn.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'none';
+        });
+    });
+    
+    // Add status badge animation
+    const statusBadge = document.querySelector('.status-badge');
+    if (statusBadge) {
+        setTimeout(() => {
+            statusBadge.style.transform = 'scale(1.1)';
+            statusBadge.style.transition = 'transform 0.3s ease';
+            
+            setTimeout(() => {
+                statusBadge.style.transform = 'scale(1)';
+            }, 300);
+        }, 500);
+    }
+    
+    // Handle button clicks with loading states
+    const primaryButtons = document.querySelectorAll('.btn-primary, .btn-outline-primary');
+    
+    primaryButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            if (this.getAttribute('href') && !this.classList.contains('disabled')) {
+                // Add loading state
+                const originalHTML = this.innerHTML;
+                this.innerHTML = '<i class="ri-loader-4-line animate-spin me-2"></i> Loading...';
+                this.classList.add('disabled');
+                
+                // Simulate loading for demo purposes
+                setTimeout(() => {
+                    this.innerHTML = originalHTML;
+                    this.classList.remove('disabled');
+                }, 1500);
+            }
+        });
+    });
+});
+
+// Loading animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}
