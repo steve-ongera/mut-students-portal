@@ -1,8 +1,518 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Admin Page{% endblock %}
+{% block title %}{% if is_update %}Update{% else %}Add{% endif %} School{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}{% if is_update %}Update{% else %}Add New{% endif %} School{% endblock %}
+{% block page_subtitle %}{% if is_update %}Update school information{% else %}Create a new school/faculty{% endif %}{% endblock %}
 
 {% block content %}
-<!-- Page content goes here -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'school_list' %}">Schools</a></li>
+        {% if is_update %}
+        <li class="breadcrumb-item"><a href="{% url 'school_detail' school.pk %}">{{ school.code }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Update</li>
+        {% else %}
+        <li class="breadcrumb-item active" aria-current="page">Add School</li>
+        {% endif %}
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Form Card -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        {% if is_update %}
+                        <i class="ri-edit-line me-2"></i>Update School Information
+                        {% else %}
+                        <i class="ri-add-line me-2"></i>Add New School
+                        {% endif %}
+                    </h5>
+                    <div class="card-subtitle">
+                        {% if is_update %}
+                        Editing: <strong>{{ school.name }}</strong>
+                        {% else %}
+                        Fill in the details below to create a new school/faculty
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="schoolForm">
+                        {% csrf_token %}
+                        
+                        <!-- Basic Information Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Basic Information</h6>
+                            <div class="row g-3">
+                                <div class="col-md-8">
+                                    <label for="name" class="form-label required">School Name</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="name" 
+                                           name="name" 
+                                           value="{% if school %}{{ school.name }}{% endif %}"
+                                           placeholder="e.g., School of Computing and Information Technology"
+                                           required>
+                                    <div class="form-text">Full official name of the school/faculty</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="code" class="form-label required">School Code</label>
+                                    <input type="text" 
+                                           class="form-control text-uppercase" 
+                                           id="code" 
+                                           name="code" 
+                                           value="{% if school %}{{ school.code }}{% endif %}"
+                                           placeholder="e.g., SCIT"
+                                           required>
+                                    <div class="form-text">Unique identifier (uppercase)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leadership Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">School Leadership</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="dean" class="form-label">Dean</label>
+                                    <select class="form-select" id="dean" name="dean">
+                                        <option value="">Select Dean</option>
+                                        {% for dean in deans %}
+                                        <option value="{{ dean.id }}" 
+                                                {% if school and school.dean and school.dean.id == dean.id %}selected{% endif %}>
+                                            {{ dean.get_full_name }} ({{ dean.email }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Select the dean for this school</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="head_of_school" class="form-label">Head of School</label>
+                                    <select class="form-select" id="head_of_school" name="head_of_school">
+                                        <option value="">Select Head of School</option>
+                                        {% for hos in hos_users %}
+                                        <option value="{{ hos.id }}" 
+                                                {% if school and school.head_of_school and school.head_of_school.id == hos.id %}selected{% endif %}>
+                                            {{ hos.get_full_name }} ({{ hos.email }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Select the head of school</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Contact Information</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label">Email Address</label>
+                                    <input type="email" 
+                                           class="form-control" 
+                                           id="email" 
+                                           name="email" 
+                                           value="{% if school %}{{ school.email }}{% endif %}"
+                                           placeholder="school@university.ac.ke">
+                                    <div class="form-text">Official school email address</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="phone_number" class="form-label">Phone Number</label>
+                                    <input type="tel" 
+                                           class="form-control" 
+                                           id="phone_number" 
+                                           name="phone_number" 
+                                           value="{% if school %}{{ school.phone_number }}{% endif %}"
+                                           placeholder="+254 700 000 000">
+                                    <div class="form-text">School contact phone number</div>
+                                </div>
+                                <div class="col-12">
+                                    <label for="location" class="form-label">Location</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="location" 
+                                           name="location" 
+                                           value="{% if school %}{{ school.location }}{% endif %}"
+                                           placeholder="e.g., Main Campus, Building A, 3rd Floor">
+                                    <div class="form-text">Physical location of the school offices</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Description</h6>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="description" class="form-label">School Description</label>
+                                    <textarea class="form-control" 
+                                              id="description" 
+                                              name="description" 
+                                              rows="4"
+                                              placeholder="Provide a detailed description of the school, its mission, and academic focus...">{% if school %}{{ school.description }}{% endif %}</textarea>
+                                    <div class="form-text">Optional: Detailed information about the school</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Status</h6>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active"
+                                       {% if not school or school.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    School is Active
+                                </label>
+                                <div class="form-text mt-2">
+                                    Active schools are visible and operational in the system
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="form-actions">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{% if is_update %}{% url 'school_detail' school.pk %}{% else %}{% url 'school_list' %}{% endif %}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="ri-close-line me-2"></i>Cancel
+                                </a>
+                                <div class="d-flex gap-2">
+                                    {% if is_update %}
+                                    <a href="{% url 'school_detail' school.pk %}" class="btn btn-outline-primary">
+                                        <i class="ri-eye-line me-2"></i>View Details
+                                    </a>
+                                    {% endif %}
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="ri-save-line me-2"></i>
+                                        {% if is_update %}Update School{% else %}Create School{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if is_update %}
+            <!-- Additional Actions Card -->
+            <div class="management-card mt-4">
+                <div class="card-header bg-danger-subtle">
+                    <h5 class="card-title text-danger">
+                        <i class="ri-alert-line me-2"></i>Danger Zone
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Delete School</h6>
+                            <p class="text-muted small mb-0">
+                                Permanently delete this school. This action cannot be undone and will affect all associated departments and programmes.
+                            </p>
+                        </div>
+                        <form method="post" 
+                              action="{% url 'school_delete' school.pk %}"
+                              onsubmit="return confirm('Are you sure you want to delete {{ school.name }}? This action cannot be undone and may affect associated records.')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="ri-delete-bin-line me-2"></i>Delete School
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Help Card -->
+            <div class="management-card mt-4">
+                <div class="card-header bg-info-subtle">
+                    <h5 class="card-title text-info">
+                        <i class="ri-information-line me-2"></i>Quick Tips
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li class="mb-2"><strong>School Code:</strong> Use a short, memorable abbreviation (e.g., SCIT, SEDU, SMED)</li>
+                        <li class="mb-2"><strong>Leadership:</strong> Dean and Head of School can be assigned later if not available now</li>
+                        <li class="mb-2"><strong>Contact Info:</strong> Provide accurate contact details for student and staff communication</li>
+                        <li class="mb-0"><strong>Status:</strong> Inactive schools won't appear in active listings but can be reactivated anytime</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    .management-card .card-body {
+        padding: 2rem;
+    }
+    
+    /* Form Sections */
+    .form-section {
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .form-section:last-of-type {
+        border-bottom: none;
+    }
+    
+    .form-section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-primary);
+        display: inline-block;
+    }
+    
+    /* Form Elements */
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-label.required::after {
+        content: ' *';
+        color: var(--color-danger);
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    .form-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.375rem;
+    }
+    
+    textarea.form-control {
+        resize: vertical;
+    }
+    
+    /* Form Switch */
+    .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+    }
+    
+    .form-check-label {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        margin-left: 0.5rem;
+        cursor: pointer;
+    }
+    
+    /* Form Actions */
+    .form-actions {
+        padding-top: 2rem;
+        margin-top: 1.5rem;
+        border-top: 2px solid var(--color-gray-200);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background-color: #25662a;
+        border-color: #25662a;
+    }
+    
+    /* Special Backgrounds */
+    .bg-danger-subtle {
+        background-color: rgba(244, 67, 54, 0.08) !important;
+    }
+    
+    .bg-info-subtle {
+        background-color: rgba(33, 150, 243, 0.08) !important;
+    }
+    
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+    
+    .text-info {
+        color: var(--color-info) !important;
+    }
+    
+    /* Uppercase input */
+    .text-uppercase {
+        text-transform: uppercase;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-uppercase school code
+    const codeInput = document.getElementById('code');
+    if (codeInput) {
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+    
+    // Form validation
+    const form = document.getElementById('schoolForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const name = document.getElementById('name').value.trim();
+            const code = document.getElementById('code').value.trim();
+            
+            if (!name || !code) {
+                e.preventDefault();
+                alert('School name and code are required.');
+                return false;
+            }
+            
+            if (code.length < 2 || code.length > 10) {
+                e.preventDefault();
+                alert('School code should be between 2 and 10 characters.');
+                return false;
+            }
+            
+            return true;
+        });
+    }
+    
+    // Phone number formatting helper
+    const phoneInput = document.getElementById('phone_number');
+    if (phoneInput) {
+        phoneInput.addEventListener('blur', function() {
+            let value = this.value.trim();
+            // Basic formatting - remove spaces and format
+            value = value.replace(/\s/g, '');
+            if (value && !value.startsWith('+')) {
+                if (value.startsWith('0')) {
+                    value = '+254' + value.substring(1);
+                } else if (value.startsWith('254')) {
+                    value = '+' + value;
+                }
+            }
+            this.value = value;
+        });
+    }
+});
+</script>
 {% endblock %}
