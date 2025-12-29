@@ -497,14 +497,202 @@ def student_dashboard(request):
         return redirect('login')
 
 
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q, Avg
+from django.utils import timezone
+from datetime import timedelta
+
 @login_required
 def lecturer_dashboard(request):
     """Lecturer dashboard view"""
+    # Get lecturer profile
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        return render(request, 'lecturer/no_profile.html')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # ============= CURRENT SEMESTER STATISTICS =============
+    current_allocations = []
+    total_students = 0
+    pending_marks = 0
+    
+    if current_semester:
+        # Get current semester allocations
+        current_allocations = UnitAllocation.objects.filter(
+            lecturer=request.user,
+            semester=current_semester,
+            status__in=['approved_hod', 'approved_hos', 'approved_dean']
+        ).select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester__academic_year'
+        ).prefetch_related(
+            'programme_unit__registrations'
+        )
+        
+        # Count total students enrolled in lecturer's units
+        for allocation in current_allocations:
+            students_count = UnitRegistration.objects.filter(
+                programme_unit=allocation.programme_unit,
+                semester=current_semester,
+                status='registered'
+            ).count()
+            total_students += students_count
+        
+        # Count pending marks (assessments without marks or draft marks)
+        pending_marks = StudentMarks.objects.filter(
+            assessment__unit_allocation__lecturer=request.user,
+            assessment__unit_allocation__semester=current_semester,
+            status='draft'
+        ).count()
+    
+    # ============= UNIT STATISTICS =============
+    # Total units ever taught
+    total_units_taught = UnitAllocation.objects.filter(
+        lecturer=request.user
+    ).values('programme_unit__unit').distinct().count()
+    
+    # Current semester units count
+    current_units_count = current_allocations.count()
+    
+    # Total allocations
+    total_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user
+    ).count()
+    
+    # ============= RECENT ASSESSMENTS =============
+    recent_assessments = Assessment.objects.filter(
+        unit_allocation__lecturer=request.user,
+        unit_allocation__semester=current_semester
+    ).select_related(
+        'unit_allocation__programme_unit__unit',
+        'unit_allocation__semester'
+    ).order_by('-date')[:5]
+    
+    # ============= UPCOMING ASSESSMENTS =============
+    today = timezone.now().date()
+    upcoming_assessments = Assessment.objects.filter(
+        unit_allocation__lecturer=request.user,
+        unit_allocation__semester=current_semester,
+        date__gte=today
+    ).select_related(
+        'unit_allocation__programme_unit__unit',
+        'unit_allocation__semester'
+    ).order_by('date')[:5]
+    
+    # ============= TIMETABLE FOR TODAY =============
+    current_day = timezone.now().strftime('%A').lower()
+    today_schedule = []
+    
+    if current_semester:
+        today_schedule = TimetableSlot.objects.filter(
+            unit_allocation__lecturer=request.user,
+            unit_allocation__semester=current_semester,
+            day_of_week=current_day
+        ).select_related(
+            'unit_allocation__programme_unit__unit',
+            'unit_allocation__programme_unit__programme'
+        ).order_by('start_time')
+    
+    # ============= RECENT ACTIVITY =============
+    # Get recent marks submissions
+    recent_marks_submissions = StudentMarks.objects.filter(
+        submitted_by=request.user
+    ).select_related(
+        'assessment__unit_allocation__programme_unit__unit',
+        'student'
+    ).order_by('-created_at')[:5]
+    
+    # ============= WORKLOAD ANALYSIS =============
+    workload_data = []
+    if current_semester:
+        for allocation in current_allocations:
+            students_count = UnitRegistration.objects.filter(
+                programme_unit=allocation.programme_unit,
+                semester=current_semester,
+                status='registered'
+            ).count()
+            
+            assessments_count = Assessment.objects.filter(
+                unit_allocation=allocation
+            ).count()
+            
+            workload_data.append({
+                'unit': allocation.programme_unit.unit,
+                'programme': allocation.programme_unit.programme,
+                'students': students_count,
+                'assessments': assessments_count,
+                'max_students': allocation.max_students
+            })
+    
+    # ============= QUICK STATS FOR CHARTS =============
+    # Attendance statistics
+    attendance_stats = {
+        'present': 0,
+        'absent': 0,
+        'late': 0,
+        'excused': 0
+    }
+    
+    if current_semester:
+        attendance_data = Attendance.objects.filter(
+            unit_allocation__lecturer=request.user,
+            unit_allocation__semester=current_semester
+        ).values('status').annotate(count=Count('id'))
+        
+        for item in attendance_data:
+            attendance_stats[item['status']] = item['count']
+    
+    # ============= ANNOUNCEMENTS =============
+    recent_announcements = Announcement.objects.filter(
+        Q(target_audience='all') | 
+        Q(target_audience='lecturers') |
+        Q(target_school=lecturer.department.school)
+    ).filter(
+        is_published=True,
+        publish_date__lte=timezone.now()
+    ).order_by('-created_at')[:5]
+    
     context = {
         'page_title': 'Lecturer Dashboard',
+        'lecturer': lecturer,
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+        
+        # Statistics
+        'total_students': total_students,
+        'current_units_count': current_units_count,
+        'total_units_taught': total_units_taught,
+        'total_allocations': total_allocations,
+        'pending_marks': pending_marks,
+        
+        # Units and schedules
+        'current_allocations': current_allocations,
+        'today_schedule': today_schedule,
+        'current_day': current_day,
+        
+        # Assessments
+        'recent_assessments': recent_assessments,
+        'upcoming_assessments': upcoming_assessments,
+        
+        # Activity
+        'recent_marks_submissions': recent_marks_submissions,
+        'workload_data': workload_data,
+        'attendance_stats': attendance_stats,
+        
+        # Announcements
+        'recent_announcements': recent_announcements,
     }
+    
     return render(request, 'lecturer/dashboard.html', context)
-
 
 # Placeholder views for other roles
 @login_required

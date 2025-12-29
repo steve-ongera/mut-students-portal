@@ -1,0 +1,622 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}Lecturer Dashboard{% endblock %}
+
+
+{% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        background: var(--color-gray-100);
+    }
+    
+    .dashboard-container {
+        padding: 2rem 1rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    /* Welcome Header */
+    .welcome-header {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: var(--shadow-sm);
+       
+    }
+    
+    .welcome-header h1 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .welcome-header p {
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        box-shadow: var(--shadow-sm);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stat-card-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon.primary {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+    
+    .stat-icon.info {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .stat-icon.warning {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .stat-icon.success {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    /* Dashboard Cards */
+    .dashboard-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+        display: flex;
+        justify-content: between;
+        align-items: center;
+    }
+    
+    .dashboard-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .dashboard-card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Schedule Item */
+    .schedule-item {
+        display: flex;
+        align-items: start;
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        background: var(--color-gray-100);
+        margin-bottom: 0.75rem;
+       
+    }
+    
+    .schedule-time {
+        font-weight: 600;
+        color: var(--color-primary);
+        min-width: 100px;
+    }
+    
+    .schedule-details h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .schedule-details p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    /* Unit Card */
+    .unit-card {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+       
+    }
+    
+    .unit-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 0.5rem;
+    }
+    
+    .unit-code {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .unit-name {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .unit-stats {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.8125rem;
+    }
+    
+    .unit-stat {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Assessment Item */
+    .assessment-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .assessment-item:last-child {
+        border-bottom: none;
+    }
+    
+    .assessment-info h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .assessment-info p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    .assessment-date {
+        text-align: right;
+    }
+    
+    .assessment-day {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+    }
+    
+    .assessment-date-value {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Badge */
+    .badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .badge-primary {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+    
+    .badge-info {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .badge-warning {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    /* Announcement Item */
+    .announcement-item {
+        padding: 1rem;
+        background: rgba(255, 152, 0, 0.05);
+        border-radius: var(--radius-md);
+        margin-bottom: 0.75rem;
+    }
+    
+    .announcement-title {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .announcement-content {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .announcement-meta {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--color-gray-300);
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state p {
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    /* Button */
+    .btn {
+        padding: 0.5rem 1rem;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+        border: none;
+    }
+    
+    .btn-primary:hover {
+        background: #267029;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline {
+        background: white;
+        color: var(--color-primary);
+        border: 1px solid var(--color-primary);
+    }
+    
+    .btn-outline:hover {
+        background: var(--color-primary);
+        color: white;
+    }
+</style>
+
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="welcome-header">
+        <h1>Welcome back, {{ lecturer.user.get_full_name }}!</h1>
+        <p>
+            {{ lecturer.get_designation_display }} | {{ lecturer.department.name }}
+            {% if current_semester %}
+            | {{ current_semester.academic_year.name }} - {{ current_semester.get_semester_number_display }}
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <div class="stat-icon primary">
+                    <i class="ri-group-line"></i>
+                </div>
+                <div class="stat-label">Total Students</div>
+            </div>
+            <div class="stat-value">{{ total_students }}</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <div class="stat-icon info">
+                    <i class="ri-book-open-line"></i>
+                </div>
+                <div class="stat-label">Current Units</div>
+            </div>
+            <div class="stat-value">{{ current_units_count }}</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <div class="stat-icon warning">
+                    <i class="ri-file-edit-line"></i>
+                </div>
+                <div class="stat-label">Pending Marks</div>
+            </div>
+            <div class="stat-value">{{ pending_marks }}</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-header">
+                <div class="stat-icon success">
+                    <i class="ri-stack-line"></i>
+                </div>
+                <div class="stat-label">Units Taught</div>
+            </div>
+            <div class="stat-value">{{ total_units_taught }}</div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Today's Schedule -->
+            <div class="dashboard-card mb-4">
+                <div class="dashboard-card-header">
+                    <h5 class="dashboard-card-title">
+                        <i class="ri-calendar-line"></i>
+                        Today's Schedule
+                    </h5>
+                    <span class="badge badge-primary">{{ current_day|title }}</span>
+                </div>
+                <div class="dashboard-card-body">
+                    {% if today_schedule %}
+                        {% for slot in today_schedule %}
+                        <div class="schedule-item">
+                            <div class="schedule-time">
+                                {{ slot.start_time|time:"H:i" }} - {{ slot.end_time|time:"H:i" }}
+                            </div>
+                            <div class="schedule-details flex-grow-1">
+                                <h6>{{ slot.unit_allocation.programme_unit.unit.code }} - {{ slot.unit_allocation.programme_unit.unit.name }}</h6>
+                                <p>
+                                    <i class="ri-map-pin-line me-1"></i>{{ slot.venue }}
+                                    <span class="mx-2">|</span>
+                                    <i class="ri-book-line me-1"></i>{{ slot.unit_allocation.programme_unit.programme.code }}
+                                    <span class="mx-2">|</span>
+                                    <span class="badge badge-info">{{ slot.get_slot_type_display }}</span>
+                                </p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="ri-calendar-line"></i>
+                        <p>No classes scheduled for today</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Current Units -->
+            <div class="dashboard-card mb-4">
+                <div class="dashboard-card-header">
+                    <h5 class="dashboard-card-title">
+                        <i class="ri-book-open-line"></i>
+                        Current Units ({{ current_units_count }})
+                    </h5>
+                </div>
+                <div class="dashboard-card-body">
+                    {% if current_allocations %}
+                        {% for allocation in current_allocations %}
+                        <div class="unit-card">
+                            <div class="unit-card-header">
+                                <div>
+                                    <div class="unit-code">{{ allocation.programme_unit.unit.code }}</div>
+                                    <div class="unit-name">{{ allocation.programme_unit.unit.name }}</div>
+                                </div>
+                                <span class="badge badge-info">{{ allocation.programme_unit.programme.code }}</span>
+                            </div>
+                            <div class="unit-stats">
+                                <div class="unit-stat">
+                                    <i class="ri-group-line"></i>
+                                    <span>{{ allocation.programme_unit.registrations.count }} Students</span>
+                                </div>
+                                <div class="unit-stat">
+                                    <i class="ri-file-list-line"></i>
+                                    <span>{{ allocation.assessments.count }} Assessments</span>
+                                </div>
+                                <div class="unit-stat">
+                                    <i class="ri-book-line"></i>
+                                    <span>Year {{ allocation.programme_unit.year_of_study }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="ri-book-open-line"></i>
+                        <p>No units allocated for current semester</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Upcoming Assessments -->
+            <div class="dashboard-card">
+                <div class="dashboard-card-header">
+                    <h5 class="dashboard-card-title">
+                        <i class="ri-file-list-3-line"></i>
+                        Upcoming Assessments
+                    </h5>
+                </div>
+                <div class="dashboard-card-body p-0">
+                    {% if upcoming_assessments %}
+                        {% for assessment in upcoming_assessments %}
+                        <div class="assessment-item">
+                            <div class="assessment-info">
+                                <h6>{{ assessment.title }}</h6>
+                                <p>
+                                    {{ assessment.unit_allocation.programme_unit.unit.code }} - 
+                                    {{ assessment.get_assessment_type_display }}
+                                    {% if assessment.venue %}
+                                    | <i class="ri-map-pin-line me-1"></i>{{ assessment.venue }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="assessment-date">
+                                <div class="assessment-day">{{ assessment.date|date:"D" }}</div>
+                                <div class="assessment-date-value">{{ assessment.date|date:"d M" }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="ri-file-list-3-line"></i>
+                        <p>No upcoming assessments</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="dashboard-card mb-4">
+                <div class="dashboard-card-header">
+                    <h5 class="dashboard-card-title">
+                        <i class="ri-links-line"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="dashboard-card-body">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary">
+                            <i class="ri-file-edit-line"></i>
+                            Enter Marks
+                        </a>
+                        <a href="#" class="btn btn-outline">
+                            <i class="ri-calendar-check-line"></i>
+                            Mark Attendance
+                        </a>
+                        <a href="#" class="btn btn-outline">
+                            <i class="ri-calendar-line"></i>
+                            View Timetable
+                        </a>
+                        <a href="#" class="btn btn-outline">
+                            <i class="ri-group-line"></i>
+                            View Students
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Announcements -->
+            <div class="dashboard-card">
+                <div class="dashboard-card-header">
+                    <h5 class="dashboard-card-title">
+                        <i class="ri-notification-3-line"></i>
+                        Announcements
+                    </h5>
+                </div>
+                <div class="dashboard-card-body">
+                    {% if recent_announcements %}
+                        {% for announcement in recent_announcements %}
+                        <div class="announcement-item">
+                            <div class="announcement-title">{{ announcement.title }}</div>
+                            <div class="announcement-content">
+                                {{ announcement.content|truncatewords:20 }}
+                            </div>
+                            <div class="announcement-meta">
+                                <i class="ri-time-line me-1"></i>
+                                {{ announcement.publish_date|timesince }} ago
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="ri-notification-3-line"></i>
+                        <p>No recent announcements</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
