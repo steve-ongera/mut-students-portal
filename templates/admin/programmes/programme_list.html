@@ -1,8 +1,680 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Admin Page{% endblock %}
+{% block title %}Programme Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Programme Management{% endblock %}
+{% block page_subtitle %}Manage academic programmes, view details, and perform actions{% endblock %}
 
 {% block content %}
-<!-- Page content goes here -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Programmes</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Programme Management</h1>
+                <p class="text-muted mb-0">Manage academic programmes, view details, and perform actions</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-book-line me-2"></i>
+                    {{ total_programmes }} programme(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Actions</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by programme name, code, or department..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#filterModal">
+                        <i class="ri-filter-line fs-5"></i>
+                        <span>Filter</span>
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'programme_add' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                        <i class="ri-add-line fs-5"></i>
+                        <span>Add Programme</span>
+                    </a>
+                    <button class="btn btn-sm btn-success d-flex align-items-center gap-1">
+                        <i class="ri-download-line fs-5"></i>
+                        <span>Export</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programmes Table Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Programme Records</h5>
+            <div class="card-subtitle">Showing {{ programmes|length }} of {{ total_programmes }} programmes</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="programmesTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Code</th>
+                            <th>Programme Name</th>
+                            <th>Department</th>
+                            <th>School</th>
+                            <th>Type</th>
+                            <th>Mode</th>
+                            <th>Duration</th>
+                            <th>Students</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for programme in programmes %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="programme-code">
+                                    <strong class="text-primary">{{ programme.code }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-name">
+                                    <h6 class="mb-0 fw-medium">{{ programme.name }}</h6>
+                                    <small class="text-muted">{{ programme.get_programme_type_display }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="department-info">
+                                    <strong class="d-block">{{ programme.department.code }}</strong>
+                                    <small class="text-muted">{{ programme.department.name|truncatechars:25 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="school-info">
+                                    <span class="badge bg-primary-subtle text-primary">
+                                        {{ programme.department.school.code }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                {% if programme.programme_type == 'degree' %}
+                                <span class="badge bg-success-subtle text-success">Degree</span>
+                                {% elif programme.programme_type == 'diploma' %}
+                                <span class="badge bg-info-subtle text-info">Diploma</span>
+                                {% elif programme.programme_type == 'certificate' %}
+                                <span class="badge bg-warning-subtle text-warning">Certificate</span>
+                                {% elif programme.programme_type == 'masters' %}
+                                <span class="badge bg-purple-subtle text-purple">Masters</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">{{ programme.get_programme_type_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="text-muted small">{{ programme.get_study_mode_display }}</span>
+                            </td>
+                            <td>
+                                <div class="duration-info text-center">
+                                    <strong class="d-block">{{ programme.duration_years }} years</strong>
+                                    <small class="text-muted">{{ programme.total_semesters }} semesters</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-count text-center">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="ri-user-line me-1"></i>
+                                        {{ programme.student_count }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                {% if programme.is_active %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Active
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-inactive">
+                                    <i class="ri-close-circle-fill me-1"></i>
+                                    Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'programme_detail' programme.pk %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="View Details"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'programme_update' programme.pk %}" 
+                                           class="btn btn-icon btn-outline-warning btn-sm" 
+                                           title="Update"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-edit-line"></i>
+                                        </a>
+                                        
+                                        <form method="post" 
+                                              action="{% url 'programme_delete' programme.pk %}" 
+                                              class="d-inline"
+                                              onsubmit="return confirm('Are you sure you want to delete this programme? This action cannot be undone.')">
+                                            {% csrf_token %}
+                                            <button type="submit" 
+                                                    class="btn btn-icon btn-outline-danger btn-sm" 
+                                                    title="Delete"
+                                                    data-bs-toggle="tooltip">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-book-open-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No programmes found</h5>
+                                    <p class="text-muted mb-3">Try adjusting your search or filter criteria</p>
+                                    <a href="{% url 'programme_add' %}" class="btn btn-primary">
+                                        <i class="ri-add-line me-2"></i>Add Your First Programme
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if programmes.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if programmes.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ programmes.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if mode_filter %}&mode={{ mode_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in programmes.paginator.page_range %}
+                    {% if programmes.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > programmes.number|add:'-3' and i < programmes.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if mode_filter %}&mode={{ mode_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if programmes.has_next %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ programmes.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}{% if mode_filter %}&mode={{ mode_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Programmes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">School</label>
+                            <select name="school" class="form-select" id="schoolFilter">
+                                <option value="">All Schools</option>
+                                {% for school in schools %}
+                                <option value="{{ school.id }}" 
+                                        {% if school_filter == school.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ school.code }} - {{ school.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Department</label>
+                            <select name="department" class="form-select" id="departmentFilter">
+                                <option value="">All Departments</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" 
+                                        data-school="{{ department.school.id }}"
+                                        {% if department_filter == department.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ department.code }} - {{ department.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Programme Type</label>
+                            <select name="type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for type_code, type_name in programme_types %}
+                                <option value="{{ type_code }}" 
+                                        {% if type_filter == type_code %}selected{% endif %}>
+                                    {{ type_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Study Mode</label>
+                            <select name="mode" class="form-select">
+                                <option value="">All Modes</option>
+                                {% for mode_code, mode_name in study_modes %}
+                                <option value="{{ mode_code }}" 
+                                        {% if mode_filter == mode_code %}selected{% endif %}>
+                                    {{ mode_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'programme_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-purple: #9C27B0;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Action Buttons */
+    .action-buttons .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .action-buttons .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-inactive {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-purple-subtle { background-color: rgba(156, 39, 176, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-info { color: var(--color-info); }
+    .text-warning { color: var(--color-warning); }
+    .text-purple { color: var(--color-purple); }
+    .text-secondary { color: var(--color-gray-600); }
+    
+    /* Pagination */
+    .pagination-container {
+        padding: 1rem 0;
+    }
+    
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // School and Department filtering
+    const schoolFilter = document.getElementById('schoolFilter');
+    const departmentFilter = document.getElementById('departmentFilter');
+    
+    if (schoolFilter && departmentFilter) {
+        // Store all department options
+        const allDepartments = Array.from(departmentFilter.options);
+        
+        schoolFilter.addEventListener('change', function() {
+            const selectedSchool = this.value;
+            
+            // Clear department filter
+            departmentFilter.innerHTML = '<option value="">All Departments</option>';
+            
+            if (selectedSchool) {
+                // Filter departments by school
+                const filteredDepts = allDepartments.filter(opt => 
+                    opt.value === '' || opt.dataset.school === selectedSchool
+                );
+                
+                filteredDepts.forEach(opt => {
+                    if (opt.value !== '') {
+                        departmentFilter.appendChild(opt.cloneNode(true));
+                    }
+                });
+            } else {
+                // Show all departments
+                allDepartments.forEach(opt => {
+                    if (opt.value !== '') {
+                        departmentFilter.appendChild(opt.cloneNode(true));
+                    }
+                });
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
