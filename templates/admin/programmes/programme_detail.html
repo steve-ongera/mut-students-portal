@@ -1,8 +1,649 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Admin Page{% endblock %}
+{% block title %}{{ programme.name }} - Programme Details{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Programme Details{% endblock %}
+{% block page_subtitle %}View comprehensive information about {{ programme.code }}{% endblock %}
 
 {% block content %}
-<!-- Page content goes here -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programme_list' %}">Programmes</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ programme.code }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Programme Header -->
+    <div class="programme-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <div class="d-flex align-items-center gap-3 mb-2">
+                    <h1 class="h3 fw-semibold mb-0">{{ programme.name }}</h1>
+                    {% if programme.is_active %}
+                    <span class="status-badge status-active">
+                        <i class="ri-checkbox-circle-fill me-1"></i>
+                        Active
+                    </span>
+                    {% else %}
+                    <span class="status-badge status-inactive">
+                        <i class="ri-close-circle-fill me-1"></i>
+                        Inactive
+                    </span>
+                    {% endif %}
+                </div>
+                <p class="text-muted mb-0">
+                    <strong>{{ programme.code }}</strong> • 
+                    {{ programme.get_programme_type_display }} • 
+                    {{ programme.get_study_mode_display }}
+                </p>
+            </div>
+            <div class="text-end">
+                <a href="{% url 'programme_update' programme.pk %}" class="btn btn-warning">
+                    <i class="ri-edit-line me-2"></i>Edit Programme
+                </a>
+                <form method="post" 
+                      action="{% url 'programme_delete' programme.pk %}" 
+                      class="d-inline"
+                      onsubmit="return confirm('Are you sure you want to delete this programme? This action cannot be undone.')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="ri-delete-bin-line me-2"></i>Delete
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary-subtle">
+                    <i class="ri-user-line text-primary"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">{{ programme.student_count }}</h3>
+                    <p class="stat-label">Total Students</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success-subtle">
+                    <i class="ri-book-line text-success"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">{{ programme.unit_count }}</h3>
+                    <p class="stat-label">Programme Units</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info-subtle">
+                    <i class="ri-time-line text-info"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">{{ programme.duration_years }}</h3>
+                    <p class="stat-label">Years Duration</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning-subtle">
+                    <i class="ri-award-line text-warning"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value">{{ programme.min_credit_hours }}</h3>
+                    <p class="stat-label">Min Credits</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Programme Information -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Programme Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label class="info-label">Programme Code</label>
+                            <div class="info-value">{{ programme.code }}</div>
+                        </div>
+                        <div class="info-item">
+                            <label class="info-label">Programme Type</label>
+                            <div class="info-value">{{ programme.get_programme_type_display }}</div>
+                        </div>
+                        <div class="info-item">
+                            <label class="info-label">Study Mode</label>
+                            <div class="info-value">{{ programme.get_study_mode_display }}</div>
+                        </div>
+                        <div class="info-item">
+                            <label class="info-label">Duration</label>
+                            <div class="info-value">{{ programme.duration_years }} years / {{ programme.total_semesters }} semesters</div>
+                        </div>
+                        <div class="info-item">
+                            <label class="info-label">Minimum Credit Hours</label>
+                            <div class="info-value">{{ programme.min_credit_hours }} credits</div>
+                        </div>
+                        <div class="info-item">
+                            <label class="info-label">Status</label>
+                            <div class="info-value">
+                                {% if programme.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inactive</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if programme.description %}
+                    <div class="mt-4">
+                        <label class="info-label">Description</label>
+                        <p class="text-muted mb-0">{{ programme.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    {% if programme.accreditation_body or programme.accreditation_status %}
+                    <div class="mt-4">
+                        <label class="info-label mb-3">Accreditation</label>
+                        <div class="row g-3">
+                            {% if programme.accreditation_body %}
+                            <div class="col-md-6">
+                                <small class="text-muted d-block mb-1">Accreditation Body</small>
+                                <strong>{{ programme.accreditation_body }}</strong>
+                            </div>
+                            {% endif %}
+                            {% if programme.accreditation_status %}
+                            <div class="col-md-6">
+                                <small class="text-muted d-block mb-1">Status</small>
+                                <strong>{{ programme.accreditation_status }}</strong>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Programme Units -->
+            <div class="management-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">Programme Units</h5>
+                    <span class="badge bg-light text-dark">{{ programme.unit_count }} units</span>
+                </div>
+                <div class="card-body">
+                    {% if units_by_year_sem %}
+                    <div class="accordion" id="unitsAccordion">
+                        {% for key, programme_units in units_by_year_sem.items %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse{{ key }}">
+                                    <strong>{{ key }}</strong>
+                                    <span class="badge bg-primary ms-2">{{ programme_units|length }} units</span>
+                                </button>
+                            </h2>
+                            <div id="collapse{{ key }}" 
+                                 class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
+                                 data-bs-parent="#unitsAccordion">
+                                <div class="accordion-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Unit Code</th>
+                                                    <th>Unit Name</th>
+                                                    <th>Type</th>
+                                                    <th>Credits</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for pu in programme_units %}
+                                                <tr>
+                                                    <td><strong>{{ pu.unit.code }}</strong></td>
+                                                    <td>{{ pu.unit.name }}</td>
+                                                    <td>
+                                                        {% if pu.unit_type == 'core' %}
+                                                        <span class="badge bg-danger-subtle text-danger">Core</span>
+                                                        {% elif pu.unit_type == 'elective' %}
+                                                        <span class="badge bg-info-subtle text-info">Elective</span>
+                                                        {% else %}
+                                                        <span class="badge bg-secondary-subtle text-secondary">Common</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ pu.unit.credit_hours }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-book-open-line display-4 text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No units assigned to this programme yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Students -->
+            <div class="management-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">Recent Students</h5>
+                    <a href="{% url 'student_list' %}?programme={{ programme.id }}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if students %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Reg Number</th>
+                                    <th>Student Name</th>
+                                    <th>Year/Sem</th>
+                                    <th>GPA</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'student_detail' student.registration_number %}" 
+                                           class="text-decoration-none">
+                                            <strong>{{ student.registration_number }}</strong>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ student.user.get_full_name }}" 
+                                                 class="rounded-circle me-2" 
+                                                 style="width: 32px; height: 32px; object-fit: cover;">
+                                            <span>{{ student.user.get_full_name }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info me-1">Y{{ student.current_year }}</span>
+                                        <span class="badge bg-secondary-subtle text-secondary">S{{ student.current_semester }}</span>
+                                    </td>
+                                    <td>
+                                        <strong class="{% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ student.cumulative_gpa }}
+                                        </strong>
+                                    </td>
+                                    <td>
+                                        {% if student.student_status == 'active' %}
+                                        <span class="badge bg-success-subtle text-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">{{ student.get_student_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-user-line display-4 text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No students enrolled in this programme yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Department & School Info -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Department & School</h5>
+                </div>
+                <div class="card-body">
+                    <div class="department-info mb-4">
+                        <label class="info-label mb-2">Department</label>
+                        <div class="d-flex align-items-center p-3 bg-light rounded">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ programme.department.name }}</h6>
+                                <small class="text-muted">{{ programme.department.code }}</small>
+                            </div>
+                        </div>
+                        {% if programme.department.hod %}
+                        <div class="mt-2 ps-3">
+                            <small class="text-muted d-block">Head of Department</small>
+                            <strong>{{ programme.department.hod.get_full_name }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="school-info">
+                        <label class="info-label mb-2">School</label>
+                        <div class="d-flex align-items-center p-3 bg-primary-subtle rounded">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1 text-primary">{{ programme.department.school.name }}</h6>
+                                <small class="text-muted">{{ programme.department.school.code }}</small>
+                            </div>
+                        </div>
+                        {% if programme.department.school.dean %}
+                        <div class="mt-2 ps-3">
+                            <small class="text-muted d-block">Dean</small>
+                            <strong>{{ programme.department.school.dean.get_full_name }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'add_student' %}?programme={{ programme.id }}" class="btn btn-outline-primary">
+                            <i class="ri-user-add-line me-2"></i>Add Student
+                        </a>
+                        <button class="btn btn-outline-success">
+                            <i class="ri-file-add-line me-2"></i>Assign Units
+                        </button>
+                        <button class="btn btn-outline-info">
+                            <i class="ri-calendar-line me-2"></i>View Timetable
+                        </button>
+                        <button class="btn btn-outline-warning">
+                            <i class="ri-money-dollar-circle-line me-2"></i>Fee Structure
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Information -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">System Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-list">
+                        <div class="info-list-item">
+                            <span class="info-list-label">Created</span>
+                            <span class="info-list-value">{{ programme.created_at|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="info-list-item">
+                            <span class="info-list-label">Last Updated</span>
+                            <span class="info-list-value">{{ programme.updated_at|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="info-list-item">
+                            <span class="info-list-label">Programme ID</span>
+                            <span class="info-list-value">#{{ programme.id }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    /* Programme Header */
+    .programme-header {
+        padding: 1rem 0;
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items-center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-inactive {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .stat-icon i {
+        font-size: 1.75rem;
+    }
+    
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0;
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Info Grid */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    /* Info List */
+    .info-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .info-list-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-list-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-list-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    .info-list-value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Accordion */
+    .accordion-item {
+        border: 1px solid var(--color-gray-200);
+        margin-bottom: 0.5rem;
+        border-radius: var(--radius-md) !important;
+        overflow: hidden;
+    }
+    
+    .accordion-button {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        padding: 1rem 1.25rem;
+        background-color: var(--color-gray-100);
+    }
+    
+    .accordion-button:not(.collapsed) {
+        background-color: var(--color-primary);
+        color: white;
+    }
+    
+    .accordion-button:focus {
+        box-shadow: none;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-info { color: var(--color-info); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
+    .text-secondary { color: var(--color-gray-600); }
+</style>
 {% endblock %}
