@@ -215,3 +215,193 @@ class IntakeForm(forms.ModelForm):
                 raise ValidationError('Application deadline must be before the intake start date.')
         
         return cleaned_data
+    
+    
+
+from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from .models import Lecturer, User, Department
+
+
+class UserForm(forms.ModelForm):
+    """Form for User model (base user information)"""
+    
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter password'
+        }),
+        required=False,
+        help_text='Leave blank to keep current password (for updates) or auto-generate (for new users)'
+    )
+    
+    confirm_password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Confirm password'
+        }),
+        required=False
+    )
+    
+    class Meta:
+        model = User
+        fields = [
+            'username', 'first_name', 'last_name', 'email', 
+            'phone_number', 'id_number', 'profile_picture'
+        ]
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter username'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter first name'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter last name'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter email address'
+            }),
+            'phone_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., +254712345678'
+            }),
+            'id_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter national ID number'
+            }),
+            'profile_picture': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get('password')
+        confirm_password = cleaned_data.get('confirm_password')
+        
+        if password and confirm_password:
+            if password != confirm_password:
+                raise forms.ValidationError("Passwords do not match.")
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        password = self.cleaned_data.get('password')
+        
+        if password:
+            user.set_password(password)
+        elif not user.pk:  # New user without password
+            # Generate a random password
+            import secrets
+            import string
+            alphabet = string.ascii_letters + string.digits
+            temp_password = ''.join(secrets.choice(alphabet) for i in range(12))
+            user.set_password(temp_password)
+        
+        if commit:
+            user.save()
+        return user
+
+
+class LecturerForm(forms.ModelForm):
+    """Form for Lecturer model (lecturer-specific information)"""
+    
+    class Meta:
+        model = Lecturer
+        fields = [
+            'employee_number', 'department', 'designation', 
+            'qualification', 'specialization', 'office_location',
+            'consultation_hours', 'hire_date', 'contract_end_date',
+            'is_active'
+        ]
+        widgets = {
+            'employee_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., LEC/2024/001'
+            }),
+            'department': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'designation': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'qualification': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., PhD in Computer Science'
+            }),
+            'specialization': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Machine Learning, Data Science'
+            }),
+            'office_location': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Block A, Room 201'
+            }),
+            'consultation_hours': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'e.g., Monday 2-4 PM, Wednesday 10-12 AM'
+            }),
+            'hire_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'contract_end_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set department queryset to active departments only
+        self.fields['department'].queryset = Department.objects.filter(
+            is_active=True
+        ).select_related('school').order_by('school__name', 'name')
+        
+        # Make contract_end_date not required
+        self.fields['contract_end_date'].required = False
+        self.fields['specialization'].required = False
+        self.fields['office_location'].required = False
+        self.fields['consultation_hours'].required = False
+    
+    def clean_employee_number(self):
+        employee_number = self.cleaned_data.get('employee_number')
+        
+        # Check if employee number already exists (excluding current instance)
+        if self.instance.pk:
+            existing = Lecturer.objects.filter(
+                employee_number=employee_number
+            ).exclude(pk=self.instance.pk)
+        else:
+            existing = Lecturer.objects.filter(employee_number=employee_number)
+        
+        if existing.exists():
+            raise forms.ValidationError(
+                f'Employee number {employee_number} already exists.'
+            )
+        
+        return employee_number
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        hire_date = cleaned_data.get('hire_date')
+        contract_end_date = cleaned_data.get('contract_end_date')
+        
+        if hire_date and contract_end_date:
+            if contract_end_date <= hire_date:
+                raise forms.ValidationError(
+                    'Contract end date must be after hire date.'
+                )
+        
+        return cleaned_data

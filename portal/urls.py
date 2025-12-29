@@ -129,5 +129,19 @@ urlpatterns = [
     path('api/programme-units/<int:programme_unit_id>/update/', views.api_update_programme_unit, name='api_update_programme_unit'),
     path('api/programme-units/<int:programme_unit_id>/delete/', views.api_delete_programme_unit, name='api_delete_programme_unit'),
     path('api/programme-units/copy/', views.api_copy_programme_units, name='api_copy_programme_units'),
+    
+    # Lecturer Management URLs
+    path('lecturers/', views.lecturer_list, name='lecturer_list'),
+    path('lecturers/add/', views.lecturer_form, name='add_lecturer'),
+    path('lecturers/<str:employee_number>/', views.lecturer_detail, name='lecturer_detail'),
+    path('lecturers/<str:employee_number>/edit/', views.lecturer_form, name='update_lecturer'),
+    path('lecturers/<str:employee_number>/delete/', views.lecturer_delete, name='delete_lecturer'),
+    path('lecturers/<str:employee_number>/workload/', views.lecturer_workload, name='lecturer_workload'),
+    
+    # Bulk Actions
+    path('lecturers/bulk/update/', views.lecturer_bulk_update, name='bulk_update_lecturers'),
+    
+    # Export
+    path('lecturers/export/csv/', views.export_lecturers, name='export_lecturers'),
 
 ]

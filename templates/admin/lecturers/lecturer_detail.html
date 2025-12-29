@@ -1,0 +1,380 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ lecturer.user.get_full_name }} - Lecturer Details{% endblock %}
+
+{% block page_title %}Lecturer Details{% endblock %}
+{% block page_subtitle %}{{ lecturer.employee_number }} - {{ lecturer.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_list' %}">Lecturers</a></li>
+        <li class="breadcrumb-item active">{{ lecturer.employee_number }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Header Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="mb-1">{{ lecturer.user.get_full_name }}</h3>
+            <p class="text-muted mb-0">{{ lecturer.employee_number }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'lecturer_workload' lecturer.employee_number %}" class="btn btn-outline-info">
+                <i class="ri-file-list-3-line me-2"></i>View Workload
+            </a>
+            <a href="{% url 'update_lecturer' lecturer.employee_number %}" class="btn btn-warning">
+                <i class="ri-edit-line me-2"></i>Edit
+            </a>
+            <a href="{% url 'delete_lecturer' lecturer.employee_number %}" 
+               class="btn btn-danger"
+               onclick="return confirm('Are you sure?')">
+                <i class="ri-delete-bin-line me-2"></i>Delete
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column -->
+        <div class="col-lg-4">
+            <!-- Profile Card -->
+            <div class="management-card mb-4">
+                <div class="card-body text-center">
+                    <div class="profile-avatar mb-3">
+                        <img src="{% if lecturer.user.profile_picture %}{{ lecturer.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                             alt="{{ lecturer.user.get_full_name }}" 
+                             class="rounded-circle">
+                    </div>
+                    <h4 class="mb-1">{{ lecturer.user.get_full_name }}</h4>
+                    <p class="text-muted mb-2">{{ lecturer.get_designation_display }}</p>
+                    {% if lecturer.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-danger">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="stat-item">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted">Current Units</span>
+                            <span class="fw-bold fs-5 text-primary">{{ current_units_count }}</span>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted">Total Units Taught</span>
+                            <span class="fw-bold fs-5 text-info">{{ total_units_taught }}</span>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">Total Allocations</span>
+                            <span class="fw-bold fs-5 text-success">{{ total_allocations }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-item mb-3">
+                        <small class="text-muted d-block mb-1">Email</small>
+                        <a href="mailto:{{ lecturer.user.email }}" class="text-decoration-none">
+                            {{ lecturer.user.email }}
+                        </a>
+                    </div>
+                    {% if lecturer.user.phone_number %}
+                    <div class="info-item mb-3">
+                        <small class="text-muted d-block mb-1">Phone</small>
+                        <a href="tel:{{ lecturer.user.phone_number }}" class="text-decoration-none">
+                            {{ lecturer.user.phone_number }}
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% if lecturer.office_location %}
+                    <div class="info-item">
+                        <small class="text-muted d-block mb-1">Office Location</small>
+                        <span>{{ lecturer.office_location }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-8">
+            <!-- Basic Information -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Basic Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <small class="text-muted d-block mb-1">Employee Number</small>
+                                <strong>{{ lecturer.employee_number }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <small class="text-muted d-block mb-1">Department</small>
+                                <strong>{{ lecturer.department.name }}</strong>
+                                <small class="text-muted d-block">{{ lecturer.department.school.name }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <small class="text-muted d-block mb-1">Designation</small>
+                                <strong>{{ lecturer.get_designation_display }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <small class="text-muted d-block mb-1">Hire Date</small>
+                                <strong>{{ lecturer.hire_date|date:"F d, Y" }}</strong>
+                            </div>
+                        </div>
+                        {% if lecturer.contract_end_date %}
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <small class="text-muted d-block mb-1">Contract End Date</small>
+                                <strong>{{ lecturer.contract_end_date|date:"F d, Y" }}</strong>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if lecturer.user.id_number %}
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <small class="text-muted d-block mb-1">ID Number</small>
+                                <strong>{{ lecturer.user.id_number }}</strong>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Academic Qualifications -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Academic Qualifications</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-item mb-3">
+                        <small class="text-muted d-block mb-1">Qualification</small>
+                        <strong>{{ lecturer.qualification }}</strong>
+                    </div>
+                    {% if lecturer.specialization %}
+                    <div class="info-item">
+                        <small class="text-muted d-block mb-1">Specialization</small>
+                        <p class="mb-0">{{ lecturer.specialization }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Consultation Hours -->
+            {% if lecturer.consultation_hours %}
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Consultation Hours</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0" style="white-space: pre-line;">{{ lecturer.consultation_hours }}</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Current Semester Units -->
+            {% if current_semester %}
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Current Semester Units ({{ current_semester }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if current_allocations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>Programme</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allocation in current_allocations %}
+                                <tr>
+                                    <td><strong>{{ allocation.programme_unit.unit.code }}</strong></td>
+                                    <td>{{ allocation.programme_unit.unit.name }}</td>
+                                    <td>{{ allocation.programme_unit.programme.code }}</td>
+                                    <td>
+                                        {% if 'approved' in allocation.status %}
+                                        <span class="badge bg-success">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% elif allocation.status == 'pending' %}
+                                        <span class="badge bg-warning">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% elif allocation.status == 'rejected' %}
+                                        <span class="badge bg-danger">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No units allocated for current semester</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Unit Allocation History -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Unit Allocations</h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if all_allocations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Unit</th>
+                                    <th>Programme</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allocation in all_allocations %}
+                                <tr>
+                                    <td>{{ allocation.semester.academic_year.name }}</td>
+                                    <td>{{ allocation.semester.name }}</td>
+                                    <td>
+                                        <strong>{{ allocation.programme_unit.unit.code }}</strong>
+                                        <small class="text-muted d-block">{{ allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                                    </td>
+                                    <td>{{ allocation.programme_unit.programme.code }}</td>
+                                    <td>
+                                        {% if 'approved' in allocation.status %}
+                                        <span class="badge bg-success">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% elif allocation.status == 'pending' %}
+                                        <span class="badge bg-warning">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% elif allocation.status == 'rejected' %}
+                                        <span class="badge bg-danger">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted mb-0">No unit allocations found</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 3px solid #e9ecef;
+    }
+    
+    .management-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        background: #f8f9fa;
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .info-item small {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+</style>
+{% endblock %}

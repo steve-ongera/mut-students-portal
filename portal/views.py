@@ -3889,3 +3889,419 @@ def unit_delete(request, pk):
         messages.error(request, f'Error deleting unit: {str(e)}')
     
     return redirect('unit_detail', pk=pk) 
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Avg
+from django.http import HttpResponse
+from django.utils import timezone
+from decimal import Decimal
+import csv
+
+from .models import (
+    Lecturer, User, Department, School, UnitAllocation, 
+    Semester, AcademicYear, Programme, Unit
+)
+from .forms import LecturerForm, UserForm
+
+
+# ============= LECTURER LIST VIEW =============
+@login_required
+def lecturer_list(request):
+    """Display list of all lecturers with search and filter options"""
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    department_filter = request.GET.get('department', '')
+    designation_filter = request.GET.get('designation', '')
+    status_filter = request.GET.get('status', '')
+    
+    # Base queryset with related data
+    lecturers = Lecturer.objects.select_related(
+        'user', 'department', 'department__school'
+    ).annotate(
+        units_count=Count('user__unit_allocations', distinct=True)
+    )
+    
+    # Apply search filter
+    if search_query:
+        lecturers = lecturers.filter(
+            Q(employee_number__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(user__phone_number__icontains=search_query) |
+            Q(qualification__icontains=search_query) |
+            Q(specialization__icontains=search_query)
+        )
+    
+    # Apply department filter
+    if department_filter:
+        lecturers = lecturers.filter(department_id=department_filter)
+    
+    # Apply designation filter
+    if designation_filter:
+        lecturers = lecturers.filter(designation=designation_filter)
+    
+    # Apply status filter
+    if status_filter:
+        if status_filter == 'active':
+            lecturers = lecturers.filter(is_active=True)
+        elif status_filter == 'inactive':
+            lecturers = lecturers.filter(is_active=False)
+    
+    # Order by employee number
+    lecturers = lecturers.order_by('employee_number')
+    
+    # Get total count before pagination
+    total_lecturers = lecturers.count()
+    
+    # Pagination
+    paginator = Paginator(lecturers, 20)  # 20 lecturers per page
+    page_number = request.GET.get('page')
+    lecturers_page = paginator.get_page(page_number)
+    
+    # Get filter options
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    designations = Lecturer.DESIGNATION_CHOICES
+    
+    context = {
+        'lecturers': lecturers_page,
+        'total_lecturers': total_lecturers,
+        'search_query': search_query,
+        'department_filter': department_filter,
+        'designation_filter': designation_filter,
+        'status_filter': status_filter,
+        'departments': departments,
+        'designations': designations,
+    }
+    
+    return render(request, 'admin/lecturers/lecturer_list.html', context)
+
+
+# ============= LECTURER DETAIL VIEW =============
+@login_required
+def lecturer_detail(request, employee_number):
+    """Display detailed information about a specific lecturer"""
+    
+    lecturer = get_object_or_404(
+        Lecturer.objects.select_related('user', 'department', 'department__school'),
+        employee_number=employee_number
+    )
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get unit allocations for current semester
+    current_allocations = UnitAllocation.objects.filter(
+        lecturer=lecturer.user,
+        semester=current_semester
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'semester'
+    ) if current_semester else []
+    
+    # Get all unit allocations (history)
+    all_allocations = UnitAllocation.objects.filter(
+        lecturer=lecturer.user
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'semester',
+        'semester__academic_year'
+    ).order_by('-semester__academic_year__start_date', '-semester__start_date')[:10]
+    
+    # Calculate statistics
+    total_units_taught = UnitAllocation.objects.filter(
+        lecturer=lecturer.user
+    ).values('programme_unit__unit').distinct().count()
+    
+    total_allocations = UnitAllocation.objects.filter(
+        lecturer=lecturer.user
+    ).count()
+    
+    current_units_count = current_allocations.count() if current_semester else 0
+    
+    context = {
+        'lecturer': lecturer,
+        'current_semester': current_semester,
+        'current_allocations': current_allocations,
+        'all_allocations': all_allocations,
+        'total_units_taught': total_units_taught,
+        'total_allocations': total_allocations,
+        'current_units_count': current_units_count,
+    }
+    
+    return render(request, 'admin/lecturers/lecturer_detail.html', context)
+
+
+# ============= ADD/UPDATE LECTURER VIEW =============
+@login_required
+def lecturer_form(request, employee_number=None):
+    """Add new lecturer or update existing one"""
+    
+    # Determine if we're editing or creating
+    is_edit = employee_number is not None
+    lecturer = None
+    user = None
+    
+    if is_edit:
+        lecturer = get_object_or_404(Lecturer, employee_number=employee_number)
+        user = lecturer.user
+    
+    if request.method == 'POST':
+        # Handle user form
+        user_form = UserForm(request.POST, request.FILES, instance=user)
+        lecturer_form = LecturerForm(request.POST, instance=lecturer)
+        
+        if user_form.is_valid() and lecturer_form.is_valid():
+            try:
+                # Save user first
+                user_instance = user_form.save(commit=False)
+                if not is_edit:
+                    user_instance.role = 'lecturer'
+                    # Generate username from email if not provided
+                    if not user_instance.username:
+                        user_instance.username = user_instance.email.split('@')[0]
+                user_instance.save()
+                
+                # Save lecturer
+                lecturer_instance = lecturer_form.save(commit=False)
+                lecturer_instance.user = user_instance
+                lecturer_instance.save()
+                
+                if is_edit:
+                    messages.success(request, f'Lecturer {lecturer_instance.employee_number} updated successfully!')
+                else:
+                    messages.success(request, f'Lecturer {lecturer_instance.employee_number} added successfully!')
+                
+                return redirect('lecturer_detail', employee_number=lecturer_instance.employee_number)
+                
+            except Exception as e:
+                messages.error(request, f'Error saving lecturer: {str(e)}')
+        else:
+            # Show form errors
+            for field, errors in user_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'User {field}: {error}')
+            for field, errors in lecturer_form.errors.items():
+                for error in errors:
+                    messages.error(request, f'Lecturer {field}: {error}')
+    else:
+        user_form = UserForm(instance=user)
+        lecturer_form = LecturerForm(instance=lecturer)
+    
+    # Get all departments for dropdown
+    departments = Department.objects.filter(is_active=True).select_related('school').order_by('school__name', 'name')
+    
+    context = {
+        'user_form': user_form,
+        'lecturer_form': lecturer_form,
+        'is_edit': is_edit,
+        'lecturer': lecturer,
+        'departments': departments,
+    }
+    
+    return render(request, 'admin/lecturers/lecturer_form.html', context)
+
+
+# ============= DELETE LECTURER VIEW =============
+@login_required
+def lecturer_delete(request, employee_number):
+    """Delete a lecturer"""
+    
+    lecturer = get_object_or_404(Lecturer, employee_number=employee_number)
+    
+    if request.method == 'POST':
+        try:
+            # Check if lecturer has any allocations
+            allocations_count = UnitAllocation.objects.filter(lecturer=lecturer.user).count()
+            
+            if allocations_count > 0:
+                messages.warning(
+                    request, 
+                    f'Cannot delete lecturer {lecturer.employee_number}. '
+                    f'They have {allocations_count} unit allocation(s). '
+                    'Please remove or reassign these allocations first.'
+                )
+                return redirect('lecturer_detail', employee_number=employee_number)
+            
+            # Store details for message
+            employee_num = lecturer.employee_number
+            full_name = lecturer.user.get_full_name()
+            
+            # Delete user (will cascade delete lecturer)
+            lecturer.user.delete()
+            
+            messages.success(
+                request, 
+                f'Lecturer {employee_num} - {full_name} has been deleted successfully.'
+            )
+            return redirect('lecturer_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting lecturer: {str(e)}')
+            return redirect('lecturer_detail', employee_number=employee_number)
+    
+    return redirect('lecturer_detail', employee_number=employee_number)
+
+
+# ============= BULK ACTIONS VIEW =============
+@login_required
+def lecturer_bulk_update(request):
+    """Handle bulk updates for lecturers"""
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        lecturer_ids = request.POST.get('lecturer_ids', '').split(',')
+        
+        if not lecturer_ids or not action:
+            messages.error(request, 'No lecturers selected or action not specified.')
+            return redirect('lecturer_list')
+        
+        # Remove empty strings
+        lecturer_ids = [lid for lid in lecturer_ids if lid]
+        
+        try:
+            lecturers = Lecturer.objects.filter(id__in=lecturer_ids)
+            count = lecturers.count()
+            
+            if action == 'activate':
+                lecturers.update(is_active=True)
+                messages.success(request, f'{count} lecturer(s) activated successfully.')
+                
+            elif action == 'deactivate':
+                lecturers.update(is_active=False)
+                messages.success(request, f'{count} lecturer(s) deactivated successfully.')
+                
+            elif action == 'update_department':
+                department_id = request.POST.get('department_value')
+                if department_id:
+                    department = get_object_or_404(Department, id=department_id)
+                    lecturers.update(department=department)
+                    messages.success(request, f'{count} lecturer(s) moved to {department.name}.')
+                else:
+                    messages.error(request, 'Department not specified.')
+                    
+            elif action == 'update_designation':
+                designation = request.POST.get('designation_value')
+                if designation:
+                    lecturers.update(designation=designation)
+                    messages.success(request, f'{count} lecturer(s) designation updated.')
+                else:
+                    messages.error(request, 'Designation not specified.')
+            else:
+                messages.error(request, 'Invalid action.')
+                
+        except Exception as e:
+            messages.error(request, f'Error performing bulk action: {str(e)}')
+    
+    return redirect('lecturer_list')
+
+
+# ============= EXPORT LECTURERS VIEW =============
+@login_required
+def export_lecturers(request):
+    """Export lecturers to CSV"""
+    
+    # Create the HttpResponse object with CSV header
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="lecturers_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Employee Number', 'First Name', 'Last Name', 'Email', 'Phone Number',
+        'Department', 'School', 'Designation', 'Qualification', 'Specialization',
+        'Office Location', 'Hire Date', 'Status'
+    ])
+    
+    # Get lecturers
+    lecturers = Lecturer.objects.select_related(
+        'user', 'department', 'department__school'
+    ).order_by('employee_number')
+    
+    # Write data
+    for lecturer in lecturers:
+        writer.writerow([
+            lecturer.employee_number,
+            lecturer.user.first_name,
+            lecturer.user.last_name,
+            lecturer.user.email,
+            lecturer.user.phone_number or '',
+            lecturer.department.name,
+            lecturer.department.school.name,
+            lecturer.get_designation_display(),
+            lecturer.qualification,
+            lecturer.specialization or '',
+            lecturer.office_location or '',
+            lecturer.hire_date.strftime('%Y-%m-%d'),
+            'Active' if lecturer.is_active else 'Inactive'
+        ])
+    
+    return response
+
+
+# ============= LECTURER WORKLOAD VIEW =============
+@login_required
+def lecturer_workload(request, employee_number):
+    """View lecturer's teaching workload"""
+    
+    lecturer = get_object_or_404(Lecturer, employee_number=employee_number)
+    
+    # Get selected semester or current
+    semester_id = request.GET.get('semester')
+    if semester_id:
+        semester = get_object_or_404(Semester, id=semester_id)
+    else:
+        semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get allocations for the semester
+    allocations = UnitAllocation.objects.filter(
+        lecturer=lecturer.user,
+        semester=semester
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'programme_unit__programme__department'
+    ).prefetch_related(
+        'programme_unit__registrations'
+    )
+    
+    # Calculate workload statistics
+    total_units = allocations.count()
+    total_students = sum([
+        alloc.programme_unit.registrations.filter(
+            semester=semester,
+            status='registered'
+        ).count() 
+        for alloc in allocations
+    ])
+    
+    # Calculate credit hours
+    total_credit_hours = sum([
+        alloc.programme_unit.unit.credit_hours 
+        for alloc in allocations
+    ])
+    
+    # Get all semesters for filter
+    semesters = Semester.objects.order_by('-academic_year__start_date', '-start_date')[:10]
+    
+    context = {
+        'lecturer': lecturer,
+        'semester': semester,
+        'semesters': semesters,
+        'allocations': allocations,
+        'total_units': total_units,
+        'total_students': total_students,
+        'total_credit_hours': total_credit_hours,
+    }
+    
+    return render(request, 'admin/lecturers/lecturer_workload.html', context)

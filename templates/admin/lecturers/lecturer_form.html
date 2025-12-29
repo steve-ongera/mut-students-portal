@@ -1,0 +1,461 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}{% if is_edit %}Edit{% else %}Add{% endif %} Lecturer{% endblock %}
+
+{% block page_title %}{% if is_edit %}Edit Lecturer{% else %}Add New Lecturer{% endif %}{% endblock %}
+{% block page_subtitle %}{% if is_edit %}Update lecturer information{% else %}Enter new lecturer details{% endif %}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_list' %}">Lecturers</a></li>
+        {% if is_edit %}
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_detail' lecturer.employee_number %}">{{ lecturer.employee_number }}</a></li>
+        <li class="breadcrumb-item active">Edit</li>
+        {% else %}
+        <li class="breadcrumb-item active">Add Lecturer</li>
+        {% endif %}
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <form method="post" enctype="multipart/form-data" id="lecturerForm">
+                {% csrf_token %}
+                
+                <!-- Personal Information -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-user-line me-2"></i>Personal Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <!-- Profile Picture -->
+                            <div class="col-12">
+                                <label class="form-label">Profile Picture</label>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="profile-preview">
+                                        <img id="profilePreview" 
+                                             src="{% if is_edit and lecturer.user.profile_picture %}{{ lecturer.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                             alt="Profile" 
+                                             class="rounded-circle">
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        {{ user_form.profile_picture }}
+                                        <small class="form-text text-muted d-block mt-1">
+                                            Recommended: Square image, max 2MB (JPG, PNG)
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- First Name -->
+                            <div class="col-md-6">
+                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                {{ user_form.first_name }}
+                                {% if user_form.first_name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.first_name.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Last Name -->
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                {{ user_form.last_name }}
+                                {% if user_form.last_name.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.last_name.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Email -->
+                            <div class="col-md-6">
+                                <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                                {{ user_form.email }}
+                                {% if user_form.email.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.email.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Username -->
+                            <div class="col-md-6">
+                                <label class="form-label">Username <span class="text-danger">*</span></label>
+                                {{ user_form.username }}
+                                <small class="form-text text-muted d-block">
+                                    Will be auto-generated from email if left blank
+                                </small>
+                                {% if user_form.username.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.username.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Phone Number -->
+                            <div class="col-md-6">
+                                <label class="form-label">Phone Number</label>
+                                {{ user_form.phone_number }}
+                                {% if user_form.phone_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.phone_number.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- ID Number -->
+                            <div class="col-md-6">
+                                <label class="form-label">National ID Number</label>
+                                {{ user_form.id_number }}
+                                {% if user_form.id_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.id_number.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Password (for new lecturers) -->
+                            {% if not is_edit %}
+                            <div class="col-md-6">
+                                <label class="form-label">Password</label>
+                                {{ user_form.password }}
+                                <small class="form-text text-muted d-block">
+                                    Leave blank to auto-generate password
+                                </small>
+                                {% if user_form.password.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.password.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Confirm Password</label>
+                                {{ user_form.confirm_password }}
+                                {% if user_form.confirm_password.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ user_form.confirm_password.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Employment Information -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-briefcase-line me-2"></i>Employment Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <!-- Employee Number -->
+                            <div class="col-md-6">
+                                <label class="form-label">Employee Number <span class="text-danger">*</span></label>
+                                {{ lecturer_form.employee_number }}
+                                {% if lecturer_form.employee_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.employee_number.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Department -->
+                            <div class="col-md-6">
+                                <label class="form-label">Department <span class="text-danger">*</span></label>
+                                {{ lecturer_form.department }}
+                                {% if lecturer_form.department.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.department.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Designation -->
+                            <div class="col-md-6">
+                                <label class="form-label">Designation <span class="text-danger">*</span></label>
+                                {{ lecturer_form.designation }}
+                                {% if lecturer_form.designation.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.designation.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Hire Date -->
+                            <div class="col-md-6">
+                                <label class="form-label">Hire Date <span class="text-danger">*</span></label>
+                                {{ lecturer_form.hire_date }}
+                                {% if lecturer_form.hire_date.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.hire_date.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Contract End Date -->
+                            <div class="col-md-6">
+                                <label class="form-label">Contract End Date</label>
+                                {{ lecturer_form.contract_end_date }}
+                                <small class="form-text text-muted d-block">
+                                    Optional - for contract-based employment
+                                </small>
+                                {% if lecturer_form.contract_end_date.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.contract_end_date.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Office Location -->
+                            <div class="col-md-6">
+                                <label class="form-label">Office Location</label>
+                                {{ lecturer_form.office_location }}
+                                {% if lecturer_form.office_location.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.office_location.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Active Status -->
+                            <div class="col-12">
+                                <div class="form-check">
+                                    {{ lecturer_form.is_active }}
+                                    <label class="form-check-label" for="{{ lecturer_form.is_active.id_for_label }}">
+                                        Active Status
+                                    </label>
+                                    <small class="form-text text-muted d-block">
+                                        Inactive lecturers cannot be allocated units
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Academic Information -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-graduation-cap-line me-2"></i>Academic Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <!-- Qualification -->
+                            <div class="col-12">
+                                <label class="form-label">Highest Qualification <span class="text-danger">*</span></label>
+                                {{ lecturer_form.qualification }}
+                                <small class="form-text text-muted d-block">
+                                    e.g., PhD in Computer Science, MSc in Mathematics
+                                </small>
+                                {% if lecturer_form.qualification.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.qualification.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Specialization -->
+                            <div class="col-12">
+                                <label class="form-label">Area of Specialization</label>
+                                {{ lecturer_form.specialization }}
+                                <small class="form-text text-muted d-block">
+                                    e.g., Machine Learning, Artificial Intelligence, Data Science
+                                </small>
+                                {% if lecturer_form.specialization.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.specialization.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Consultation Hours -->
+                            <div class="col-12">
+                                <label class="form-label">Consultation Hours</label>
+                                {{ lecturer_form.consultation_hours }}
+                                <small class="form-text text-muted d-block">
+                                    Specify days and times when students can consult you
+                                </small>
+                                {% if lecturer_form.consultation_hours.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ lecturer_form.consultation_hours.errors }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% if is_edit %}{% url 'lecturer_detail' lecturer.employee_number %}{% else %}{% url 'lecturer_list' %}{% endif %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="ri-arrow-left-line me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-2"></i>
+                        {% if is_edit %}Update Lecturer{% else %}Add Lecturer{% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .management-card {
+        background: white;
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #e9ecef;
+        background: #f8f9fa;
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .profile-preview {
+        width: 80px;
+        height: 80px;
+        flex-shrink: 0;
+    }
+    
+    .profile-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid #e9ecef;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: #495057;
+    }
+    
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        padding: 0.625rem 0.875rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #2E7D32;
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .text-danger {
+        color: #dc3545;
+    }
+    
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .btn-primary {
+        background: #2E7D32;
+        border-color: #2E7D32;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Profile picture preview
+    const profileInput = document.getElementById('{{ user_form.profile_picture.id_for_label }}');
+    const profilePreview = document.getElementById('profilePreview');
+    
+    if (profileInput) {
+        profileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    profilePreview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Form validation
+    const form = document.getElementById('lecturerForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('is-invalid');
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+            }
+        });
+    }
+    
+    // Password match validation
+    const password = document.querySelector('[name="password"]');
+    const confirmPassword = document.querySelector('[name="confirm_password"]');
+    
+    if (password && confirmPassword) {
+        confirmPassword.addEventListener('blur', function() {
+            if (password.value && confirmPassword.value) {
+                if (password.value !== confirmPassword.value) {
+                    confirmPassword.setCustomValidity('Passwords do not match');
+                    confirmPassword.classList.add('is-invalid');
+                } else {
+                    confirmPassword.setCustomValidity('');
+                    confirmPassword.classList.remove('is-invalid');
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
