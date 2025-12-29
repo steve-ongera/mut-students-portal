@@ -4493,3 +4493,530 @@ def lecturer_workload(request, employee_number):
     }
     
     return render(request, 'admin/lecturers/lecturer_workload.html', context)
+
+
+
+# views.py
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Count, Q, Avg, Sum
+from django.utils import timezone
+from django.contrib import messages
+from decimal import Decimal
+import csv
+from io import BytesIO
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.units import inch
+
+@login_required
+def lecturer_units(request):
+    """View all units allocated to lecturer"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get filter parameters
+    semester_filter = request.GET.get('semester')
+    academic_year_filter = request.GET.get('academic_year')
+    status_filter = request.GET.get('status', 'approved')
+    
+    # Base query
+    allocations_query = UnitAllocation.objects.filter(
+        lecturer=request.user
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'programme_unit__programme__department',
+        'semester',
+        'semester__academic_year'
+    ).prefetch_related(
+        'programme_unit__registrations'
+    )
+    
+    # Apply filters
+    if semester_filter:
+        allocations_query = allocations_query.filter(semester_id=semester_filter)
+    elif current_semester:
+        # Default to current semester
+        allocations_query = allocations_query.filter(semester=current_semester)
+    
+    if academic_year_filter:
+        allocations_query = allocations_query.filter(
+            semester__academic_year_id=academic_year_filter
+        )
+    
+    if status_filter and status_filter != 'all':
+        if status_filter == 'approved':
+            allocations_query = allocations_query.filter(
+                status__in=['approved_hod', 'approved_hos', 'approved_dean']
+            )
+        else:
+            allocations_query = allocations_query.filter(status=status_filter)
+    
+    allocations = allocations_query.order_by('-semester__academic_year__start_date', 'programme_unit__unit__code')
+    
+    # Add student counts to each allocation
+    allocations_data = []
+    for allocation in allocations:
+        student_count = UnitRegistration.objects.filter(
+            programme_unit=allocation.programme_unit,
+            semester=allocation.semester,
+            status='registered'
+        ).count()
+        
+        assessment_count = Assessment.objects.filter(
+            unit_allocation=allocation
+        ).count()
+        
+        allocations_data.append({
+            'allocation': allocation,
+            'student_count': student_count,
+            'assessment_count': assessment_count
+        })
+    
+    # Get all semesters and academic years for filters
+    semesters = Semester.objects.all().order_by('-academic_year__start_date', '-semester_number')
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    context = {
+        'allocations_data': allocations_data,
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+        'semesters': semesters,
+        'academic_years': academic_years,
+        'semester_filter': semester_filter,
+        'academic_year_filter': academic_year_filter,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'lecturer/units_list.html', context)
+
+
+@login_required
+def unit_students(request, allocation_id):
+    """View all students in a specific unit with marks and attendance"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get the allocation
+    allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester',
+            'semester__academic_year'
+        ),
+        id=allocation_id,
+        lecturer=request.user
+    )
+    
+    # Get all students registered for this unit
+    registrations = UnitRegistration.objects.filter(
+        programme_unit=allocation.programme_unit,
+        semester=allocation.semester,
+        status='registered'
+    ).select_related(
+        'student',
+        'student__user',
+        'student__programme'
+    ).order_by('student__registration_number')
+    
+    # Get or create assessments for this unit
+    assessments = Assessment.objects.filter(
+        unit_allocation=allocation
+    ).order_by('assessment_type')
+    
+    # Create default assessments if they don't exist
+    if assessments.count() == 0:
+        Assessment.objects.create(
+            unit_allocation=allocation,
+            assessment_type='cat1',
+            title='CAT 1',
+            max_marks=Decimal('30.00'),
+            weight_percentage=Decimal('10.00'),
+            date=timezone.now().date()
+        )
+        Assessment.objects.create(
+            unit_allocation=allocation,
+            assessment_type='cat2',
+            title='CAT 2',
+            max_marks=Decimal('30.00'),
+            weight_percentage=Decimal('10.00'),
+            date=timezone.now().date()
+        )
+        Assessment.objects.create(
+            unit_allocation=allocation,
+            assessment_type='cat3',
+            title='CAT 3',
+            max_marks=Decimal('30.00'),
+            weight_percentage=Decimal('10.00'),
+            date=timezone.now().date()
+        )
+        Assessment.objects.create(
+            unit_allocation=allocation,
+            assessment_type='final',
+            title='Final Exam',
+            max_marks=Decimal('70.00'),
+            weight_percentage=Decimal('70.00'),
+            date=timezone.now().date()
+        )
+        assessments = Assessment.objects.filter(unit_allocation=allocation).order_by('assessment_type')
+    
+    # Build student data with marks and attendance
+    students_data = []
+    for registration in registrations:
+        student = registration.student
+        
+        # Calculate attendance
+        total_classes = Attendance.objects.filter(
+            unit_allocation=allocation,
+            student=student
+        ).count()
+        
+        present_classes = Attendance.objects.filter(
+            unit_allocation=allocation,
+            student=student,
+            status='present'
+        ).count()
+        
+        attendance_percentage = 0
+        if total_classes > 0:
+            attendance_percentage = round((present_classes / total_classes) * 100, 1)
+        
+        # Get marks for each assessment
+        marks = {}
+        total_marks = Decimal('0.00')
+        
+        for assessment in assessments:
+            student_mark = StudentMarks.objects.filter(
+                assessment=assessment,
+                student=student
+            ).first()
+            
+            mark_value = student_mark.marks_obtained if student_mark else None
+            marks[assessment.assessment_type] = {
+                'value': mark_value,
+                'max': assessment.max_marks,
+                'id': student_mark.id if student_mark else None
+            }
+            
+            if mark_value is not None:
+                # Calculate weighted mark (convert to percentage of 100)
+                weighted = (mark_value / assessment.max_marks) * assessment.weight_percentage
+                total_marks += weighted
+        
+        # Determine if eligible for exam (attendance >= 75%)
+        eligible_for_exam = attendance_percentage >= 75
+        
+        students_data.append({
+            'registration': registration,
+            'student': student,
+            'attendance_total': total_classes,
+            'attendance_present': present_classes,
+            'attendance_percentage': attendance_percentage,
+            'marks': marks,
+            'total_marks': round(total_marks, 2),
+            'eligible_for_exam': eligible_for_exam
+        })
+    
+    context = {
+        'allocation': allocation,
+        'assessments': assessments,
+        'students_data': students_data,
+        'total_students': len(students_data),
+    }
+    
+    return render(request, 'lecturer/unit_students.html', context)
+
+
+@login_required
+def save_student_marks(request):
+    """AJAX endpoint to save student marks"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    try:
+        assessment_id = request.POST.get('assessment_id')
+        student_id = request.POST.get('student_id')
+        marks_obtained = request.POST.get('marks_obtained')
+        
+        # Validate inputs
+        if not all([assessment_id, student_id, marks_obtained]):
+            return JsonResponse({'success': False, 'error': 'Missing required fields'})
+        
+        assessment = get_object_or_404(Assessment, id=assessment_id)
+        student = get_object_or_404(Student, id=student_id)
+        
+        # Validate marks range
+        marks_obtained = Decimal(marks_obtained)
+        if marks_obtained < 0 or marks_obtained > assessment.max_marks:
+            return JsonResponse({
+                'success': False, 
+                'error': f'Marks must be between 0 and {assessment.max_marks}'
+            })
+        
+        # Check if lecturer owns this assessment
+        if assessment.unit_allocation.lecturer != request.user:
+            return JsonResponse({'success': False, 'error': 'Unauthorized'})
+        
+        # Create or update student marks
+        student_mark, created = StudentMarks.objects.update_or_create(
+            assessment=assessment,
+            student=student,
+            defaults={
+                'marks_obtained': marks_obtained,
+                'attendance': True,
+                'status': 'draft',
+                'submitted_by': request.user
+            }
+        )
+        
+        # Calculate total marks for the student
+        all_assessments = Assessment.objects.filter(
+            unit_allocation=assessment.unit_allocation
+        )
+        
+        total = Decimal('0.00')
+        for assess in all_assessments:
+            mark = StudentMarks.objects.filter(
+                assessment=assess,
+                student=student
+            ).first()
+            
+            if mark:
+                weighted = (mark.marks_obtained / assess.max_marks) * assess.weight_percentage
+                total += weighted
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Marks saved successfully',
+            'total_marks': float(round(total, 2)),
+            'created': created
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def download_exam_list(request, allocation_id):
+    """Download PDF list of students eligible for exam"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester',
+            'semester__academic_year'
+        ),
+        id=allocation_id,
+        lecturer=request.user
+    )
+    
+    # Get all students with attendance >= 75%
+    registrations = UnitRegistration.objects.filter(
+        programme_unit=allocation.programme_unit,
+        semester=allocation.semester,
+        status='registered'
+    ).select_related('student', 'student__user')
+    
+    eligible_students = []
+    for registration in registrations:
+        student = registration.student
+        
+        # Calculate attendance
+        total_classes = Attendance.objects.filter(
+            unit_allocation=allocation,
+            student=student
+        ).count()
+        
+        present_classes = Attendance.objects.filter(
+            unit_allocation=allocation,
+            student=student,
+            status='present'
+        ).count()
+        
+        attendance_percentage = 0
+        if total_classes > 0:
+            attendance_percentage = round((present_classes / total_classes) * 100, 1)
+        
+        if attendance_percentage >= 75:
+            eligible_students.append({
+                'reg_no': student.registration_number,
+                'name': student.user.get_full_name(),
+                'attendance': attendance_percentage
+            })
+    
+    # Create PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    
+    # Styles
+    styles = getSampleStyleSheet()
+    title_style = styles['Heading1']
+    normal_style = styles['Normal']
+    
+    # Title
+    title = Paragraph(f"Exam Attendance List", title_style)
+    elements.append(title)
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Unit details
+    unit_details = f"""
+    <b>Unit:</b> {allocation.programme_unit.unit.code} - {allocation.programme_unit.unit.name}<br/>
+    <b>Programme:</b> {allocation.programme_unit.programme.code}<br/>
+    <b>Semester:</b> {allocation.semester.academic_year.name} - {allocation.semester.get_semester_number_display()}<br/>
+    <b>Lecturer:</b> {lecturer.user.get_full_name()}<br/>
+    <b>Date:</b> {timezone.now().strftime('%d %B %Y')}<br/>
+    <b>Total Eligible:</b> {len(eligible_students)} students
+    """
+    elements.append(Paragraph(unit_details, normal_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Table
+    table_data = [['No.', 'Registration Number', 'Student Name', 'Attendance %']]
+    
+    for idx, student in enumerate(eligible_students, 1):
+        table_data.append([
+            str(idx),
+            student['reg_no'],
+            student['name'],
+            f"{student['attendance']}%"
+        ])
+    
+    table = Table(table_data, colWidths=[0.6*inch, 1.8*inch, 3*inch, 1.2*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+    ]))
+    
+    elements.append(table)
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    # Create response
+    response = HttpResponse(buffer, content_type='application/pdf')
+    filename = f"exam_list_{allocation.programme_unit.unit.code}_{timezone.now().strftime('%Y%m%d')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
+
+
+@login_required
+def download_marks_csv(request, allocation_id):
+    """Download CSV of all student marks"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester'
+        ),
+        id=allocation_id,
+        lecturer=request.user
+    )
+    
+    # Get assessments
+    assessments = Assessment.objects.filter(
+        unit_allocation=allocation
+    ).order_by('assessment_type')
+    
+    # Get students
+    registrations = UnitRegistration.objects.filter(
+        programme_unit=allocation.programme_unit,
+        semester=allocation.semester,
+        status='registered'
+    ).select_related('student', 'student__user').order_by('student__registration_number')
+    
+    # Create CSV
+    response = HttpResponse(content_type='text/csv')
+    filename = f"marks_{allocation.programme_unit.unit.code}_{timezone.now().strftime('%Y%m%d')}.csv"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    writer = csv.writer(response)
+    
+    # Headers
+    headers = ['Registration Number', 'Student Name']
+    for assessment in assessments:
+        headers.append(f"{assessment.get_assessment_type_display()} ({assessment.max_marks})")
+    headers.extend(['Total (%)', 'Attendance %'])
+    
+    writer.writerow(headers)
+    
+    # Data rows
+    for registration in registrations:
+        student = registration.student
+        row = [student.registration_number, student.user.get_full_name()]
+        
+        total = Decimal('0.00')
+        for assessment in assessments:
+            mark = StudentMarks.objects.filter(
+                assessment=assessment,
+                student=student
+            ).first()
+            
+            if mark:
+                row.append(float(mark.marks_obtained))
+                weighted = (mark.marks_obtained / assessment.max_marks) * assessment.weight_percentage
+                total += weighted
+            else:
+                row.append('')
+        
+        row.append(float(round(total, 2)))
+        
+        # Attendance
+        total_classes = Attendance.objects.filter(
+            unit_allocation=allocation,
+            student=student
+        ).count()
+        
+        present_classes = Attendance.objects.filter(
+            unit_allocation=allocation,
+            student=student,
+            status='present'
+        ).count()
+        
+        attendance_percentage = 0
+        if total_classes > 0:
+            attendance_percentage = round((present_classes / total_classes) * 100, 1)
+        
+        row.append(attendance_percentage)
+        
+        writer.writerow(row)
+    
+    return response
