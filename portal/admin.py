@@ -728,6 +728,196 @@ class EnrollmentPeriodAdmin(admin.ModelAdmin):
     is_resit_enrollment_open_display.boolean = True
 
 
+# admin.py - Add these to your Django admin
+from django.contrib import admin
+from django.utils.html import format_html
+from django.db.models import Count
+from .models import TeachingMaterial, MaterialDownload, MaterialComment
+
+
+@admin.register(TeachingMaterial)
+class TeachingMaterialAdmin(admin.ModelAdmin):
+    list_display = [
+        'topic', 'unit_code', 'week_number', 'material_type', 
+        'file_type', 'is_published', 'upload_date', 'download_count', 
+        'view_count', 'uploaded_by'
+    ]
+    list_filter = [
+        'material_type', 'file_type', 'is_published', 'week_number',
+        'unit_allocation__semester', 'upload_date'
+    ]
+    search_fields = [
+        'topic', 'description', 
+        'unit_allocation__programme_unit__unit__code',
+        'unit_allocation__programme_unit__unit__name',
+        'uploaded_by__username', 'uploaded_by__first_name', 'uploaded_by__last_name'
+    ]
+    readonly_fields = [
+        'upload_date', 'download_count', 'view_count', 
+        'file_size', 'created_at', 'updated_at', 'display_file'
+    ]
+    
+    fieldsets = (
+        ('Material Information', {
+            'fields': (
+                'unit_allocation', 'week_number', 'material_type', 
+                'file_type', 'topic', 'description'
+            )
+        }),
+        ('Upload', {
+            'fields': ('file', 'display_file', 'external_link', 'file_size')
+        }),
+        ('Publishing', {
+            'fields': ('is_published', 'publish_date', 'uploaded_by')
+        }),
+        ('Statistics', {
+            'fields': ('download_count', 'view_count', 'upload_date')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    date_hierarchy = 'upload_date'
+    
+    def unit_code(self, obj):
+        return obj.unit_allocation.programme_unit.unit.code
+    unit_code.short_description = 'Unit Code'
+    unit_code.admin_order_field = 'unit_allocation__programme_unit__unit__code'
+    
+    def display_file(self, obj):
+        if obj.file:
+            return format_html(
+                '<a href="{}" target="_blank">View File</a>',
+                obj.file.url
+            )
+        elif obj.external_link:
+            return format_html(
+                '<a href="{}" target="_blank">External Link</a>',
+                obj.external_link
+            )
+        return '-'
+    display_file.short_description = 'File/Link'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related(
+            'unit_allocation__programme_unit__unit',
+            'unit_allocation__lecturer',
+            'uploaded_by'
+        )
+
+
+@admin.register(MaterialDownload)
+class MaterialDownloadAdmin(admin.ModelAdmin):
+    list_display = [
+        'material_topic', 'student_name', 'student_reg_no', 
+        'download_date', 'ip_address'
+    ]
+    list_filter = ['download_date']
+    search_fields = [
+        'material__topic',
+        'student__registration_number',
+        'student__user__first_name',
+        'student__user__last_name'
+    ]
+    readonly_fields = ['material', 'student', 'download_date', 'ip_address', 'user_agent']
+    date_hierarchy = 'download_date'
+    
+    def material_topic(self, obj):
+        return obj.material.topic
+    material_topic.short_description = 'Material'
+    
+    def student_name(self, obj):
+        return obj.student.user.get_full_name()
+    student_name.short_description = 'Student Name'
+    
+    def student_reg_no(self, obj):
+        return obj.student.registration_number
+    student_reg_no.short_description = 'Reg. Number'
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('material', 'student__user')
+
+
+@admin.register(MaterialComment)
+class MaterialCommentAdmin(admin.ModelAdmin):
+    list_display = [
+        'material_topic', 'student_name', 'comment_preview', 
+        'is_resolved', 'created_at', 'parent_comment'
+    ]
+    list_filter = ['is_resolved', 'created_at']
+    search_fields = [
+        'material__topic',
+        'student__registration_number',
+        'student__user__first_name',
+        'student__user__last_name',
+        'comment'
+    ]
+    readonly_fields = ['material', 'student', 'created_at', 'updated_at']
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Comment Information', {
+            'fields': ('material', 'student', 'comment', 'parent_comment')
+        }),
+        ('Status', {
+            'fields': ('is_resolved',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def material_topic(self, obj):
+        return obj.material.topic
+    material_topic.short_description = 'Material'
+    
+    def student_name(self, obj):
+        return obj.student.user.get_full_name()
+    student_name.short_description = 'Student'
+    
+    def comment_preview(self, obj):
+        return obj.comment[:50] + '...' if len(obj.comment) > 50 else obj.comment
+    comment_preview.short_description = 'Comment'
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('material', 'student__user', 'parent_comment')
+
+
+# Custom admin actions
+def publish_materials(modeladmin, request, queryset):
+    """Bulk publish materials"""
+    from django.utils import timezone
+    count = queryset.filter(is_published=False).update(
+        is_published=True,
+        publish_date=timezone.now()
+    )
+    modeladmin.message_user(
+        request,
+        f'{count} material(s) published successfully.'
+    )
+publish_materials.short_description = 'Publish selected materials'
+
+def unpublish_materials(modeladmin, request, queryset):
+    """Bulk unpublish materials"""
+    count = queryset.filter(is_published=True).update(is_published=False)
+    modeladmin.message_user(
+        request,
+        f'{count} material(s) unpublished successfully.'
+    )
+unpublish_materials.short_description = 'Unpublish selected materials'
+
+# Add actions to TeachingMaterialAdmin
+TeachingMaterialAdmin.actions = [publish_materials, unpublish_materials]
+
 # Customize admin site
 admin.site.site_header = "MUT University Management System"
 admin.site.site_title = "MUT Admin"
