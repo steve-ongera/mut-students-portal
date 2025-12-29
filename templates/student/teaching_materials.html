@@ -1,0 +1,468 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Teaching Materials{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-lg: 0 4px 6px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-400: #ced4da;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        background-color: #f5f7fa;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon.primary { background: rgba(46, 125, 50, 0.1); color: var(--color-primary); }
+    .stat-icon.info { background: rgba(33, 150, 243, 0.1); color: var(--color-info); }
+    .stat-icon.warning { background: rgba(255, 152, 0, 0.1); color: var(--color-warning); }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Unit Card */
+    .unit-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .unit-card-header {
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, var(--color-primary) 0%, #267029 100%);
+        color: white;
+    }
+    
+    .unit-info h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .unit-info p {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+    
+    /* Week Accordion */
+    .week-accordion {
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    .week-item {
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .week-header {
+        padding: 1rem 1.5rem;
+        background: var(--color-gray-100);
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.2s ease;
+    }
+    
+    .week-header:hover {
+        background: var(--color-gray-200);
+    }
+    
+    .week-title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .week-badge {
+        background: var(--color-primary);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    .week-content {
+        padding: 1rem 1.5rem;
+        display: none;
+    }
+    
+    .week-content.show {
+        display: block;
+    }
+    
+    /* Material Item */
+    .material-item {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .material-item:hover {
+        background: white;
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+    
+    .material-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .material-icon.pdf { color: #DC3545; }
+    .material-icon.word { color: #2B579A; }
+    .material-icon.image { color: #9C27B0; }
+    .material-icon.link { color: #00BCD4; }
+    
+    .material-details {
+        flex: 1;
+    }
+    
+    .material-title {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .material-meta {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .material-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+    
+    .btn-icon {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .downloaded-badge {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .material-item {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .material-actions {
+            width: 100%;
+            justify-content: flex-end;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Teaching Materials{% endblock %}
+{% block page_subtitle %}Access course materials and lecture notes{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Teaching Materials</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="ri-book-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ total_units }}</h3>
+                <p>Enrolled Units</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="ri-file-text-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ total_materials }}</h3>
+                <p>Available Materials</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="ri-calendar-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{% if current_semester %}{{ current_semester.name }}{% else %}N/A{% endif %}</h3>
+                <p>Current Semester</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Semester</label>
+                    <select name="semester" class="form-select">
+                        <option value="">All Semesters</option>
+                        {% for semester in semesters %}
+                        <option value="{{ semester.id }}" {% if semester_filter == semester.id|stringformat:"i" %}selected{% endif %}>
+                            {{ semester.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Unit</label>
+                    <select name="unit" class="form-select">
+                        <option value="">All Units</option>
+                        {% for unit in enrolled_units %}
+                        <option value="{{ unit.id }}" {% if unit_filter == unit.id|stringformat:"i" %}selected{% endif %}>
+                            {{ unit.code }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Week</label>
+                    <select name="week" class="form-select">
+                        <option value="">All Weeks</option>
+                        {% for i in "123456789012345"|make_list %}
+                        <option value="{{ forloop.counter }}" {% if week_filter == forloop.counter|stringformat:"i" %}selected{% endif %}>
+                            Week {{ forloop.counter }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="ri-filter-line me-2"></i>Apply
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Materials by Unit -->
+    {% for unit_code, data in units_data.items %}
+    <div class="unit-card">
+        <div class="unit-card-header">
+            <div class="unit-info">
+                <h3>{{ data.enrollment.programme_unit.unit.code }} - {{ data.enrollment.programme_unit.unit.name }}</h3>
+                <p>{{ data.total_materials }} material(s) • {{ data.weeks_covered|length }} week(s) covered</p>
+            </div>
+        </div>
+        
+        <div class="week-accordion">
+            {% for week_num in data.materials_by_week.keys|dictsort %}
+            <div class="week-item">
+                <div class="week-header" onclick="toggleWeek(this)">
+                    <div class="week-title">
+                        <span class="week-badge">Week {{ week_num }}</span>
+                        <span>{{ data.materials_by_week|get_item:week_num|length }} material(s)</span>
+                    </div>
+                    <i class="ri-arrow-down-s-line"></i>
+                </div>
+                <div class="week-content">
+                    {% for item in data.materials_by_week|get_item:week_num %}
+                    <div class="material-item">
+                        <div class="material-icon {{ item.material.get_file_extension }}">
+                            <i class="{{ item.material.get_file_icon }}"></i>
+                        </div>
+                        <div class="material-details">
+                            <div class="material-title">{{ item.material.topic }}</div>
+                            <div class="material-meta">
+                                <span><i class="ri-price-tag-3-line me-1"></i>{{ item.material.get_material_type_display }}</span>
+                                <span><i class="ri-calendar-line me-1"></i>{{ item.material.upload_date|date:"M d, Y" }}</span>
+                                <span><i class="ri-user-line me-1"></i>{{ item.material.uploaded_by.get_full_name }}</span>
+                                {% if item.material.description %}
+                                <span><i class="ri-information-line me-1"></i>{{ item.material.description|truncatewords:10 }}</span>
+                                {% endif %}
+                            </div>
+                            {% if item.has_downloaded %}
+                            <span class="downloaded-badge mt-2">
+                                <i class="ri-check-line me-1"></i>Downloaded
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div class="material-actions">
+                            <a href="{% url 'view_material' item.material.id %}" 
+                               class="btn btn-outline-primary btn-icon"
+                               title="View Details">
+                                <i class="ri-eye-line"></i>
+                            </a>
+                            <a href="{% url 'download_material' item.material.id %}" 
+                               class="btn btn-primary btn-icon"
+                               title="Download">
+                                <i class="ri-download-line"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="management-card">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="ri-inbox-line"></i>
+                <h5>No materials available</h5>
+                <p>No teaching materials have been uploaded for your enrolled units yet.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function toggleWeek(header) {
+    const content = header.nextElementSibling;
+    const icon = header.querySelector('i');
+    
+    content.classList.toggle('show');
+    icon.style.transform = content.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+
+// Helper for template filter
+Object.prototype.get_item = function(key) {
+    return this[key];
+};
+</script>
+{% endblock %}

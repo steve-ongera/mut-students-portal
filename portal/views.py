@@ -5441,3 +5441,401 @@ def get_material_stats(request, allocation_id):
         'success': True,
         'stats': stats
     })
+    
+    
+# student/views.py - Student Teaching Materials Views
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import FileResponse, Http404, JsonResponse
+from django.db.models import Count, Q, F, Prefetch
+from django.utils import timezone
+from django.core.paginator import Paginator
+
+from .models import (
+    Student, UnitEnrollment, TeachingMaterial, MaterialDownload,
+    MaterialComment, Semester
+)
+
+
+@login_required
+def student_teaching_materials(request):
+    """
+    Main view for students to access teaching materials for enrolled units
+    """
+    if not hasattr(request.user, 'student_profile'):
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get filters
+    semester_filter = request.GET.get('semester')
+    unit_filter = request.GET.get('unit')
+    week_filter = request.GET.get('week')
+    material_type = request.GET.get('material_type')
+    
+    # Get student's enrolled units
+    enrollments = UnitEnrollment.objects.filter(
+        student=student,
+        status='approved'
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'semester',
+        'semester__academic_year'
+    )
+    
+    # Apply semester filter
+    if semester_filter:
+        enrollments = enrollments.filter(semester_id=semester_filter)
+    elif current_semester:
+        enrollments = enrollments.filter(semester=current_semester)
+    
+    # Apply unit filter
+    if unit_filter:
+        enrollments = enrollments.filter(programme_unit__unit_id=unit_filter)
+    
+    # Get all materials for enrolled units
+    unit_allocation_ids = []
+    for enrollment in enrollments:
+        # Get unit allocation for this enrollment
+        from .models import UnitAllocation
+        allocations = UnitAllocation.objects.filter(
+            programme_unit=enrollment.programme_unit,
+            semester=enrollment.semester,
+            status__in=['approved_hod', 'approved_hos', 'approved_dean']
+        )
+        unit_allocation_ids.extend([a.id for a in allocations])
+    
+    # Get materials
+    materials = TeachingMaterial.objects.filter(
+        unit_allocation_id__in=unit_allocation_ids,
+        is_published=True
+    ).select_related(
+        'unit_allocation__programme_unit__unit',
+        'unit_allocation__lecturer',
+        'uploaded_by'
+    ).order_by('-upload_date')
+    
+    # Apply filters
+    if week_filter:
+        materials = materials.filter(week_number=week_filter)
+    
+    if material_type:
+        materials = materials.filter(material_type=material_type)
+    
+    # Group materials by unit and week
+    units_data = {}
+    for enrollment in enrollments:
+        unit_code = enrollment.programme_unit.unit.code
+        if unit_code not in units_data:
+            units_data[unit_code] = {
+                'enrollment': enrollment,
+                'materials_by_week': {},
+                'total_materials': 0,
+                'weeks_covered': set()
+            }
+    
+    for material in materials:
+        unit_code = material.unit_allocation.programme_unit.unit.code
+        if unit_code in units_data:
+            week = material.week_number
+            
+            if week not in units_data[unit_code]['materials_by_week']:
+                units_data[unit_code]['materials_by_week'][week] = []
+            
+            # Check if student has downloaded this material
+            has_downloaded = MaterialDownload.objects.filter(
+                material=material,
+                student=student
+            ).exists()
+            
+            material_data = {
+                'material': material,
+                'has_downloaded': has_downloaded
+            }
+            
+            units_data[unit_code]['materials_by_week'][week].append(material_data)
+            units_data[unit_code]['total_materials'] += 1
+            units_data[unit_code]['weeks_covered'].add(week)
+    
+    # Get available semesters
+    semesters = Semester.objects.filter(
+        unit_registrations__student=student
+    ).distinct().order_by('-start_date')
+    
+    # Get available units for filter
+    enrolled_units = set()
+    for enrollment in enrollments:
+        enrolled_units.add(enrollment.programme_unit.unit)
+    
+    context = {
+        'units_data': units_data,
+        'current_semester': current_semester,
+        'semesters': semesters,
+        'enrolled_units': enrolled_units,
+        'semester_filter': semester_filter,
+        'unit_filter': unit_filter,
+        'week_filter': week_filter,
+        'material_type': material_type,
+        'total_materials': sum(data['total_materials'] for data in units_data.values()),
+        'total_units': len(units_data),
+    }
+    
+    return render(request, 'student/teaching_materials.html', context)
+
+
+@login_required
+def download_material(request, material_id):
+    """
+    Download or view a teaching material
+    Track the download in MaterialDownload model
+    """
+    if not hasattr(request.user, 'student_profile'):
+        raise Http404("Material not found")
+    
+    student = request.user.student_profile
+    
+    # Get material
+    material = get_object_or_404(
+        TeachingMaterial.objects.select_related(
+            'unit_allocation__programme_unit__unit'
+        ),
+        id=material_id,
+        is_published=True
+    )
+    
+    # Check if student is enrolled in this unit
+    is_enrolled = UnitEnrollment.objects.filter(
+        student=student,
+        programme_unit=material.unit_allocation.programme_unit,
+        semester=material.unit_allocation.semester,
+        status='approved'
+    ).exists()
+    
+    if not is_enrolled:
+        messages.error(request, "You are not enrolled in this unit.")
+        return redirect('student_teaching_materials')
+    
+    # Track download
+    MaterialDownload.objects.create(
+        material=material,
+        student=student,
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')
+    )
+    
+    # Increment download count
+    material.download_count += 1
+    material.save()
+    
+    # If external link, redirect
+    if material.external_link:
+        return redirect(material.external_link)
+    
+    # If file, serve it
+    if material.file:
+        try:
+            response = FileResponse(
+                material.file.open('rb'),
+                as_attachment=True,
+                filename=material.file.name.split('/')[-1]
+            )
+            return response
+        except Exception as e:
+            messages.error(request, f"Error downloading file: {str(e)}")
+            return redirect('student_teaching_materials')
+    
+    messages.error(request, "Material file not found.")
+    return redirect('student_teaching_materials')
+
+
+@login_required
+def view_material(request, material_id):
+    """
+    View material details without downloading
+    """
+    if not hasattr(request.user, 'student_profile'):
+        raise Http404("Material not found")
+    
+    student = request.user.student_profile
+    
+    material = get_object_or_404(
+        TeachingMaterial.objects.select_related(
+            'unit_allocation__programme_unit__unit',
+            'unit_allocation__lecturer',
+            'uploaded_by'
+        ),
+        id=material_id,
+        is_published=True
+    )
+    
+    # Check enrollment
+    is_enrolled = UnitEnrollment.objects.filter(
+        student=student,
+        programme_unit=material.unit_allocation.programme_unit,
+        semester=material.unit_allocation.semester,
+        status='approved'
+    ).exists()
+    
+    if not is_enrolled:
+        messages.error(request, "You are not enrolled in this unit.")
+        return redirect('student_teaching_materials')
+    
+    # Increment view count
+    material.view_count += 1
+    material.save()
+    
+    # Check if downloaded
+    has_downloaded = MaterialDownload.objects.filter(
+        material=material,
+        student=student
+    ).exists()
+    
+    # Get comments
+    comments = MaterialComment.objects.filter(
+        material=material,
+        parent_comment=None
+    ).select_related('student__user').prefetch_related(
+        'replies__student__user'
+    ).order_by('-created_at')
+    
+    context = {
+        'material': material,
+        'has_downloaded': has_downloaded,
+        'comments': comments,
+        'can_comment': True,
+    }
+    
+    return render(request, 'student/view_material.html', context)
+
+
+@login_required
+def add_material_comment(request, material_id):
+    """
+    Add comment/question to a material
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Invalid method'}, status=405)
+    
+    if not hasattr(request.user, 'student_profile'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    student = request.user.student_profile
+    
+    material = get_object_or_404(
+        TeachingMaterial,
+        id=material_id,
+        is_published=True
+    )
+    
+    # Check enrollment
+    is_enrolled = UnitEnrollment.objects.filter(
+        student=student,
+        programme_unit=material.unit_allocation.programme_unit,
+        semester=material.unit_allocation.semester,
+        status='approved'
+    ).exists()
+    
+    if not is_enrolled:
+        return JsonResponse({'error': 'Not enrolled'}, status=403)
+    
+    comment_text = request.POST.get('comment', '').strip()
+    parent_id = request.POST.get('parent_id')
+    
+    if not comment_text:
+        return JsonResponse({'error': 'Comment cannot be empty'}, status=400)
+    
+    # Create comment
+    comment = MaterialComment(
+        material=material,
+        student=student,
+        comment=comment_text
+    )
+    
+    if parent_id:
+        parent_comment = get_object_or_404(MaterialComment, id=parent_id)
+        comment.parent_comment = parent_comment
+    
+    comment.save()
+    
+    return JsonResponse({
+        'success': True,
+        'comment': {
+            'id': comment.id,
+            'comment': comment.comment,
+            'student_name': student.user.get_full_name(),
+            'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M'),
+        }
+    })
+
+
+@login_required
+def unit_materials_view(request, enrollment_id):
+    """
+    View all materials for a specific enrolled unit
+    """
+    if not hasattr(request.user, 'student_profile'):
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('student_dashboard')
+    
+    student = request.user.student_profile
+    
+    # Get enrollment
+    enrollment = get_object_or_404(
+        UnitEnrollment.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester'
+        ),
+        id=enrollment_id,
+        student=student,
+        status='approved'
+    )
+    
+    # Get unit allocations
+    from .models import UnitAllocation
+    allocations = UnitAllocation.objects.filter(
+        programme_unit=enrollment.programme_unit,
+        semester=enrollment.semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    )
+    
+    # Get materials
+    materials = TeachingMaterial.objects.filter(
+        unit_allocation__in=allocations,
+        is_published=True
+    ).select_related(
+        'uploaded_by',
+        'unit_allocation__lecturer'
+    ).order_by('week_number', '-upload_date')
+    
+    # Group by week
+    materials_by_week = {}
+    for material in materials:
+        week = material.week_number
+        if week not in materials_by_week:
+            materials_by_week[week] = []
+        
+        has_downloaded = MaterialDownload.objects.filter(
+            material=material,
+            student=student
+        ).exists()
+        
+        materials_by_week[week].append({
+            'material': material,
+            'has_downloaded': has_downloaded
+        })
+    
+    context = {
+        'enrollment': enrollment,
+        'materials_by_week': materials_by_week,
+        'total_materials': materials.count(),
+        'weeks_covered': len(materials_by_week),
+    }
+    
+    return render(request, 'student/unit_materials.html', context)

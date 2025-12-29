@@ -813,4 +813,62 @@ async function handleFormSubmit(e) {
             method: 'POST',
             body: formData,
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Show success message
+            showAlert('success', data.message);
+            
+            // Close modal
+            uploadModal.hide();
+            
+            // Reload page to show new material
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showAlert('danger', data.error || 'Failed to upload material');
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
+        showAlert('danger', 'An error occurred while uploading. Please try again.');
+    } finally {
+        // Re-enable submit button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="ri-upload-line"></i> Upload Material';
+    }
+}
+
+function viewAllMaterials(allocationId) {
+    // Implement view all materials functionality
+    window.location.href = `/lecturer/materials/view/${allocationId}/`;
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Template filter helper
+document.addEventListener('DOMContentLoaded', function() {
+    // Helper to get dictionary item (for materials_by_week)
+    Object.prototype.get_item = function(key) {
+        return this[key];
+    };
+});
+</script>
+{% endblock %}

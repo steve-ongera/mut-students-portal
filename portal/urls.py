@@ -145,5 +145,21 @@ urlpatterns = [
     path('lecturer/save-marks/', views.save_student_marks, name='save_student_marks'),
     path('lecturer/units/<int:allocation_id>/exam-list/', views.download_exam_list, name='download_exam_list'),
     path('lecturer/units/<int:allocation_id>/export-marks/', views.download_marks_csv, name='download_marks_csv'),
+    
+    # Teaching Materials Management
+    path('teaching-materials/', views.lecturer_teaching_materials, name='lecturer_teaching_materials'),
+    path('materials/upload/<int:allocation_id>/', views.upload_teaching_material, name='upload_teaching_material'),
+    path('materials/update/<int:material_id>/', views.update_teaching_material, name='update_teaching_material'),
+    path('materials/delete/<int:material_id>/', views.delete_teaching_material, name='delete_teaching_material'),
+    path('materials/toggle-publish/<int:material_id>/', views.toggle_material_publish, name='toggle_material_publish'),
+    path('materials/stats/<int:allocation_id>/', views.get_material_stats, name='get_material_stats'),
+    
+    
+    # Teaching Materials Access
+    path('teaching-materials/', views.student_teaching_materials, name='student_teaching_materials'),
+    path('materials/download/<int:material_id>/', views.download_material, name='download_material'),
+    path('materials/view/<int:material_id>/', views.view_material, name='view_material'),
+    path('materials/comment/<int:material_id>/', views.add_material_comment, name='add_material_comment'),
+    path('materials/unit/<int:enrollment_id>/', views.unit_materials_view, name='unit_materials_view'),
 
 ]
