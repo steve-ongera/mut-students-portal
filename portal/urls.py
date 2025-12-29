@@ -65,7 +65,6 @@ urlpatterns = [
     path('semesters/<int:semester_id>/update/', views.update_semester_ajax, name='update_semester_ajax'),
     path('semesters/<int:pk>/set-current/', views.set_current_semester, name='set_current_semester'),
     path('semesters/<int:semester_id>/delete/', views.delete_semester_ajax, name='delete_semester_ajax'),
-    
     path('semesters/<int:semester_id>/enrollment-period/',views.save_enrollment_period, name='save_enrollment_period'),
     
     # ============= SEMESTERS =============
@@ -137,11 +136,14 @@ urlpatterns = [
     path('lecturers/<str:employee_number>/edit/', views.lecturer_form, name='update_lecturer'),
     path('lecturers/<str:employee_number>/delete/', views.lecturer_delete, name='delete_lecturer'),
     path('lecturers/<str:employee_number>/workload/', views.lecturer_workload, name='lecturer_workload'),
-    
-    # Bulk Actions
     path('lecturers/bulk/update/', views.lecturer_bulk_update, name='bulk_update_lecturers'),
-    
-    # Export
     path('lecturers/export/csv/', views.export_lecturers, name='export_lecturers'),
+    
+    # Lecturer Units Management
+    path('lecturer/units/', views.lecturer_units, name='lecturer_units'),
+    path('lecturer/units/<int:allocation_id>/students/', views.unit_students, name='unit_students'),
+    path('lecturer/save-marks/', views.save_student_marks, name='save_student_marks'),
+    path('lecturer/units/<int:allocation_id>/exam-list/', views.download_exam_list, name='download_exam_list'),
+    path('lecturer/units/<int:allocation_id>/export-marks/', views.download_marks_csv, name='download_marks_csv'),
 
 ]

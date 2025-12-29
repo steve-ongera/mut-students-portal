@@ -1,0 +1,625 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}{{ allocation.programme_unit.unit.code }} - Students & Marks{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_units' %}">My Units</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ allocation.programme_unit.unit.code }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Unit Header -->
+    <div class="unit-info-header mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <div class="unit-code-large">{{ allocation.programme_unit.unit.code }}</div>
+                <h3 class="unit-name-large">{{ allocation.programme_unit.unit.name }}</h3>
+                <div class="unit-meta-info">
+                    <span class="meta-badge">
+                        <i class="ri-book-line"></i>
+                        {{ allocation.programme_unit.programme.code }}
+                    </span>
+                    <span class="meta-badge">
+                        <i class="ri-calendar-line"></i>
+                        {{ allocation.semester.academic_year.name }} - Sem {{ allocation.semester.semester_number }}
+                    </span>
+                    <span class="meta-badge">
+                        <i class="ri-award-line"></i>
+                        {{ allocation.programme_unit.unit.credit_hours }} Credit Hours
+                    </span>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="d-flex flex-column gap-2">
+                    <a href="{% url 'download_exam_list' allocation.id %}" 
+                       class="btn btn-success">
+                        <i class="ri-file-download-line me-2"></i>Download Exam List (PDF)
+                    </a>
+                    <a href="{% url 'download_marks_csv' allocation.id %}" 
+                       class="btn btn-info">
+                        <i class="ri-file-excel-line me-2"></i>Export All Marks (CSV)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-primary-subtle">
+                    <i class="ri-group-line text-primary"></i>
+                </div>
+                <div class="stats-info">
+                    <div class="stats-value">{{ total_students }}</div>
+                    <div class="stats-label">Total Students</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-success-subtle">
+                    <i class="ri-checkbox-circle-line text-success"></i>
+                </div>
+                <div class="stats-info">
+                    <div class="stats-value">
+                        {{ students_data|length|add:"0" }}
+                        {% for student in students_data %}
+                            {% if student.eligible_for_exam %}
+                                {% if forloop.first %}0{% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <div class="stats-label">Eligible for Exam</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-info-subtle">
+                    <i class="ri-file-list-line text-info"></i>
+                </div>
+                <div class="stats-info">
+                    <div class="stats-value">{{ assessments.count }}</div>
+                    <div class="stats-label">Assessments</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon bg-warning-subtle">
+                    <i class="ri-percent-line text-warning"></i>
+                </div>
+                <div class="stats-info">
+                    <div class="stats-value">100%</div>
+                    <div class="stats-label">Total Marks</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marks Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="ri-table-line me-2"></i>Student Marks Entry
+            </h5>
+            <div class="card-subtitle">
+                Enter marks for each assessment (CAT 1, CAT 2, CAT 3: /30 marks each | Final Exam: /70 marks)
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover marks-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 50px;">#</th>
+                            <th style="min-width: 140px;">Reg Number</th>
+                            <th style="min-width: 200px;">Student Name</th>
+                            <th style="min-width: 100px;">Attendance</th>
+                            <th style="min-width: 120px;">CAT 1<br><small class="text-muted">/30</small></th>
+                            <th style="min-width: 120px;">CAT 2<br><small class="text-muted">/30</small></th>
+                            <th style="min-width: 120px;">CAT 3<br><small class="text-muted">/30</small></th>
+                            <th style="min-width: 120px;">Final Exam<br><small class="text-muted">/70</small></th>
+                            <th style="min-width: 100px;">Total<br><small class="text-muted">/100%</small></th>
+                            <th style="min-width: 100px;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student_data in students_data %}
+                        <tr class="student-row" data-student-id="{{ student_data.student.id }}">
+                            <td>{{ forloop.counter }}</td>
+                            <td class="fw-semibold">{{ student_data.student.registration_number }}</td>
+                            <td>{{ student_data.student.user.get_full_name }}</td>
+                            <td>
+                                <div class="attendance-cell">
+                                    <div class="attendance-percentage 
+                                        {% if student_data.attendance_percentage >= 75 %}text-success
+                                        {% elif student_data.attendance_percentage >= 60 %}text-warning
+                                        {% else %}text-danger{% endif %}">
+                                        {{ student_data.attendance_percentage }}%
+                                    </div>
+                                    <small class="text-muted">
+                                        {{ student_data.attendance_present }}/{{ student_data.attendance_total }}
+                                    </small>
+                                </div>
+                            </td>
+                            
+                            <!-- CAT 1 -->
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'cat1' %}
+                                <td>
+                                    <input type="number" 
+                                           class="form-control marks-input" 
+                                           data-assessment-id="{{ assessment.id }}"
+                                           data-student-id="{{ student_data.student.id }}"
+                                           data-max-marks="{{ assessment.max_marks }}"
+                                           min="0" 
+                                           max="{{ assessment.max_marks }}"
+                                           step="0.5"
+                                           value="{% if student_data.marks.cat1.value %}{{ student_data.marks.cat1.value }}{% endif %}"
+                                           placeholder="0.0">
+                                </td>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <!-- CAT 2 -->
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'cat2' %}
+                                <td>
+                                    <input type="number" 
+                                           class="form-control marks-input" 
+                                           data-assessment-id="{{ assessment.id }}"
+                                           data-student-id="{{ student_data.student.id }}"
+                                           data-max-marks="{{ assessment.max_marks }}"
+                                           min="0" 
+                                           max="{{ assessment.max_marks }}"
+                                           step="0.5"
+                                           value="{% if student_data.marks.cat2.value %}{{ student_data.marks.cat2.value }}{% endif %}"
+                                           placeholder="0.0">
+                                </td>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <!-- CAT 3 -->
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'cat3' %}
+                                <td>
+                                    <input type="number" 
+                                           class="form-control marks-input" 
+                                           data-assessment-id="{{ assessment.id }}"
+                                           data-student-id="{{ student_data.student.id }}"
+                                           data-max-marks="{{ assessment.max_marks }}"
+                                           min="0" 
+                                           max="{{ assessment.max_marks }}"
+                                           step="0.5"
+                                           value="{% if student_data.marks.cat3.value %}{{ student_data.marks.cat3.value }}{% endif %}"
+                                           placeholder="0.0">
+                                </td>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <!-- Final Exam -->
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'final' %}
+                                <td>
+                                    <input type="number" 
+                                           class="form-control marks-input" 
+                                           data-assessment-id="{{ assessment.id }}"
+                                           data-student-id="{{ student_data.student.id }}"
+                                           data-max-marks="{{ assessment.max_marks }}"
+                                           min="0" 
+                                           max="{{ assessment.max_marks }}"
+                                           step="0.5"
+                                           value="{% if student_data.marks.final.value %}{{ student_data.marks.final.value }}{% endif %}"
+                                           placeholder="0.0"
+                                           {% if not student_data.eligible_for_exam %}disabled{% endif %}>
+                                </td>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <td>
+                                <div class="total-marks" id="total-{{ student_data.student.id }}">
+                                    {{ student_data.total_marks }}%
+                                </div>
+                            </td>
+                            <td>
+                                {% if student_data.eligible_for_exam %}
+                                <span class="badge badge-success">
+                                    <i class="ri-checkbox-circle-line me-1"></i>Eligible
+                                </span>
+                                {% else %}
+                                <span class="badge badge-danger">
+                                    <i class="ri-close-circle-line me-1"></i>Not Eligible
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="10" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-user-search-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No students enrolled</h5>
+                                    <p class="text-muted mb-0">No students are registered for this unit</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="saveToast" class="toast" role="alert">
+        <div class="toast-header">
+            <i class="ri-save-line me-2"></i>
+            <strong class="me-auto">Marks Saved</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            Marks have been saved successfully!
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        background: var(--color-gray-100);
+    }
+    
+    .content-container {
+        padding: 2rem 1rem;
+        max-width: 1600px;
+        margin: 0 auto;
+    }
+    
+    /* Unit Header */
+    .unit-info-header {
+        background: white;
+        padding: 2rem;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        border-left: 4px solid var(--color-primary);
+    }
+    
+    .unit-code-large {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        letter-spacing: 0.5px;
+    }
+    
+    .unit-name-large {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0.5rem 0 1rem 0;
+    }
+    
+    .unit-meta-info {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .meta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        font-size: 0.875rem;
+        color: var(--color-gray-700);
+    }
+    
+    /* Stats Cards */
+    .stats-card {
+        background: white;
+        padding: 1.25rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--color-gray-200);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .stats-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stats-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .bg-primary-subtle { background: rgba(46, 125, 50, 0.1); }
+    .bg-success-subtle { background: rgba(76, 175, 80, 0.1); }
+    .bg-info-subtle { background: rgba(33, 150, 243, 0.1); }
+    .bg-warning-subtle { background: rgba(255, 152, 0, 0.1); }
+    
+    .stats-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .stats-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    /* Marks Table */
+    .marks-table {
+        font-size: 0.875rem;
+    }
+    
+    .marks-table thead th {
+        background: var(--color-gray-100);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        padding: 1rem 0.75rem;
+        border-bottom: 2px solid var(--color-gray-300);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .marks-table tbody td {
+        padding: 0.875rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .marks-table tbody tr:hover {
+        background: rgba(46, 125, 50, 0.02);
+    }
+    
+    .marks-input {
+        width: 100px;
+        padding: 0.5rem;
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-300);
+        text-align: center;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    
+    .marks-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
+    }
+    
+    .marks-input:disabled {
+        background: var(--color-gray-100);
+        cursor: not-allowed;
+    }
+    
+    .marks-input.saving {
+        border-color: var(--color-warning);
+        background: rgba(255, 152, 0, 0.05);
+    }
+    
+    .marks-input.saved {
+        border-color: var(--color-success);
+        background: rgba(76, 175, 80, 0.05);
+    }
+    
+    .total-marks {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+    
+    .attendance-cell {
+        text-align: center;
+    }
+    
+    .attendance-percentage {
+        font-size: 1.125rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    /* Badges */
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .badge-success {
+        background: rgba(76, 175, 80, 0.15);
+        color: var(--color-success);
+    }
+    
+    .badge-danger {
+        background: rgba(244, 67, 54, 0.15);
+        color: var(--color-danger);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const marksInputs = document.querySelectorAll('.marks-input');
+    const csrfToken = '{{ csrf_token }}';
+    
+    // Auto-save marks on blur with debounce
+    marksInputs.forEach(input => {
+        let saveTimeout;
+        
+        input.addEventListener('change', function() {
+            clearTimeout(saveTimeout);
+            
+            const assessmentId = this.dataset.assessmentId;
+            const studentId = this.dataset.studentId;
+            const marksObtained = this.value;
+            const maxMarks = parseFloat(this.dataset.maxMarks);
+            
+            // Validation
+            if (marksObtained === '') return;
+            
+            const marks = parseFloat(marksObtained);
+            if (marks < 0 || marks > maxMarks) {
+                alert(`Marks must be between 0 and ${maxMarks}`);
+                this.value = '';
+                return;
+            }
+            
+            // Visual feedback
+            this.classList.add('saving');
+            
+            // Save after 500ms delay
+            saveTimeout = setTimeout(() => {
+                saveMarks(assessmentId, studentId, marksObtained, this);
+            }, 500);
+        });
+    });
+    
+    function saveMarks(assessmentId, studentId, marksObtained, inputElement) {
+        fetch('{% url "save_student_marks" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': csrfToken
+            },
+            body: `assessment_id=${assessmentId}&student_id=${studentId}&marks_obtained=${marksObtained}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update total marks
+                const totalElement = document.getElementById(`total-${studentId}`);
+                if (totalElement) {
+                    totalElement.textContent = `${data.total_marks}%`;
+                }
+                
+                // Visual feedback
+                inputElement.classList.remove('saving');
+                inputElement.classList.add('saved');
+                
+                setTimeout(() => {
+                    inputElement.classList.remove('saved');
+                }, 1500);
+                
+                // Show toast
+                showToast('Marks saved successfully!');
+            } else {
+                alert('Error: ' + data.error);
+                inputElement.classList.remove('saving');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to save marks. Please try again.');
+            inputElement.classList.remove('saving');
+        });
+    }
+    
+    function showToast(message) {
+        const toastElement = document.getElementById('saveToast');
+        const toastBody = toastElement.querySelector('.toast-body');
+        toastBody.textContent = message;
+        
+        const toast = new bootstrap.Toast(toastElement, {
+            delay: 2000
+        });
+        toast.show();
+    }
+});
+</script>
+{% endblock %}
