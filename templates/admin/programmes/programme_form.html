@@ -1,8 +1,602 @@
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
-{% block title %}Admin Page{% endblock %}
+{% block title %}{% if is_update %}Update{% else %}Add{% endif %} Programme{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}{% if is_update %}Update{% else %}Add New{% endif %} Programme{% endblock %}
+{% block page_subtitle %}{% if is_update %}Update programme information{% else %}Create a new academic programme{% endif %}{% endblock %}
 
 {% block content %}
-<!-- Page content goes here -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'programme_list' %}">Programmes</a></li>
+        {% if is_update %}
+        <li class="breadcrumb-item"><a href="{% url 'programme_detail' programme.pk %}">{{ programme.code }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Update</li>
+        {% else %}
+        <li class="breadcrumb-item active" aria-current="page">Add Programme</li>
+        {% endif %}
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Form Card -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        {% if is_update %}
+                        <i class="ri-edit-line me-2"></i>Update Programme Information
+                        {% else %}
+                        <i class="ri-add-line me-2"></i>Add New Programme
+                        {% endif %}
+                    </h5>
+                    <div class="card-subtitle">
+                        {% if is_update %}
+                        Editing: <strong>{{ programme.name }}</strong>
+                        {% else %}
+                        Fill in the details below to create a new programme
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="programmeForm">
+                        {% csrf_token %}
+                        
+                        <!-- Basic Information Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Basic Information</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="name" class="form-label required">Programme Name</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="name" 
+                                           name="name" 
+                                           value="{% if programme %}{{ programme.name }}{% endif %}"
+                                           placeholder="e.g., Bachelor of Science in Information Technology"
+                                           required>
+                                    <div class="form-text">Full official name of the programme</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="code" class="form-label required">Programme Code</label>
+                                    <input type="text" 
+                                           class="form-control text-uppercase" 
+                                           id="code" 
+                                           name="code" 
+                                           value="{% if programme %}{{ programme.code }}{% endif %}"
+                                           placeholder="e.g., BSC-IT"
+                                           required>
+                                    <div class="form-text">Unique programme identifier (will be uppercase)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Department & School Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Department & School</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="school" class="form-label">School</label>
+                                    <select class="form-select" id="school" name="school">
+                                        <option value="">Select School First</option>
+                                        {% regroup departments by school as school_list %}
+                                        {% for school_group in school_list %}
+                                        <option value="{{ school_group.grouper.id }}" 
+                                                data-school-name="{{ school_group.grouper.name }}"
+                                                {% if programme and programme.department.school.id == school_group.grouper.id %}selected{% endif %}>
+                                            {{ school_group.grouper.code }} - {{ school_group.grouper.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Select the school this programme belongs to</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="department" class="form-label required">Department</label>
+                                    <select class="form-select" id="department" name="department" required>
+                                        <option value="">Select Department</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}" 
+                                                data-school="{{ dept.school.id }}"
+                                                {% if programme and programme.department.id == dept.id %}selected{% endif %}>
+                                            {{ dept.code }} - {{ dept.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Select the department managing this programme</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Programme Details Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Programme Details</h6>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label for="programme_type" class="form-label required">Programme Type</label>
+                                    <select class="form-select" id="programme_type" name="programme_type" required>
+                                        <option value="">Select Type</option>
+                                        {% for type_code, type_name in programme_types %}
+                                        <option value="{{ type_code }}" 
+                                                {% if programme and programme.programme_type == type_code %}selected{% endif %}>
+                                            {{ type_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="study_mode" class="form-label required">Study Mode</label>
+                                    <select class="form-select" id="study_mode" name="study_mode" required>
+                                        <option value="">Select Mode</option>
+                                        {% for mode_code, mode_name in study_modes %}
+                                        <option value="{{ mode_code }}" 
+                                                {% if programme and programme.study_mode == mode_code %}selected{% endif %}>
+                                            {{ mode_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="min_credit_hours" class="form-label required">Minimum Credit Hours</label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="min_credit_hours" 
+                                           name="min_credit_hours" 
+                                           value="{% if programme %}{{ programme.min_credit_hours }}{% else %}120{% endif %}"
+                                           min="1"
+                                           required>
+                                    <div class="form-text">Credits required for graduation</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Duration Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Duration</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="duration_years" class="form-label required">Duration (Years)</label>
+                                    <select class="form-select" id="duration_years" name="duration_years" required>
+                                        <option value="">Select Duration</option>
+                                        {% for year in "1234567" %}
+                                        <option value="{{ year }}" 
+                                                {% if programme and programme.duration_years == year|add:"0" %}selected{% endif %}>
+                                            {{ year }} Year{% if year != "1" %}s{% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Total years to complete the programme</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="total_semesters" class="form-label required">Total Semesters</label>
+                                    <select class="form-select" id="total_semesters" name="total_semesters" required>
+                                        <option value="">Select Semesters</option>
+                                        {% for sem in "2,3,4,5,6,7,8,9,10,11,12,13,14" %}
+                                        {% with sem_num=sem|add:"0" %}
+                                        <option value="{{ sem_num }}" 
+                                                {% if programme and programme.total_semesters == sem_num %}selected{% endif %}>
+                                            {{ sem_num }} Semesters
+                                        </option>
+                                        {% endwith %}
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Total number of semesters in the programme</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Description</h6>
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="description" class="form-label">Programme Description</label>
+                                    <textarea class="form-control" 
+                                              id="description" 
+                                              name="description" 
+                                              rows="4"
+                                              placeholder="Provide a detailed description of the programme, its objectives, and career prospects...">{% if programme %}{{ programme.description }}{% endif %}</textarea>
+                                    <div class="form-text">Optional: Detailed information about the programme</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Accreditation Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Accreditation</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="accreditation_body" class="form-label">Accreditation Body</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="accreditation_body" 
+                                           name="accreditation_body" 
+                                           value="{% if programme %}{{ programme.accreditation_body }}{% endif %}"
+                                           placeholder="e.g., Commission for University Education (CUE)">
+                                    <div class="form-text">Organization that accredits this programme</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="accreditation_status" class="form-label">Accreditation Status</label>
+                                    <input type="text" 
+                                           class="form-control" 
+                                           id="accreditation_status" 
+                                           name="accreditation_status" 
+                                           value="{% if programme %}{{ programme.accreditation_status }}{% endif %}"
+                                           placeholder="e.g., Fully Accredited">
+                                    <div class="form-text">Current accreditation status</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status Section -->
+                        <div class="form-section mb-4">
+                            <h6 class="form-section-title">Status</h6>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active"
+                                       {% if not programme or programme.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    Programme is Active
+                                </label>
+                                <div class="form-text mt-2">
+                                    Active programmes are available for student enrollment and appear in listings
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="form-actions">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{% if is_update %}{% url 'programme_detail' programme.pk %}{% else %}{% url 'programme_list' %}{% endif %}" 
+                                   class="btn btn-outline-secondary">
+                                    <i class="ri-close-line me-2"></i>Cancel
+                                </a>
+                                <div class="d-flex gap-2">
+                                    {% if is_update %}
+                                    <a href="{% url 'programme_detail' programme.pk %}" class="btn btn-outline-primary">
+                                        <i class="ri-eye-line me-2"></i>View Details
+                                    </a>
+                                    {% endif %}
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="ri-save-line me-2"></i>
+                                        {% if is_update %}Update Programme{% else %}Create Programme{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if is_update %}
+            <!-- Additional Actions Card -->
+            <div class="management-card mt-4">
+                <div class="card-header bg-danger-subtle">
+                    <h5 class="card-title text-danger">
+                        <i class="ri-alert-line me-2"></i>Danger Zone
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Delete Programme</h6>
+                            <p class="text-muted small mb-0">
+                                Permanently delete this programme. This action cannot be undone.
+                            </p>
+                        </div>
+                        <form method="post" 
+                              action="{% url 'programme_delete' programme.pk %}"
+                              onsubmit="return confirm('Are you sure you want to delete {{ programme.name }}? This action cannot be undone and may affect associated records.')">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="ri-delete-bin-line me-2"></i>Delete Programme
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    .management-card .card-body {
+        padding: 2rem;
+    }
+    
+    /* Form Sections */
+    .form-section {
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .form-section:last-of-type {
+        border-bottom: none;
+    }
+    
+    .form-section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-primary);
+        display: inline-block;
+    }
+    
+    /* Form Elements */
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-label.required::after {
+        content: ' *';
+        color: var(--color-danger);
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    .form-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.375rem;
+    }
+    
+    textarea.form-control {
+        resize: vertical;
+    }
+    
+    /* Form Switch */
+    .form-check-input {
+        width: 3rem;
+        height: 1.5rem;
+        cursor: pointer;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+    }
+    
+    .form-check-label {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        margin-left: 0.5rem;
+        cursor: pointer;
+    }
+    
+    /* Form Actions */
+    .form-actions {
+        padding-top: 2rem;
+        margin-top: 1.5rem;
+        border-top: 2px solid var(--color-gray-200);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.9375rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background-color: #25662a;
+        border-color: #25662a;
+    }
+    
+    /* Danger Zone */
+    .bg-danger-subtle {
+        background-color: rgba(244, 67, 54, 0.08) !important;
+    }
+    
+    /* Uppercase input */
+    .text-uppercase {
+        text-transform: uppercase;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-uppercase programme code
+    const codeInput = document.getElementById('code');
+    if (codeInput) {
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase();
+        });
+    }
+    
+    // School and Department filtering
+    const schoolSelect = document.getElementById('school');
+    const departmentSelect = document.getElementById('department');
+    
+    if (schoolSelect && departmentSelect) {
+        // Store all department options
+        const allDepartments = Array.from(departmentSelect.options);
+        
+        // Function to filter departments
+        function filterDepartments() {
+            const selectedSchool = schoolSelect.value;
+            
+            // Clear department select except first option
+            while (departmentSelect.options.length > 1) {
+                departmentSelect.remove(1);
+            }
+            
+            if (selectedSchool) {
+                // Filter and add matching departments
+                allDepartments.forEach(option => {
+                    if (option.value && option.dataset.school === selectedSchool) {
+                        departmentSelect.add(option.cloneNode(true));
+                    }
+                });
+            } else {
+                // Add all departments
+                allDepartments.forEach(option => {
+                    if (option.value) {
+                        departmentSelect.add(option.cloneNode(true));
+                    }
+                });
+            }
+        }
+        
+        schoolSelect.addEventListener('change', filterDepartments);
+        
+        // Set initial school based on selected department
+        if (departmentSelect.value) {
+            const selectedDept = allDepartments.find(opt => opt.value === departmentSelect.value);
+            if (selectedDept) {
+                schoolSelect.value = selectedDept.dataset.school;
+                filterDepartments();
+                departmentSelect.value = selectedDept.value;
+            }
+        }
+    }
+    
+    // Auto-calculate semesters based on years (helper)
+    const durationYears = document.getElementById('duration_years');
+    const totalSemesters = document.getElementById('total_semesters');
+    
+    if (durationYears && totalSemesters) {
+        durationYears.addEventListener('change', function() {
+            const years = parseInt(this.value);
+            if (years) {
+                const suggestedSemesters = years * 2;
+                // Highlight the suggested option
+                const options = totalSemesters.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (parseInt(options[i].value) === suggestedSemesters) {
+                        totalSemesters.value = suggestedSemesters;
+                        break;
+                    }
+                }
+            }
+        });
+    }
+    
+    // Form validation
+    const form = document.getElementById('programmeForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Check if department is selected
+            if (!departmentSelect.value) {
+                e.preventDefault();
+                alert('Please select a department for this programme.');
+                departmentSelect.focus();
+                return false;
+            }
+            
+            // Additional custom validation can be added here
+            return true;
+        });
+    }
+});
+</script>
 {% endblock %}
