@@ -1705,3 +1705,168 @@ class EnrollmentPeriod(models.Model):
     class Meta:
         db_table = 'enrollment_periods'
         ordering = ['-start_date']
+        
+        
+# ============= TEACHING MATERIALS MANAGEMENT =============
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator, FileExtensionValidator
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+
+class TeachingMaterial(models.Model):
+    """Teaching materials uploaded by lecturers for their allocated units"""
+    MATERIAL_TYPES = (
+        ('notes', 'Lecture Notes'),
+        ('slides', 'Presentation Slides'),
+        ('assignment', 'Assignment'),
+        ('tutorial', 'Tutorial'),
+        ('reference', 'Reference Material'),
+        ('video', 'Video Link'),
+        ('other', 'Other'),
+    )
+    
+    FILE_TYPES = (
+        ('pdf', 'PDF Document'),
+        ('word', 'Word Document'),
+        ('image', 'Image'),
+        ('link', 'External Link'),
+    )
+    
+    unit_allocation = models.ForeignKey('UnitAllocation', on_delete=models.CASCADE, 
+                                       related_name='teaching_materials')
+    week_number = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(15)],
+                                     help_text="Week number in the semester (1-15)")
+    material_type = models.CharField(max_length=20, choices=MATERIAL_TYPES, default='notes')
+    file_type = models.CharField(max_length=10, choices=FILE_TYPES, default='pdf')
+    
+    # Content details
+    topic = models.CharField(max_length=300, help_text="Topic/Title of the material")
+    description = models.TextField(blank=True, help_text="Brief description or instructions")
+    
+    # File upload - supports PDF, Word, Images
+    file = models.FileField(
+        upload_to='teaching_materials/%Y/%m/',
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'gif']
+            )
+        ],
+        null=True,
+        blank=True,
+        help_text="Upload PDF, Word document, or Image"
+    )
+    
+    # External link (for videos, external resources)
+    external_link = models.URLField(blank=True, help_text="YouTube link or other external resource")
+    
+    # Tracking
+    uploaded_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, 
+                                   related_name='materials_uploaded')
+    upload_date = models.DateTimeField(auto_now_add=True)
+    is_published = models.BooleanField(default=True, help_text="Make visible to students")
+    publish_date = models.DateTimeField(null=True, blank=True)
+    
+    # Download tracking
+    download_count = models.IntegerField(default=0)
+    view_count = models.IntegerField(default=0)
+    
+    # Metadata
+    file_size = models.BigIntegerField(null=True, blank=True, help_text="File size in bytes")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        """Validate that either file or external_link is provided"""
+        if not self.file and not self.external_link:
+            raise ValidationError('Either upload a file or provide an external link.')
+        
+        if self.file and self.external_link:
+            raise ValidationError('Provide either a file OR an external link, not both.')
+
+    def save(self, *args, **kwargs):
+        if self.is_published and not self.publish_date:
+            self.publish_date = timezone.now()
+        
+        # Set file size if file is uploaded
+        if self.file:
+            try:
+                self.file_size = self.file.size
+            except:
+                pass
+        
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def get_file_extension(self):
+        """Get file extension"""
+        if self.file:
+            return self.file.name.split('.')[-1].lower()
+        return None
+
+    def get_file_icon(self):
+        """Get appropriate icon based on file type"""
+        ext = self.get_file_extension()
+        icon_map = {
+            'pdf': 'ri-file-pdf-line',
+            'doc': 'ri-file-word-line',
+            'docx': 'ri-file-word-line',
+            'jpg': 'ri-image-line',
+            'jpeg': 'ri-image-line',
+            'png': 'ri-image-line',
+            'gif': 'ri-image-line',
+        }
+        return icon_map.get(ext, 'ri-file-line')
+
+    def __str__(self):
+        return f"{self.unit_allocation.programme_unit.unit.code} - Week {self.week_number} - {self.topic}"
+
+    class Meta:
+        db_table = 'teaching_materials'
+        ordering = ['unit_allocation', 'week_number', '-upload_date']
+        indexes = [
+            models.Index(fields=['unit_allocation', 'week_number']),
+            models.Index(fields=['is_published', 'publish_date']),
+        ]
+
+
+class MaterialDownload(models.Model):
+    """Track student downloads/views of teaching materials"""
+    material = models.ForeignKey(TeachingMaterial, on_delete=models.CASCADE, 
+                                related_name='downloads')
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, 
+                                related_name='material_downloads')
+    download_date = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.material.topic}"
+
+    class Meta:
+        db_table = 'material_downloads'
+        ordering = ['-download_date']
+        indexes = [
+            models.Index(fields=['material', 'student']),
+            models.Index(fields=['download_date']),
+        ]
+
+
+class MaterialComment(models.Model):
+    """Student comments/questions on teaching materials"""
+    material = models.ForeignKey(TeachingMaterial, on_delete=models.CASCADE, 
+                                related_name='comments')
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, 
+                                related_name='material_comments')
+    comment = models.TextField()
+    parent_comment = models.ForeignKey('self', on_delete=models.CASCADE, 
+                                      null=True, blank=True, related_name='replies')
+    is_resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Comment by {self.student.registration_number} on {self.material.topic}"
+
+    class Meta:
+        db_table = 'material_comments'
+        ordering = ['-created_at']
