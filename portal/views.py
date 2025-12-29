@@ -5020,3 +5020,424 @@ def download_marks_csv(request, allocation_id):
         writer.writerow(row)
     
     return response
+
+
+
+
+# lecturer/views.py - Teaching Materials Management Views
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse, FileResponse, Http404
+from django.views.decorators.http import require_POST, require_http_methods
+from django.db.models import Count, Q, Prefetch
+from django.utils import timezone
+from django.core.paginator import Paginator
+import mimetypes
+import os
+
+from .models import (
+    UnitAllocation, TeachingMaterial, MaterialDownload, 
+    MaterialComment, UnitEnrollment, Semester, AcademicYear
+)
+
+
+@login_required
+def lecturer_teaching_materials(request):
+    """
+    Main view for lecturer to manage teaching materials for all allocated units
+    Shows current semester's units with material upload capability
+    """
+    if not hasattr(request.user, 'lecturer_profile'):
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('lecturer_dashboard')
+    
+    lecturer = request.user
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get filters from request
+    semester_filter = request.GET.get('semester')
+    academic_year_filter = request.GET.get('academic_year')
+    search_query = request.GET.get('search', '').strip()
+    
+    # Base queryset - get lecturer's approved allocations
+    allocations = UnitAllocation.objects.filter(
+        lecturer=lecturer,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'programme_unit__programme__department',
+        'semester',
+        'semester__academic_year'
+    ).prefetch_related(
+        Prefetch(
+            'teaching_materials',
+            queryset=TeachingMaterial.objects.order_by('week_number', '-upload_date')
+        )
+    )
+    
+    # Apply filters
+    if semester_filter:
+        allocations = allocations.filter(semester_id=semester_filter)
+    elif current_semester:
+        # Default to current semester
+        allocations = allocations.filter(semester=current_semester)
+    
+    if academic_year_filter:
+        allocations = allocations.filter(semester__academic_year_id=academic_year_filter)
+    
+    if search_query:
+        allocations = allocations.filter(
+            Q(programme_unit__unit__code__icontains=search_query) |
+            Q(programme_unit__unit__name__icontains=search_query) |
+            Q(programme_unit__programme__code__icontains=search_query)
+        )
+    
+    # Annotate with counts
+    allocations = allocations.annotate(
+        materials_count=Count('teaching_materials', distinct=True),
+        enrolled_students_count=Count(
+            'programme_unit__enrollments',
+            filter=Q(
+                programme_unit__enrollments__semester=F('semester'),
+                programme_unit__enrollments__status='approved'
+            ),
+            distinct=True
+        )
+    )
+    
+    # Get data for each allocation
+    allocations_data = []
+    for allocation in allocations:
+        # Get enrolled students count for this specific allocation
+        enrolled_count = UnitEnrollment.objects.filter(
+            programme_unit=allocation.programme_unit,
+            semester=allocation.semester,
+            status='approved'
+        ).count()
+        
+        # Get materials grouped by week
+        materials_by_week = {}
+        for material in allocation.teaching_materials.all():
+            week = material.week_number
+            if week not in materials_by_week:
+                materials_by_week[week] = []
+            materials_by_week[week].append(material)
+        
+        allocations_data.append({
+            'allocation': allocation,
+            'enrolled_students': enrolled_count,
+            'materials_count': allocation.teaching_materials.count(),
+            'materials_by_week': materials_by_week,
+            'weeks_covered': sorted(materials_by_week.keys()) if materials_by_week else []
+        })
+    
+    # Get all semesters and academic years for filters
+    semesters = Semester.objects.select_related('academic_year').order_by('-start_date')
+    academic_years = AcademicYear.objects.order_by('-start_date')
+    
+    context = {
+        'allocations_data': allocations_data,
+        'current_semester': current_semester,
+        'semesters': semesters,
+        'academic_years': academic_years,
+        'semester_filter': semester_filter,
+        'academic_year_filter': academic_year_filter,
+        'search_query': search_query,
+        'total_units': allocations.count(),
+        'total_materials': sum(data['materials_count'] for data in allocations_data),
+    }
+    
+    return render(request, 'lecturer/teaching_materials.html', context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def upload_teaching_material(request, allocation_id):
+    """
+    API endpoint to upload teaching material for a specific unit allocation
+    Handles both GET (return form data) and POST (save material)
+    """
+    if not hasattr(request.user, 'lecturer_profile'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'semester'
+        ),
+        id=allocation_id,
+        lecturer=request.user
+    )
+    
+    if request.method == 'GET':
+        # Return existing materials for this allocation
+        materials = TeachingMaterial.objects.filter(
+            unit_allocation=allocation
+        ).order_by('week_number', '-upload_date')
+        
+        materials_data = [{
+            'id': m.id,
+            'week_number': m.week_number,
+            'topic': m.topic,
+            'material_type': m.get_material_type_display(),
+            'file_type': m.get_file_type_display(),
+            'file_url': m.file.url if m.file else None,
+            'external_link': m.external_link,
+            'description': m.description,
+            'is_published': m.is_published,
+            'upload_date': m.upload_date.strftime('%Y-%m-%d %H:%M'),
+            'download_count': m.download_count,
+            'view_count': m.view_count,
+        } for m in materials]
+        
+        return JsonResponse({
+            'success': True,
+            'materials': materials_data,
+            'unit_code': allocation.programme_unit.unit.code,
+            'unit_name': allocation.programme_unit.unit.name,
+        })
+    
+    elif request.method == 'POST':
+        # Handle material upload
+        try:
+            week_number = request.POST.get('week_number')
+            topic = request.POST.get('topic')
+            description = request.POST.get('description', '')
+            material_type = request.POST.get('material_type', 'notes')
+            file_type = request.POST.get('file_type', 'pdf')
+            is_published = request.POST.get('is_published', 'true') == 'true'
+            external_link = request.POST.get('external_link', '')
+            uploaded_file = request.FILES.get('file')
+            
+            # Validation
+            if not week_number or not topic:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Week number and topic are required'
+                }, status=400)
+            
+            if not uploaded_file and not external_link:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Please upload a file or provide an external link'
+                }, status=400)
+            
+            # Create teaching material
+            material = TeachingMaterial(
+                unit_allocation=allocation,
+                week_number=int(week_number),
+                material_type=material_type,
+                file_type=file_type,
+                topic=topic,
+                description=description,
+                is_published=is_published,
+                uploaded_by=request.user
+            )
+            
+            if uploaded_file:
+                material.file = uploaded_file
+            
+            if external_link:
+                material.external_link = external_link
+            
+            material.save()
+            
+            messages.success(
+                request, 
+                f'Teaching material "{topic}" uploaded successfully for Week {week_number}!'
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Material uploaded successfully',
+                'material_id': material.id,
+                'material': {
+                    'id': material.id,
+                    'week_number': material.week_number,
+                    'topic': material.topic,
+                    'upload_date': material.upload_date.strftime('%Y-%m-%d %H:%M'),
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+
+
+@login_required
+@require_POST
+def update_teaching_material(request, material_id):
+    """
+    API endpoint to update existing teaching material
+    """
+    if not hasattr(request.user, 'lecturer_profile'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    material = get_object_or_404(
+        TeachingMaterial,
+        id=material_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    try:
+        # Update fields
+        if 'topic' in request.POST:
+            material.topic = request.POST['topic']
+        
+        if 'description' in request.POST:
+            material.description = request.POST['description']
+        
+        if 'week_number' in request.POST:
+            material.week_number = int(request.POST['week_number'])
+        
+        if 'material_type' in request.POST:
+            material.material_type = request.POST['material_type']
+        
+        if 'is_published' in request.POST:
+            material.is_published = request.POST['is_published'] == 'true'
+        
+        if 'external_link' in request.POST:
+            material.external_link = request.POST['external_link']
+        
+        # Handle file replacement
+        if 'file' in request.FILES:
+            # Delete old file if exists
+            if material.file:
+                material.file.delete()
+            material.file = request.FILES['file']
+        
+        material.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Material updated successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def delete_teaching_material(request, material_id):
+    """
+    API endpoint to delete teaching material
+    """
+    if not hasattr(request.user, 'lecturer_profile'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    material = get_object_or_404(
+        TeachingMaterial,
+        id=material_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    try:
+        # Delete file if exists
+        if material.file:
+            material.file.delete()
+        
+        topic = material.topic
+        material.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Material "{topic}" deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def toggle_material_publish(request, material_id):
+    """
+    API endpoint to toggle material publish status
+    """
+    if not hasattr(request.user, 'lecturer_profile'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    material = get_object_or_404(
+        TeachingMaterial,
+        id=material_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    try:
+        material.is_published = not material.is_published
+        if material.is_published and not material.publish_date:
+            material.publish_date = timezone.now()
+        material.save()
+        
+        status = 'published' if material.is_published else 'unpublished'
+        
+        return JsonResponse({
+            'success': True,
+            'is_published': material.is_published,
+            'message': f'Material {status} successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def get_material_stats(request, allocation_id):
+    """
+    API endpoint to get statistics for materials in a unit allocation
+    """
+    if not hasattr(request.user, 'lecturer_profile'):
+        return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    allocation = get_object_or_404(
+        UnitAllocation,
+        id=allocation_id,
+        lecturer=request.user
+    )
+    
+    materials = TeachingMaterial.objects.filter(unit_allocation=allocation)
+    
+    stats = {
+        'total_materials': materials.count(),
+        'published_materials': materials.filter(is_published=True).count(),
+        'total_downloads': sum(m.download_count for m in materials),
+        'total_views': sum(m.view_count for m in materials),
+        'weeks_covered': materials.values_list('week_number', flat=True).distinct().count(),
+        'by_type': {},
+        'by_week': {}
+    }
+    
+    # Group by material type
+    for material in materials:
+        mtype = material.get_material_type_display()
+        if mtype not in stats['by_type']:
+            stats['by_type'][mtype] = 0
+        stats['by_type'][mtype] += 1
+    
+    # Group by week
+    for material in materials:
+        week = f"Week {material.week_number}"
+        if week not in stats['by_week']:
+            stats['by_week'][week] = 0
+        stats['by_week'][week] += 1
+    
+    return JsonResponse({
+        'success': True,
+        'stats': stats
+    })

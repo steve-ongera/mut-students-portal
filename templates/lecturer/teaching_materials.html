@@ -1,0 +1,816 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}Teaching Materials{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-lg: 0 4px 6px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-400: #ced4da;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+        background-color: #f5f7fa;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1.5rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Stats Cards */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .stat-icon.primary {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+    
+    .stat-icon.info {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .stat-icon.warning {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .stat-icon.success {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .stat-content h3 {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--color-gray-800);
+    }
+    
+    .stat-content p {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Unit Cards */
+    .unit-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        transition: box-shadow 0.2s ease;
+    }
+    
+    .unit-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    
+    .unit-card-header {
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, var(--color-primary) 0%, #267029 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .unit-info h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .unit-info p {
+        font-size: 0.875rem;
+        opacity: 0.9;
+        margin: 0;
+    }
+    
+    .unit-meta {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .meta-item i {
+        font-size: 1rem;
+    }
+    
+    .unit-card-body {
+        padding: 0;
+    }
+    
+    /* Weeks Grid */
+    .weeks-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 0.75rem;
+        padding: 1.5rem;
+    }
+    
+    .week-item {
+        background: var(--color-gray-100);
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    
+    .week-item:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+        transform: translateY(-2px);
+    }
+    
+    .week-item.has-materials {
+        background: rgba(76, 175, 80, 0.08);
+        border-color: var(--color-success);
+    }
+    
+    .week-item.has-materials::after {
+        content: '';
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 8px;
+        height: 8px;
+        background: var(--color-success);
+        border-radius: 50%;
+    }
+    
+    .week-number {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .week-label {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .materials-count {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    /* Action Buttons */
+    .action-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .btn {
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background-color: #267029;
+        border-color: #267029;
+        transform: translateY(-1px);
+    }
+    
+    .btn-outline-primary {
+        border: 1px solid var(--color-primary);
+        color: var(--color-primary);
+        background: white;
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, var(--color-primary) 0%, #267029 100%);
+        color: white;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .modal-title {
+        font-weight: 600;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.875rem;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    /* File Upload Area */
+    .file-upload-area {
+        border: 2px dashed var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .file-upload-area:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+    }
+    
+    .file-upload-area.dragover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+    
+    .file-upload-icon {
+        font-size: 3rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1rem;
+    }
+    
+    .file-name {
+        font-weight: 500;
+        color: var(--color-primary);
+        margin-top: 0.5rem;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h5 {
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: var(--color-gray-600);
+    }
+    
+    /* Loading Spinner */
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+        border-width: 0.15em;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .weeks-grid {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        }
+        
+        .unit-card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+        
+        .action-bar {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Teaching Materials{% endblock %}
+{% block page_subtitle %}Upload and manage study materials for your units{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Teaching Materials</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Stats Overview -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="ri-book-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ total_units }}</h3>
+                <p>Total Units</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="ri-file-text-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ total_materials }}</h3>
+                <p>Materials Uploaded</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="ri-calendar-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{% if current_semester %}{{ current_semester.name }}{% else %}N/A{% endif %}</h3>
+                <p>Current Semester</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="ri-graduation-cap-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ allocations_data|length }}</h3>
+                <p>Active Allocations</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Academic Year</label>
+                    <select name="academic_year" class="form-select">
+                        <option value="">All Years</option>
+                        {% for year in academic_years %}
+                        <option value="{{ year.id }}" {% if academic_year_filter == year.id|stringformat:"i" %}selected{% endif %}>
+                            {{ year.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Semester</label>
+                    <select name="semester" class="form-select">
+                        <option value="">All Semesters</option>
+                        {% for semester in semesters %}
+                        <option value="{{ semester.id }}" {% if semester_filter == semester.id|stringformat:"i" %}selected{% endif %}>
+                            {{ semester.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Search Units</label>
+                    <input type="text" name="search" class="form-control" placeholder="Unit code or name..." value="{{ search_query }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-search-line"></i>
+                            Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Units with Materials -->
+    {% for data in allocations_data %}
+    <div class="unit-card">
+        <div class="unit-card-header">
+            <div class="unit-info">
+                <h3>{{ data.allocation.programme_unit.unit.code }} - {{ data.allocation.programme_unit.unit.name }}</h3>
+                <p>{{ data.allocation.programme_unit.programme.name }} | Year {{ data.allocation.programme_unit.year_of_study }} Sem {{ data.allocation.semester.semester_number }}</p>
+            </div>
+            <div class="unit-meta">
+                <div class="meta-item">
+                    <i class="ri-group-line"></i>
+                    <span>{{ data.enrolled_students }} Students</span>
+                </div>
+                <div class="meta-item">
+                    <i class="ri-file-text-line"></i>
+                    <span>{{ data.materials_count }} Materials</span>
+                </div>
+                <div class="meta-item">
+                    <i class="ri-calendar-check-line"></i>
+                    <span>{{ data.weeks_covered|length }}/15 Weeks</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="unit-card-body">
+            {% if data.materials_count > 0 %}
+            <div class="weeks-grid">
+                {% for week in "123456789012345"|make_list %}
+                    {% with week_num=forloop.counter %}
+                    <div class="week-item {% if week_num in data.weeks_covered %}has-materials{% endif %}" 
+                         onclick="openUploadModal({{ data.allocation.id }}, {{ week_num }}, '{{ data.allocation.programme_unit.unit.code }}', '{{ data.allocation.programme_unit.unit.name }}')">
+                        <div class="week-number">Week</div>
+                        <div class="week-label">{{ week_num }}</div>
+                        {% if week_num in data.weeks_covered %}
+                        <div class="materials-count">
+                            {{ data.materials_by_week|get_item:week_num|length }} material(s)
+                        </div>
+                        {% else %}
+                        <div class="materials-count">No materials</div>
+                        {% endif %}
+                    </div>
+                    {% endwith %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="ri-folder-open-line"></i>
+                <h5>No materials uploaded yet</h5>
+                <p>Click on any week below to start uploading teaching materials</p>
+            </div>
+            <div class="weeks-grid">
+                {% for week in "123456789012345"|make_list %}
+                    <div class="week-item" onclick="openUploadModal({{ data.allocation.id }}, {{ forloop.counter }}, '{{ data.allocation.programme_unit.unit.code }}', '{{ data.allocation.programme_unit.unit.name }}')">
+                        <div class="week-number">Week</div>
+                        <div class="week-label">{{ forloop.counter }}</div>
+                        <div class="materials-count">No materials</div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="action-bar">
+            <div>
+                <small class="text-muted">Last updated: {{ data.allocation.updated_at|date:"M d, Y" }}</small>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary btn-sm" onclick="viewAllMaterials({{ data.allocation.id }})">
+                    <i class="ri-eye-line"></i>
+                    View All Materials
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="openUploadModal({{ data.allocation.id }}, 1, '{{ data.allocation.programme_unit.unit.code }}', '{{ data.allocation.programme_unit.unit.name }}')">
+                    <i class="ri-upload-cloud-line"></i>
+                    Upload Material
+                </button>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="management-card">
+        <div class="card-body">
+            <div class="empty-state">
+                <i class="ri-inbox-line"></i>
+                <h5>No unit allocations found</h5>
+                <p>You don't have any approved unit allocations for the selected filters.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Upload Material Modal -->
+<div class="modal fade" id="uploadMaterialModal" tabindex="-1" aria-labelledby="uploadMaterialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadMaterialModalLabel">
+                    <i class="ri-upload-cloud-line me-2"></i>
+                    Upload Teaching Material
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="uploadMaterialForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="allocation_id" name="allocation_id">
+                    
+                    <div class="alert alert-info mb-3">
+                        <strong id="unit_display"></strong> - Week <span id="week_display"></span>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="week_number" class="form-label">Week Number *</label>
+                            <select class="form-select" id="week_number" name="week_number" required>
+                                {% for i in "123456789012345"|make_list %}
+                                <option value="{{ forloop.counter }}">Week {{ forloop.counter }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="material_type" class="form-label">Material Type *</label>
+                            <select class="form-select" id="material_type" name="material_type" required>
+                                <option value="notes">Lecture Notes</option>
+                                <option value="slides">Presentation Slides</option>
+                                <option value="assignment">Assignment</option>
+                                <option value="tutorial">Tutorial</option>
+                                <option value="reference">Reference Material</option>
+                                <option value="video">Video Link</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="topic" class="form-label">Topic/Title *</label>
+                            <input type="text" class="form-control" id="topic" name="topic" required placeholder="e.g., Introduction to Database Systems">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description/Instructions</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" placeholder="Add any additional information or instructions for students..."></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Upload File (PDF, Word, or Image)</label>
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <input type="file" class="d-none" id="file" name="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif">
+                                <div class="file-upload-icon">
+                                    <i class="ri-upload-cloud-2-line"></i>
+                                </div>
+                                <p class="mb-1"><strong>Click to upload</strong> or drag and drop</p>
+                                <p class="text-muted mb-0 small">PDF, Word, JPG, PNG (Max 50MB)</p>
+                                <div class="file-name mt-2" id="fileName"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="text-center my-2">
+                                <small class="text-muted">- OR -</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="external_link" class="form-label">External Link (YouTube, Google Drive, etc.)</label>
+                            <input type="url" class="form-control" id="external_link" name="external_link" placeholder="https://youtube.com/watch?v=...">
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_published" name="is_published" checked>
+                                <label class="form-check-label" for="is_published">
+                                    Publish immediately (make visible to students)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="ri-upload-line"></i>
+                        Upload Material
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAllocationId = null;
+let uploadModal = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    uploadModal = new bootstrap.Modal(document.getElementById('uploadMaterialModal'));
+    
+    // File upload area interaction
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileInput = document.getElementById('file');
+    const fileName = document.getElementById('fileName');
+    
+    fileUploadArea.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            fileName.textContent = this.files[0].name;
+            fileName.style.display = 'block';
+        }
+    });
+    
+    // Drag and drop
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.add('dragover');
+    });
+    
+    fileUploadArea.addEventListener('dragleave', () => {
+        fileUploadArea.classList.remove('dragover');
+    });
+    
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.classList.remove('dragover');
+        
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            fileName.textContent = e.dataTransfer.files[0].name;
+            fileName.style.display = 'block';
+        }
+    });
+    
+    // Form submission
+    document.getElementById('uploadMaterialForm').addEventListener('submit', handleFormSubmit);
+});
+
+function openUploadModal(allocationId, weekNum, unitCode, unitName) {
+    currentAllocationId = allocationId;
+    
+    document.getElementById('allocation_id').value = allocationId;
+    document.getElementById('week_number').value = weekNum;
+    document.getElementById('week_display').textContent = weekNum;
+    document.getElementById('unit_display').textContent = `${unitCode} - ${unitName}`;
+    
+    // Reset form
+    document.getElementById('uploadMaterialForm').reset();
+    document.getElementById('fileName').textContent = '';
+    document.getElementById('fileName').style.display = 'none';
+    
+    uploadModal.show();
+}
+
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = document.getElementById('submitBtn');
+    const formData = new FormData(form);
+    
+    // Add allocation ID
+    formData.append('allocation_id', currentAllocationId);
+    
+    // Disable submit button
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+    
+    try {
+        const response = await fetch(`/lecturer/materials/upload/${currentAllocationId}/`, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken
