@@ -3,253 +3,483 @@
 
 {% block title %}{{ student.registration_number }} - Performance{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Academic Performance{% endblock %}
 {% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Performance Summary -->
-    <div class="col-lg-4">
-        <div class="content-card mb-4">
-            <h6 class="card-title mb-4">Performance Summary</h6>
-            
-            <div class="performance-summary">
-                <div class="summary-item mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-muted">Cumulative GPA</span>
-                        <span class="h4 fw-bold text-primary">{{ student.cumulative_gpa }}</span>
-                    </div>
-                    <div class="progress" style="height: 10px;">
-                        <div class="progress-bar bg-primary" style="width: {% widthratio student.cumulative_gpa 4.0 100 %}%"></div>
-                    </div>
-                    <small class="text-muted">Out of 4.0 scale</small>
-                </div>
-                
-                <div class="summary-item mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-muted">Units Completed</span>
-                        <span class="h4 fw-bold text-success">{{ summary.total_units_completed }}</span>
-                    </div>
-                </div>
-                
-                <div class="summary-item mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span class="text-muted">Credits Earned</span>
-                        <span class="h4 fw-bold text-info">{{ summary.total_credits_earned }}</span>
-                    </div>
-                    <small class="text-muted">Required: {{ student.programme.min_credit_hours }} credits</small>
-                </div>
-                
-                <div class="summary-item">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-muted">Transcript Status</span>
-                        {% if summary.transcript_ready %}
-                        <span class="badge bg-success rounded-pill">Ready</span>
-                        {% else %}
-                        <span class="badge bg-warning rounded-pill">In Progress</span>
-                        {% endif %}
-                    </div>
-                </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_list' %}">Students</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Performance</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Academic Performance</h1>
+                <p class="text-muted mb-0">{{ student.user.get_full_name }} - {{ student.registration_number }}</p>
             </div>
-        </div>
-        
-        <!-- Programme Info -->
-        <div class="content-card">
-            <h6 class="card-title mb-4">Programme Information</h6>
-            
-            <div class="programme-info">
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Programme</label>
-                    <p class="mb-0 fw-medium">{{ student.programme.name }}</p>
-                    <small class="text-muted">{{ student.programme.code }}</small>
-                </div>
-                
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Programme Type</label>
-                    <p class="mb-0">{{ student.programme.get_programme_type_display }}</p>
-                </div>
-                
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Minimum Credits Required</label>
-                    <p class="mb-0 fw-medium">{{ student.programme.min_credit_hours }} credit hours</p>
-                </div>
-                
-                <div class="info-item mb-3">
-                    <label class="text-muted small mb-1">Current Progress</label>
-                    <div class="d-flex justify-content-between mb-1">
-                        <small>Credits Earned</small>
-                        <small>{{ summary.total_credits_earned }}/{{ student.programme.min_credit_hours }}</small>
-                    </div>
-                    <div class="progress" style="height: 8px;">
-                        <div class="progress-bar bg-success" 
-                             style="width: {% widthratio summary.total_credits_earned student.programme.min_credit_hours 100 %}%"></div>
-                    </div>
-                </div>
-                
-                <div class="info-item">
-                    <label class="text-muted small mb-1">Expected Graduation</label>
-                    <p class="mb-0">{{ student.expected_graduation_date|date:"F Y"|default:"Not set" }}</p>
-                </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-graduation-cap-line me-2"></i>
+                    GPA: {{ student.cumulative_gpa }}
+                </span>
             </div>
         </div>
     </div>
-    
-    <!-- Performance Details -->
-    <div class="col-lg-8">
-        <!-- Semester GPAs -->
-        <div class="content-card mb-4">
-            <h6 class="card-title mb-4">Semester GPA History</h6>
-            
-            {% if semester_gpas %}
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Academic Year</th>
-                            <th>Semester</th>
-                            <th>Semester GPA</th>
-                            <th>Cumulative GPA</th>
-                            <th>Credit Hours</th>
-                            <th>Class Rank</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for gpa in semester_gpas %}
-                        <tr>
-                            <td>{{ gpa.semester.academic_year.name }}</td>
-                            <td>{{ gpa.semester.name }}</td>
-                            <td>
-                                <span class="fw-bold {% if gpa.semester_gpa >= 3.0 %}text-success{% elif gpa.semester_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
-                                    {{ gpa.semester_gpa }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="fw-bold {% if gpa.cumulative_gpa >= 3.0 %}text-success{% elif gpa.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
-                                    {{ gpa.cumulative_gpa }}
-                                </span>
-                            </td>
-                            <td>{{ gpa.total_credit_hours }}</td>
-                            <td>
-                                {% if gpa.class_rank %}
-                                <span class="badge bg-info rounded-pill">#{{ gpa.class_rank }}/{{ gpa.total_students }}</span>
-                                {% else %}
-                                <span class="text-muted small">N/A</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="text-center py-4">
-                <div class="text-muted">
-                    <i class="ri-bar-chart-line display-4"></i>
-                    <p class="mt-3">No GPA history available</p>
-                </div>
-            </div>
-            {% endif %}
+
+    <!-- Student Info Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Student Information</h5>
+            <div class="card-subtitle">Academic Performance Overview</div>
         </div>
-        
-        <!-- Detailed Results by Semester -->
-        <div class="content-card">
-            <h6 class="card-title mb-4">Detailed Results</h6>
-            
-            {% if results_by_semester %}
-            <div class="accordion" id="resultsAccordion">
-                {% for semester_key, semester_data in results_by_semester.items %}
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#collapse{{ forloop.counter }}">
-                            <div class="d-flex justify-content-between w-100 me-3">
-                                <div>
-                                    <strong>{{ semester_key }}</strong>
-                                    <small class="text-muted ms-2">
-                                        {{ semester_data.results|length }} unit(s)
-                                    </small>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="student-avatar-lg mb-3 mx-auto">
+                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                 alt="{{ student.user.get_full_name }}" 
+                                 class="rounded-circle">
+                        </div>
+                        <h6 class="fw-semibold mb-0">{{ student.user.get_full_name }}</h6>
+                        <small class="text-muted">{{ student.registration_number }}</small>
+                    </div>
+                </div>
+                <div class="col-md-9">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Programme</label>
+                                <p class="mb-0 fw-medium">{{ student.programme.name }}</p>
+                                <small class="text-muted">{{ student.programme.code }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Current Year</label>
+                                <p class="mb-0 fw-medium">Year {{ student.current_year }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Current Semester</label>
+                                <p class="mb-0 fw-medium">Sem {{ student.current_semester }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Credits Earned</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="h5 fw-bold text-primary">{{ summary.total_credits_earned }}</span>
+                                    <span class="text-muted">/ {{ student.programme.min_credit_hours }} required</span>
                                 </div>
-                                <div>
-                                    {% if semester_data.semester_gpa %}
-                                    <span class="badge bg-primary rounded-pill">
-                                        GPA: {{ semester_data.semester_gpa }}
-                                    </span>
-                                    {% endif %}
+                                <div class="progress mt-2" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" 
+                                         style="width: {% widthratio summary.total_credits_earned student.programme.min_credit_hours 100 %}%"></div>
                                 </div>
                             </div>
-                        </button>
-                    </h2>
-                    <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse {% if forloop.first %}show{% endif %}" 
-                         data-bs-parent="#resultsAccordion">
-                        <div class="accordion-body">
-                            <div class="table-responsive">
-                                <table class="table">
-                                    <thead>
-                                        <tr>
-                                            <th>Unit Code</th>
-                                            <th>Unit Name</th>
-                                            <th>Grade</th>
-                                            <th>Grade Point</th>
-                                            <th>Credit Hours</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for result in semester_data.results %}
-                                        <tr>
-                                            <td>{{ result.programme_unit.unit.code }}</td>
-                                            <td>{{ result.programme_unit.unit.name }}</td>
-                                            <td>
-                                                <span class="badge {% if result.grade == 'A' %}bg-success{% elif result.grade == 'B' %}bg-info{% elif result.grade == 'C' %}bg-warning{% else %}bg-secondary{% endif %} rounded-pill">
-                                                    {{ result.grade }}
-                                                </span>
-                                            </td>
-                                            <td>{{ result.grade_point }}</td>
-                                            <td>{{ result.credit_hours }}</td>
-                                            <td>
-                                                {% if result.is_passed %}
-                                                <span class="badge bg-success rounded-pill">Passed</span>
-                                                {% else %}
-                                                <span class="badge bg-danger rounded-pill">Failed</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <td colspan="3" class="text-end fw-bold">Semester Summary:</td>
-                                            <td class="fw-bold">{{ semester_data.total_quality_points|floatformat:2 }}</td>
-                                            <td class="fw-bold">{{ semester_data.total_credits }}</td>
-                                            <td class="fw-bold">
-                                                {% if semester_data.semester_gpa %}
-                                                GPA: {{ semester_data.semester_gpa }}
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Expected Graduation</label>
+                                <p class="mb-0 fw-medium">{{ student.expected_graduation_date|date:"F Y"|default:"Not set" }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-            {% else %}
-            <div class="text-center py-4">
-                <div class="text-muted">
-                    <i class="ri-file-list-3-line display-4"></i>
-                    <p class="mt-3">No detailed results available</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Performance Summary -->
+        <div class="col-lg-4">
+            <!-- Performance Stats Card -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Performance Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="performance-summary">
+                        <div class="summary-item mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Cumulative GPA</span>
+                                <span class="h4 fw-bold text-primary">{{ student.cumulative_gpa }}</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-primary" style="width: {% widthratio student.cumulative_gpa 4.0 100 %}%"></div>
+                            </div>
+                            <small class="text-muted">Out of 4.0 scale</small>
+                        </div>
+                        
+                        <div class="summary-item mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Units Completed</span>
+                                <span class="h4 fw-bold text-success">{{ summary.total_units_completed }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="summary-item mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Total Credits</span>
+                                <span class="h4 fw-bold text-info">{{ summary.total_credits_earned }}</span>
+                            </div>
+                            <small class="text-muted">Required: {{ student.programme.min_credit_hours }} credits</small>
+                        </div>
+                        
+                        <div class="summary-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-muted">Transcript Status</span>
+                                {% if summary.transcript_ready %}
+                                <span class="badge bg-success rounded-pill">Ready</span>
+                                {% else %}
+                                <span class="badge bg-warning rounded-pill">In Progress</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            {% endif %}
+
+            <!-- Programme Info Card -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Programme Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="programme-info">
+                        <div class="info-item mb-3">
+                            <label class="text-muted small mb-1">Programme Type</label>
+                            <p class="mb-0">{{ student.programme.get_programme_type_display }}</p>
+                        </div>
+                        
+                        <div class="info-item mb-3">
+                            <label class="text-muted small mb-1">Duration</label>
+                            <p class="mb-0">{{ student.programme.duration_years }} year(s)</p>
+                        </div>
+                        
+                        <div class="info-item mb-3">
+                            <label class="text-muted small mb-1">Minimum Credits</label>
+                            <p class="mb-0 fw-medium">{{ student.programme.min_credit_hours }} credit hours</p>
+                        </div>
+                        
+                        <div class="info-item mb-3">
+                            <label class="text-muted small mb-1">Current Progress</label>
+                            <div class="d-flex justify-content-between mb-1">
+                                <small>Credits Earned</small>
+                                <small>{{ summary.total_credits_earned }}/{{ student.programme.min_credit_hours }}</small>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-success" 
+                                     style="width: {% widthratio summary.total_credits_earned student.programme.min_credit_hours 100 %}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Performance Details -->
+        <div class="col-lg-8">
+            <!-- Semester GPA History Card -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Semester GPA History</h5>
+                    <div class="card-subtitle">Academic Performance Timeline</div>
+                </div>
+                <div class="card-body p-0">
+                    {% if semester_gpas %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Semester GPA</th>
+                                    <th>Cumulative GPA</th>
+                                    <th>Credit Hours</th>
+                                    <th class="pe-4">Class Rank</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for gpa in semester_gpas %}
+                                <tr>
+                                    <td class="ps-4">{{ gpa.semester.academic_year.name }}</td>
+                                    <td>{{ gpa.semester.name }}</td>
+                                    <td>
+                                        <span class="fw-bold {% if gpa.semester_gpa >= 3.0 %}text-success{% elif gpa.semester_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ gpa.semester_gpa }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold {% if gpa.cumulative_gpa >= 3.0 %}text-success{% elif gpa.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ gpa.cumulative_gpa }}
+                                        </span>
+                                    </td>
+                                    <td>{{ gpa.total_credit_hours }}</td>
+                                    <td class="pe-4">
+                                        {% if gpa.class_rank %}
+                                        <span class="badge bg-info rounded-pill">#{{ gpa.class_rank }}/{{ gpa.total_students }}</span>
+                                        {% else %}
+                                        <span class="text-muted small">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <div class="empty-state">
+                            <i class="ri-bar-chart-line display-4 text-muted mb-3"></i>
+                            <h5 class="text-muted">No GPA history available</h5>
+                            <p class="text-muted mb-0">No semester GPA records found for this student</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Detailed Results Card -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Detailed Results</h5>
+                    <div class="card-subtitle">Unit-wise performance by semester</div>
+                </div>
+                <div class="card-body p-0">
+                    {% if results_by_semester %}
+                    <div class="accordion" id="resultsAccordion">
+                        {% for semester_key, semester_data in results_by_semester.items %}
+                        <div class="accordion-item border-0">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse{{ forloop.counter }}">
+                                    <div class="d-flex justify-content-between w-100 me-3">
+                                        <div>
+                                            <strong>{{ semester_key }}</strong>
+                                            <small class="text-muted ms-2">
+                                                {{ semester_data.results|length }} unit(s)
+                                            </small>
+                                        </div>
+                                        <div>
+                                            {% if semester_data.semester_gpa %}
+                                            <span class="badge bg-primary rounded-pill">
+                                                GPA: {{ semester_data.semester_gpa }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse" 
+                                 data-bs-parent="#resultsAccordion">
+                                <div class="accordion-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th class="ps-4">Unit Code</th>
+                                                    <th>Unit Name</th>
+                                                    <th>Grade</th>
+                                                    <th>Grade Point</th>
+                                                    <th>Credit Hours</th>
+                                                    <th class="pe-4">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for result in semester_data.results %}
+                                                <tr>
+                                                    <td class="ps-4">{{ result.programme_unit.unit.code }}</td>
+                                                    <td>{{ result.programme_unit.unit.name }}</td>
+                                                    <td>
+                                                        <span class="badge {% if result.grade == 'A' %}bg-success{% elif result.grade == 'B' %}bg-info{% elif result.grade == 'C' %}bg-warning{% else %}bg-secondary{% endif %} rounded-pill">
+                                                            {{ result.grade }}
+                                                        </span>
+                                                    </td>
+                                                    <td>{{ result.grade_point }}</td>
+                                                    <td>{{ result.credit_hours }}</td>
+                                                    <td class="pe-4">
+                                                        {% if result.is_passed %}
+                                                        <span class="badge bg-success rounded-pill">Passed</span>
+                                                        {% else %}
+                                                        <span class="badge bg-danger rounded-pill">Failed</span>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <td colspan="3" class="text-end fw-bold ps-4">Semester Summary:</td>
+                                                    <td class="fw-bold">{{ semester_data.total_quality_points|floatformat:2 }}</td>
+                                                    <td class="fw-bold">{{ semester_data.total_credits }}</td>
+                                                    <td class="fw-bold pe-4">
+                                                        {% if semester_data.semester_gpa %}
+                                                        GPA: {{ semester_data.semester_gpa }}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <div class="empty-state">
+                            <i class="ri-file-list-3-line display-4 text-muted mb-3"></i>
+                            <h5 class="text-muted">No detailed results available</h5>
+                            <p class="text-muted mb-0">No unit results found for this student</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --border-color: var(--color-gray-200);
+        --bg-light: var(--color-gray-100);
+        --primary-light: rgba(46, 125, 50, 0.1);
+        --primary-color: var(--color-primary);
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+       
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Student Avatar Large */
+    .student-avatar-lg {
+        width: 80px;
+        height: 80px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar-lg img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 3px solid var(--color-gray-200);
+    }
+    
+    /* Info Items */
+    .info-item label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+    }
+    
+    .info-item p {
+        color: var(--color-gray-800);
+    }
+    
+    /* Performance Summary */
     .performance-summary .progress {
         border-radius: 5px;
+        background-color: var(--color-gray-200);
     }
     
     .summary-item {
@@ -262,19 +492,75 @@
         padding-bottom: 0;
     }
     
-    .info-item label {
-        font-size: 0.85rem;
-        font-weight: 500;
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Accordion Styles */
+    .accordion {
+        --bs-accordion-border-width: 0;
+        --bs-accordion-border-radius: 0;
+        --bs-accordion-inner-border-radius: 0;
+        --bs-accordion-btn-padding-x: 1.5rem;
+        --bs-accordion-btn-padding-y: 1rem;
+        --bs-accordion-body-padding-x: 0;
+        --bs-accordion-body-padding-y: 0;
+    }
+    
+    .accordion-item {
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .accordion-item:last-child {
+        border-bottom: none;
     }
     
     .accordion-button {
         background: var(--bg-light);
         font-weight: 500;
+        color: var(--color-gray-800);
+        box-shadow: none;
     }
     
     .accordion-button:not(.collapsed) {
         background: var(--primary-light);
         color: var(--primary-color);
+        box-shadow: none;
+    }
+    
+    .accordion-button::after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%232e7d32'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    }
+    
+    .accordion-button:not(.collapsed)::after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%232e7d32'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
     }
     
     .accordion-body {
@@ -294,5 +580,80 @@
         background: var(--primary-light);
         font-weight: 500;
     }
+    
+    /* Badge Styles */
+    .badge {
+        padding: 0.35em 0.65em;
+        font-weight: 500;
+    }
+    
+    .badge.bg-success {
+        background-color: var(--color-success) !important;
+    }
+    
+    .badge.bg-info {
+        background-color: var(--color-info) !important;
+    }
+    
+    .badge.bg-warning {
+        background-color: var(--color-warning) !important;
+    }
+    
+    .badge.bg-danger {
+        background-color: var(--color-danger) !important;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Progress Bar */
+    .progress-bar {
+        border-radius: 5px;
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize accordion if exists
+    const accordion = document.getElementById('resultsAccordion');
+    if (accordion) {
+        // Open first accordion item by default
+        const firstAccordionButton = accordion.querySelector('.accordion-button');
+        if (firstAccordionButton) {
+            const firstCollapse = new bootstrap.Collapse(firstAccordionButton.nextElementSibling);
+            firstAccordionButton.classList.remove('collapsed');
+        }
+    }
+    
+    // Add animation to progress bars
+    const progressBars = document.querySelectorAll('.progress-bar');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        setTimeout(() => {
+            bar.style.width = width;
+            bar.style.transition = 'width 1s ease-in-out';
+        }, 100);
+    });
+});
+</script>
 {% endblock %}
