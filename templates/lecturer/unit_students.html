@@ -7,146 +7,215 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 {% endblock %}
 
+{% block page_title %}Students & Marks{% endblock %}
+{% block page_subtitle %}{{ allocation.programme_unit.unit.code }} - {{ allocation.programme_unit.unit.name }}{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
         <li class="breadcrumb-item"><a href="{% url 'lecturer_units' %}">My Units</a></li>
-        <li class="breadcrumb-item active" aria-current="page">{{ allocation.programme_unit.unit.code }}</li>
+        <li class="breadcrumb-item active" aria-current="page">Students & Marks</li>
     </ol>
 </nav>
 
 <div class="content-container">
-    <!-- Unit Header -->
-    <div class="unit-info-header mb-4">
-        <div class="row align-items-center">
-            <div class="col-md-8">
-                <div class="unit-code-large">{{ allocation.programme_unit.unit.code }}</div>
-                <h3 class="unit-name-large">{{ allocation.programme_unit.unit.name }}</h3>
-                <div class="unit-meta-info">
-                    <span class="meta-badge">
-                        <i class="ri-book-line"></i>
-                        {{ allocation.programme_unit.programme.code }}
-                    </span>
-                    <span class="meta-badge">
-                        <i class="ri-calendar-line"></i>
-                        {{ allocation.semester.academic_year.name }} - Sem {{ allocation.semester.semester_number }}
-                    </span>
-                    <span class="meta-badge">
-                        <i class="ri-award-line"></i>
-                        {{ allocation.programme_unit.unit.credit_hours }} Credit Hours
-                    </span>
-                </div>
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Students & Marks</h1>
+                <p class="text-muted mb-0">{{ allocation.programme_unit.unit.code }} - {{ allocation.programme_unit.unit.name }}</p>
             </div>
-            <div class="col-md-4 text-end">
-                <div class="d-flex flex-column gap-2">
-                    <a href="{% url 'download_exam_list' allocation.id %}" 
-                       class="btn btn-success">
-                        <i class="ri-file-download-line me-2"></i>Download Exam List (PDF)
-                    </a>
-                    <a href="{% url 'download_marks_csv' allocation.id %}" 
-                       class="btn btn-info">
-                        <i class="ri-file-excel-line me-2"></i>Export All Marks (CSV)
-                    </a>
-                </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-group-line me-2"></i>
+                    {{ total_students }} student(s)
+                </span>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="stats-card">
-                <div class="stats-icon bg-primary-subtle">
-                    <i class="ri-group-line text-primary"></i>
-                </div>
-                <div class="stats-info">
-                    <div class="stats-value">{{ total_students }}</div>
-                    <div class="stats-label">Total Students</div>
-                </div>
-            </div>
+    <!-- Unit Info Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Unit Information</h5>
+            <div class="card-subtitle">Academic Details & Actions</div>
         </div>
-        <div class="col-md-3">
-            <div class="stats-card">
-                <div class="stats-icon bg-success-subtle">
-                    <i class="ri-checkbox-circle-line text-success"></i>
-                </div>
-                <div class="stats-info">
-                    <div class="stats-value">
-                        {{ students_data|length|add:"0" }}
-                        {% for student in students_data %}
-                            {% if student.eligible_for_exam %}
-                                {% if forloop.first %}0{% endif %}
-                            {% endif %}
-                        {% endfor %}
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Unit Code</label>
+                                <p class="mb-0 fw-semibold">{{ allocation.programme_unit.unit.code }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Unit Name</label>
+                                <p class="mb-0 fw-medium">{{ allocation.programme_unit.unit.name }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Programme</label>
+                                <p class="mb-0">{{ allocation.programme_unit.programme.code }}</p>
+                                <small class="text-muted">{{ allocation.programme_unit.programme.name|truncatechars:30 }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <label class="text-muted small mb-1">Academic Year</label>
+                                <p class="mb-0">{{ allocation.semester.academic_year.name }}</p>
+                                <small class="text-muted">Sem {{ allocation.semester.semester_number }}</small>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stats-label">Eligible for Exam</div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card">
-                <div class="stats-icon bg-info-subtle">
-                    <i class="ri-file-list-line text-info"></i>
-                </div>
-                <div class="stats-info">
-                    <div class="stats-value">{{ assessments.count }}</div>
-                    <div class="stats-label">Assessments</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card">
-                <div class="stats-icon bg-warning-subtle">
-                    <i class="ri-percent-line text-warning"></i>
-                </div>
-                <div class="stats-info">
-                    <div class="stats-value">100%</div>
-                    <div class="stats-label">Total Marks</div>
+                <div class="col-md-4">
+                    <div class="d-flex flex-column gap-2">
+                        <a href="{% url 'download_exam_list' allocation.id %}" 
+                           class="btn btn-primary d-flex align-items-center justify-content-center gap-1">
+                            <i class="ri-file-download-line fs-5"></i>
+                            <span>Download Exam List</span>
+                        </a>
+                        <a href="{% url 'download_marks_csv' allocation.id %}" 
+                           class="btn btn-outline-secondary d-flex align-items-center justify-content-center gap-1">
+                            <i class="ri-file-excel-line fs-5"></i>
+                            <span>Export Marks (CSV)</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Marks Table -->
+    <!-- Statistics Summary -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Statistics Summary</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon">
+                            <i class="ri-group-line text-primary"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">{{ total_students }}</div>
+                            <div class="stat-label">Total Students</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                        </div>
+                        <div>
+                            {% with eligible_count=0 %}
+                                {% for student in students_data %}
+                                    {% if student.eligible_for_exam %}
+                                        {% with eligible_count=eligible_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                <div class="stat-value">{{ eligible_count }}</div>
+                            {% endwith %}
+                            <div class="stat-label">Exam Eligible</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon">
+                            <i class="ri-file-list-line text-info"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">{{ assessments.count }}</div>
+                            <div class="stat-label">Assessments</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="stat-icon">
+                            <i class="ri-percent-line text-warning"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">100%</div>
+                            <div class="stat-label">Total Weight</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marks Entry Table -->
     <div class="management-card">
         <div class="card-header">
-            <h5 class="card-title">
-                <i class="ri-table-line me-2"></i>Student Marks Entry
-            </h5>
-            <div class="card-subtitle">
-                Enter marks for each assessment (CAT 1, CAT 2, CAT 3: /30 marks each | Final Exam: /70 marks)
-            </div>
+            <h5 class="card-title">Marks Entry</h5>
+            <div class="card-subtitle">Enter marks for each assessment (CAT: /30 each | Final Exam: /70)</div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover marks-table mb-0">
+                <table class="table table-hover mb-0" id="marksTable">
                     <thead>
                         <tr>
-                            <th style="min-width: 50px;">#</th>
-                            <th style="min-width: 140px;">Reg Number</th>
-                            <th style="min-width: 200px;">Student Name</th>
-                            <th style="min-width: 100px;">Attendance</th>
-                            <th style="min-width: 120px;">CAT 1<br><small class="text-muted">/30</small></th>
-                            <th style="min-width: 120px;">CAT 2<br><small class="text-muted">/30</small></th>
-                            <th style="min-width: 120px;">CAT 3<br><small class="text-muted">/30</small></th>
-                            <th style="min-width: 120px;">Final Exam<br><small class="text-muted">/70</small></th>
-                            <th style="min-width: 100px;">Total<br><small class="text-muted">/100%</small></th>
-                            <th style="min-width: 100px;">Status</th>
+                            <th class="ps-4" width="50">#</th>
+                            <th width="140">Reg Number</th>
+                            <th width="200">Student Name</th>
+                            <th width="100">Attendance</th>
+                            
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'cat1' %}
+                                <th width="120">CAT 1<br><small class="text-muted">/{{ assessment.max_marks }}</small></th>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'cat2' %}
+                                <th width="120">CAT 2<br><small class="text-muted">/{{ assessment.max_marks }}</small></th>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'cat3' %}
+                                <th width="120">CAT 3<br><small class="text-muted">/{{ assessment.max_marks }}</small></th>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% for assessment in assessments %}
+                                {% if assessment.assessment_type == 'final' %}
+                                <th width="120">Final<br><small class="text-muted">/{{ assessment.max_marks }}</small></th>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <th width="100">Total<br><small class="text-muted">%</small></th>
+                            <th class="pe-4" width="100">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for student_data in students_data %}
-                        <tr class="student-row" data-student-id="{{ student_data.student.id }}">
-                            <td>{{ forloop.counter }}</td>
-                            <td class="fw-semibold">{{ student_data.student.registration_number }}</td>
-                            <td>{{ student_data.student.user.get_full_name }}</td>
+                        <tr>
+                            <td class="ps-4">{{ forloop.counter }}</td>
                             <td>
-                                <div class="attendance-cell">
-                                    <div class="attendance-percentage 
-                                        {% if student_data.attendance_percentage >= 75 %}text-success
-                                        {% elif student_data.attendance_percentage >= 60 %}text-warning
-                                        {% else %}text-danger{% endif %}">
+                                <div class="registration-number">
+                                    <strong>{{ student_data.student.registration_number }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-info">
+                                    <h6 class="mb-0 fw-medium">{{ student_data.student.user.get_full_name }}</h6>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="attendance-info text-center">
+                                    <div class="fw-semibold {% if student_data.attendance_percentage >= 75 %}text-success{% elif student_data.attendance_percentage >= 60 %}text-warning{% else %}text-danger{% endif %}">
                                         {{ student_data.attendance_percentage }}%
                                     </div>
                                     <small class="text-muted">
@@ -224,30 +293,38 @@
                                            value="{% if student_data.marks.final.value %}{{ student_data.marks.final.value }}{% endif %}"
                                            placeholder="0.0"
                                            {% if not student_data.eligible_for_exam %}disabled{% endif %}>
+                                    {% if not student_data.eligible_for_exam %}
+                                    <small class="text-muted d-block mt-1">Not eligible</small>
+                                    {% endif %}
                                 </td>
                                 {% endif %}
                             {% endfor %}
                             
                             <td>
-                                <div class="total-marks" id="total-{{ student_data.student.id }}">
+                                <div class="total-marks fw-semibold" id="total-{{ student_data.student.id }}">
                                     {{ student_data.total_marks }}%
                                 </div>
                             </td>
-                            <td>
+                            <td class="pe-4">
                                 {% if student_data.eligible_for_exam %}
-                                <span class="badge badge-success">
-                                    <i class="ri-checkbox-circle-line me-1"></i>Eligible
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Eligible
                                 </span>
                                 {% else %}
-                                <span class="badge badge-danger">
-                                    <i class="ri-close-circle-line me-1"></i>Not Eligible
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-close-circle-fill me-1"></i>
+                                    Not Eligible
                                 </span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="10" class="text-center py-5">
+                            <td colspan="{% with col_count=4 %}
+                                            {{ col_count|add:assessments.count|add:2 }}
+                                         {% endwith %}" 
+                                class="text-center py-5">
                                 <div class="empty-state">
                                     <i class="ri-user-search-line display-4 text-muted mb-3"></i>
                                     <h5 class="text-muted">No students enrolled</h5>
@@ -280,11 +357,12 @@
 <style>
     :root {
         --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        --radius-sm: 6px;
-        --radius-md: 8px;
-        --radius-lg: 12px;
-        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --radius-sm: 4px;
+        --radius-md: 6px;
+        --radius-lg: 8px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.05);
+        --shadow-lg: 0 4px 6px rgba(0,0,0,0.05);
         --color-primary: #2E7D32;
         --color-success: #4CAF50;
         --color-warning: #FF9800;
@@ -293,108 +371,54 @@
         --color-gray-100: #f8f9fa;
         --color-gray-200: #e9ecef;
         --color-gray-300: #dee2e6;
+        --color-gray-400: #ced4da;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
     }
     
     body {
         font-family: var(--font-family);
-        background: var(--color-gray-100);
+        font-weight: 400;
     }
     
     .content-container {
-        padding: 2rem 1rem;
-        max-width: 1600px;
-        margin: 0 auto;
+        padding: 0 0.5rem;
     }
     
-    /* Unit Header */
-    .unit-info-header {
-        background: white;
-        padding: 2rem;
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        border-left: 4px solid var(--color-primary);
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
     }
     
-    .unit-code-large {
-        font-size: 1.5rem;
-        font-weight: 700;
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
         color: var(--color-primary);
-        letter-spacing: 0.5px;
     }
     
-    .unit-name-large {
-        font-size: 1.5rem;
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
         font-weight: 600;
         color: var(--color-gray-800);
-        margin: 0.5rem 0 1rem 0;
     }
     
-    .unit-meta-info {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-    
-    .meta-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: var(--color-gray-100);
-        border-radius: var(--radius-md);
-        font-size: 0.875rem;
-        color: var(--color-gray-700);
-    }
-    
-    /* Stats Cards */
-    .stats-card {
-        background: white;
-        padding: 1.25rem;
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--color-gray-200);
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        transition: all 0.2s ease;
-    }
-    
-    .stats-card:hover {
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .stats-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-    }
-    
-    .bg-primary-subtle { background: rgba(46, 125, 50, 0.1); }
-    .bg-success-subtle { background: rgba(76, 175, 80, 0.1); }
-    .bg-info-subtle { background: rgba(33, 150, 243, 0.1); }
-    .bg-warning-subtle { background: rgba(255, 152, 0, 0.1); }
-    
-    .stats-value {
-        font-size: 1.75rem;
-        font-weight: 700;
-        color: var(--color-gray-800);
-        line-height: 1;
-    }
-    
-    .stats-label {
-        font-size: 0.8125rem;
-        color: var(--color-gray-600);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    /* Management Card */
+    /* Management Cards */
     .management-card {
         background: white;
         border: 1px solid var(--color-gray-200);
@@ -413,123 +437,240 @@
         font-weight: 600;
         color: var(--color-gray-800);
         margin-bottom: 0.25rem;
-        display: flex;
-        align-items: center;
     }
     
     .management-card .card-subtitle {
         font-size: 0.8125rem;
         color: var(--color-gray-600);
-        margin: 0;
     }
     
-    /* Marks Table */
-    .marks-table {
-        font-size: 0.875rem;
+    .management-card .card-body {
+        padding: 1.5rem;
     }
     
-    .marks-table thead th {
-        background: var(--color-gray-100);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    /* Info Items */
+    .info-item label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+    }
+    
+    .info-item p {
+        color: var(--color-gray-800);
+        line-height: 1.3;
+    }
+    
+    /* Stat Icons */
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        background: rgba(46, 125, 50, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .stat-label {
         font-size: 0.75rem;
         color: var(--color-gray-600);
-        padding: 1rem 0.75rem;
-        border-bottom: 2px solid var(--color-gray-300);
-        position: sticky;
-        top: 0;
-        z-index: 10;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
     
-    .marks-table tbody td {
-        padding: 0.875rem 0.75rem;
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 2px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+        white-space: nowrap;
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
         vertical-align: middle;
         border-color: var(--color-gray-200);
     }
     
-    .marks-table tbody tr:hover {
-        background: rgba(46, 125, 50, 0.02);
+    .table tbody tr {
+        transition: background-color 0.15s ease;
+        border-bottom: 1px solid var(--color-gray-200);
     }
     
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .table tbody tr:last-child {
+        border-bottom: none;
+    }
+    
+    /* Student Info */
+    .registration-number {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .student-info h6 {
+        font-size: 0.9375rem;
+        line-height: 1.3;
+    }
+    
+    /* Attendance Info */
+    .attendance-info .fw-semibold {
+        font-size: 0.9375rem;
+        line-height: 1;
+    }
+    
+    /* Marks Input */
     .marks-input {
-        width: 100px;
+        width: 100%;
         padding: 0.5rem;
         border-radius: var(--radius-sm);
         border: 1px solid var(--color-gray-300);
         text-align: center;
-        font-weight: 600;
+        font-weight: 500;
         transition: all 0.2s ease;
+        font-size: 0.875rem;
     }
     
     .marks-input:focus {
         border-color: var(--color-primary);
-        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
         outline: none;
     }
     
     .marks-input:disabled {
         background: var(--color-gray-100);
+        color: var(--color-gray-400);
         cursor: not-allowed;
     }
     
     .marks-input.saving {
         border-color: var(--color-warning);
-        background: rgba(255, 152, 0, 0.05);
+        background: rgba(255, 152, 0, 0.03);
     }
     
     .marks-input.saved {
         border-color: var(--color-success);
-        background: rgba(76, 175, 80, 0.05);
+        background: rgba(76, 175, 80, 0.03);
     }
     
+    /* Total Marks */
     .total-marks {
-        font-size: 1.125rem;
-        font-weight: 700;
+        font-size: 0.9375rem;
         color: var(--color-primary);
     }
     
-    .attendance-cell {
-        text-align: center;
-    }
-    
-    .attendance-percentage {
-        font-size: 1.125rem;
-        font-weight: 700;
-        line-height: 1;
-    }
-    
-    /* Badges */
-    .badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 20px;
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 4px;
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.3px;
+        letter-spacing: 0.2px;
     }
     
-    .badge-success {
-        background: rgba(76, 175, 80, 0.15);
+    .status-active {
+        background: rgba(76, 175, 80, 0.08);
         color: var(--color-success);
+        border: 1px solid rgba(76, 175, 80, 0.2);
     }
     
-    .badge-danger {
-        background: rgba(244, 67, 54, 0.15);
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.08);
         color: var(--color-danger);
+        border: 1px solid rgba(244, 67, 54, 0.2);
     }
     
-    /* Buttons */
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--color-gray-400);
+    }
+    
+    /* Button Styles */
     .btn {
-        padding: 0.625rem 1.25rem;
-        border-radius: var(--radius-md);
+        padding: 0.5rem 1rem;
         font-weight: 500;
+        border-radius: var(--radius-md);
         transition: all 0.2s ease;
+        font-size: 0.875rem;
     }
     
-    .btn:hover {
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background-color: #267029;
+        border-color: #267029;
         transform: translateY(-1px);
-        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+        color: var(--color-gray-800);
+    }
+    
+    /* Color Utilities */
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
+    .text-primary { color: var(--color-primary); }
+    .text-info { color: var(--color-info); }
+    
+    /* Toast Styles */
+    .toast {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .toast-header {
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 0.75rem 1rem;
+    }
+    
+    .toast-body {
+        padding: 1rem;
     }
 </style>
 
@@ -538,7 +679,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const marksInputs = document.querySelectorAll('.marks-input');
     const csrfToken = '{{ csrf_token }}';
     
-    // Auto-save marks on blur with debounce
+    // Auto-save marks on change with debounce
     marksInputs.forEach(input => {
         let saveTimeout;
         
@@ -586,6 +727,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const totalElement = document.getElementById(`total-${studentId}`);
                 if (totalElement) {
                     totalElement.textContent = `${data.total_marks}%`;
+                    totalElement.style.color = getGradeColor(data.total_marks);
                 }
                 
                 // Visual feedback
@@ -610,6 +752,13 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    function getGradeColor(percentage) {
+        if (percentage >= 70) return 'var(--color-success)';
+        if (percentage >= 60) return 'var(--color-info)';
+        if (percentage >= 50) return 'var(--color-warning)';
+        return 'var(--color-danger)';
+    }
+    
     function showToast(message) {
         const toastElement = document.getElementById('saveToast');
         const toastBody = toastElement.querySelector('.toast-body');
@@ -619,6 +768,32 @@ document.addEventListener('DOMContentLoaded', function() {
             delay: 2000
         });
         toast.show();
+    }
+    
+    // Initialize DataTable if available
+    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#marksTable')) {
+        $('#marksTable').DataTable({
+            ordering: true,
+            searching: true,
+            paging: true,
+            pageLength: 25,
+            responsive: true,
+            autoWidth: false,
+            dom: '<"d-flex justify-content-between align-items-center mb-3"<"d-flex gap-2"f><"d-flex gap-2"l>>rt<"d-flex justify-content-between align-items-center mt-3"<"d-flex gap-2"i><"d-flex gap-2"p>>',
+            language: {
+                search: "Search students:",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ students",
+                paginate: {
+                    previous: '<i class="ri-arrow-left-line"></i>',
+                    next: '<i class="ri-arrow-right-line"></i>'
+                }
+            },
+            columnDefs: [
+                { orderable: false, targets: [0, 3] },
+                { searchable: false, targets: [0, 3] }
+            ]
+        });
     }
 });
 </script>
