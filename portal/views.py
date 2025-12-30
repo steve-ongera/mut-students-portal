@@ -1871,14 +1871,23 @@ def unit_enrollment_status(request):
         'resit_exam'
     ).order_by('enrollment_type', 'programme_unit__unit__code')
     
+    # Calculate counts
+    total_enrollments = enrollments.count()
+    approved_count = enrollments.filter(status='approved').count()
+    pending_count = enrollments.filter(status='pending').count()
+    resit_count = enrollments.filter(enrollment_type='resit').count()
+    
     context = {
         'student': student,
         'current_semester': current_semester,
         'enrollments': enrollments,
+        'total_enrollments': total_enrollments,
+        'approved_count': approved_count,
+        'pending_count': pending_count,
+        'resit_count': resit_count,
     }
     
     return render(request, 'student/unit_enrollment_status.html', context)
-
 
 # ============= RESIT EXAM VIEWS =============
 

@@ -1602,16 +1602,16 @@ class UnitEnrollment(models.Model):
                 'You must report for the semester before enrolling in units.'
             )
         
-        # Check if unit is offered in this semester
+        # Check if unit is offered in this semester (accept any approval level)
         if not UnitAllocation.objects.filter(
             programme_unit=self.programme_unit,
             semester=self.semester,
-            status='approved_dean'
+            status__in=['approved_hod', 'approved_hos', 'approved_dean']
         ).exists():
             raise ValidationError(
                 f'Unit {self.programme_unit.unit.code} is not offered in {self.semester}.'
             )
-        
+    
         # Check if already enrolled
         if UnitEnrollment.objects.filter(
             student=self.student,
@@ -1622,7 +1622,7 @@ class UnitEnrollment(models.Model):
             raise ValidationError(
                 f'You are already enrolled in {self.programme_unit.unit.code} for this semester.'
             )
-        
+    
         # For resit enrollments, check if there's a failed result
         if self.enrollment_type == 'resit':
             failed_result = SemesterResults.objects.filter(
@@ -1636,23 +1636,6 @@ class UnitEnrollment(models.Model):
                     f'No failed result found for {self.programme_unit.unit.code}. '
                     'You can only enroll for resit if you have a failed result.'
                 )
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
-        
-        # Create UnitRegistration if approved
-        if self.status == 'approved':
-            UnitRegistration.objects.get_or_create(
-                student=self.student,
-                programme_unit=self.programme_unit,
-                semester=self.semester,
-                defaults={
-                    'status': 'registered',
-                    'is_retake': self.enrollment_type in ['resit', 'retake'],
-                    'approved_by': self.approved_by,
-                }
-            )
 
     def __str__(self):
         return (f"{self.student.registration_number} - "

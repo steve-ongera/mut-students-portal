@@ -1,12 +1,16 @@
 {% extends 'student/student_base.html' %}
 {% load static %}
 
+
+
 {% block title %}Enrollment Status{% endblock %}
 
 {% block page_title %}Unit Enrollment Status{% endblock %}
 {% block page_subtitle %}{{ current_semester }}{% endblock %}
 
 {% block content %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
@@ -26,13 +30,14 @@
             </div>
             
             <div class="card-body">
+                <!-- Replace this section in your template -->
                 <div class="summary-stats">
                     <div class="stat-card stat-card-primary">
                         <div class="stat-icon">
                             <i class="ri-book-2-line"></i>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-value">{{ enrollments|length }}</div>
+                            <div class="stat-value">{{ total_enrollments }}</div>
                             <div class="stat-label">Total Enrollments</div>
                         </div>
                     </div>
@@ -42,7 +47,7 @@
                             <i class="ri-check-line"></i>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-value">{{ enrollments|filter_by_status:'approved'|length }}</div>
+                            <div class="stat-value">{{ approved_count }}</div>
                             <div class="stat-label">Approved</div>
                         </div>
                     </div>
@@ -52,7 +57,7 @@
                             <i class="ri-time-line"></i>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-value">{{ enrollments|filter_by_status:'pending'|length }}</div>
+                            <div class="stat-value">{{ pending_count }}</div>
                             <div class="stat-label">Pending</div>
                         </div>
                     </div>
@@ -62,7 +67,7 @@
                             <i class="ri-refresh-line"></i>
                         </div>
                         <div class="stat-content">
-                            <div class="stat-value">{{ enrollments|filter_by_type:'resit'|length }}</div>
+                            <div class="stat-value">{{ resit_count }}</div>
                             <div class="stat-label">Resit Units</div>
                         </div>
                     </div>
@@ -80,7 +85,7 @@
                     Enrolled Units
                 </h5>
                 <div class="card-actions">
-                    <span class="enrollment-count">{{ enrollments|length }} unit(s)</span>
+                    <span class="enrollment-count">{{ total_enrollments }} unit(s)</span>
                 </div>
             </div>
             
