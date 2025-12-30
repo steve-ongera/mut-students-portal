@@ -16,455 +16,914 @@
 </nav>
 
 <div class="content-container">
-    <form method="post" enctype="multipart/form-data" id="profileUpdateForm">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Update Profile</h1>
+                <p class="text-muted mb-0">Update your editable personal information</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-user-line me-2"></i>
+                    {{ student.registration_number }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="profileUpdateForm" class="needs-validation" novalidate>
         {% csrf_token %}
         
-        <div class="profile-grid">
-            <!-- Profile Picture -->
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">
-                        <i class="ri-image-line me-2"></i>
-                        Profile Picture
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="picture-upload">
-                        <div class="current-picture">
+        <!-- Profile Picture Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-image-line me-2"></i>
+                    Profile Picture
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="current-picture text-center">
                             {% if user.profile_picture %}
-                            <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}" id="picturePreview">
+                            <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}" 
+                                 id="picturePreview" class="rounded-circle border border-4 border-light shadow-sm"
+                                 style="width: 150px; height: 150px; object-fit: cover;">
                             {% else %}
-                            <div class="avatar-placeholder" id="picturePreview">
-                                <i class="ri-user-line"></i>
+                            <div class="avatar-placeholder rounded-circle border border-4 border-light shadow-sm d-inline-flex align-items-center justify-content-center"
+                                 id="picturePreview" style="width: 150px; height: 150px; background: var(--color-gray-200); color: var(--color-gray-600);">
+                                <i class="ri-user-line" style="font-size: 3.5rem;"></i>
                             </div>
                             {% endif %}
                         </div>
-                        <div class="upload-controls">
-                            <input type="file" name="profile_picture" id="profile_picture" 
-                                   class="form-control" accept="image/*" onchange="previewImage(this)">
-                            <small class="form-text">Accepted formats: JPG, PNG, GIF (Max: 5MB)</small>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="upload-section">
+                            <div class="mb-3">
+                                <label for="profile_picture" class="form-label fw-medium">Upload New Picture</label>
+                                <input type="file" name="profile_picture" id="profile_picture" 
+                                       class="form-control form-control-lg" accept="image/*" 
+                                       onchange="previewImage(this)">
+                                <div class="form-text mt-1">
+                                    <small class="text-muted">Accepted formats: JPG, PNG, GIF (Max: 5MB)</small>
+                                </div>
+                            </div>
                             
                             {% if user.profile_picture %}
-                            <form method="post" action="{% url 'student_delete_profile_picture' %}" 
-                                  onsubmit="return confirm('Are you sure you want to delete your profile picture?');"
-                                  style="margin-top: 1rem;">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-outline-danger btn-sm">
-                                    <i class="ri-delete-bin-line me-2"></i>
-                                    Delete Picture
-                                </button>
-                            </form>
+                            <div class="mt-3 pt-3 border-top">
+                                <form method="post" action="{% url 'student_delete_profile_picture' %}" 
+                                      onsubmit="return confirmDeletePicture();"
+                                      class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                                        <i class="ri-delete-bin-line me-2"></i>
+                                        Delete Current Picture
+                                    </button>
+                                </form>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Contact Information -->
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">
-                        <i class="ri-phone-line me-2"></i>
-                        Contact Information
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label for="phone_number" class="form-label">Phone Number</label>
-                        <input type="text" name="phone_number" id="phone_number" 
-                               class="form-control" value="{{ user.phone_number }}"
-                               placeholder="e.g., +254712345678">
-                        <small class="form-text">Format: +254712345678 or 0712345678</small>
+        <!-- Contact Information Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-phone-line me-2"></i>
+                    Contact Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="phone_number" class="form-label fw-medium">
+                                Phone Number <span class="text-muted">(Required)</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-phone-line text-muted"></i>
+                                </span>
+                                <input type="text" name="phone_number" id="phone_number" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ user.phone_number }}" required
+                                       placeholder="e.g., +254712345678"
+                                       pattern="^(\+?\d{1,4}[\s\-]?)?(\(?\d{1,4}\)?[\s\-]?)?[\d\s\-]{8,14}$">
+                            </div>
+                            <div class="form-text mt-1">
+                                <small class="text-muted">Format: +254712345678 or 0712345678</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="id_number" class="form-label fw-medium">
+                                ID Number
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-id-card-line text-muted"></i>
+                                </span>
+                                <input type="text" name="id_number" id="id_number" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ user.id_number }}"
+                                       placeholder="National ID / Passport">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Current Address -->
-            <div class="management-card full-width">
-                <div class="card-header">
-                    <h5 class="card-title">
-                        <i class="ri-map-pin-line me-2"></i>
-                        Current Address
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label for="current_address" class="form-label">Current Address</label>
-                        <textarea name="current_address" id="current_address" 
-                                  class="form-control" rows="3"
-                                  placeholder="Enter your current residential address">{{ student.current_address }}</textarea>
+        <!-- Address Information Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-map-pin-line me-2"></i>
+                    Address Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label for="current_address" class="form-label fw-medium">
+                                Current Address
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 align-items-start pt-3">
+                                    <i class="ri-home-line text-muted"></i>
+                                </span>
+                                <textarea name="current_address" id="current_address" 
+                                          class="form-control border-start-0 ps-0" rows="3"
+                                          placeholder="Enter your current residential address">{{ student.current_address }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-group">
+                            <label for="permanent_address" class="form-label fw-medium">
+                                Permanent Address
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 align-items-start pt-3">
+                                    <i class="ri-map-pin-line text-muted"></i>
+                                </span>
+                                <textarea name="permanent_address" id="permanent_address" 
+                                          class="form-control border-start-0 ps-0" rows="3"
+                                          placeholder="Enter your permanent residential address">{{ student.permanent_address }}</textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Emergency Contact -->
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">
-                        <i class="ri-hospital-line me-2"></i>
-                        Emergency Contact
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label for="emergency_contact_name" class="form-label">Contact Name</label>
-                        <input type="text" name="emergency_contact_name" id="emergency_contact_name" 
-                               class="form-control" value="{{ student.emergency_contact_name }}"
-                               placeholder="Emergency contact name">
+        <!-- Emergency Contact Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-hospital-line me-2"></i>
+                    Emergency Contact
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="emergency_contact_name" class="form-label fw-medium">
+                                Contact Name <span class="text-muted">(Required)</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-user-line text-muted"></i>
+                                </span>
+                                <input type="text" name="emergency_contact_name" id="emergency_contact_name" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.emergency_contact_name }}" required
+                                       placeholder="Emergency contact name">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="emergency_contact_phone" class="form-label">Contact Phone</label>
-                        <input type="text" name="emergency_contact_phone" id="emergency_contact_phone" 
-                               class="form-control" value="{{ student.emergency_contact_phone }}"
-                               placeholder="Emergency contact phone">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="emergency_contact_phone" class="form-label fw-medium">
+                                Contact Phone <span class="text-muted">(Required)</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-phone-line text-muted"></i>
+                                </span>
+                                <input type="text" name="emergency_contact_phone" id="emergency_contact_phone" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.emergency_contact_phone }}" required
+                                       placeholder="Emergency contact phone"
+                                       pattern="^(\+?\d{1,4}[\s\-]?)?(\(?\d{1,4}\)?[\s\-]?)?[\d\s\-]{8,14}$">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="emergency_contact_relationship" class="form-label">Relationship</label>
-                        <input type="text" name="emergency_contact_relationship" id="emergency_contact_relationship" 
-                               class="form-control" value="{{ student.emergency_contact_relationship }}"
-                               placeholder="e.g., Mother, Father, Sibling">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="emergency_contact_relationship" class="form-label fw-medium">
+                                Relationship <span class="text-muted">(Required)</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-heart-line text-muted"></i>
+                                </span>
+                                <input type="text" name="emergency_contact_relationship" id="emergency_contact_relationship" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.emergency_contact_relationship }}" required
+                                       placeholder="e.g., Mother, Father, Sibling">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Sponsor Information -->
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">
-                        <i class="ri-parent-line me-2"></i>
-                        Sponsor/Guardian Information
-                    </h5>
+        <!-- Sponsor Information Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-parent-line me-2"></i>
+                    Sponsor/Guardian Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="sponsor_name" class="form-label fw-medium">
+                                Sponsor Name
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-user-line text-muted"></i>
+                                </span>
+                                <input type="text" name="sponsor_name" id="sponsor_name" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.sponsor_name }}"
+                                       placeholder="Sponsor/Guardian name">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="sponsor_phone" class="form-label fw-medium">
+                                Sponsor Phone
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-phone-line text-muted"></i>
+                                </span>
+                                <input type="text" name="sponsor_phone" id="sponsor_phone" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.sponsor_phone }}"
+                                       placeholder="Sponsor phone number"
+                                       pattern="^(\+?\d{1,4}[\s\-]?)?(\(?\d{1,4}\)?[\s\-]?)?[\d\s\-]{8,14}$">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label for="sponsor_email" class="form-label fw-medium">
+                                Sponsor Email
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-mail-line text-muted"></i>
+                                </span>
+                                <input type="email" name="sponsor_email" id="sponsor_email" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.sponsor_email }}"
+                                       placeholder="Sponsor email address">
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="form-group">
-                        <label for="sponsor_name" class="form-label">Sponsor Name</label>
-                        <input type="text" name="sponsor_name" id="sponsor_name" 
-                               class="form-control" value="{{ student.sponsor_name }}"
-                               placeholder="Sponsor/Guardian name">
+            </div>
+        </div>
+
+        <!-- Additional Information Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-information-line me-2"></i>
+                    Additional Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="passport_number" class="form-label fw-medium">
+                                Passport Number
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-passport-line text-muted"></i>
+                                </span>
+                                <input type="text" name="passport_number" id="passport_number" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.passport_number }}"
+                                       placeholder="Passport number (if applicable)">
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="sponsor_phone" class="form-label">Sponsor Phone</label>
-                        <input type="text" name="sponsor_phone" id="sponsor_phone" 
-                               class="form-control" value="{{ student.sponsor_phone }}"
-                               placeholder="Sponsor phone number">
-                    </div>
-                    <div class="form-group">
-                        <label for="sponsor_email" class="form-label">Sponsor Email</label>
-                        <input type="email" name="sponsor_email" id="sponsor_email" 
-                               class="form-control" value="{{ student.sponsor_email }}"
-                               placeholder="Sponsor email address">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="sponsor_relationship" class="form-label fw-medium">
+                                Sponsor Relationship
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-user-add-line text-muted"></i>
+                                </span>
+                                <input type="text" name="sponsor_relationship" id="sponsor_relationship" 
+                                       class="form-control border-start-0 ps-0" 
+                                       value="{{ student.sponsor_relationship }}"
+                                       placeholder="e.g., Parent, Relative, Employer">
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Action Buttons -->
-        <div class="action-buttons">
-            <button type="submit" class="btn btn-primary">
-                <i class="ri-save-line me-2"></i>
-                Save Changes
-            </button>
-            <a href="{% url 'student_profile_view' %}" class="btn btn-outline-secondary">
-                <i class="ri-close-line me-2"></i>
-                Cancel
-            </a>
+        <div class="management-card">
+            <div class="card-body">
+                <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                    <div>
+                        <a href="{% url 'student_profile_view' %}" class="btn btn-outline-secondary">
+                            <i class="ri-close-line me-2"></i>
+                            Cancel
+                        </a>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="reset" class="btn btn-outline-danger">
+                            <i class="ri-restart-line me-2"></i>
+                            Reset Form
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-save-line me-2"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </form>
 
     <!-- Information Notice -->
-    <div class="info-notice">
-        <i class="ri-information-line me-2"></i>
-        <div>
-            <strong>Note:</strong> Some fields like your name, registration number, programme, and national ID 
-            cannot be changed here. Contact the registrar's office for any updates to these fields.
+    <div class="info-notice mt-4">
+        <div class="alert alert-info border-0 shadow-sm">
+            <div class="d-flex align-items-start">
+                <i class="ri-information-line fs-5 me-3 mt-1"></i>
+                <div>
+                    <h6 class="alert-heading fw-semibold mb-2">Important Information</h6>
+                    <p class="mb-0">
+                        <strong>Note:</strong> Some fields like your name, registration number, programme, and national ID 
+                        cannot be changed here. Contact the registrar's office for any updates to these fields.
+                    </p>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            All required fields are marked with <span class="text-muted">(Required)</span>. 
+                            Ensure all information is accurate and up-to-date.
+                        </small>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
+    /* Base Styles */
     :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
         --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
         --color-danger: #F44336;
         --color-gray-100: #f8f9fa;
         --color-gray-200: #e9ecef;
         --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
-        --radius-sm: 4px;
-        --radius-md: 8px;
     }
-
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
     .content-container {
         padding: 0 0.5rem;
     }
-
+    
+    /* Breadcrumb */
     .breadcrumb {
         background: transparent;
         padding: 0.75rem 0;
         margin-bottom: 1rem;
         border-bottom: 1px solid var(--color-gray-200);
     }
-
-    .profile-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
-        margin-bottom: 2rem;
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
     }
-
-    .full-width {
-        grid-column: 1 / -1;
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
     }
-
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
     .management-card {
         background: white;
         border: 1px solid var(--color-gray-200);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-lg);
         overflow: hidden;
+        height: 100%;
     }
-
-    .card-header {
-        padding: 1rem 1.25rem;
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
         border-bottom: 1px solid var(--color-gray-200);
         background: var(--color-gray-100);
     }
-
-    .card-title {
+    
+    .management-card .card-title {
         font-size: 1rem;
         font-weight: 600;
         color: var(--color-gray-800);
-        margin: 0;
+        margin-bottom: 0.25rem;
         display: flex;
         align-items: center;
     }
-
-    .card-body {
+    
+    .management-card .card-body {
         padding: 1.5rem;
     }
-
-    /* Profile Picture Upload */
-    .picture-upload {
-        display: flex;
-        gap: 2rem;
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-label.fw-medium {
+        font-weight: 500;
+    }
+    
+    .form-control {
+        border-color: var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 0.625rem 0.75rem;
+        font-size: 0.9375rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+    }
+    
+    .form-control-lg {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+    
+    textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .form-text {
+        font-size: 0.8125rem;
+    }
+    
+    /* Input Groups */
+    .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .input-group-text {
+        border-color: var(--color-gray-300);
+        background-color: white;
+        color: var(--color-gray-600);
+        padding: 0.625rem 0.75rem;
+    }
+    
+    .input-group .form-control {
+        border-left: none;
+        box-shadow: none;
+    }
+    
+    .input-group .form-control:focus {
+        box-shadow: none;
+    }
+    
+    /* Action Buttons */
+    .action-buttons .btn {
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+        display: inline-flex;
         align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
     }
-
-    .current-picture img,
-    .current-picture .avatar-placeholder {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        object-fit: cover;
-        border: 4px solid var(--color-gray-200);
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
     }
-
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .btn-outline-danger {
+        border-color: var(--color-danger);
+        color: var(--color-danger);
+        background: transparent;
+    }
+    
+    .btn-outline-danger:hover {
+        background: var(--color-danger);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+    }
+    
+    /* Avatar Styles */
     .avatar-placeholder {
         display: flex;
         align-items: center;
         justify-content: center;
         background: var(--color-gray-200);
         color: var(--color-gray-600);
-        font-size: 3rem;
     }
-
-    .upload-controls {
-        flex: 1;
-    }
-
-    /* Form Groups */
-    .form-group {
-        margin-bottom: 1.25rem;
-    }
-
-    .form-group:last-child {
-        margin-bottom: 0;
-    }
-
-    .form-label {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--color-gray-800);
-        margin-bottom: 0.5rem;
-        display: block;
-    }
-
-    .form-control {
-        width: 100%;
-        padding: 0.625rem 0.75rem;
-        font-size: 0.9375rem;
-        border: 1px solid var(--color-gray-300);
+    
+    /* Badge Styles */
+    .badge {
         border-radius: var(--radius-sm);
-        transition: border-color 0.2s ease;
+        font-weight: 500;
+        padding: 0.375rem 0.75rem;
     }
-
-    .form-control:focus {
-        outline: none;
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
-    }
-
-    textarea.form-control {
-        resize: vertical;
-        min-height: 80px;
-    }
-
-    .form-text {
-        display: block;
-        margin-top: 0.375rem;
-        font-size: 0.8125rem;
-        color: var(--color-gray-600);
-    }
-
-    /* Action Buttons */
-    .action-buttons {
-        display: flex;
-        gap: 1rem;
-        padding: 1.5rem;
-        background: white;
+    
+    .badge.bg-light {
+        background-color: var(--color-gray-100) !important;
+        color: var(--color-gray-800) !important;
         border: 1px solid var(--color-gray-200);
-        border-radius: var(--radius-md);
-        margin-bottom: 1.5rem;
     }
-
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.375rem;
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
-        font-size: 0.875rem;
-        border-radius: var(--radius-sm);
-        transition: all 0.2s ease;
-        text-decoration: none;
-        border: 1px solid transparent;
-        cursor: pointer;
+    
+    /* Alert Styles */
+    .alert {
+        border-radius: var(--radius-lg);
+        border: none;
+        box-shadow: var(--shadow-sm);
     }
-
-    .btn-primary {
-        background: var(--color-primary);
-        border-color: var(--color-primary);
-        color: white;
+    
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.08);
+        border-left: 4px solid var(--color-info);
     }
-
-    .btn-primary:hover {
-        background: #1B5E20;
-        border-color: #1B5E20;
+    
+    .alert-heading {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
     }
-
-    .btn-outline-secondary {
-        border-color: var(--color-gray-300);
-        color: var(--color-gray-600);
-        background: transparent;
-    }
-
-    .btn-outline-secondary:hover {
-        border-color: var(--color-gray-600);
-        background: var(--color-gray-600);
-        color: white;
-    }
-
-    .btn-outline-danger {
+    
+    /* Validation Styles */
+    .form-control:invalid:not(:focus):not(:placeholder-shown) {
         border-color: var(--color-danger);
-        color: var(--color-danger);
-        background: transparent;
     }
-
-    .btn-outline-danger:hover {
-        background: var(--color-danger);
-        color: white;
+    
+    .form-control:valid:not(:focus):not(:placeholder-shown) {
+        border-color: var(--color-success);
     }
-
-    .btn-sm {
-        padding: 0.5rem 1rem;
-        font-size: 0.8125rem;
-    }
-
-    /* Info Notice */
-    .info-notice {
-        display: flex;
-        align-items: flex-start;
-        padding: 1rem;
-        background: rgba(33, 150, 243, 0.1);
-        border: 1px solid rgba(33, 150, 243, 0.2);
-        border-radius: var(--radius-md);
-        color: #0d47a1;
-        font-size: 0.875rem;
-        line-height: 1.5;
-    }
-
-    .info-notice i {
-        font-size: 1.25rem;
-        margin-top: 0.125rem;
-    }
-
-    /* Responsive */
-    @media (max-width: 992px) {
-        .profile-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .picture-upload {
-            flex-direction: column;
-            text-align: center;
-        }
-    }
-
+    
+    /* Responsive Styles */
     @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
         .action-buttons {
             flex-direction: column;
+            gap: 1rem;
         }
-
-        .btn {
+        
+        .action-buttons .btn {
             width: 100%;
+            justify-content: center;
+        }
+        
+        .input-group-text {
+            padding: 0.5rem 0.625rem;
+        }
+        
+        .form-control {
+            padding: 0.5rem 0.625rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .page-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 1rem;
+        }
+        
+        .page-header .text-end {
+            text-align: center !important;
         }
     }
 </style>
 
 <script>
-function previewImage(input) {
-    if (input.files && input.files[0]) {
-        const reader = new FileReader();
+document.addEventListener('DOMContentLoaded', function() {
+    // Image preview function
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            
+            // Check file size
+            if (file.size > maxSize) {
+                alert('File size exceeds 5MB limit. Please choose a smaller file.');
+                input.value = '';
+                return;
+            }
+            
+            // Check file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+            if (!validTypes.includes(file.type)) {
+                alert('Invalid file type. Please choose a JPG, PNG, or GIF image.');
+                input.value = '';
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const preview = document.getElementById('picturePreview');
+                if (preview.tagName === 'IMG') {
+                    preview.src = e.target.result;
+                } else {
+                    // Replace placeholder with image
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.alt = 'Profile Preview';
+                    img.id = 'picturePreview';
+                    img.className = 'rounded-circle border border-4 border-light shadow-sm';
+                    img.style.width = '150px';
+                    img.style.height = '150px';
+                    img.style.objectFit = 'cover';
+                    preview.parentNode.replaceChild(img, preview);
+                }
+                
+                // Show success message
+                if (typeof toastr !== 'undefined') {
+                    toastr.success('Profile picture selected successfully');
+                }
+            }
+            
+            reader.onerror = function() {
+                alert('Error reading file. Please try again.');
+                input.value = '';
+            }
+            
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // Confirm delete picture
+    function confirmDeletePicture() {
+        return confirm('Are you sure you want to delete your profile picture? This action cannot be undone.');
+    }
+    
+    // Form validation
+    const form = document.getElementById('profileUpdateForm');
+    
+    form.addEventListener('submit', function(e) {
+        if (!form.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Add Bootstrap validation classes
+            form.classList.add('was-validated');
+            
+            // Scroll to first invalid field
+            const firstInvalid = form.querySelector(':invalid');
+            if (firstInvalid) {
+                firstInvalid.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+                firstInvalid.focus();
+            }
+            
+            // Show error message
+            if (typeof toastr !== 'undefined') {
+                toastr.error('Please fill in all required fields correctly.');
+            }
+            
+            return false;
+        }
         
-        reader.onload = function(e) {
-            const preview = document.getElementById('picturePreview');
-            if (preview.tagName === 'IMG') {
-                preview.src = e.target.result;
+        // Additional custom validation
+        let isValid = true;
+        let errorMessage = '';
+        
+        // Validate phone numbers
+        const phoneFields = [
+            { id: 'phone_number', name: 'Phone Number' },
+            { id: 'emergency_contact_phone', name: 'Emergency Contact Phone' },
+            { id: 'sponsor_phone', name: 'Sponsor Phone' }
+        ];
+        
+        phoneFields.forEach(field => {
+            const input = document.getElementById(field.id);
+            if (input.value.trim()) {
+                const phoneRegex = /^(\+?\d{1,4}[\s\-]?)?(\(?\d{1,4}\)?[\s\-]?)?[\d\s\-]{8,14}$/;
+                if (!phoneRegex.test(input.value)) {
+                    isValid = false;
+                    errorMessage = `Please enter a valid ${field.name.toLowerCase()}.`;
+                    input.classList.add('is-invalid');
+                } else {
+                    input.classList.remove('is-invalid');
+                }
+            }
+        });
+        
+        // Validate email
+        const emailInput = document.getElementById('sponsor_email');
+        if (emailInput.value.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(emailInput.value)) {
+                isValid = false;
+                errorMessage = 'Please enter a valid sponsor email address.';
+                emailInput.classList.add('is-invalid');
             } else {
-                // Replace placeholder with image
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.alt = 'Profile Preview';
-                img.id = 'picturePreview';
-                preview.parentNode.replaceChild(img, preview);
+                emailInput.classList.remove('is-invalid');
             }
         }
         
-        reader.readAsDataURL(input.files[0]);
-    }
-}
-
-// Form validation
-document.getElementById('profileUpdateForm').addEventListener('submit', function(e) {
-    let isValid = true;
+        if (!isValid) {
+            e.preventDefault();
+            if (errorMessage && typeof toastr !== 'undefined') {
+                toastr.error(errorMessage);
+            } else if (errorMessage) {
+                alert(errorMessage);
+            }
+            return false;
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="ri-loader-4-line me-2 animate-spin"></i>Saving...';
+        submitBtn.disabled = true;
+        
+        // Allow form to submit normally
+        return true;
+    });
     
-    // Validate phone number
-    const phone = document.getElementById('phone_number').value.trim();
-    if (phone && !/^[0-9+\-() ]{10,15}$/.test(phone)) {
-        alert('Please enter a valid phone number (10-15 digits)');
-        isValid = false;
-    }
+    // Form reset handler
+    form.addEventListener('reset', function() {
+        form.classList.remove('was-validated');
+        
+        // Remove custom validation classes
+        const invalidFields = form.querySelectorAll('.is-invalid');
+        invalidFields.forEach(field => {
+            field.classList.remove('is-invalid');
+        });
+        
+        // Reset image preview to original
+        const picturePreview = document.getElementById('picturePreview');
+        if (picturePreview && picturePreview.tagName === 'IMG' && '{{ user.profile_picture.url }}') {
+            // Keep current profile picture if exists
+        } else if (picturePreview && picturePreview.tagName !== 'IMG') {
+            // Show placeholder
+            const placeholder = document.createElement('div');
+            placeholder.id = 'picturePreview';
+            placeholder.className = 'avatar-placeholder rounded-circle border border-4 border-light shadow-sm d-inline-flex align-items-center justify-content-center';
+            placeholder.style.width = '150px';
+            placeholder.style.height = '150px';
+            placeholder.style.background = 'var(--color-gray-200)';
+            placeholder.style.color = 'var(--color-gray-600)';
+            placeholder.innerHTML = '<i class="ri-user-line" style="font-size: 3.5rem;"></i>';
+            picturePreview.parentNode.replaceChild(placeholder, picturePreview);
+        }
+        
+        if (typeof toastr !== 'undefined') {
+            toastr.info('Form has been reset to original values.');
+        }
+    });
     
-    // Validate email
-    const email = document.getElementById('sponsor_email').value.trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        alert('Please enter a valid email address for sponsor');
-        isValid = false;
-    }
+    // Real-time validation
+    const inputs = form.querySelectorAll('input[required], textarea[required]');
+    inputs.forEach(input => {
+        input.addEventListener('input', function() {
+            if (this.value.trim()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-valid');
+            }
+        });
+        
+        input.addEventListener('blur', function() {
+            if (!this.checkValidity()) {
+                this.classList.add('is-invalid');
+            }
+        });
+    });
     
-    if (!isValid) {
-        e.preventDefault();
-    }
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
 });
+
+// Add CSS for loading spinner
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}

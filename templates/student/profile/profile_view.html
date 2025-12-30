@@ -1,4 +1,5 @@
 {% extends 'student/student_base.html' %}
+{% load custom_filters %}
 {% load static %}
 
 {% block title %}My Profile{% endblock %}
@@ -59,220 +60,447 @@
         </div>
     </div>
 
-    <div class="profile-grid">
-        <!-- Personal Information -->
-        <div class="management-card">
-            <div class="card-header">
-                <h5 class="card-title">
-                    <i class="ri-user-line me-2"></i>
-                    Personal Information
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="info-group">
-                    <div class="info-item">
-                        <span class="info-label">Full Name</span>
-                        <span class="info-value">{{ user.get_full_name }}</span>
+    <div class="row">
+        <!-- Left Column: Personal Info (4 columns) -->
+        <div class="col-lg-4">
+            <div class="profile-left-section">
+                <!-- Personal Information -->
+                <div class="management-card mb-3">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-user-line me-2"></i>
+                            Personal Information
+                        </h5>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Username</span>
-                        <span class="info-value">{{ user.username }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Email Address</span>
-                        <span class="info-value">{{ user.email }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Phone Number</span>
-                        <span class="info-value">{{ user.phone_number|default:"Not provided" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Gender</span>
-                        <span class="info-value">{{ student.get_gender_display }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Date of Birth</span>
-                        <span class="info-value">{{ student.date_of_birth|date:"M d, Y" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">National ID</span>
-                        <span class="info-value">{{ student.national_id }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">ID Number</span>
-                        <span class="info-value">{{ user.id_number|default:"Not provided" }}</span>
+                    <div class="card-body">
+                        <div class="info-group">
+                            <div class="info-item">
+                                <span class="info-label">Full Name</span>
+                                <span class="info-value">{{ user.get_full_name }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Username</span>
+                                <span class="info-value">{{ user.username }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Email Address</span>
+                                <span class="info-value">{{ user.email }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Phone Number</span>
+                                <span class="info-value">{{ user.phone_number|default:"Not provided" }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Gender</span>
+                                <span class="info-value">{{ student.get_gender_display }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Date of Birth</span>
+                                <span class="info-value">{{ student.date_of_birth|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">National ID</span>
+                                <span class="info-value">{{ student.national_id }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+              
             </div>
         </div>
 
-        <!-- Academic Information -->
-        <div class="management-card">
-            <div class="card-header">
-                <h5 class="card-title">
-                    <i class="ri-graduation-cap-line me-2"></i>
-                    Academic Information
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="info-group">
-                    <div class="info-item">
-                        <span class="info-label">Registration Number</span>
-                        <span class="info-value">{{ student.registration_number }}</span>
+        <!-- Right Column: Tabs (8 columns) -->
+        <div class="col-lg-8">
+            <div class="profile-right-section">
+                <div class="management-card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="profileTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="academic-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#academic" type="button" role="tab">
+                                    <i class="ri-graduation-cap-line me-2"></i>
+                                    Academic
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="admission-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#admission" type="button" role="tab">
+                                    <i class="ri-calendar-line me-2"></i>
+                                    Admission
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="sponsor-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#sponsor" type="button" role="tab">
+                                    <i class="ri-parent-line me-2"></i>
+                                    Sponsor
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="documents-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#documents" type="button" role="tab">
+                                    <i class="ri-file-text-line me-2"></i>
+                                    Documents
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="activities-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#activities" type="button" role="tab">
+                                    <i class="ri-history-line me-2"></i>
+                                    Activities
+                                </button>
+                            </li>
+                        </ul>
                     </div>
-                    <div class="info-item">
-                        <span class="info-label">Programme</span>
-                        <span class="info-value">{{ student.programme.name }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Programme Type</span>
-                        <span class="info-value">{{ student.programme.get_programme_type_display }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Study Mode</span>
-                        <span class="info-value">{{ student.programme.get_study_mode_display }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Department</span>
-                        <span class="info-value">{{ student.programme.department.name }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">School</span>
-                        <span class="info-value">{{ student.programme.department.school.name }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Current Year</span>
-                        <span class="info-value">Year {{ student.current_year }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Current Semester</span>
-                        <span class="info-value">Semester {{ student.current_semester }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="profileTabsContent">
+                            <!-- Academic Tab -->
+                            <div class="tab-pane fade show active" id="academic" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-group">
+                                            <div class="info-item">
+                                                <span class="info-label">Registration Number</span>
+                                                <span class="info-value">{{ student.registration_number }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Programme</span>
+                                                <span class="info-value">{{ student.programme.name }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Programme Type</span>
+                                                <span class="info-value">{{ student.programme.get_programme_type_display }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Study Mode</span>
+                                                <span class="info-value">{{ student.programme.get_study_mode_display }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-group">
+                                            <div class="info-item">
+                                                <span class="info-label">Department</span>
+                                                <span class="info-value">{{ student.programme.department.name }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">School</span>
+                                                <span class="info-value">{{ student.programme.department.school.name }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Current Year</span>
+                                                <span class="info-value">
+                                                    <span class="badge bg-info-subtle text-info">Year {{ student.current_year }}</span>
+                                                </span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Current Semester</span>
+                                                <span class="info-value">
+                                                    <span class="badge bg-secondary-subtle text-secondary">Semester {{ student.current_semester }}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- GPA and Performance Section -->
+                                <div class="performance-metrics mt-4 pt-4 border-top">
+                                    <div class="row">
+                                        <div class="col-md-4 text-center">
+                                            <div class="metric-card">
+                                                <div class="metric-value gpa-value">{{ student.cumulative_gpa|floatformat:2 }}</div>
+                                                <div class="metric-label">Cumulative GPA</div>
+                                                <div class="metric-progress mt-2">
+                                                    {% with gpa_percent=student.cumulative_gpa|floatformat:2|add:"0"|div:4|mul:100 %}
+                                                    <div class="progress" style="height: 6px;">
+                                                        <div class="progress-bar {% if student.cumulative_gpa >= 3.0 %}bg-success{% elif student.cumulative_gpa >= 2.0 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                             role="progressbar" 
+                                                             style="width: {{ gpa_percent }}%">
+                                                        </div>
+                                                    </div>
+                                                    {% endwith %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <div class="metric-card">
+                                                <div class="metric-value text-primary">{{ student.total_credit_hours }}</div>
+                                                <div class="metric-label">Total Credits</div>
+                                                <div class="metric-info mt-2">
+                                                    <small class="text-muted">Completed</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-center">
+                                            <div class="metric-card">
+                                                <div class="metric-value {% if student.student_status == 'active' %}text-success{% elif student.student_status == 'graduated' %}text-info{% else %}text-warning{% endif %}">
+                                                    {{ student.get_student_status_display }}
+                                                </div>
+                                                <div class="metric-label">Academic Status</div>
+                                                <div class="metric-info mt-2">
+                                                    <span class="status-badge status-{{ student.student_status }}">
+                                                        <i class="ri-checkbox-circle-line me-1"></i>
+                                                        {{ student.get_student_status_display }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-        <!-- Admission & Status -->
-        <div class="management-card">
-            <div class="card-header">
-                <h5 class="card-title">
-                    <i class="ri-calendar-line me-2"></i>
-                    Admission & Status
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="info-group">
-                    <div class="info-item">
-                        <span class="info-label">Intake</span>
-                        <span class="info-value">{{ student.intake.name }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Admission Date</span>
-                        <span class="info-value">{{ student.admission_date|date:"M d, Y" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Expected Graduation</span>
-                        <span class="info-value">
-                            {% if student.expected_graduation_date %}
-                            {{ student.expected_graduation_date|date:"M d, Y" }}
-                            {% else %}
-                            Not set
-                            {% endif %}
-                        </span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Student Status</span>
-                        <span class="info-value">
-                            <span class="status-badge status-{{ student.student_status }}">
-                                {{ student.get_student_status_display }}
-                            </span>
-                        </span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Cumulative GPA</span>
-                        <span class="info-value gpa-value">{{ student.cumulative_gpa|floatformat:2 }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Total Credits Earned</span>
-                        <span class="info-value">{{ student.total_credit_hours }} CH</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Passport Number</span>
-                        <span class="info-value">{{ student.passport_number|default:"Not provided" }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+                            <!-- Admission Tab -->
+                            <div class="tab-pane fade" id="admission" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-group">
+                                            <div class="info-item">
+                                                <span class="info-label">Intake</span>
+                                                <span class="info-value">{{ student.intake.name }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Admission Date</span>
+                                                <span class="info-value">{{ student.admission_date|date:"M d, Y" }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Expected Graduation</span>
+                                                <span class="info-value">
+                                                    {% if student.expected_graduation_date %}
+                                                    {{ student.expected_graduation_date|date:"M d, Y" }}
+                                                    {% else %}
+                                                    <span class="text-muted">Not set</span>
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-group">
+                                            <div class="info-item">
+                                                <span class="info-label">Student Status</span>
+                                                <span class="info-value">
+                                                    <span class="status-badge status-{{ student.student_status }}">
+                                                        {{ student.get_student_status_display }}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">ID Number</span>
+                                                <span class="info-value">{{ user.id_number|default:"Not provided" }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Passport Number</span>
+                                                <span class="info-value">{{ student.passport_number|default:"Not provided" }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Timeline Section -->
+                                <div class="admission-timeline mt-4 pt-4 border-top">
+                                    <h6 class="mb-3 fw-semibold">Admission Timeline</h6>
+                                    <div class="timeline">
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-success"></div>
+                                            <div class="timeline-content">
+                                                <h6 class="mb-1">Admission</h6>
+                                                <p class="text-muted mb-0">{{ student.admission_date|date:"M d, Y" }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-info"></div>
+                                            <div class="timeline-content">
+                                                <h6 class="mb-1">Current Progress</h6>
+                                                <p class="text-muted mb-0">Year {{ student.current_year }} - Semester {{ student.current_semester }}</p>
+                                            </div>
+                                        </div>
+                                        {% if student.expected_graduation_date %}
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-primary"></div>
+                                            <div class="timeline-content">
+                                                <h6 class="mb-1">Expected Graduation</h6>
+                                                <p class="text-muted mb-0">{{ student.expected_graduation_date|date:"M d, Y" }}</p>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
 
-        <!-- Contact Information -->
-        <div class="management-card">
-            <div class="card-header">
-                <h5 class="card-title">
-                    <i class="ri-map-pin-line me-2"></i>
-                    Contact Information
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="info-group">
-                    <div class="info-item full-width">
-                        <span class="info-label">Permanent Address</span>
-                        <span class="info-value">{{ student.permanent_address|default:"Not provided" }}</span>
-                    </div>
-                    <div class="info-item full-width">
-                        <span class="info-label">Current Address</span>
-                        <span class="info-value">{{ student.current_address|default:"Not provided" }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+                            <!-- Sponsor Tab -->
+                            <div class="tab-pane fade" id="sponsor" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="info-group">
+                                            <div class="info-item">
+                                                <span class="info-label">Sponsor Name</span>
+                                                <span class="info-value">{{ student.sponsor_name|default:"Not provided" }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Sponsor Phone</span>
+                                                <span class="info-value">{{ student.sponsor_phone|default:"Not provided" }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Sponsor Email</span>
+                                                <span class="info-value">{{ student.sponsor_email|default:"Not provided" }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="info-group">
+                                            <div class="info-item full-width">
+                                                <span class="info-label">Sponsor Address</span>
+                                                <span class="info-value">{{ student.sponsor_address|default:"Not provided" }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Relationship</span>
+                                                <span class="info-value">{{ student.sponsor_relationship|default:"Not provided" }}</span>
+                                            </div>
+                                            <div class="info-item">
+                                                <span class="info-label">Occupation</span>
+                                                <span class="info-value">{{ student.sponsor_occupation|default:"Not provided" }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Sponsor Details Card -->
+                                <div class="sponsor-details-card mt-4 pt-4 border-top">
+                                    <h6 class="mb-3 fw-semibold">Sponsorship Details</h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="sponsor-stat">
+                                                <div class="stat-label">Sponsorship Type</div>
+                                                <div class="stat-value">{{ student.sponsorship_type|default:"Not specified" }}</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="sponsor-stat">
+                                                <div class="stat-label">Payment Status</div>
+                                                <div class="stat-value">
+                                                    <span class="badge bg-success">Current</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="sponsor-stat">
+                                                <div class="stat-label">Last Payment</div>
+                                                <div class="stat-value">Dec 15, 2024</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-        <!-- Emergency Contact -->
-        <div class="management-card">
-            <div class="card-header">
-                <h5 class="card-title">
-                    <i class="ri-hospital-line me-2"></i>
-                    Emergency Contact
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="info-group">
-                    <div class="info-item">
-                        <span class="info-label">Contact Name</span>
-                        <span class="info-value">{{ student.emergency_contact_name|default:"Not provided" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Contact Phone</span>
-                        <span class="info-value">{{ student.emergency_contact_phone|default:"Not provided" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Relationship</span>
-                        <span class="info-value">{{ student.emergency_contact_relationship|default:"Not provided" }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+                            <!-- Documents Tab -->
+                            <div class="tab-pane fade" id="documents" role="tabpanel">
+                                <div class="documents-container">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="document-card">
+                                                <div class="document-icon">
+                                                    <i class="ri-file-text-line"></i>
+                                                </div>
+                                                <div class="document-info">
+                                                    <h6 class="document-title">Admission Letter</h6>
+                                                    <p class="document-desc">Issued on {{ student.admission_date|date:"M d, Y" }}</p>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-primary">
+                                                    <i class="ri-download-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="document-card">
+                                                <div class="document-icon">
+                                                    <i class="ri-id-card-line"></i>
+                                                </div>
+                                                <div class="document-info">
+                                                    <h6 class="document-title">Student ID</h6>
+                                                    <p class="document-desc">Valid until Dec 2025</p>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-primary">
+                                                    <i class="ri-download-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="document-card">
+                                                <div class="document-icon">
+                                                    <i class="ri-bank-card-line"></i>
+                                                </div>
+                                                <div class="document-info">
+                                                    <h6 class="document-title">Fee Statement</h6>
+                                                    <p class="document-desc">Current semester</p>
+                                                </div>
+                                                <button class="btn btn-sm btn-outline-primary">
+                                                    <i class="ri-download-line"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Upload Section -->
+                                    <div class="upload-section mt-4 pt-4 border-top">
+                                        <h6 class="mb-3 fw-semibold">Upload Documents</h6>
+                                        <div class="upload-area">
+                                            <div class="upload-placeholder">
+                                                <i class="ri-upload-cloud-line display-4 text-muted mb-3"></i>
+                                                <p class="text-muted mb-2">Drag & drop files here or click to browse</p>
+                                                <small class="text-muted">Supported formats: PDF, JPG, PNG (Max 5MB)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
 
-        <!-- Sponsor Information -->
-        <div class="management-card">
-            <div class="card-header">
-                <h5 class="card-title">
-                    <i class="ri-parent-line me-2"></i>
-                    Sponsor/Guardian Information
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="info-group">
-                    <div class="info-item">
-                        <span class="info-label">Sponsor Name</span>
-                        <span class="info-value">{{ student.sponsor_name|default:"Not provided" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Sponsor Phone</span>
-                        <span class="info-value">{{ student.sponsor_phone|default:"Not provided" }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Sponsor Email</span>
-                        <span class="info-value">{{ student.sponsor_email|default:"Not provided" }}</span>
+                            <!-- Activities Tab -->
+                            <div class="tab-pane fade" id="activities" role="tabpanel">
+                                <div class="activities-timeline">
+                                    <div class="activity-item">
+                                        <div class="activity-icon bg-success">
+                                            <i class="ri-login-circle-line"></i>
+                                        </div>
+                                        <div class="activity-content">
+                                            <h6 class="mb-1">Logged into system</h6>
+                                            <p class="text-muted mb-1">Accessed student portal from Chrome browser</p>
+                                            <small class="text-muted">Just now</small>
+                                        </div>
+                                    </div>
+                                    <div class="activity-item">
+                                        <div class="activity-icon bg-info">
+                                            <i class="ri-file-edit-line"></i>
+                                        </div>
+                                        <div class="activity-content">
+                                            <h6 class="mb-1">Profile Updated</h6>
+                                            <p class="text-muted mb-1">Updated contact information</p>
+                                            <small class="text-muted">2 days ago</small>
+                                        </div>
+                                    </div>
+                                    <div class="activity-item">
+                                        <div class="activity-icon bg-warning">
+                                            <i class="ri-check-double-line"></i>
+                                        </div>
+                                        <div class="activity-content">
+                                            <h6 class="mb-1">Assignment Submitted</h6>
+                                            <p class="text-muted mb-1">Submitted "Data Structures" assignment</p>
+                                            <small class="text-muted">1 week ago</small>
+                                        </div>
+                                    </div>
+                                    <div class="activity-item">
+                                        <div class="activity-icon bg-primary">
+                                            <i class="ri-eye-line"></i>
+                                        </div>
+                                        <div class="activity-content">
+                                            <h6 class="mb-1">Grades Viewed</h6>
+                                            <p class="text-muted mb-1">Checked semester results</p>
+                                            <small class="text-muted">2 weeks ago</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -281,28 +509,64 @@
 </div>
 
 <style>
+    /* Base Styles */
     :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
         --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-purple: #673AB7;
+        --color-secondary: #9E9E9E;
         --color-gray-100: #f8f9fa;
         --color-gray-200: #e9ecef;
         --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
-        --radius-sm: 4px;
-        --radius-md: 8px;
+        --color-text: var(--color-gray-800);
+        --color-text-muted: var(--color-gray-600);
     }
-
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    
     .content-container {
         padding: 0 0.5rem;
     }
-
+    
+    /* Breadcrumb */
     .breadcrumb {
         background: transparent;
         padding: 0.75rem 0;
         margin-bottom: 1rem;
         border-bottom: 1px solid var(--color-gray-200);
     }
-
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
     /* Profile Header */
     .profile-header {
         display: flex;
@@ -310,46 +574,46 @@
         gap: 2rem;
         padding: 1rem;
     }
-
+    
     .profile-avatar {
         flex-shrink: 0;
     }
-
+    
     .profile-avatar img,
     .avatar-placeholder {
-        width: 120px;
-        height: 120px;
+        width: 100px;
+        height: 100px;
         border-radius: 50%;
         object-fit: cover;
         border: 4px solid var(--color-gray-200);
     }
-
+    
     .avatar-placeholder {
         display: flex;
         align-items: center;
         justify-content: center;
         background: var(--color-gray-200);
         color: var(--color-gray-600);
-        font-size: 3rem;
+        font-size: 2.5rem;
     }
-
+    
     .profile-info {
         flex: 1;
     }
-
+    
     .profile-name {
         font-size: 1.5rem;
         font-weight: 600;
         color: var(--color-gray-800);
         margin-bottom: 0.5rem;
     }
-
+    
     .profile-meta {
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
     }
-
+    
     .meta-item {
         display: inline-flex;
         align-items: center;
@@ -357,63 +621,55 @@
         font-size: 0.875rem;
         color: var(--color-gray-600);
     }
-
+    
     .profile-actions {
         display: flex;
-        flex-direction: column;
         gap: 0.75rem;
     }
-
-    /* Profile Grid */
-    .profile-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
-    }
-
+    
+    /* Management Cards */
     .management-card {
         background: white;
         border: 1px solid var(--color-gray-200);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-lg);
         overflow: hidden;
+        height: 100%;
     }
-
-    .card-header {
-        padding: 1rem 1.25rem;
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
         border-bottom: 1px solid var(--color-gray-200);
         background: var(--color-gray-100);
     }
-
-    .card-title {
+    
+    .management-card .card-title {
         font-size: 1rem;
         font-weight: 600;
         color: var(--color-gray-800);
-        margin: 0;
-        display: flex;
-        align-items: center;
+        margin-bottom: 0;
     }
-
-    .card-body {
+    
+    .management-card .card-body {
         padding: 1.5rem;
     }
-
+    
     /* Info Group */
     .info-group {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
     }
-
+    
     .info-item {
         display: flex;
         flex-direction: column;
         gap: 0.375rem;
     }
-
+    
     .info-item.full-width {
-        grid-column: 1 / -1;
+        width: 100%;
     }
-
+    
     .info-label {
         font-size: 0.8125rem;
         font-weight: 500;
@@ -421,20 +677,40 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-
+    
     .info-value {
         font-size: 0.9375rem;
         color: var(--color-gray-800);
         font-weight: 500;
     }
-
-    .gpa-value {
-        color: var(--color-primary);
-        font-weight: 700;
-        font-size: 1.125rem;
+    
+    /* Tab Styles */
+    .nav-tabs {
+        border-bottom: 1px solid var(--color-gray-200);
     }
-
-    /* Status Badge */
+    
+    .nav-tabs .nav-link {
+        border: none;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-sm);
+        margin-right: 0.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.1);
+        border-bottom: 2px solid var(--color-primary);
+    }
+    
+    /* Status Badges */
     .status-badge {
         display: inline-flex;
         align-items: center;
@@ -445,31 +721,172 @@
         font-weight: 600;
         text-transform: uppercase;
     }
-
+    
     .status-active {
         background: rgba(76, 175, 80, 0.1);
-        color: #4CAF50;
+        color: var(--color-success);
         border: 1px solid rgba(76, 175, 80, 0.2);
     }
-
+    
     .status-suspended {
         background: rgba(244, 67, 54, 0.1);
-        color: #F44336;
+        color: var(--color-danger);
         border: 1px solid rgba(244, 67, 54, 0.2);
     }
-
+    
     .status-deferred {
         background: rgba(255, 152, 0, 0.1);
-        color: #FF9800;
+        color: var(--color-warning);
         border: 1px solid rgba(255, 152, 0, 0.2);
     }
-
+    
     .status-graduated {
         background: rgba(33, 150, 243, 0.1);
-        color: #2196F3;
+        color: var(--color-info);
         border: 1px solid rgba(33, 150, 243, 0.2);
     }
-
+    
+    /* Metric Cards */
+    .metric-card {
+        padding: 1.5rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+    
+    .gpa-value {
+        color: var(--color-primary);
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Timeline */
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-bottom: 1.5rem;
+    }
+    
+    .timeline-item:last-child {
+        padding-bottom: 0;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -2rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--color-gray-300);
+    }
+    
+    .timeline-content {
+        padding-left: 1rem;
+    }
+    
+    /* Document Cards */
+    .document-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+    }
+    
+    .document-icon {
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: white;
+        border-radius: var(--radius-sm);
+        color: var(--color-primary);
+        font-size: 1.5rem;
+    }
+    
+    .document-info {
+        flex: 1;
+    }
+    
+    .document-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .document-desc {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+    }
+    
+    /* Upload Area */
+    .upload-area {
+        border: 2px dashed var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 3rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .upload-area:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Activities Timeline */
+    .activities-timeline {
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 1rem;
+    }
+    
+    .activity-item {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        color: white;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+    
+    .activity-content {
+        flex: 1;
+    }
+    
     /* Buttons */
     .btn {
         display: inline-flex;
@@ -486,59 +903,221 @@
         cursor: pointer;
         white-space: nowrap;
     }
-
+    
     .btn-primary {
         background: var(--color-primary);
         border-color: var(--color-primary);
         color: white;
     }
-
+    
     .btn-primary:hover {
         background: #1B5E20;
         border-color: #1B5E20;
     }
-
+    
+    .btn-outline-primary {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+        background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+    }
+    
     .btn-outline-secondary {
         border-color: var(--color-gray-300);
         color: var(--color-gray-600);
         background: transparent;
     }
-
+    
     .btn-outline-secondary:hover {
         border-color: var(--color-gray-600);
         background: var(--color-gray-600);
         color: white;
     }
-
+    
+    .btn-sm {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+    
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
+    
     /* Responsive */
     @media (max-width: 992px) {
-        .profile-grid {
-            grid-template-columns: 1fr;
-        }
-
         .profile-header {
             flex-direction: column;
             text-align: center;
+            gap: 1.5rem;
         }
-
+        
         .profile-actions {
             width: 100%;
+            flex-direction: column;
         }
-
+        
         .btn {
             width: 100%;
         }
     }
-
+    
     @media (max-width: 768px) {
-        .info-group {
-            grid-template-columns: 1fr;
+        .management-card .card-body {
+            padding: 1rem;
         }
-
-        .profile-meta {
-            flex-direction: column;
-            gap: 0.5rem;
+        
+        .nav-tabs .nav-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+        }
+        
+        .upload-area {
+            padding: 1.5rem;
         }
     }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tabs
+    const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
+    tabEls.forEach(tabEl => {
+        tabEl.addEventListener('shown.bs.tab', function (event) {
+            // Save active tab to localStorage
+            localStorage.setItem('activeProfileTab', event.target.id);
+        });
+    });
+    
+    // Restore active tab from localStorage
+    const activeTabId = localStorage.getItem('activeProfileTab');
+    if (activeTabId) {
+        const activeTab = document.getElementById(activeTabId);
+        if (activeTab) {
+            const tab = new bootstrap.Tab(activeTab);
+            tab.show();
+        }
+    }
+    
+    // Document upload functionality
+    const uploadArea = document.querySelector('.upload-area');
+    if (uploadArea) {
+        uploadArea.addEventListener('click', function() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.pdf,.jpg,.jpeg,.png';
+            input.multiple = true;
+            
+            input.onchange = function(e) {
+                const files = e.target.files;
+                if (files.length > 0) {
+                    // Show loading state
+                    uploadArea.innerHTML = `
+                        <div class="uploading">
+                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            <span>Uploading ${files.length} file(s)...</span>
+                        </div>
+                    `;
+                    
+                    // Simulate upload
+                    setTimeout(() => {
+                        uploadArea.innerHTML = `
+                            <div class="upload-success">
+                                <i class="ri-checkbox-circle-line text-success display-4 mb-3"></i>
+                                <p class="text-success mb-2">Successfully uploaded ${files.length} file(s)</p>
+                                <small class="text-muted">Documents will appear in your profile shortly</small>
+                            </div>
+                        `;
+                        
+                        // Reset after 3 seconds
+                        setTimeout(() => {
+                            uploadArea.innerHTML = `
+                                <div class="upload-placeholder">
+                                    <i class="ri-upload-cloud-line display-4 text-muted mb-3"></i>
+                                    <p class="text-muted mb-2">Drag & drop files here or click to browse</p>
+                                    <small class="text-muted">Supported formats: PDF, JPG, PNG (Max 5MB)</small>
+                                </div>
+                            `;
+                        }, 3000);
+                    }, 2000);
+                }
+            };
+            
+            input.click();
+        });
+    }
+    
+    // Download document functionality
+    const downloadBtns = document.querySelectorAll('.btn-outline-primary');
+    downloadBtns.forEach(btn => {
+        if (btn.querySelector('.ri-download-line')) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const documentTitle = this.closest('.document-card').querySelector('.document-title').textContent;
+                
+                // Show downloading toast/alert
+                if (typeof toastr !== 'undefined') {
+                    toastr.info(`Downloading ${documentTitle}...`);
+                } else {
+                    alert(`Downloading ${documentTitle}...`);
+                }
+                
+                // Simulate download
+                setTimeout(() => {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(`${documentTitle} downloaded successfully`);
+                    }
+                }, 1500);
+            });
+        }
+    });
+    
+    // GPA Progress Bar Animation
+    const gpaProgressBars = document.querySelectorAll('.progress-bar');
+    gpaProgressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        
+        setTimeout(() => {
+            bar.style.transition = 'width 1s ease';
+            bar.style.width = width;
+        }, 500);
+    });
+    
+    // Activities Timeline Auto-scroll to latest
+    const activitiesTimeline = document.querySelector('.activities-timeline');
+    if (activitiesTimeline) {
+        activitiesTimeline.scrollTop = 0;
+    }
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

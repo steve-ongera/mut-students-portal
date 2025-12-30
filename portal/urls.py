@@ -164,7 +164,7 @@ urlpatterns = [
     
     # Profile Management
     path('students-profile/', views.student_profile_view, name='student_profile_view'),
-    path('profile/update/', views.student_profile_update, name='student_profile_update'),
+    path('profile/update/', views.student_profile_update, name='student_profile_update'), 
     path('profile/change-password/', views.student_change_password, name='student_change_password'),
     path('profile/delete-picture/', views.student_delete_profile_picture, name='student_delete_profile_picture'),
 
