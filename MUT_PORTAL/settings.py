@@ -123,3 +123,43 @@ STATICFILES_DIRS=[
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+"""
+Add these settings to your Django settings.py file
+"""
+
+# ============= M-PESA CONFIGURATION =============
+
+# M-Pesa Environment ('sandbox' or 'production')
+MPESA_ENVIRONMENT = 'sandbox'  # Change to 'production' when going live
+
+# M-Pesa Credentials
+# Get these from https://developer.safaricom.co.ke/
+MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY', '')
+MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET', '')
+MPESA_SHORTCODE = os.getenv('MPESA_SHORTCODE', '')  # Your paybill/till number
+MPESA_PASSKEY = os.getenv('MPESA_PASSKEY', '')  # Lipa Na M-Pesa Online Passkey
+
+# M-Pesa Callback URL
+# This should be a publicly accessible URL that M-Pesa can reach
+# Example: https://yourdomain.com/mpesa/callback/
+MPESA_CALLBACK_URL = os.getenv('MPESA_CALLBACK_URL', 'https://yourdomain.com/mpesa/callback/')
+
+
+# ============= SMS CONFIGURATION =============
+
+# Africa's Talking Configuration (or use your preferred SMS provider)
+AFRICASTALKING_USERNAME = os.getenv('AFRICASTALKING_USERNAME', 'sandbox')
+AFRICASTALKING_API_KEY = os.getenv('AFRICASTALKING_API_KEY', '')
+
+
+# ============= HOSTEL BOOKING CONFIGURATION =============
+
+# Bed reservation timeout (in minutes)
+BED_RESERVATION_TIMEOUT = 15  # Beds reserved for 15 minutes
+
+# Payment verification polling interval (in seconds)
+PAYMENT_CHECK_INTERVAL = 4
+
+# Maximum payment verification attempts
+MAX_PAYMENT_ATTEMPTS = 30  # 30 attempts * 4 seconds = 2 minutes

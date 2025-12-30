@@ -1,0 +1,814 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Room {{ room.room_number }} - {{ room.hostel.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'hostel_application' %}">Hostels</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'hostel_detail' room.hostel.id %}">{{ room.hostel.name }}</a></li>
+        <li class="breadcrumb-item active">Room {{ room.room_number }}</li>
+    </ol>
+</nav>
+
+<div class="room-detail-container">
+    <!-- Room Header -->
+    <div class="room-header-card">
+        <div class="room-images">
+            {% if room.images.all %}
+            <div class="main-room-image">
+                <img src="{{ room.images.first.image.url }}" alt="Room {{ room.room_number }}" id="mainRoomImage">
+            </div>
+            {% if room.images.all|length > 1 %}
+            <div class="room-thumbnails">
+                {% for image in room.images.all %}
+                <img src="{{ image.image.url }}" 
+                     class="room-thumb {% if forloop.first %}active{% endif %}"
+                     onclick="changeRoomImage('{{ image.image.url }}', this)">
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="room-placeholder-large">
+                <i class="ri-door-open-line"></i>
+                <p>No images available</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="room-details">
+            <div class="room-title-section">
+                <h2>Room {{ room.room_number }}</h2>
+                <span class="room-type-badge-large">{{ room.get_room_type_display }}</span>
+            </div>
+
+            <div class="room-meta">
+                <div class="meta-item">
+                    <i class="ri-building-line"></i>
+                    <span>Floor {{ room.floor }}</span>
+                </div>
+                <div class="meta-item">
+                    <i class="ri-hotel-line"></i>
+                    <span>{{ room.hostel.name }}</span>
+                </div>
+                <div class="meta-item">
+                    <i class="ri-team-line"></i>
+                    <span>{{ room.capacity }} Beds</span>
+                </div>
+            </div>
+
+            <div class="room-features-list">
+                <h5>Room Features</h5>
+                <div class="features-grid">
+                    <div class="feature-item {% if room.has_bathroom %}available{% else %}unavailable{% endif %}">
+                        <i class="ri-door-lock-line"></i>
+                        <span>Private Bathroom</span>
+                    </div>
+                    <div class="feature-item {% if room.has_balcony %}available{% else %}unavailable{% endif %}">
+                        <i class="ri-window-line"></i>
+                        <span>Balcony</span>
+                    </div>
+                    <div class="feature-item available">
+                        <i class="ri-wifi-line"></i>
+                        <span>WiFi Access</span>
+                    </div>
+                    <div class="feature-item available">
+                        <i class="ri-lightbulb-line"></i>
+                        <span>Study Desk</span>
+                    </div>
+                </div>
+            </div>
+
+            {% if fee_structure %}
+            <div class="room-pricing">
+                <h5>Room Fees</h5>
+                <div class="pricing-breakdown">
+                    <div class="price-row">
+                        <span>Accommodation Fee:</span>
+                        <strong>Ksh {{ fee_structure.fee_amount|floatformat:2 }}</strong>
+                    </div>
+                    <div class="price-row">
+                        <span>Booking Fee:</span>
+                        <strong>Ksh {{ fee_structure.booking_fee|floatformat:2 }}</strong>
+                    </div>
+                    <div class="price-row">
+                        <span>Security Deposit:</span>
+                        <strong>Ksh {{ fee_structure.security_deposit|floatformat:2 }}</strong>
+                    </div>
+                    <div class="price-row total">
+                        <span>Total Amount:</span>
+                        <strong>Ksh {{ fee_structure.fee_amount|add:fee_structure.booking_fee|add:fee_structure.security_deposit|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Bed Selection -->
+    <div class="bed-selection-section">
+        <div class="section-header">
+            <h3><i class="ri-hotel-bed-line me-2"></i>Select Your Bed</h3>
+            <p class="text-muted">Choose an available bed in this room. Gray beds are already occupied.</p>
+        </div>
+
+        <div class="beds-container">
+            {% for bed in beds %}
+            <div class="bed-card {% if bed.status != 'available' %}bed-unavailable{% endif %} {% if bed.is_reserved %}bed-reserved{% endif %}" 
+                 data-bed-id="{{ bed.id }}"
+                 data-bed-number="{{ bed.bed_number }}"
+                 {% if bed.status == 'available' %}onclick="selectBed(this)"{% endif %}>
+                <div class="bed-icon">
+                    <i class="ri-hotel-bed-line"></i>
+                </div>
+                <div class="bed-number">Bed {{ bed.bed_number }}</div>
+                <div class="bed-status">
+                    {% if bed.status == 'available' %}
+                        {% if bed.is_reserved %}
+                        <span class="status-badge reserved">
+                            <i class="ri-time-line"></i> Reserved
+                        </span>
+                        <small class="expiry-time">Expires in <span class="countdown" data-expiry="{{ bed.reservation_expires|date:'c' }}"></span></small>
+                        {% else %}
+                        <span class="status-badge available">
+                            <i class="ri-check-line"></i> Available
+                        </span>
+                        {% endif %}
+                    {% elif bed.status == 'occupied' %}
+                    <span class="status-badge occupied">
+                        <i class="ri-user-line"></i> Occupied
+                    </span>
+                    {% elif bed.status == 'maintenance' %}
+                    <span class="status-badge maintenance">
+                        <i class="ri-tools-line"></i> Maintenance
+                    </span>
+                    {% endif %}
+                </div>
+                
+                {% if bed.status == 'available' and not bed.is_reserved %}
+                <div class="bed-action">
+                    <button class="btn-select-bed" onclick="event.stopPropagation(); confirmBedSelection({{ bed.id }}, '{{ bed.bed_number }}')">
+                        Select This Bed
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Payment Modal -->
+<div id="paymentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h4>Complete Your Booking</h4>
+            <span class="close-modal" onclick="closePaymentModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="booking-summary">
+                <h5>Booking Summary</h5>
+                <div class="summary-row">
+                    <span>Hostel:</span>
+                    <strong>{{ room.hostel.name }}</strong>
+                </div>
+                <div class="summary-row">
+                    <span>Room:</span>
+                    <strong>{{ room.room_number }} ({{ room.get_room_type_display }})</strong>
+                </div>
+                <div class="summary-row">
+                    <span>Bed:</span>
+                    <strong id="selectedBedNumber">-</strong>
+                </div>
+                <div class="summary-row">
+                    <span>Floor:</span>
+                    <strong>{{ room.floor }}</strong>
+                </div>
+                <div class="summary-row total">
+                    <span>Booking Fee (Pay Now):</span>
+                    <strong>Ksh {{ fee_structure.booking_fee|floatformat:2 }}</strong>
+                </div>
+            </div>
+
+            <form id="paymentForm">
+                {% csrf_token %}
+                <input type="hidden" id="selectedBedId" name="bed_id">
+                
+                <div class="form-group">
+                    <label for="phoneNumber">M-Pesa Phone Number</label>
+                    <div class="input-group">
+                        <span class="input-prefix">+254</span>
+                        <input type="tel" 
+                               id="phoneNumber" 
+                               name="phone_number" 
+                               class="form-control"
+                               placeholder="712345678"
+                               pattern="[0-9]{9}"
+                               required>
+                    </div>
+                    <small class="form-text">Enter your M-Pesa number without the leading 0 or +254</small>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="ri-information-line me-2"></i>
+                    <div>
+                        <strong>Payment Process:</strong>
+                        <ol class="mb-0">
+                            <li>You'll receive an M-Pesa prompt on your phone</li>
+                            <li>Enter your M-Pesa PIN to complete payment</li>
+                            <li>Your bed will be reserved for 15 minutes</li>
+                            <li>Upon successful payment, you'll receive confirmation via SMS</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary btn-lg" id="payBtn">
+                        <i class="ri-smartphone-line me-2"></i>
+                        Pay Ksh {{ fee_structure.booking_fee|floatformat:2 }}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="closePaymentModal()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner">
+        <div class="spinner"></div>
+        <p>Processing payment...</p>
+        <small>Please check your phone for M-Pesa prompt</small>
+    </div>
+</div>
+
+<style>
+    .room-detail-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .room-header-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .main-room-image {
+        width: 100%;
+        height: 400px;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .main-room-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .room-thumbnails {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .room-thumb {
+        width: 100%;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.3s;
+    }
+
+    .room-thumb:hover, .room-thumb.active {
+        border-color: #2E7D32;
+    }
+
+    .room-details h2 {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .room-type-badge-large {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        background: #2E7D32;
+        color: white;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        margin-left: 1rem;
+    }
+
+    .room-meta {
+        display: flex;
+        gap: 1.5rem;
+        margin: 1.5rem 0;
+        padding: 1rem 0;
+        border-top: 1px solid #e0e0e0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #666;
+    }
+
+    .meta-item i {
+        font-size: 1.25rem;
+        color: #2E7D32;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .feature-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .feature-item.available {
+        background: #e8f5e9;
+        color: #2E7D32;
+    }
+
+    .feature-item.unavailable {
+        opacity: 0.5;
+    }
+
+    .room-pricing {
+        margin-top: 2rem;
+        padding: 1.5rem;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .price-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .price-row.total {
+        border-top: 2px solid #2E7D32;
+        border-bottom: none;
+        font-size: 1.25rem;
+        color: #2E7D32;
+        margin-top: 0.5rem;
+        padding-top: 1rem;
+    }
+
+    .bed-selection-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .section-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e0e0e0;
+    }
+
+    .beds-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .bed-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        position: relative;
+    }
+
+    .bed-card:hover:not(.bed-unavailable) {
+        border-color: #2E7D32;
+        transform: translateY(-4px);
+        box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
+    }
+
+    .bed-card.selected {
+        border-color: #2E7D32;
+        background: #e8f5e9;
+    }
+
+    .bed-unavailable {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #fafafa;
+    }
+
+    .bed-reserved {
+        border-color: #FF9800;
+        background: #fff3e0;
+    }
+
+    .bed-icon {
+        font-size: 3rem;
+        color: #2E7D32;
+        margin-bottom: 1rem;
+    }
+
+    .bed-unavailable .bed-icon {
+        color: #999;
+    }
+
+    .bed-number {
+        font-size: 1.25rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.available {
+        background: #e8f5e9;
+        color: #2E7D32;
+    }
+
+    .status-badge.occupied {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+    .status-badge.reserved {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+
+    .status-badge.maintenance {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+
+    .btn-select-bed {
+        margin-top: 1rem;
+        width: 100%;
+        padding: 0.75rem;
+        background: #2E7D32;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-select-bed:hover {
+        background: #1B5E20;
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.5);
+        animation: fadeIn 0.3s;
+    }
+
+    .modal-content {
+        background: white;
+        margin: 5% auto;
+        padding: 0;
+        width: 90%;
+        max-width: 600px;
+        border-radius: 12px;
+        animation: slideDown 0.3s;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .close-modal {
+        font-size: 2rem;
+        cursor: pointer;
+        color: #999;
+    }
+
+    .modal-body {
+        padding: 2rem;
+    }
+
+    .booking-summary {
+        background: #f5f5f5;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+    }
+
+    .summary-row.total {
+        border-top: 2px solid #2E7D32;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        font-size: 1.25rem;
+        color: #2E7D32;
+    }
+
+    .input-group {
+        display: flex;
+        align-items: center;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    .input-prefix {
+        padding: 0.75rem 1rem;
+        background: #f5f5f5;
+        border-right: 2px solid #e0e0e0;
+        font-weight: 600;
+    }
+
+    .form-control {
+        flex: 1;
+        padding: 0.75rem 1rem;
+        border: none;
+        outline: none;
+        font-size: 1rem;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .modal-actions button {
+        flex: 1;
+    }
+
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+    }
+
+    .loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: white;
+    }
+
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 4px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 1rem;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .room-header-card {
+            grid-template-columns: 1fr;
+        }
+
+        .beds-container {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+
+<script>
+let selectedBed = null;
+
+function changeRoomImage(url, thumb) {
+    document.getElementById('mainRoomImage').src = url;
+    document.querySelectorAll('.room-thumb').forEach(t => t.classList.remove('active'));
+    thumb.classList.add('active');
+}
+
+function selectBed(bedCard) {
+    if (bedCard.classList.contains('bed-unavailable') || bedCard.classList.contains('bed-reserved')) {
+        return;
+    }
+
+    document.querySelectorAll('.bed-card').forEach(card => card.classList.remove('selected'));
+    bedCard.classList.add('selected');
+    selectedBed = bedCard;
+}
+
+function confirmBedSelection(bedId, bedNumber) {
+    document.getElementById('selectedBedId').value = bedId;
+    document.getElementById('selectedBedNumber').textContent = 'Bed ' + bedNumber;
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+}
+
+// Handle payment form submission
+document.getElementById('paymentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const bedId = document.getElementById('selectedBedId').value;
+    const phoneNumber = document.getElementById('phoneNumber').value;
+    
+    if (!bedId || !phoneNumber) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    // Show loading
+    document.getElementById('loadingOverlay').style.display = 'block';
+    closePaymentModal();
+    
+    try {
+        const response = await fetch('{% url "reserve_bed" 0 %}'.replace('0', bedId), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: new URLSearchParams({
+                'phone_number': phoneNumber
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Start polling for payment status
+            pollPaymentStatus(data.reservation_id, data.checkout_request_id);
+        } else {
+            document.getElementById('loadingOverlay').style.display = 'none';
+            alert('Error: ' + data.message);
+        }
+    } catch (error) {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        alert('An error occurred. Please try again.');
+        console.error(error);
+    }
+});
+
+function pollPaymentStatus(reservationId, checkoutRequestId) {
+    let attempts = 0;
+    const maxAttempts = 30; // Poll for 2 minutes (30 * 4 seconds)
+    
+    const interval = setInterval(async () => {
+        attempts++;
+        
+        try {
+            const response = await fetch('{% url "check_payment_status" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', reservationId));
+            const data = await response.json();
+            
+            if (data.success) {
+                if (data.reservation_status === 'confirmed') {
+                    // Payment successful
+                    clearInterval(interval);
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    showSuccessMessage();
+                } else if (data.reservation_status === 'cancelled' || data.is_expired) {
+                    // Payment failed or expired
+                    clearInterval(interval);
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    alert('Payment failed or timed out. Please try again.');
+                }
+            }
+            
+            if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                document.getElementById('loadingOverlay').style.display = 'none';
+                alert('Payment verification timed out. Please check your application status.');
+            }
+        } catch (error) {
+            console.error('Error checking payment status:', error);
+        }
+    }, 4000); // Check every 4 seconds
+}
+
+function showSuccessMessage() {
+    const successHtml = `
+        <div style="text-align: center; padding: 3rem;">
+            <div style="font-size: 4rem; color: #2E7D32; margin-bottom: 1rem;">
+                <i class="ri-checkbox-circle-line"></i>
+            </div>
+            <h2 style="color: #2E7D32;">Payment Successful!</h2>
+            <p style="font-size: 1.25rem; margin: 1rem 0;">Your bed has been successfully reserved.</p>
+            <p>You will receive an SMS confirmation with your booking details.</p>
+            <div style="margin-top: 2rem;">
+                <a href="{% url 'my_hostel_allocation' %}" class="btn btn-primary btn-lg">
+                    View My Allocation
+                </a>
+            </div>
+        </div>
+    `;
+    
+    document.querySelector('.room-detail-container').innerHTML = successHtml;
+}
+
+// Update countdown timers
+function updateCountdowns() {
+    document.querySelectorAll('.countdown').forEach(element => {
+        const expiry = new Date(element.dataset.expiry);
+        const now = new Date();
+        const diff = expiry - now;
+        
+        if (diff > 0) {
+            const minutes = Math.floor(diff / 60000);
+            const seconds = Math.floor((diff % 60000) / 1000);
+            element.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        } else {
+            element.textContent = 'Expired';
+            element.closest('.bed-card').classList.remove('bed-reserved');
+        }
+    });
+}
+
+// Update countdowns every second
+setInterval(updateCountdowns, 1000);
+updateCountdowns();
+
+// Close modal on outside click
+window.onclick = function(event) {
+    const modal = document.getElementById('paymentModal');
+    if (event.target === modal) {
+        closePaymentModal();
+    }
+}
+</script>
+{% endblock %}

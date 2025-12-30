@@ -1,0 +1,574 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}{{ hostel.name }} - Hostel Details{% endblock %}
+
+{% block page_title %}{{ hostel.name }}{% endblock %}
+{% block page_subtitle %}{{ hostel.location }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'hostel_application' %}">Hostels</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ hostel.name }}</li>
+    </ol>
+</nav>
+
+<div class="hostel-detail-container">
+    <!-- Image Gallery -->
+    <div class="image-gallery-section">
+        <div class="main-image">
+            <img src="{% if images %}{{ images.0.image.url }}{% else %}{% static 'images/hostel-default.jpg' %}{% endif %}" 
+                 alt="{{ hostel.name }}" id="mainImage">
+        </div>
+        {% if images|length > 1 %}
+        <div class="thumbnail-gallery">
+            {% for image in images %}
+            <img src="{{ image.image.url }}" 
+                 alt="{{ image.caption }}" 
+                 class="thumbnail {% if forloop.first %}active{% endif %}"
+                 onclick="changeMainImage('{{ image.image.url }}', this)">
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Hostel Info -->
+    <div class="hostel-info-section">
+        <div class="hostel-header">
+            <div class="hostel-title">
+                <h2>{{ hostel.name }}</h2>
+                <div class="hostel-badges">
+                    <span class="badge badge-gender-{{ hostel.gender_type }}">
+                        {% if hostel.gender_type == 'M' %}Boys Only
+                        {% elif hostel.gender_type == 'F' %}Girls Only
+                        {% else %}Mixed{% endif %}
+                    </span>
+                    <span class="badge badge-location">
+                        <i class="ri-map-pin-line"></i> {{ hostel.location }}
+                    </span>
+                </div>
+            </div>
+            
+            {% if ratings.overall > 0 %}
+            <div class="hostel-rating">
+                <div class="rating-score">{{ ratings.overall|floatformat:1 }}</div>
+                <div class="rating-stars">
+                    {% for i in "12345" %}
+                    <i class="ri-star-{% if forloop.counter <= ratings.overall|floatformat:0 %}fill{% else %}line{% endif %} text-warning"></i>
+                    {% endfor %}
+                </div>
+                <div class="rating-count">{{ reviews|length }} reviews</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats">
+            <div class="stat-item">
+                <i class="ri-team-line"></i>
+                <div class="stat-info">
+                    <div class="stat-label">Total Capacity</div>
+                    <div class="stat-value">{{ hostel.total_capacity }}</div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i class="ri-door-open-line"></i>
+                <div class="stat-info">
+                    <div class="stat-label">Total Rooms</div>
+                    <div class="stat-value">{{ rooms_by_floor.values|length }}</div>
+                </div>
+            </div>
+            <div class="stat-item">
+                <i class="ri-check-line"></i>
+                <div class="stat-info">
+                    <div class="stat-label">Available Beds</div>
+                    <div class="stat-value">{{ hostel.available_spaces }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Description -->
+        {% if hostel.description %}
+        <div class="hostel-description">
+            <h5>About This Hostel</h5>
+            <p>{{ hostel.description }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Amenities -->
+        {% if hostel.amenities %}
+        <div class="hostel-amenities">
+            <h5>Amenities & Facilities</h5>
+            <div class="amenities-grid">
+                {% for amenity in hostel.amenities.split|slice:":8" %}
+                <div class="amenity-item">
+                    <i class="ri-check-line"></i>
+                    <span>{{ amenity }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Fee Structure -->
+        <div class="fee-structure-section">
+            <h5>Fee Structure - {{ current_semester }}</h5>
+            <div class="fee-cards">
+                {% for fee in fee_structures %}
+                <div class="fee-card">
+                    <div class="room-type-icon">
+                        <i class="ri-{% if fee.room_type == 'single' %}user{% elif fee.room_type == 'double' %}group{% else %}team{% endif %}-line"></i>
+                    </div>
+                    <div class="room-type-name">{{ fee.get_room_type_display }}</div>
+                    <div class="fee-amount">Ksh {{ fee.fee_amount|floatformat:2 }}</div>
+                    <div class="fee-details">
+                        <small>Booking: Ksh {{ fee.booking_fee|floatformat:2 }}</small>
+                        <small>Deposit: Ksh {{ fee.security_deposit|floatformat:2 }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Rooms by Floor -->
+    <div class="rooms-section">
+        <h4><i class="ri-building-line me-2"></i>Available Rooms</h4>
+        
+        <div class="floor-tabs">
+            {% for floor, rooms in rooms_by_floor.items %}
+            <button class="floor-tab {% if forloop.first %}active{% endif %}" 
+                    onclick="showFloor({{ floor }})">
+                Floor {{ floor }}
+            </button>
+            {% endfor %}
+        </div>
+
+        {% for floor, rooms in rooms_by_floor.items %}
+        <div class="floor-content {% if forloop.first %}active{% endif %}" id="floor-{{ floor }}">
+            <div class="rooms-grid">
+                {% for room in rooms %}
+                <div class="room-card {% if room.available_beds == 0 %}room-full{% endif %}">
+                    <div class="room-image">
+                        {% if room.images.first %}
+                        <img src="{{ room.images.first.image.url }}" alt="Room {{ room.room_number }}">
+                        {% else %}
+                        <div class="room-placeholder">
+                            <i class="ri-door-open-line"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="room-info">
+                        <div class="room-header">
+                            <h6>Room {{ room.room_number }}</h6>
+                            <span class="room-type-badge">{{ room.get_room_type_display }}</span>
+                        </div>
+                        
+                        <div class="room-features">
+                            {% if room.has_bathroom %}
+                            <span class="feature"><i class="ri-door-lock-line"></i> Private Bath</span>
+                            {% endif %}
+                            {% if room.has_balcony %}
+                            <span class="feature"><i class="ri-window-line"></i> Balcony</span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="room-availability">
+                            <div class="availability-text">
+                                <span class="available">{{ room.available_beds }}</span> / {{ room.total_beds }} beds available
+                            </div>
+                            <div class="availability-bar">
+                                <div class="availability-fill" style="width: {{ room.occupancy_rate }}%"></div>
+                            </div>
+                        </div>
+                        
+                        <a href="{% url 'room_detail' room.id %}" 
+                           class="btn btn-primary btn-sm w-100 {% if room.available_beds == 0 %}disabled{% endif %}">
+                            <i class="ri-eye-line me-2"></i>View & Select Bed
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Reviews Section -->
+    {% if reviews %}
+    <div class="reviews-section">
+        <h4><i class="ri-star-line me-2"></i>Student Reviews</h4>
+        
+        <div class="ratings-summary">
+            <div class="overall-rating">
+                <div class="rating-number">{{ ratings.overall|floatformat:1 }}</div>
+                <div class="rating-stars">
+                    {% for i in "12345" %}
+                    <i class="ri-star-fill text-warning"></i>
+                    {% endfor %}
+                </div>
+                <div class="rating-count">Based on {{ reviews|length }} reviews</div>
+            </div>
+            
+            <div class="rating-breakdown">
+                <div class="rating-bar-item">
+                    <span class="rating-label">Cleanliness</span>
+                    <div class="rating-bar">
+                        <div class="rating-fill" style="width: {{ ratings.cleanliness|mul:20 }}%"></div>
+                    </div>
+                    <span class="rating-value">{{ ratings.cleanliness|floatformat:1 }}</span>
+                </div>
+                <div class="rating-bar-item">
+                    <span class="rating-label">Facilities</span>
+                    <div class="rating-bar">
+                        <div class="rating-fill" style="width: {{ ratings.facilities|mul:20 }}%"></div>
+                    </div>
+                    <span class="rating-value">{{ ratings.facilities|floatformat:1 }}</span>
+                </div>
+                <div class="rating-bar-item">
+                    <span class="rating-label">Security</span>
+                    <div class="rating-bar">
+                        <div class="rating-fill" style="width: {{ ratings.security|mul:20 }}%"></div>
+                    </div>
+                    <span class="rating-value">{{ ratings.security|floatformat:1 }}</span>
+                </div>
+                <div class="rating-bar-item">
+                    <span class="rating-label">Management</span>
+                    <div class="rating-bar">
+                        <div class="rating-fill" style="width: {{ ratings.management|mul:20 }}%"></div>
+                    </div>
+                    <span class="rating-value">{{ ratings.management|floatformat:1 }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="reviews-list">
+            {% for review in reviews %}
+            <div class="review-card">
+                <div class="review-header">
+                    <div class="reviewer-info">
+                        <div class="reviewer-avatar">
+                            {{ review.student.user.first_name.0 }}{{ review.student.user.last_name.0 }}
+                        </div>
+                        <div>
+                            <div class="reviewer-name">{{ review.student.user.first_name }} {{ review.student.user.last_name|first }}.</div>
+                            <div class="review-date">{{ review.created_at|date:"M d, Y" }}</div>
+                        </div>
+                    </div>
+                    <div class="review-rating">
+                        {{ review.overall_rating|floatformat:1 }} <i class="ri-star-fill text-warning"></i>
+                    </div>
+                </div>
+                <div class="review-body">
+                    <h6>{{ review.title }}</h6>
+                    <p>{{ review.review }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .hostel-detail-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .image-gallery-section {
+        margin-bottom: 2rem;
+    }
+
+    .main-image {
+        width: 100%;
+        height: 500px;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .main-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .thumbnail-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .thumbnail {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 3px solid transparent;
+        transition: all 0.3s;
+    }
+
+    .thumbnail:hover, .thumbnail.active {
+        border-color: #2E7D32;
+    }
+
+    .hostel-info-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .hostel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 2rem;
+        padding-bottom: 2rem;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .hostel-title h2 {
+        margin-bottom: 1rem;
+    }
+
+    .hostel-badges {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+    }
+
+    .hostel-rating {
+        text-align: right;
+    }
+
+    .rating-score {
+        font-size: 3rem;
+        font-weight: bold;
+        color: #2E7D32;
+    }
+
+    .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .stat-item i {
+        font-size: 2rem;
+        color: #2E7D32;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+
+    .fee-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+
+    .fee-card {
+        text-align: center;
+        padding: 1.5rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+    }
+
+    .room-type-icon {
+        font-size: 2rem;
+        color: #2E7D32;
+        margin-bottom: 0.5rem;
+    }
+
+    .fee-amount {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2E7D32;
+        margin: 0.5rem 0;
+    }
+
+    .floor-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .floor-tab {
+        padding: 0.75rem 1.5rem;
+        border: 2px solid #e0e0e0;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .floor-tab.active {
+        background: #2E7D32;
+        color: white;
+        border-color: #2E7D32;
+    }
+
+    .floor-content {
+        display: none;
+    }
+
+    .floor-content.active {
+        display: block;
+    }
+
+    .rooms-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .room-card {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s;
+    }
+
+    .room-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .room-image {
+        height: 200px;
+        overflow: hidden;
+    }
+
+    .room-image img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .room-placeholder {
+        width: 100%;
+        height: 100%;
+        background: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: #ccc;
+    }
+
+    .room-info {
+        padding: 1.25rem;
+    }
+
+    .availability-bar {
+        height: 6px;
+        background: #e0e0e0;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .availability-fill {
+        height: 100%;
+        background: #2E7D32;
+        transition: width 0.3s;
+    }
+
+    .reviews-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+    }
+
+    .ratings-summary {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+        padding: 2rem;
+        background: #f5f5f5;
+        border-radius: 8px;
+    }
+
+    .rating-bar-item {
+        display: grid;
+        grid-template-columns: 100px 1fr 50px;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .rating-bar {
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .rating-fill {
+        height: 100%;
+        background: #2E7D32;
+    }
+
+    .review-card {
+        border: 1px solid #e0e0e0;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+    }
+
+    .reviewer-avatar {
+        width: 50px;
+        height: 50px;
+        background: #2E7D32;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.25rem;
+    }
+</style>
+
+<script>
+function changeMainImage(url, thumb) {
+    document.getElementById('mainImage').src = url;
+    document.querySelectorAll('.thumbnail').forEach(t => t.classList.remove('active'));
+    thumb.classList.add('active');
+}
+
+function showFloor(floor) {
+    document.querySelectorAll('.floor-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.floor-content').forEach(content => content.classList.remove('active'));
+    
+    event.target.classList.add('active');
+    document.getElementById('floor-' + floor).classList.add('active');
+}
+</script>
+{% endblock %}

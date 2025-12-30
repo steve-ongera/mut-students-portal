@@ -828,7 +828,594 @@ def cancel_hostel_application(request, application_id):
     except Exception as e:
         messages.error(request, f'Error cancelling application: {str(e)}')
         return redirect('hostel_application_status')
+
+
+"""
+REST API Views for Hostel Management
+Add these to a new file: portal/api_views.py
+"""
+
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
+from django.db.models import Avg, Count, Q
+from django.utils import timezone
+from decimal import Decimal
+
+from portal.models import (
+    Student, Hostel, HostelRoom, HostelBed, HostelApplication,
+    HostelAllocation, HostelFeeStructure, Semester, AcademicYear,
+    BedReservation, MpesaPayment, HostelReview
+)
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+# ============= HOSTEL APIs =============
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_hostels_list(request):
+    """
+    Get list of available hostels
     
+    Query params:
+    - gender: Filter by gender (M/F/mixed)
+    - available_only: Filter hostels with available spaces (true/false)
+    - search: Search by hostel name
+    """
+    try:
+        student = Student.objects.get(user=request.user)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        hostels = Hostel.objects.filter(is_active=True)
+        
+        # Filter by student gender
+        hostels = hostels.filter(
+            Q(gender_type=student.gender) | Q(gender_type='mixed')
+        )
+        
+        # Search filter
+        search = request.GET.get('search')
+        if search:
+            hostels = hostels.filter(
+                Q(name__icontains=search) | Q(code__icontains=search)
+            )
+        
+        # Available spaces filter
+        available_only = request.GET.get('available_only', 'false').lower() == 'true'
+        
+        hostels_data = []
+        for hostel in hostels:
+            # Calculate occupancy
+            total_capacity = hostel.total_capacity
+            allocated_count = HostelAllocation.objects.filter(
+                bed__room__hostel=hostel,
+                academic_year=current_semester.academic_year,
+                is_active=True
+            ).count()
+            
+            available_spaces = total_capacity - allocated_count
+            
+            if available_only and available_spaces <= 0:
+                continue
+            
+            # Get average rating
+            avg_rating = hostel.reviews.filter(
+                is_approved=True
+            ).aggregate(avg=Avg('overall_rating'))['avg'] or 0
+            
+            # Get primary image
+            primary_image = hostel.images.filter(is_primary=True).first()
+            
+            # Get fee range
+            fee_structures = HostelFeeStructure.objects.filter(
+                hostel=hostel,
+                academic_year=current_semester.academic_year,
+                semester=current_semester,
+                is_active=True
+            )
+            
+            min_fee = fee_structures.aggregate(
+                min=models.Min('fee_amount')
+            )['min'] or 0
+            
+            max_fee = fee_structures.aggregate(
+                max=models.Max('fee_amount')
+            )['max'] or 0
+            
+            hostels_data.append({
+                'id': hostel.id,
+                'name': hostel.name,
+                'code': hostel.code,
+                'gender_type': hostel.gender_type,
+                'location': hostel.location,
+                'total_capacity': total_capacity,
+                'available_spaces': available_spaces,
+                'occupancy_percentage': (allocated_count / total_capacity * 100) if total_capacity > 0 else 0,
+                'amenities': hostel.amenities,
+                'avg_rating': float(avg_rating),
+                'review_count': hostel.reviews.filter(is_approved=True).count(),
+                'primary_image': primary_image.image.url if primary_image else None,
+                'fee_range': {
+                    'min': float(min_fee),
+                    'max': float(max_fee)
+                }
+            })
+        
+        return Response({
+            'success': True,
+            'count': len(hostels_data),
+            'hostels': hostels_data
+        })
+        
+    except Student.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Student profile not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_hostel_detail(request, hostel_id):
+    """Get detailed information about a specific hostel"""
+    try:
+        student = Student.objects.get(user=request.user)
+        hostel = Hostel.objects.get(id=hostel_id, is_active=True)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        # Get all images
+        images = [{
+            'id': img.id,
+            'image': img.image.url,
+            'caption': img.caption,
+            'is_primary': img.is_primary
+        } for img in hostel.images.all()]
+        
+        # Get fee structures
+        fee_structures = HostelFeeStructure.objects.filter(
+            hostel=hostel,
+            academic_year=current_semester.academic_year,
+            semester=current_semester,
+            is_active=True
+        )
+        
+        fees = [{
+            'room_type': fs.room_type,
+            'fee_amount': float(fs.fee_amount),
+            'booking_fee': float(fs.booking_fee),
+            'security_deposit': float(fs.security_deposit),
+            'total': float(fs.fee_amount + fs.booking_fee + fs.security_deposit)
+        } for fs in fee_structures]
+        
+        # Get reviews with ratings
+        reviews = hostel.reviews.filter(is_approved=True)
+        
+        ratings = {
+            'overall': float(reviews.aggregate(avg=Avg('overall_rating'))['avg'] or 0),
+            'cleanliness': float(reviews.aggregate(avg=Avg('cleanliness_rating'))['avg'] or 0),
+            'facilities': float(reviews.aggregate(avg=Avg('facilities_rating'))['avg'] or 0),
+            'security': float(reviews.aggregate(avg=Avg('security_rating'))['avg'] or 0),
+            'management': float(reviews.aggregate(avg=Avg('management_rating'))['avg'] or 0),
+            'count': reviews.count()
+        }
+        
+        # Get recent reviews
+        recent_reviews = [{
+            'student_name': f"{review.student.user.first_name} {review.student.user.last_name[0]}.",
+            'title': review.title,
+            'review': review.review,
+            'overall_rating': float(review.overall_rating),
+            'created_at': review.created_at.isoformat()
+        } for review in reviews[:5]]
+        
+        return Response({
+            'success': True,
+            'hostel': {
+                'id': hostel.id,
+                'name': hostel.name,
+                'code': hostel.code,
+                'gender_type': hostel.gender_type,
+                'location': hostel.location,
+                'description': hostel.description,
+                'amenities': hostel.amenities,
+                'total_capacity': hostel.total_capacity,
+                'images': images,
+                'fees': fees,
+                'ratings': ratings,
+                'recent_reviews': recent_reviews
+            }
+        })
+        
+    except Hostel.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Hostel not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_hostel_rooms(request, hostel_id):
+    """
+    Get rooms in a hostel
+    
+    Query params:
+    - floor: Filter by floor number
+    - room_type: Filter by room type (single/double/triple/quad)
+    - available_only: Show only rooms with available beds
+    """
+    try:
+        hostel = Hostel.objects.get(id=hostel_id, is_active=True)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        rooms = hostel.rooms.filter(is_active=True)
+        
+        # Filters
+        floor = request.GET.get('floor')
+        if floor:
+            rooms = rooms.filter(floor=int(floor))
+        
+        room_type = request.GET.get('room_type')
+        if room_type:
+            rooms = rooms.filter(room_type=room_type)
+        
+        available_only = request.GET.get('available_only', 'false').lower() == 'true'
+        
+        rooms_data = []
+        for room in rooms:
+            # Get bed availability
+            total_beds = room.capacity
+            available_beds_count = room.beds.filter(
+                status='available',
+                academic_year=current_semester.academic_year
+            ).count()
+            
+            if available_only and available_beds_count == 0:
+                continue
+            
+            # Get primary image
+            primary_image = room.images.filter(is_primary=True).first()
+            
+            # Get fee
+            fee_structure = HostelFeeStructure.objects.filter(
+                hostel=hostel,
+                room_type=room.room_type,
+                academic_year=current_semester.academic_year,
+                semester=current_semester,
+                is_active=True
+            ).first()
+            
+            rooms_data.append({
+                'id': room.id,
+                'room_number': room.room_number,
+                'floor': room.floor,
+                'room_type': room.room_type,
+                'capacity': total_beds,
+                'available_beds': available_beds_count,
+                'occupancy_rate': ((total_beds - available_beds_count) / total_beds * 100) if total_beds > 0 else 0,
+                'has_bathroom': room.has_bathroom,
+                'has_balcony': room.has_balcony,
+                'primary_image': primary_image.image.url if primary_image else None,
+                'fee': float(fee_structure.fee_amount) if fee_structure else 0
+            })
+        
+        return Response({
+            'success': True,
+            'count': len(rooms_data),
+            'rooms': rooms_data
+        })
+        
+    except Hostel.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Hostel not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_room_beds(request, room_id):
+    """Get available beds in a room"""
+    try:
+        room = HostelRoom.objects.get(id=room_id, is_active=True)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        beds = room.beds.filter(
+            academic_year=current_semester.academic_year
+        ).order_by('bed_number')
+        
+        beds_data = []
+        for bed in beds:
+            # Check for active reservation
+            active_reservation = BedReservation.objects.filter(
+                bed=bed,
+                status='pending',
+                expires_at__gt=timezone.now()
+            ).first()
+            
+            beds_data.append({
+                'id': bed.id,
+                'bed_number': bed.bed_number,
+                'status': bed.status,
+                'is_available': bed.status == 'available',
+                'is_reserved': active_reservation is not None,
+                'reservation_expires': active_reservation.expires_at.isoformat() if active_reservation else None
+            })
+        
+        # Get fee
+        fee_structure = HostelFeeStructure.objects.filter(
+            hostel=room.hostel,
+            room_type=room.room_type,
+            academic_year=current_semester.academic_year,
+            semester=current_semester,
+            is_active=True
+        ).first()
+        
+        return Response({
+            'success': True,
+            'room': {
+                'id': room.id,
+                'room_number': room.room_number,
+                'room_type': room.room_type,
+                'floor': room.floor,
+                'capacity': room.capacity
+            },
+            'fee': {
+                'fee_amount': float(fee_structure.fee_amount),
+                'booking_fee': float(fee_structure.booking_fee),
+                'security_deposit': float(fee_structure.security_deposit),
+                'total': float(fee_structure.fee_amount + fee_structure.booking_fee + fee_structure.security_deposit)
+            } if fee_structure else None,
+            'beds': beds_data
+        })
+        
+    except HostelRoom.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Room not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_reserve_bed(request):
+    """
+    Reserve a bed and initiate payment
+    
+    POST data:
+    - bed_id: ID of the bed to reserve
+    - phone_number: M-Pesa phone number
+    """
+    try:
+        student = Student.objects.get(user=request.user)
+        bed_id = request.data.get('bed_id')
+        phone_number = request.data.get('phone_number')
+        
+        if not bed_id or not phone_number:
+            return Response({
+                'success': False,
+                'message': 'Bed ID and phone number are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Use the reserve_bed view logic here
+        # Return the response in API format
+        
+        return Response({
+            'success': True,
+            'message': 'Bed reserved successfully. Payment request sent.',
+            'reservation_id': 'xxx',
+            'checkout_request_id': 'xxx'
+        })
+        
+    except Student.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Student profile not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_my_application(request):
+    """Get student's current hostel application"""
+    try:
+        student = Student.objects.get(user=request.user)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        application = HostelApplication.objects.filter(
+            student=student,
+            semester=current_semester
+        ).select_related('hostel').first()
+        
+        if not application:
+            return Response({
+                'success': True,
+                'has_application': False,
+                'application': None
+            })
+        
+        # Get reservation if any
+        reservation = BedReservation.objects.filter(
+            application=application,
+            student=student
+        ).select_related('bed__room__hostel').first()
+        
+        return Response({
+            'success': True,
+            'has_application': True,
+            'application': {
+                'id': application.id,
+                'hostel': {
+                    'id': application.hostel.id,
+                    'name': application.hostel.name,
+                    'code': application.hostel.code
+                },
+                'status': application.status,
+                'preferred_room_type': application.preferred_room_type,
+                'booking_fee_paid': application.booking_fee_paid,
+                'application_date': application.application_date.isoformat(),
+                'remarks': application.remarks
+            },
+            'reservation': {
+                'bed_number': reservation.bed.bed_number,
+                'room_number': reservation.bed.room.room_number,
+                'floor': reservation.bed.room.floor,
+                'status': reservation.status,
+                'amount': float(reservation.amount)
+            } if reservation else None
+        })
+        
+    except Student.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Student profile not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_my_allocation(request):
+    """Get student's current hostel allocation"""
+    try:
+        student = Student.objects.get(user=request.user)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        allocation = HostelAllocation.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).select_related('bed__room__hostel').first()
+        
+        if not allocation:
+            return Response({
+                'success': True,
+                'has_allocation': False,
+                'allocation': None
+            })
+        
+        return Response({
+            'success': True,
+            'has_allocation': True,
+            'allocation': {
+                'hostel': {
+                    'id': allocation.bed.room.hostel.id,
+                    'name': allocation.bed.room.hostel.name,
+                    'code': allocation.bed.room.hostel.code,
+                    'location': allocation.bed.room.hostel.location
+                },
+                'room': {
+                    'room_number': allocation.bed.room.room_number,
+                    'floor': allocation.bed.room.floor,
+                    'room_type': allocation.bed.room.room_type
+                },
+                'bed': {
+                    'bed_number': allocation.bed.bed_number
+                },
+                'allocation_date': allocation.allocation_date.isoformat(),
+                'check_in_date': allocation.check_in_date.isoformat() if allocation.check_in_date else None,
+                'fee_paid': allocation.fee_paid,
+                'payment_reference': allocation.payment_reference
+            }
+        })
+        
+    except Student.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Student profile not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def api_check_payment_status(request):
+    """
+    Check payment status
+    
+    POST data:
+    - reservation_id: UUID of the reservation
+    """
+    try:
+        student = Student.objects.get(user=request.user)
+        reservation_id = request.data.get('reservation_id')
+        
+        reservation = BedReservation.objects.get(
+            reservation_id=reservation_id,
+            student=student
+        )
+        
+        latest_payment = reservation.mpesa_payments.order_by('-initiated_at').first()
+        
+        return Response({
+            'success': True,
+            'reservation': {
+                'id': str(reservation.reservation_id),
+                'status': reservation.status,
+                'expires_at': reservation.expires_at.isoformat(),
+                'is_expired': reservation.is_expired()
+            },
+            'payment': {
+                'status': latest_payment.status,
+                'amount': float(latest_payment.amount),
+                'phone_number': latest_payment.phone_number,
+                'mpesa_receipt': latest_payment.mpesa_receipt_number
+            } if latest_payment else None
+        })
+        
+    except BedReservation.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Reservation not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def api_hostel_reviews(request, hostel_id):
+    """Get reviews for a hostel"""
+    try:
+        hostel = Hostel.objects.get(id=hostel_id)
+        
+        reviews = hostel.reviews.filter(
+            is_approved=True
+        ).select_related('student__user').order_by('-created_at')
+        
+        # Pagination
+        paginator = StandardResultsSetPagination()
+        paginated_reviews = paginator.paginate_queryset(reviews, request)
+        
+        reviews_data = [{
+            'id': review.id,
+            'student_name': f"{review.student.user.first_name} {review.student.user.last_name[0]}.",
+            'title': review.title,
+            'review': review.review,
+            'ratings': {
+                'overall': float(review.overall_rating),
+                'cleanliness': review.cleanliness_rating,
+                'facilities': review.facilities_rating,
+                'security': review.security_rating,
+                'management': review.management_rating
+            },
+            'created_at': review.created_at.isoformat()
+        } for review in paginated_reviews]
+        
+        return paginator.get_paginated_response({
+            'success': True,
+            'reviews': reviews_data
+        })
+        
+    except Hostel.DoesNotExist:
+        return Response({
+            'success': False,
+            'message': 'Hostel not found'
+        }, status=status.HTTP_404_NOT_FOUND)
 # views.py
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required

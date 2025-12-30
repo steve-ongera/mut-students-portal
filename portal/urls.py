@@ -169,9 +169,29 @@ urlpatterns = [
     path('profile/delete-picture/', views.student_delete_profile_picture, name='student_delete_profile_picture'),
     
     # Hostel URLs
+    # Hostel Application
     path('hostel/application/', views.hostel_application, name='hostel_application'),
-    path('hostel/application/status/', views.hostel_application_status, name='hostel_application_status'),
-    path('hostel/application/<int:application_id>/cancel/', views.cancel_hostel_application, name='cancel_hostel_application'),
+    path('hostel/<int:hostel_id>/', views.hostel_detail, name='hostel_detail'),
+    path('hostel/room/<int:room_id>/', views.room_detail, name='room_detail'),
+    path('hostel/bed/<int:bed_id>/reserve/', views.reserve_bed, name='reserve_bed'),
+    path('hostel/payment/status/<uuid:reservation_id>/', views.check_payment_status, name='check_payment_status'),
+    path('hostel/my-allocation/', views.my_hostel_allocation, name='my_hostel_allocation'),
+    
+    # M-Pesa Callback
+    path('mpesa/callback/', views.mpesa_callback, name='mpesa_callback'),
+    path('api/hostels/', views.api_hostels_list, name='api_hostels_list'),
+    path('api/hostels/<int:hostel_id>/', views.api_hostel_detail, name='api_hostel_detail'),
+    path('api/hostels/<int:hostel_id>/rooms/', views.api_hostel_rooms, name='api_hostel_rooms'),
+    path('api/hostels/<int:hostel_id>/reviews/', views.api_hostel_reviews, name='api_hostel_reviews'),
+    
+    # Rooms & Beds
+    path('api/rooms/<int:room_id>/beds/', views.api_room_beds, name='api_room_beds'),
+    
+    # Booking
+    path('api/beds/reserve/', views.api_reserve_bed, name='api_reserve_bed'),
+    path('api/payment/status/', views.api_check_payment_status, name='api_check_payment_status'),
+    path('api/my-application/', views.api_my_application, name='api_my_application'),
+    path('api/my-allocation/', views.api_my_allocation, name='api_my_allocation'),
 
 
 ]
