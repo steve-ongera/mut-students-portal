@@ -192,6 +192,26 @@ urlpatterns = [
     path('api/payment/status/', views.api_check_payment_status, name='api_check_payment_status'),
     path('api/my-application/', views.api_my_application, name='api_my_application'),
     path('api/my-allocation/', views.api_my_allocation, name='api_my_allocation'),
+    
+    
+    # Dashboard
+    path('allocations/dashboard/', views.unit_allocation_dashboard, name='unit_allocation_dashboard'),
+    
+    # List & Create
+    path('allocations/', views.unit_allocation_list, name='unit_allocation_list'),
+    path('allocations/create/', views.create_unit_allocation, name='create_unit_allocation'),
+    
+    # Detail, Edit, Delete
+    path('allocations/<int:allocation_id>/', views.unit_allocation_detail, name='unit_allocation_detail'),
+    path('allocations/<int:allocation_id>/edit/', views.edit_unit_allocation, name='edit_unit_allocation'),
+    path('allocations/<int:allocation_id>/delete/', views.delete_unit_allocation, name='delete_unit_allocation'),
+    
+    # Approval Actions
+    path('allocations/<int:allocation_id>/approve/', views.approve_allocation, name='approve_allocation'),
+    path('allocations/<int:allocation_id>/reject/', views.reject_allocation, name='reject_allocation'),
+    
+    # AJAX Endpoints
+    path('allocations/ajax/lecturers/', views.get_lecturers_ajax, name='get_lecturers_ajax'),
 
 
 ]

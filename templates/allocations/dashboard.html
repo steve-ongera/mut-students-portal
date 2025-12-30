@@ -1,0 +1,595 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Unit Allocation Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Unit Allocation Management{% endblock %}
+{% block page_subtitle %}Allocate units to lecturers and manage teaching assignments{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Unit Allocations</li>
+    </ol>
+</nav>
+
+<div class="allocation-container">
+    <!-- Current Semester Info -->
+    {% if current_semester %}
+    <div class="alert alert-info mb-4">
+        <div class="d-flex align-items-center">
+            <i class="ri-information-line me-2" style="font-size: 1.5rem;"></i>
+            <div>
+                <strong>Current Semester:</strong> {{ current_semester.name }}
+                <span class="ms-3">
+                    <i class="ri-calendar-line me-1"></i>
+                    {{ current_semester.start_date|date:"M d, Y" }} - {{ current_semester.end_date|date:"M d, Y" }}
+                </span>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mb-4">
+        <i class="ri-alert-line me-2"></i>
+        No active semester found. Please set up an active semester first.
+    </div>
+    {% endif %}
+
+    <!-- Statistics Cards -->
+    <div class="stats-grid mb-4">
+        <div class="stat-card stat-total">
+            <div class="stat-icon">
+                <i class="ri-book-2-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Total Allocations</div>
+                <div class="stat-value">{{ total_allocations }}</div>
+            </div>
+        </div>
+
+        <div class="stat-card stat-pending">
+            <div class="stat-icon">
+                <i class="ri-time-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Pending Approval</div>
+                <div class="stat-value">{{ pending_allocations }}</div>
+            </div>
+        </div>
+
+        <div class="stat-card stat-approved">
+            <div class="stat-icon">
+                <i class="ri-checkbox-circle-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Approved</div>
+                <div class="stat-value">{{ approved_allocations }}</div>
+            </div>
+        </div>
+
+        <div class="stat-card stat-unallocated">
+            <div class="stat-icon">
+                <i class="ri-alert-line"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Unallocated Units</div>
+                <div class="stat-value">{{ unallocated_count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions-section mb-4">
+        <div class="section-header">
+            <h5><i class="ri-flashlight-line me-2"></i>Quick Actions</h5>
+        </div>
+        <div class="action-buttons">
+            <a href="{% url 'create_unit_allocation' %}" class="btn btn-primary">
+                <i class="ri-add-line me-2"></i>New Allocation
+            </a>
+            <a href="{% url 'unit_allocation_list' %}" class="btn btn-outline-primary">
+                <i class="ri-list-check me-2"></i>View All Allocations
+            </a>
+            {% if pending_allocations > 0 %}
+            <a href="{% url 'unit_allocation_list' %}?status=pending" class="btn btn-outline-warning">
+                <i class="ri-time-line me-2"></i>Pending Approvals ({{ pending_allocations }})
+            </a>
+            {% endif %}
+            {% if unallocated_count > 0 %}
+            <a href="{% url 'create_unit_allocation' %}" class="btn btn-outline-danger">
+                <i class="ri-alert-line me-2"></i>Unallocated Units ({{ unallocated_count }})
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Recent Allocations -->
+    {% if recent_allocations %}
+    <div class="allocations-section">
+        <div class="section-header mb-3">
+            <h5><i class="ri-history-line me-2"></i>Recent Allocations</h5>
+            <a href="{% url 'unit_allocation_list' %}" class="btn btn-sm btn-outline-secondary">
+                View All <i class="ri-arrow-right-line ms-1"></i>
+            </a>
+        </div>
+
+        <div class="table-container">
+            <table class="allocation-table">
+                <thead>
+                    <tr>
+                        <th>Unit Code</th>
+                        <th>Unit Name</th>
+                        <th>Programme</th>
+                        <th>Lecturer</th>
+                        <th>Status</th>
+                        <th>Assigned Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for allocation in recent_allocations %}
+                    <tr>
+                        <td>
+                            <span class="unit-code">{{ allocation.programme_unit.unit.code }}</span>
+                        </td>
+                        <td>{{ allocation.programme_unit.unit.name|truncatewords:5 }}</td>
+                        <td>
+                            <div class="programme-info">
+                                <div class="programme-name">{{ allocation.programme_unit.programme.code }}</div>
+                                <small class="text-muted">{{ allocation.programme_unit.programme.department.name }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="lecturer-info">
+                                <div class="lecturer-name">{{ allocation.lecturer.user.get_full_name }}</div>
+                                <small class="text-muted">{{ allocation.lecturer.employee_number }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ allocation.status }}">
+                                {% if allocation.status == 'pending' %}
+                                    <i class="ri-time-line me-1"></i>Pending
+                                {% elif allocation.status == 'approved_hod' %}
+                                    <i class="ri-checkbox-line me-1"></i>HOD Approved
+                                {% elif allocation.status == 'approved_hos' %}
+                                    <i class="ri-checkbox-line me-1"></i>HOS Approved
+                                {% elif allocation.status == 'approved_dean' %}
+                                    <i class="ri-checkbox-circle-fill me-1"></i>Approved
+                                {% elif allocation.status == 'rejected' %}
+                                    <i class="ri-close-circle-line me-1"></i>Rejected
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>{{ allocation.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <a href="{% url 'unit_allocation_detail' allocation.id %}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .allocation-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 0.5rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Alert */
+    .alert {
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        border: 1px solid;
+        margin-bottom: 1.5rem;
+    }
+
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.3);
+        color: #1565C0;
+    }
+
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.3);
+        color: #E65100;
+    }
+
+    /* Statistics Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: center;
+        gap: 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+
+    .stat-total .stat-icon {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+
+    .stat-pending .stat-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .stat-approved .stat-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .stat-unallocated .stat-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    /* Quick Actions Section */
+    .quick-actions-section,
+    .allocations-section {
+        background: white;
+        padding: 2rem;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--color-gray-200);
+        box-shadow: var(--shadow-md);
+    }
+
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header h5 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .btn-outline-primary {
+        background: white;
+        border: 1px solid var(--color-primary);
+        color: var(--color-primary);
+    }
+
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-outline-warning {
+        background: white;
+        border: 1px solid var(--color-warning);
+        color: var(--color-warning);
+    }
+
+    .btn-outline-warning:hover {
+        background: var(--color-warning);
+        color: white;
+    }
+
+    .btn-outline-danger {
+        background: white;
+        border: 1px solid var(--color-danger);
+        color: var(--color-danger);
+    }
+
+    .btn-outline-danger:hover {
+        background: var(--color-danger);
+        color: white;
+    }
+
+    .btn-outline-secondary {
+        background: white;
+        border: 1px solid var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-600);
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 0.5rem 0.875rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Table */
+    .table-container {
+        overflow-x: auto;
+    }
+
+    .allocation-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .allocation-table thead {
+        background: var(--color-gray-100);
+    }
+
+    .allocation-table th {
+        padding: 1rem;
+        text-align: left;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        border-bottom: 2px solid var(--color-gray-300);
+    }
+
+    .allocation-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        font-size: 0.875rem;
+    }
+
+    .allocation-table tbody tr {
+        transition: background 0.2s ease;
+    }
+
+    .allocation-table tbody tr:hover {
+        background: var(--color-gray-100);
+    }
+
+    .unit-code {
+        font-weight: 600;
+        color: var(--color-primary);
+        font-family: 'Courier New', monospace;
+    }
+
+    .programme-info,
+    .lecturer-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .programme-name,
+    .lecturer-name {
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+
+    /* Status Badges */
+    .status-badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+    }
+
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: #E65100;
+    }
+
+    .status-approved_hod,
+    .status-approved_hos {
+        background: rgba(33, 150, 243, 0.1);
+        color: #1565C0;
+    }
+
+    .status-approved_dean {
+        background: rgba(76, 175, 80, 0.1);
+        color: #2E7D32;
+    }
+
+    .status-rejected {
+        background: rgba(244, 67, 54, 0.1);
+        color: #C62828;
+    }
+
+    /* Utility Classes */
+    .d-flex {
+        display: flex;
+    }
+
+    .align-items-center {
+        align-items: center;
+    }
+
+    .mb-4 {
+        margin-bottom: 1.5rem;
+    }
+
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+
+    .me-2 {
+        margin-right: 0.5rem;
+    }
+
+    .me-1 {
+        margin-right: 0.25rem;
+    }
+
+    .ms-1 {
+        margin-left: 0.25rem;
+    }
+
+    .ms-3 {
+        margin-left: 1rem;
+    }
+
+    .text-muted {
+        color: var(--color-gray-600);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .allocation-table {
+            font-size: 0.8125rem;
+        }
+
+        .allocation-table th,
+        .allocation-table td {
+            padding: 0.75rem 0.5rem;
+        }
+    }
+</style>
+{% endblock %}

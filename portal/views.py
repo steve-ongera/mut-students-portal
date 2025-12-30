@@ -7725,3 +7725,662 @@ def student_delete_profile_picture(request):
             messages.error(request, f"Error deleting profile picture: {str(e)}")
     
     return redirect('student_profile_update')
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Prefetch
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from django.utils import timezone
+from .models import (
+    UnitAllocation, ProgrammeUnit, Lecturer, User, Semester, 
+    AcademicYear, Department, School, Unit
+)
+from decimal import Decimal
+
+# ============= HELPER FUNCTIONS =============
+def user_has_allocation_permission(user):
+    """Check if user can allocate units"""
+    return user.role in ['ict_admin', 'dean', 'hos', 'hod']
+
+def get_user_schools(user):
+    """Get schools user has access to"""
+    if user.role == 'ict_admin':
+        return School.objects.all()
+    elif user.role == 'dean':
+        return School.objects.filter(dean=user)
+    elif user.role == 'hos':
+        return School.objects.filter(head_of_school=user)
+    elif user.role == 'hod':
+        return School.objects.filter(departments__hod=user).distinct()
+    return School.objects.none()
+
+def get_user_departments(user):
+    """Get departments user has access to"""
+    if user.role == 'ict_admin':
+        return Department.objects.all()
+    elif user.role == 'dean':
+        return Department.objects.filter(school__dean=user)
+    elif user.role == 'hos':
+        return Department.objects.filter(school__head_of_school=user)
+    elif user.role == 'hod':
+        return Department.objects.filter(hod=user)
+    return Department.objects.none()
+
+def get_available_lecturers(user, department=None, is_common_unit=False):
+    """Get lecturers available for allocation based on user role"""
+    if user.role == 'ict_admin':
+        # Admin can allocate to any lecturer
+        lecturers = Lecturer.objects.filter(is_active=True)
+    elif user.role == 'dean':
+        # Dean can allocate to lecturers in their school
+        schools = get_user_schools(user)
+        lecturers = Lecturer.objects.filter(
+            department__school__in=schools,
+            is_active=True
+        )
+        # For common units, dean can allocate to any lecturer
+        if is_common_unit:
+            lecturers = Lecturer.objects.filter(is_active=True)
+    elif user.role in ['hos', 'hod']:
+        # HOS/HOD can allocate to lecturers in their departments
+        departments = get_user_departments(user)
+        lecturers = Lecturer.objects.filter(
+            department__in=departments,
+            is_active=True
+        )
+    else:
+        lecturers = Lecturer.objects.none()
+    
+    return lecturers.select_related('user', 'department', 'department__school')
+
+
+# ============= MAIN VIEWS =============
+@login_required
+def unit_allocation_dashboard(request):
+    """Dashboard for unit allocation management"""
+    if not user_has_allocation_permission(request.user):
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    if not current_semester:
+        messages.warning(request, 'No active semester found.')
+        return render(request, 'allocations/dashboard.html', {})
+    
+    # Get accessible schools and departments
+    schools = get_user_schools(request.user)
+    departments = get_user_departments(request.user)
+    
+    # Build base query for allocations
+    allocations_query = UnitAllocation.objects.filter(
+        semester=current_semester
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'programme_unit__programme__department',
+        'programme_unit__programme__department__school',
+        'lecturer__user',
+        'lecturer__department',
+        'assigned_by'
+    )
+    
+    # Filter by user role
+    if request.user.role != 'ict_admin':
+        allocations_query = allocations_query.filter(
+            programme_unit__programme__department__in=departments
+        )
+    
+    # Statistics
+    total_allocations = allocations_query.count()
+    pending_allocations = allocations_query.filter(status='pending').count()
+    approved_allocations = allocations_query.filter(
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).count()
+    rejected_allocations = allocations_query.filter(status='rejected').count()
+    
+    # Get unallocated units
+    programme_units_query = ProgrammeUnit.objects.filter(
+        academic_year=current_semester.academic_year,
+        is_active=True
+    ).select_related(
+        'unit',
+        'programme',
+        'programme__department'
+    )
+    
+    if request.user.role != 'ict_admin':
+        programme_units_query = programme_units_query.filter(
+            programme__department__in=departments
+        )
+    
+    allocated_unit_ids = allocations_query.values_list('programme_unit_id', flat=True)
+    unallocated_units = programme_units_query.exclude(id__in=allocated_unit_ids)
+    
+    # Recent allocations
+    recent_allocations = allocations_query.order_by('-created_at')[:10]
+    
+    context = {
+        'current_semester': current_semester,
+        'schools': schools,
+        'departments': departments,
+        'total_allocations': total_allocations,
+        'pending_allocations': pending_allocations,
+        'approved_allocations': approved_allocations,
+        'rejected_allocations': rejected_allocations,
+        'unallocated_count': unallocated_units.count(),
+        'recent_allocations': recent_allocations,
+        'user_role': request.user.role,
+    }
+    
+    return render(request, 'allocations/dashboard.html', context)
+
+
+@login_required
+def unit_allocation_list(request):
+    """List all unit allocations with filters"""
+    if not user_has_allocation_permission(request.user):
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    # Get filters from request
+    semester_id = request.GET.get('semester')
+    school_id = request.GET.get('school')
+    department_id = request.GET.get('department')
+    status = request.GET.get('status')
+    lecturer_id = request.GET.get('lecturer')
+    search = request.GET.get('search', '')
+    
+    # Get current semester if not specified
+    if semester_id:
+        semester = get_object_or_404(Semester, id=semester_id)
+    else:
+        semester = Semester.objects.filter(is_current=True).first()
+    
+    # Build query
+    allocations = UnitAllocation.objects.filter(
+        semester=semester
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'programme_unit__programme__department',
+        'programme_unit__programme__department__school',
+        'lecturer__user',
+        'lecturer__department',
+        'assigned_by',
+        'approved_by_hod',
+        'approved_by_hos',
+        'approved_by_dean'
+    )
+    
+    # Filter by user role
+    if request.user.role != 'ict_admin':
+        departments = get_user_departments(request.user)
+        allocations = allocations.filter(
+            programme_unit__programme__department__in=departments
+        )
+    
+    # Apply filters
+    if school_id:
+        allocations = allocations.filter(
+            programme_unit__programme__department__school_id=school_id
+        )
+    
+    if department_id:
+        allocations = allocations.filter(
+            programme_unit__programme__department_id=department_id
+        )
+    
+    if status:
+        allocations = allocations.filter(status=status)
+    
+    if lecturer_id:
+        allocations = allocations.filter(lecturer_id=lecturer_id)
+    
+    if search:
+        allocations = allocations.filter(
+            Q(programme_unit__unit__code__icontains=search) |
+            Q(programme_unit__unit__name__icontains=search) |
+            Q(lecturer__user__first_name__icontains=search) |
+            Q(lecturer__user__last_name__icontains=search) |
+            Q(lecturer__employee_number__icontains=search)
+        )
+    
+    # Order by
+    allocations = allocations.order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(allocations, 20)
+    page_number = request.GET.get('page')
+    allocations_page = paginator.get_page(page_number)
+    
+    # Get filter options
+    semesters = Semester.objects.filter(is_active=True).order_by('-start_date')
+    schools = get_user_schools(request.user)
+    departments = get_user_departments(request.user)
+    lecturers = get_available_lecturers(request.user)
+    
+    context = {
+        'allocations': allocations_page,
+        'semester': semester,
+        'semesters': semesters,
+        'schools': schools,
+        'departments': departments,
+        'lecturers': lecturers,
+        'selected_school': school_id,
+        'selected_department': department_id,
+        'selected_status': status,
+        'selected_lecturer': lecturer_id,
+        'search': search,
+        'user_role': request.user.role,
+    }
+    
+    return render(request, 'allocations/allocation_list.html', context)
+
+
+@login_required
+def create_unit_allocation(request):
+    """Create new unit allocation"""
+    if not user_has_allocation_permission(request.user):
+        messages.error(request, 'You do not have permission to allocate units.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        programme_unit_id = request.POST.get('programme_unit')
+        lecturer_id = request.POST.get('lecturer')
+        semester_id = request.POST.get('semester')
+        max_students = request.POST.get('max_students')
+        remarks = request.POST.get('remarks', '')
+        
+        try:
+            programme_unit = get_object_or_404(ProgrammeUnit, id=programme_unit_id)
+            lecturer = get_object_or_404(Lecturer, id=lecturer_id)
+            semester = get_object_or_404(Semester, id=semester_id)
+            
+            # Check if user has permission to allocate this unit
+            if request.user.role != 'ict_admin':
+                departments = get_user_departments(request.user)
+                if programme_unit.programme.department not in departments:
+                    # Check if it's a common unit
+                    if programme_unit.unit_type != 'common':
+                        messages.error(request, 'You do not have permission to allocate this unit.')
+                        return redirect('unit_allocation_list')
+            
+            # Check if allocation already exists
+            existing = UnitAllocation.objects.filter(
+                programme_unit=programme_unit,
+                semester=semester,
+                lecturer=lecturer
+            ).first()
+            
+            if existing:
+                messages.warning(request, f'This unit is already allocated to {lecturer.user.get_full_name()}.')
+                return redirect('unit_allocation_list')
+            
+            # Create allocation
+            allocation = UnitAllocation.objects.create(
+                programme_unit=programme_unit,
+                lecturer=lecturer,
+                semester=semester,
+                assigned_by=request.user,
+                max_students=max_students if max_students else None,
+                remarks=remarks,
+                status='pending'
+            )
+            
+            messages.success(
+                request, 
+                f'Unit {programme_unit.unit.code} successfully allocated to {lecturer.user.get_full_name()}.'
+            )
+            return redirect('unit_allocation_detail', allocation_id=allocation.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating allocation: {str(e)}')
+            return redirect('create_unit_allocation')
+    
+    # GET request - show form
+    semester_id = request.GET.get('semester')
+    school_id = request.GET.get('school')
+    department_id = request.GET.get('department')
+    
+    # Get current semester if not specified
+    if semester_id:
+        semester = get_object_or_404(Semester, id=semester_id)
+    else:
+        semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get available programme units
+    programme_units = ProgrammeUnit.objects.filter(
+        academic_year=semester.academic_year if semester else AcademicYear.objects.filter(is_current=True).first(),
+        is_active=True
+    ).select_related(
+        'unit',
+        'programme',
+        'programme__department',
+        'programme__department__school'
+    )
+    
+    # Filter by user role
+    if request.user.role != 'ict_admin':
+        departments = get_user_departments(request.user)
+        programme_units = programme_units.filter(
+            programme__department__in=departments
+        )
+    
+    # Apply filters
+    if school_id:
+        programme_units = programme_units.filter(
+            programme__department__school_id=school_id
+        )
+    
+    if department_id:
+        programme_units = programme_units.filter(
+            programme__department_id=department_id
+        )
+    
+    # Exclude already allocated units
+    if semester:
+        allocated_ids = UnitAllocation.objects.filter(
+            semester=semester
+        ).values_list('programme_unit_id', flat=True)
+        programme_units = programme_units.exclude(id__in=allocated_ids)
+    
+    programme_units = programme_units.order_by(
+        'programme__department__school__name',
+        'programme__department__name',
+        'unit__code'
+    )
+    
+    # Get filter options
+    semesters = Semester.objects.filter(is_active=True).order_by('-start_date')
+    schools = get_user_schools(request.user)
+    departments = get_user_departments(request.user)
+    
+    context = {
+        'semester': semester,
+        'semesters': semesters,
+        'schools': schools,
+        'departments': departments,
+        'programme_units': programme_units,
+        'selected_school': school_id,
+        'selected_department': department_id,
+        'user_role': request.user.role,
+    }
+    
+    return render(request, 'allocations/create_allocation.html', context)
+
+
+@login_required
+def get_lecturers_ajax(request):
+    """AJAX endpoint to get lecturers based on department/common unit"""
+    if not user_has_allocation_permission(request.user):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    programme_unit_id = request.GET.get('programme_unit_id')
+    
+    if not programme_unit_id:
+        return JsonResponse({'error': 'Programme unit ID required'}, status=400)
+    
+    try:
+        programme_unit = ProgrammeUnit.objects.select_related(
+            'programme__department',
+            'unit'
+        ).get(id=programme_unit_id)
+        
+        # Check if it's a common unit
+        is_common_unit = programme_unit.unit_type == 'common'
+        
+        # Get available lecturers
+        lecturers = get_available_lecturers(
+            request.user,
+            programme_unit.programme.department,
+            is_common_unit
+        )
+        
+        # Format response
+        lecturers_data = []
+        for lecturer in lecturers:
+            # Count current allocations
+            current_allocations = UnitAllocation.objects.filter(
+                lecturer=lecturer,
+                semester__is_current=True
+            ).count()
+            
+            lecturers_data.append({
+                'id': lecturer.id,
+                'name': lecturer.user.get_full_name(),
+                'employee_number': lecturer.employee_number,
+                'department': lecturer.department.name,
+                'school': lecturer.department.school.name,
+                'designation': lecturer.get_designation_display(),
+                'current_allocations': current_allocations,
+            })
+        
+        return JsonResponse({
+            'lecturers': lecturers_data,
+            'is_common_unit': is_common_unit,
+            'unit_info': {
+                'code': programme_unit.unit.code,
+                'name': programme_unit.unit.name,
+                'department': programme_unit.programme.department.name,
+            }
+        })
+        
+    except ProgrammeUnit.DoesNotExist:
+        return JsonResponse({'error': 'Programme unit not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def unit_allocation_detail(request, allocation_id):
+    """View unit allocation details"""
+    allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'programme_unit__programme__department',
+            'programme_unit__programme__department__school',
+            'lecturer__user',
+            'lecturer__department',
+            'semester',
+            'assigned_by',
+            'approved_by_hod',
+            'approved_by_hos',
+            'approved_by_dean'
+        ),
+        id=allocation_id
+    )
+    
+    # Check permission
+    if request.user.role != 'ict_admin':
+        departments = get_user_departments(request.user)
+        if allocation.programme_unit.programme.department not in departments:
+            messages.error(request, 'You do not have permission to view this allocation.')
+            return redirect('unit_allocation_list')
+    
+    # Get registered students count
+    from .models import UnitEnrollment
+    enrolled_students = UnitEnrollment.objects.filter(
+        programme_unit=allocation.programme_unit,
+        semester=allocation.semester,
+        status='approved'
+    ).count()
+    
+    context = {
+        'allocation': allocation,
+        'enrolled_students': enrolled_students,
+        'user_role': request.user.role,
+        'can_approve': can_approve_allocation(request.user, allocation),
+    }
+    
+    return render(request, 'allocations/allocation_detail.html', context)
+
+
+def can_approve_allocation(user, allocation):
+    """Check if user can approve this allocation"""
+    if user.role == 'ict_admin':
+        return True
+    
+    if allocation.status == 'pending' and user.role == 'hod':
+        return allocation.programme_unit.programme.department.hod == user
+    
+    if allocation.status == 'approved_hod' and user.role == 'hos':
+        return allocation.programme_unit.programme.department.school.head_of_school == user
+    
+    if allocation.status == 'approved_hos' and user.role == 'dean':
+        return allocation.programme_unit.programme.department.school.dean == user
+    
+    return False
+
+
+@login_required
+def approve_allocation(request, allocation_id):
+    """Approve unit allocation"""
+    allocation = get_object_or_404(UnitAllocation, id=allocation_id)
+    
+    if not can_approve_allocation(request.user, allocation):
+        messages.error(request, 'You do not have permission to approve this allocation.')
+        return redirect('unit_allocation_detail', allocation_id=allocation_id)
+    
+    if request.method == 'POST':
+        remarks = request.POST.get('remarks', '')
+        
+        # Update status based on user role
+        if request.user.role == 'ict_admin':
+            allocation.status = 'approved_dean'
+            allocation.approved_by_dean = request.user
+        elif request.user.role == 'hod' and allocation.status == 'pending':
+            allocation.status = 'approved_hod'
+            allocation.approved_by_hod = request.user
+        elif request.user.role == 'hos' and allocation.status == 'approved_hod':
+            allocation.status = 'approved_hos'
+            allocation.approved_by_hos = request.user
+        elif request.user.role == 'dean' and allocation.status == 'approved_hos':
+            allocation.status = 'approved_dean'
+            allocation.approved_by_dean = request.user
+        
+        if remarks:
+            allocation.remarks = f"{allocation.remarks}\n{request.user.get_full_name()}: {remarks}" if allocation.remarks else remarks
+        
+        allocation.save()
+        
+        messages.success(request, 'Allocation approved successfully.')
+        return redirect('unit_allocation_detail', allocation_id=allocation_id)
+    
+    return render(request, 'allocations/approve_allocation.html', {'allocation': allocation})
+
+
+@login_required
+def reject_allocation(request, allocation_id):
+    """Reject unit allocation"""
+    allocation = get_object_or_404(UnitAllocation, id=allocation_id)
+    
+    if not can_approve_allocation(request.user, allocation):
+        messages.error(request, 'You do not have permission to reject this allocation.')
+        return redirect('unit_allocation_detail', allocation_id=allocation_id)
+    
+    if request.method == 'POST':
+        remarks = request.POST.get('remarks', '')
+        
+        if not remarks:
+            messages.error(request, 'Please provide a reason for rejection.')
+            return redirect('unit_allocation_detail', allocation_id=allocation_id)
+        
+        allocation.status = 'rejected'
+        allocation.remarks = f"{allocation.remarks}\nRejected by {request.user.get_full_name()}: {remarks}" if allocation.remarks else f"Rejected: {remarks}"
+        allocation.save()
+        
+        messages.success(request, 'Allocation rejected.')
+        return redirect('unit_allocation_detail', allocation_id=allocation_id)
+    
+    return render(request, 'allocations/reject_allocation.html', {'allocation': allocation})
+
+
+@login_required
+def edit_unit_allocation(request, allocation_id):
+    """Edit existing unit allocation"""
+    allocation = get_object_or_404(UnitAllocation, id=allocation_id)
+    
+    # Check permission
+    if request.user.role != 'ict_admin':
+        departments = get_user_departments(request.user)
+        if allocation.programme_unit.programme.department not in departments:
+            messages.error(request, 'You do not have permission to edit this allocation.')
+            return redirect('unit_allocation_list')
+    
+    # Can only edit pending or rejected allocations
+    if allocation.status not in ['pending', 'rejected']:
+        messages.error(request, 'Cannot edit approved allocations.')
+        return redirect('unit_allocation_detail', allocation_id=allocation_id)
+    
+    if request.method == 'POST':
+        lecturer_id = request.POST.get('lecturer')
+        max_students = request.POST.get('max_students')
+        remarks = request.POST.get('remarks', '')
+        
+        try:
+            lecturer = get_object_or_404(Lecturer, id=lecturer_id)
+            
+            allocation.lecturer = lecturer
+            allocation.max_students = max_students if max_students else None
+            allocation.remarks = remarks
+            allocation.status = 'pending'  # Reset to pending
+            allocation.save()
+            
+            messages.success(request, 'Allocation updated successfully.')
+            return redirect('unit_allocation_detail', allocation_id=allocation.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating allocation: {str(e)}')
+    
+    # Get available lecturers
+    is_common_unit = allocation.programme_unit.unit_type == 'common'
+    lecturers = get_available_lecturers(
+        request.user,
+        allocation.programme_unit.programme.department,
+        is_common_unit
+    )
+    
+    context = {
+        'allocation': allocation,
+        'lecturers': lecturers,
+        'is_common_unit': is_common_unit,
+        'user_role': request.user.role,
+    }
+    
+    return render(request, 'allocations/edit_allocation.html', context)
+
+
+@login_required
+def delete_unit_allocation(request, allocation_id):
+    """Delete unit allocation"""
+    allocation = get_object_or_404(UnitAllocation, id=allocation_id)
+    
+    # Check permission
+    if request.user.role not in ['ict_admin', 'dean']:
+        messages.error(request, 'You do not have permission to delete allocations.')
+        return redirect('unit_allocation_detail', allocation_id=allocation_id)
+    
+    if request.user.role != 'ict_admin':
+        departments = get_user_departments(request.user)
+        if allocation.programme_unit.programme.department not in departments:
+            messages.error(request, 'You do not have permission to delete this allocation.')
+            return redirect('unit_allocation_list')
+    
+    # Can only delete pending or rejected allocations
+    if allocation.status not in ['pending', 'rejected']:
+        messages.error(request, 'Cannot delete approved allocations.')
+        return redirect('unit_allocation_detail', allocation_id=allocation_id)
+    
+    if request.method == 'POST':
+        unit_code = allocation.programme_unit.unit.code
+        allocation.delete()
+        messages.success(request, f'Allocation for {unit_code} deleted successfully.')
+        return redirect('unit_allocation_list')
+    
+    return render(request, 'allocations/delete_allocation.html', {'allocation': allocation})
