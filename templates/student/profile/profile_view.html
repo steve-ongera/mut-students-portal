@@ -1,0 +1,544 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}My Profile{% endblock %}
+
+{% block page_title %}My Profile{% endblock %}
+{% block page_subtitle %}View and manage your personal information{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Profile</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Profile Header Card -->
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    {% if user.profile_picture %}
+                    <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}">
+                    {% else %}
+                    <div class="avatar-placeholder">
+                        <i class="ri-user-line"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="profile-info">
+                    <h3 class="profile-name">{{ user.get_full_name }}</h3>
+                    <div class="profile-meta">
+                        <span class="meta-item">
+                            <i class="ri-shield-user-line"></i>
+                            {{ student.registration_number }}
+                        </span>
+                        <span class="meta-item">
+                            <i class="ri-book-line"></i>
+                            {{ student.programme.name }}
+                        </span>
+                        <span class="meta-item status-badge status-{{ student.student_status }}">
+                            <i class="ri-checkbox-circle-line"></i>
+                            {{ student.get_student_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="profile-actions">
+                    <a href="{% url 'student_profile_update' %}" class="btn btn-primary">
+                        <i class="ri-edit-line me-2"></i>
+                        Edit Profile
+                    </a>
+                    <a href="{% url 'student_change_password' %}" class="btn btn-outline-secondary">
+                        <i class="ri-lock-password-line me-2"></i>
+                        Change Password
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-grid">
+        <!-- Personal Information -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-user-line me-2"></i>
+                    Personal Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="info-group">
+                    <div class="info-item">
+                        <span class="info-label">Full Name</span>
+                        <span class="info-value">{{ user.get_full_name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Username</span>
+                        <span class="info-value">{{ user.username }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Email Address</span>
+                        <span class="info-value">{{ user.email }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone Number</span>
+                        <span class="info-value">{{ user.phone_number|default:"Not provided" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Gender</span>
+                        <span class="info-value">{{ student.get_gender_display }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Date of Birth</span>
+                        <span class="info-value">{{ student.date_of_birth|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">National ID</span>
+                        <span class="info-value">{{ student.national_id }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">ID Number</span>
+                        <span class="info-value">{{ user.id_number|default:"Not provided" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Academic Information -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-graduation-cap-line me-2"></i>
+                    Academic Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="info-group">
+                    <div class="info-item">
+                        <span class="info-label">Registration Number</span>
+                        <span class="info-value">{{ student.registration_number }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Programme</span>
+                        <span class="info-value">{{ student.programme.name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Programme Type</span>
+                        <span class="info-value">{{ student.programme.get_programme_type_display }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Study Mode</span>
+                        <span class="info-value">{{ student.programme.get_study_mode_display }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Department</span>
+                        <span class="info-value">{{ student.programme.department.name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">School</span>
+                        <span class="info-value">{{ student.programme.department.school.name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Current Year</span>
+                        <span class="info-value">Year {{ student.current_year }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Current Semester</span>
+                        <span class="info-value">Semester {{ student.current_semester }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admission & Status -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-calendar-line me-2"></i>
+                    Admission & Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="info-group">
+                    <div class="info-item">
+                        <span class="info-label">Intake</span>
+                        <span class="info-value">{{ student.intake.name }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Admission Date</span>
+                        <span class="info-value">{{ student.admission_date|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Expected Graduation</span>
+                        <span class="info-value">
+                            {% if student.expected_graduation_date %}
+                            {{ student.expected_graduation_date|date:"M d, Y" }}
+                            {% else %}
+                            Not set
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Student Status</span>
+                        <span class="info-value">
+                            <span class="status-badge status-{{ student.student_status }}">
+                                {{ student.get_student_status_display }}
+                            </span>
+                        </span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Cumulative GPA</span>
+                        <span class="info-value gpa-value">{{ student.cumulative_gpa|floatformat:2 }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Credits Earned</span>
+                        <span class="info-value">{{ student.total_credit_hours }} CH</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Passport Number</span>
+                        <span class="info-value">{{ student.passport_number|default:"Not provided" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-map-pin-line me-2"></i>
+                    Contact Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="info-group">
+                    <div class="info-item full-width">
+                        <span class="info-label">Permanent Address</span>
+                        <span class="info-value">{{ student.permanent_address|default:"Not provided" }}</span>
+                    </div>
+                    <div class="info-item full-width">
+                        <span class="info-label">Current Address</span>
+                        <span class="info-value">{{ student.current_address|default:"Not provided" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-hospital-line me-2"></i>
+                    Emergency Contact
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="info-group">
+                    <div class="info-item">
+                        <span class="info-label">Contact Name</span>
+                        <span class="info-value">{{ student.emergency_contact_name|default:"Not provided" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Contact Phone</span>
+                        <span class="info-value">{{ student.emergency_contact_phone|default:"Not provided" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Relationship</span>
+                        <span class="info-value">{{ student.emergency_contact_relationship|default:"Not provided" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sponsor Information -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-parent-line me-2"></i>
+                    Sponsor/Guardian Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="info-group">
+                    <div class="info-item">
+                        <span class="info-label">Sponsor Name</span>
+                        <span class="info-value">{{ student.sponsor_name|default:"Not provided" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Sponsor Phone</span>
+                        <span class="info-value">{{ student.sponsor_phone|default:"Not provided" }}</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Sponsor Email</span>
+                        <span class="info-value">{{ student.sponsor_email|default:"Not provided" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --radius-sm: 4px;
+        --radius-md: 8px;
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    /* Profile Header */
+    .profile-header {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        padding: 1rem;
+    }
+
+    .profile-avatar {
+        flex-shrink: 0;
+    }
+
+    .profile-avatar img,
+    .avatar-placeholder {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid var(--color-gray-200);
+    }
+
+    .avatar-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-gray-200);
+        color: var(--color-gray-600);
+        font-size: 3rem;
+    }
+
+    .profile-info {
+        flex: 1;
+    }
+
+    .profile-name {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .profile-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .meta-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+
+    .profile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    /* Profile Grid */
+    .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+
+    .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Info Group */
+    .info-group {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.25rem;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.375rem;
+    }
+
+    .info-item.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .info-label {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-value {
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    .gpa-value {
+        color: var(--color-primary);
+        font-weight: 700;
+        font-size: 1.125rem;
+    }
+
+    /* Status Badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: #4CAF50;
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+        border: 1px solid rgba(244, 67, 54, 0.2);
+    }
+
+    .status-deferred {
+        background: rgba(255, 152, 0, 0.1);
+        color: #FF9800;
+        border: 1px solid rgba(255, 152, 0, 0.2);
+    }
+
+    .status-graduated {
+        background: rgba(33, 150, 243, 0.1);
+        color: #2196F3;
+        border: 1px solid rgba(33, 150, 243, 0.2);
+    }
+
+    /* Buttons */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.375rem;
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        font-size: 0.875rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+        text-decoration: none;
+        border: 1px solid transparent;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+        .profile-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .profile-actions {
+            width: 100%;
+        }
+
+        .btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .info-group {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-meta {
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+    }
+</style>
+{% endblock %}
