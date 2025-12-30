@@ -873,88 +873,56 @@ def hostel_detail(request, hostel_id):
 # ============= ROOM DETAIL VIEW =============
 @login_required
 def room_detail(request, room_id):
-    """View detailed information about a specific room and its beds"""
+    """
+    Display room details with bed selection
+    Students can book directly without prior application
+    """
     try:
         student = Student.objects.get(user=request.user)
-        room = get_object_or_404(HostelRoom, id=room_id, is_active=True)
+        room = get_object_or_404(
+            HostelRoom.objects.select_related('hostel'),
+            id=room_id,
+            is_active=True
+        )
         current_semester = Semester.objects.filter(is_current=True).first()
         
         if not current_semester:
             messages.error(request, 'No active semester found.')
             return redirect('hostel_application')
         
-        # Check if student has an active application (optional now)
-        application = HostelApplication.objects.filter(
-            student=student,
-            hostel=room.hostel,
-            semester=current_semester,
-            status__in=['pending', 'approved']
-        ).first()
+        # REMOVED: Application check - allow direct booking
         
-        # Check if student has existing allocation in this hostel
+        # Check if student has existing active allocation
         existing_allocation = HostelAllocation.objects.filter(
             student=student,
-            bed__room__hostel=room.hostel,
             semester=current_semester,
             is_active=True
-        ).first()
+        ).select_related('bed__room__hostel').first()
         
-        # Determine if student can book
-        can_book = False
-        booking_message = None
+        has_existing_allocation = existing_allocation is not None
         
-        if existing_allocation:
-            can_book = False
-            booking_message = {
-                'type': 'info',
-                'text': f'You already have an allocation in {existing_allocation.bed.room.room_number}.'
-            }
-        elif application and application.status == 'approved':
-            can_book = True
-            booking_message = {
-                'type': 'success',
-                'text': 'Your application is approved. You can now book a bed.'
-            }
-        elif application and application.status == 'pending':
-            can_book = False
-            booking_message = {
-                'type': 'warning',
-                'text': 'Your application is pending approval. You cannot book yet.'
-            }
-        else:
-            can_book = False
-            booking_message = {
-                'type': 'info',
-                'text': 'You are viewing this room in preview mode. Apply for this hostel to book a bed.'
-            }
-        
-        # Get room images
-        room_images = room.images.all().order_by('-is_primary')
-        
-        # Get beds for this room
-        beds = room.beds.filter(
-            academic_year=current_semester.academic_year
+        # Get all beds in the room
+        beds = HostelBed.objects.filter(
+            room=room,
+            academic_year=current_semester.academic_year,
+            is_active=True
         ).order_by('bed_number')
         
-        # Check for active reservations on each bed
-        beds_data = []
+        # Check for pending reservations
         for bed in beds:
-            active_reservation = BedReservation.objects.filter(
+            pending_reservation = BedReservation.objects.filter(
                 bed=bed,
                 status='pending',
                 expires_at__gt=timezone.now()
             ).first()
             
-            bed.is_reserved = active_reservation is not None
-            bed.reservation_expires = active_reservation.expires_at if active_reservation else None
-            bed.can_reserve = (
-                bed.status == 'available' and 
-                not bed.is_reserved and 
-                can_book
-            )
-            beds_data.append(bed)
+            if pending_reservation:
+                bed.is_reserved = True
+                bed.reservation_expires = pending_reservation.expires_at
+            else:
+                bed.is_reserved = False
         
-        # Get fee structure for this room type
+        # Get fee structure
         fee_structure = HostelFeeStructure.objects.filter(
             hostel=room.hostel,
             room_type=room.room_type,
@@ -963,33 +931,24 @@ def room_detail(request, room_id):
             is_active=True
         ).first()
         
-        # Calculate total fee
+        # Calculate total amount
+        total_amount = Decimal('0.00')
         if fee_structure:
-            total_fee = (
+            total_amount = (
                 fee_structure.fee_amount + 
                 fee_structure.booking_fee + 
                 fee_structure.security_deposit
             )
-        else:
-            total_fee = 0
-        
-        # Check if student needs to apply
-        needs_application = not application and not existing_allocation
         
         context = {
             'student': student,
             'room': room,
-            'hostel': room.hostel,
-            'current_semester': current_semester,
-            'room_images': room_images,
-            'beds': beds_data,
+            'beds': beds,
             'fee_structure': fee_structure,
-            'total_fee': total_fee,
-            'application': application,
+            'total_amount': total_amount,
+            'has_existing_allocation': has_existing_allocation,
             'existing_allocation': existing_allocation,
-            'can_book': can_book,
-            'booking_message': booking_message,
-            'needs_application': needs_application,
+            'current_semester': current_semester,
         }
         
         return render(request, 'student/room_detail.html', context)
@@ -1030,10 +989,9 @@ def reserve_bed(request, bed_id):
     """
     Reserve a bed and initiate M-Pesa payment
     Requirements:
-    1. Student must have an approved hostel application first
-    2. Student cannot have existing active allocation
-    3. Collect full student data
-    4. Process full payment amount
+    1. Student cannot have existing active allocation
+    2. Collect full student data
+    3. Process full payment amount
     """
     try:
         student = Student.objects.get(user=request.user)
@@ -1059,28 +1017,16 @@ def reserve_bed(request, bed_id):
                 'message': 'All fields are required'
             }, status=400)
         
-        # 1. CHECK: Student must have APPROVED application first
-        application = HostelApplication.objects.filter(
-            student=student,
-            hostel=bed.room.hostel,
-            semester=current_semester,
-            status='approved'  # Must be approved
-        ).first()
+        # REMOVED: Application check - students can book directly
         
-        if not application:
-            return JsonResponse({
-                'success': False,
-                'message': 'You must have an approved hostel application before booking a bed. Please apply first.'
-            }, status=400)
-        
-        # 2. CHECK: Ensure bed is available
+        # 1. CHECK: Ensure bed is available
         if bed.status != 'available':
             return JsonResponse({
                 'success': False,
                 'message': 'This bed is not available'
             }, status=400)
         
-        # 3. CHECK: No existing active reservation
+        # 2. CHECK: No existing active reservation
         existing_reservation = BedReservation.objects.filter(
             bed=bed,
             status='pending',
@@ -1093,7 +1039,7 @@ def reserve_bed(request, bed_id):
                 'message': 'This bed is currently reserved by another student. Please choose another bed.'
             }, status=400)
         
-        # 4. CHECK: Student doesn't have existing allocation for this semester
+        # 3. CHECK: Student doesn't have existing allocation for this semester
         existing_allocation = HostelAllocation.objects.filter(
             student=student,
             semester=current_semester,
@@ -1106,7 +1052,7 @@ def reserve_bed(request, bed_id):
                 'message': f'You already have an active allocation in {existing_allocation.bed.room.hostel.name}, Room {existing_allocation.bed.room.room_number}. You cannot book multiple beds.'
             }, status=400)
         
-        # 5. CHECK: Student doesn't have pending reservation
+        # 4. CHECK: Student doesn't have pending reservation
         pending_reservation = BedReservation.objects.filter(
             student=student,
             status='pending',
@@ -1134,7 +1080,7 @@ def reserve_bed(request, bed_id):
                 'message': 'Fee structure not found for this hostel'
             }, status=400)
         
-        # Calculate FULL amount (not just booking fee)
+        # Calculate FULL amount
         total_amount = (
             fee_structure.fee_amount + 
             fee_structure.booking_fee + 
@@ -1165,6 +1111,27 @@ def reserve_bed(request, bed_id):
             if id_number:
                 student.national_id = id_number
             student.save()
+            
+            # Create or get application automatically (for record-keeping)
+            application, created = HostelApplication.objects.get_or_create(
+                student=student,
+                hostel=bed.room.hostel,
+                semester=current_semester,
+                academic_year=current_semester.academic_year,
+                defaults={
+                    'preferred_room_type': bed.room.room_type,
+                    'status': 'approved',  # Auto-approve since booking directly
+                    'booking_fee_paid': False,
+                    'remarks': 'Auto-created from direct bed booking'
+                }
+            )
+            
+            # If application exists but was rejected/cancelled, update it
+            if not created and application.status in ['rejected', 'cancelled']:
+                application.status = 'approved'
+                application.preferred_room_type = bed.room.room_type
+                application.remarks = 'Updated from direct bed booking'
+                application.save()
             
             # Create bed reservation with full amount
             reservation = BedReservation.objects.create(
@@ -1219,7 +1186,6 @@ def reserve_bed(request, bed_id):
             'success': False,
             'message': f'An error occurred: {str(e)}'
         }, status=500)
-
 
 @login_required
 def check_payment_status(request, reservation_id):

@@ -13,15 +13,7 @@
     </ol>
 </nav>
 
-<!-- Alert if student has no approved application -->
-{% if not has_approved_application %}
-<div class="alert alert-warning alert-dismissible fade show" role="alert">
-    <i class="ri-alert-line me-2"></i>
-    <strong>Application Required!</strong> You must have an approved hostel application before booking a bed.
-    <a href="{% url 'hostel_application' %}" class="alert-link">Apply Now</a>
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
+<!-- REMOVED: Application Required Alert -->
 
 <!-- Alert if student has existing allocation -->
 {% if has_existing_allocation %}
@@ -34,7 +26,7 @@
 {% endif %}
 
 <div class="room-detail-container">
-    <!-- Room Header (same as before) -->
+    <!-- Room Header -->
     <div class="room-header-card">
         <!-- Images section -->
         <div class="room-images">
@@ -142,10 +134,10 @@
 
         <div class="beds-container">
             {% for bed in beds %}
-            <div class="bed-card {% if bed.status != 'available' or not has_approved_application or has_existing_allocation %}bed-unavailable{% endif %}" 
+            <div class="bed-card {% if bed.status != 'available' or has_existing_allocation %}bed-unavailable{% endif %}" 
                  data-bed-id="{{ bed.id }}"
                  data-bed-number="{{ bed.bed_number }}"
-                 {% if bed.status == 'available' and has_approved_application and not has_existing_allocation %}
+                 {% if bed.status == 'available' and not has_existing_allocation %}
                  onclick="selectBed(this)"
                  {% endif %}>
                 <div class="bed-icon">
@@ -172,7 +164,7 @@
                     {% endif %}
                 </div>
                 
-                {% if bed.status == 'available' and has_approved_application and not has_existing_allocation %}
+                {% if bed.status == 'available' and not has_existing_allocation %}
                 <div class="bed-action">
                     <button class="btn-select-bed" onclick="event.stopPropagation(); confirmBedSelection({{ bed.id }}, '{{ bed.bed_number }}')">
                         Book This Bed
@@ -657,10 +649,7 @@ function selectBed(bedCard) {
 }
 
 function confirmBedSelection(bedId, bedNumber) {
-    {% if not has_approved_application %}
-        alert('You need an approved hostel application before booking a bed.');
-        return;
-    {% endif %}
+    // REMOVED: Application check - students can book directly
     
     {% if has_existing_allocation %}
         alert('You already have an active hostel allocation. You cannot book multiple beds.');
