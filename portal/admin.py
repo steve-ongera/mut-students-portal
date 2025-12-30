@@ -672,7 +672,6 @@ class UnitEnrollmentAdmin(admin.ModelAdmin):
         self.message_user(request, f'{count} enrollment(s) rejected.')
     reject_enrollments.short_description = 'Reject selected enrollments'
 
-
 @admin.register(EnrollmentPeriod)
 class EnrollmentPeriodAdmin(admin.ModelAdmin):
     list_display = [
@@ -718,15 +717,20 @@ class EnrollmentPeriodAdmin(admin.ModelAdmin):
     )
     
     def is_enrollment_open_display(self, obj):
+        # Check if object exists and has the required dates
+        if not obj or not obj.pk or not obj.start_date or not obj.end_date:
+            return None
         return obj.is_enrollment_open()
     is_enrollment_open_display.short_description = 'Enrollment Open'
     is_enrollment_open_display.boolean = True
     
     def is_resit_enrollment_open_display(self, obj):
+        # Check if object exists and has the required dates
+        if not obj or not obj.pk or not obj.resit_start_date or not obj.resit_end_date:
+            return None
         return obj.is_resit_enrollment_open()
     is_resit_enrollment_open_display.short_description = 'Resit Enrollment Open'
     is_resit_enrollment_open_display.boolean = True
-
 
 # admin.py - Add these to your Django admin
 from django.contrib import admin
