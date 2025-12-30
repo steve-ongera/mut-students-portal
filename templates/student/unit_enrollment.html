@@ -3,6 +3,10 @@
 
 {% block title %}Unit Enrollment{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Unit Enrollment{% endblock %}
 {% block page_subtitle %}Enroll for {{ current_semester }}{% endblock %}
 
@@ -313,10 +317,12 @@
     /* Base Styles */
     :root {
         --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        --radius-sm: 4px;
-        --radius-md: 5px;
-        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
-        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
         --color-primary: #2E7D32;
         --color-success: #4CAF50;
         --color-warning: #FF9800;
@@ -327,6 +333,11 @@
         --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
     }
     
     .content-container {
@@ -360,12 +371,13 @@
     .management-card {
         background: white;
         border: 1px solid var(--color-gray-200);
-        border-radius: var(--radius-md);
+        border-radius: var(--radius-lg);
         overflow: hidden;
+        box-shadow: var(--shadow-sm);
     }
     
     .management-card .card-header {
-        padding: 1rem 1.25rem;
+        padding: 1.25rem 1.5rem;
         border-bottom: 1px solid var(--color-gray-200);
         background: var(--color-gray-100);
         display: flex;
@@ -399,7 +411,7 @@
         align-items: center;
         padding: 0.75rem;
         background: var(--color-gray-100);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
         border: 1px solid var(--color-gray-200);
     }
     
@@ -567,7 +579,7 @@
     .unit-type {
         display: inline-block;
         padding: 0.25rem 0.5rem;
-        border-radius: var(--radius-sm);
+        border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
@@ -636,7 +648,7 @@
     .grade-badge {
         display: inline-block;
         padding: 0.25rem 0.5rem;
-        border-radius: var(--radius-sm);
+        border-radius: 20px;
         font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
@@ -715,7 +727,7 @@
         text-align: center;
         padding: 0.75rem;
         background: var(--color-gray-100);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
     }
     
     .total-item {
@@ -742,12 +754,22 @@
         border-radius: var(--radius-sm);
     }
     
+    .badge.bg-primary {
+        background-color: var(--color-primary);
+        color: white;
+    }
+    
+    .badge.bg-warning {
+        background-color: var(--color-warning);
+        color: white;
+    }
+    
     /* Credits Info */
     .credits-info {
         text-align: center;
         padding: 1.5rem;
         background: var(--color-gray-100);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
         border: 1px solid var(--color-gray-200);
     }
     
@@ -779,7 +801,7 @@
         align-items: center;
         padding: 0.75rem;
         background: var(--color-gray-100);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
     }
     
     .fee-label {
@@ -798,7 +820,7 @@
         padding: 0.75rem;
         background: rgba(255, 152, 0, 0.1);
         border: 1px solid rgba(255, 152, 0, 0.2);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
         color: #e65100;
         font-size: 0.875rem;
     }
@@ -824,7 +846,7 @@
         padding: 0.75rem 1.25rem;
         font-weight: 500;
         font-size: 0.875rem;
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
         transition: all 0.2s ease;
         text-decoration: none;
         border: 1px solid transparent;
@@ -845,7 +867,8 @@
         border-color: var(--color-primary);
         color: white;
     }
-    
+    <!-- Complete CSS (add after your existing CSS) -->
+
     .btn-primary:hover {
         background: #1B5E20;
         border-color: #1B5E20;
@@ -876,10 +899,20 @@
         padding: 0.75rem;
         background: rgba(33, 150, 243, 0.1);
         border: 1px solid rgba(33, 150, 243, 0.2);
-        border-radius: var(--radius-sm);
+        border-radius: var(--radius-md);
         color: #0d47a1;
         font-size: 0.8125rem;
         line-height: 1.4;
+    }
+    
+    /* Loading Animation */
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
     }
     
     /* Responsive */
@@ -958,6 +991,7 @@
     }
 </style>
 
+<!-- Complete JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Get elements
@@ -1009,7 +1043,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Update submit button
         submitBtn.disabled = (normalCount + resitCount) === 0;
-        submitBtn.textContent = submitBtn.disabled ? 'Select Units to Enroll' : 'Confirm Enrollment';
+        const icon = submitBtn.querySelector('i');
+        if (submitBtn.disabled) {
+            icon.className = 'ri-information-line me-2';
+            submitBtn.innerHTML = '<i class="ri-information-line me-2"></i>Select Units to Enroll';
+        } else {
+            icon.className = 'ri-check-line me-2';
+            submitBtn.innerHTML = '<i class="ri-check-line me-2"></i>Confirm Enrollment';
+        }
     }
     
     // Select all normal units
@@ -1030,11 +1071,25 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Individual checkbox changes
     normalCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateSummary);
+        checkbox.addEventListener('change', function() {
+            updateSummary();
+            // Update select all checkbox state
+            if (selectAllNormal) {
+                const allChecked = Array.from(normalCheckboxes).every(cb => cb.checked);
+                selectAllNormal.checked = allChecked;
+            }
+        });
     });
     
     resitCheckboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateSummary);
+        checkbox.addEventListener('change', function() {
+            updateSummary();
+            // Update select all checkbox state
+            if (selectAllResit) {
+                const allChecked = Array.from(resitCheckboxes).every(cb => cb.checked);
+                selectAllResit.checked = allChecked;
+            }
+        });
     });
     
     // Form submission
@@ -1074,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const checkbox = row.querySelector('input[type="checkbox"]');
         
         row.addEventListener('click', function(e) {
-            // Don't trigger if clicking on the checkbox itself
+            // Don't trigger if clicking on the checkbox itself or label
             if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL') {
                 return;
             }
@@ -1088,31 +1143,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add visual feedback
         row.addEventListener('mouseenter', function() {
             if (!checkbox || checkbox.disabled) return;
-            this.style.backgroundColor = 'rgba(46, 125, 50, 0.05)';
+            this.style.cursor = 'pointer';
         });
         
         row.addEventListener('mouseleave', function() {
             if (!checkbox || checkbox.disabled) return;
-            this.style.backgroundColor = '';
+            this.style.cursor = '';
         });
     });
     
     // Initial summary update
     updateSummary();
 });
-
-// Loading animation CSS
-const style = document.createElement('style');
-style.textContent = `
-    .animate-spin {
-        animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-`;
-document.head.appendChild(style);
 </script>
 {% endblock %}
