@@ -118,14 +118,19 @@
         </div>
 
         <!-- Hostel Status -->
-        <div class="stat-card stat-card-{% if hostel_allocation %}purple{% else %}secondary{% endif %}">
+        <!-- Replace the Hostel Status stat card section -->
+        <div class="stat-card stat-card-{% if hostel_allocation %}purple{% elif hostel_application %}info{% else %}secondary{% endif %}">
             <div class="stat-header">
                 <i class="ri-hotel-line stat-icon"></i>
                 <h3 class="stat-value">
                     {% if hostel_allocation %}
-                    Allocated
+                        Allocated
+                    {% elif hostel_application %}
+                        {{ hostel_application.get_status_display }}
+                    {% elif can_apply_hostel %}
+                        Not Applied
                     {% else %}
-                    Not Assigned
+                        Not Assigned
                     {% endif %}
                 </h3>
             </div>
@@ -133,11 +138,26 @@
                 <p class="stat-label">Hostel Status</p>
                 <div class="stat-trend">
                     {% if hostel_allocation %}
-                    <i class="ri-check-line text-success"></i>
-                    <span class="text-success">{{ hostel_allocation.bed.room.hostel.name|truncatechars:15 }}</span>
+                        <i class="ri-check-line text-success"></i>
+                        <span class="text-success">{{ hostel_allocation.bed.room.hostel.name|truncatechars:15 }}</span>
+                        <small class="d-block text-muted">Room {{ hostel_allocation.bed.room.room_number }}, Bed {{ hostel_allocation.bed.bed_number }}</small>
+                    {% elif hostel_application %}
+                        {% if hostel_application.status == 'pending' %}
+                            <i class="ri-time-line text-warning"></i>
+                            <span class="text-warning">Application Pending</span>
+                        {% elif hostel_application.status == 'approved' %}
+                            <i class="ri-check-line text-success"></i>
+                            <span class="text-success">Approved - Awaiting Allocation</span>
+                        {% elif hostel_application.status == 'rejected' %}
+                            <i class="ri-close-line text-danger"></i>
+                            <span class="text-danger">Application Rejected</span>
+                        {% endif %}
+                    {% elif can_apply_hostel %}
+                        <i class="ri-information-line text-info"></i>
+                        <span class="text-info">Apply Now (Year 1)</span>
                     {% else %}
-                    <i class="ri-information-line text-info"></i>
-                    <span class="text-info">Apply Now</span>
+                        <i class="ri-information-line text-muted"></i>
+                        <span class="text-muted">Not Available</span>
                     {% endif %}
                 </div>
             </div>
@@ -172,29 +192,46 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for registration in registrations %}
+                                {% for enrollment in registrations %}
                                 <tr>
                                     <td>
-                                        <strong>{{ registration.programme_unit.unit.code }}</strong>
+                                        <strong>{{ enrollment.programme_unit.unit.code }}</strong>
                                     </td>
                                     <td>
                                         <div class="unit-info">
-                                            <p class="unit-name">{{ registration.programme_unit.unit.name }}</p>
-                                            <small class="unit-level">{{ registration.programme_unit.unit.unit_level }}</small>
+                                            <p class="unit-name">{{ enrollment.programme_unit.unit.name }}</p>
+                                            <small class="unit-level">{{ enrollment.programme_unit.unit.get_unit_level_display }}</small>
                                         </div>
                                     </td>
-                                    <td>{{ registration.programme_unit.unit.credit_hours }}</td>
                                     <td>
-                                        {% with allocation=registration.programme_unit.allocations.first %}
+                                        <span class="badge bg-info">{{ enrollment.programme_unit.unit.credit_hours }} CH</span>
+                                    </td>
+                                    <td>
+                                        {% with allocation=enrollment.programme_unit.allocations.first %}
                                         {% if allocation and allocation.lecturer %}
-                                        <span class="lecturer-name">{{ allocation.lecturer.user.get_full_name|default:"Not Assigned" }}</span>
+                                            <span class="lecturer-name">{{ allocation.lecturer.user.get_full_name }}</span>
+                                            <small class="d-block text-muted">{{ allocation.lecturer.designation|default:"" }}</small>
                                         {% else %}
-                                        <span class="text-muted">Not Assigned</span>
+                                            <span class="text-muted">Not Assigned</span>
                                         {% endif %}
                                         {% endwith %}
                                     </td>
                                     <td>
-                                        <span class="badge bg-success">{{ registration.get_status_display }}</span>
+                                        {% if enrollment.status == 'approved' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif enrollment.status == 'pending' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif enrollment.status == 'rejected' %}
+                                            <span class="badge bg-danger">Rejected</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ enrollment.get_status_display }}</span>
+                                        {% endif %}
+                                        
+                                        {% if enrollment.enrollment_type == 'resit' %}
+                                            <small class="d-block text-warning mt-1">
+                                                <i class="ri-refresh-line"></i> Resit
+                                            </small>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <div class="action-buttons">
@@ -370,6 +407,66 @@
                     {% endif %}
                 </div>
             </div>
+
+            <!-- Add Hostel Section in Right Sidebar (after Fee Details) -->
+            {% if student.current_year > 1 and hostel_history %}
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Hostel History</h5>
+                </div>
+                
+                <div class="card-body">
+                    <div class="hostel-history-list">
+                        {% for allocation in hostel_history %}
+                        <div class="hostel-history-item">
+                            <div class="hostel-icon">
+                                <i class="ri-hotel-line"></i>
+                            </div>
+                            <div class="hostel-info">
+                                <h6>{{ allocation.bed.room.hostel.name }}</h6>
+                                <p>Room {{ allocation.bed.room.room_number }}, Bed {{ allocation.bed.bed_number }}</p>
+                                <small class="text-muted">
+                                    {{ allocation.academic_year.name }} - {{ allocation.semester.name }}
+                                </small>
+                                {% if allocation.check_in_date %}
+                                <small class="d-block text-success">
+                                    <i class="ri-check-line"></i> Checked In: {{ allocation.check_in_date|date:"M d, Y" }}
+                                </small>
+                                {% endif %}
+                                {% if allocation.check_out_date %}
+                                <small class="d-block text-info">
+                                    <i class="ri-logout-box-line"></i> Checked Out: {{ allocation.check_out_date|date:"M d, Y" }}
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Update Quick Actions for Hostel -->
+            {% if can_apply_hostel %}
+            <a href="{% url 'hostel_application' %}" class="quick-action-btn">
+                <i class="ri-hotel-line"></i>
+                <div class="action-info">
+                    <span class="action-title">Hostel Application</span>
+                    <span class="action-desc">Apply for hostel accommodation</span>
+                </div>
+                <i class="ri-arrow-right-s-line"></i>
+            </a>
+            {% elif hostel_allocation %}
+            <a href="{% url 'hostel_details' %}" class="quick-action-btn">
+                <i class="ri-hotel-line"></i>
+                <div class="action-info">
+                    <span class="action-title">My Hostel</span>
+                    <span class="action-desc">View hostel details</span>
+                </div>
+                <i class="ri-arrow-right-s-line"></i>
+            </a>
+            {% endif %}
+
 
             <!-- Upcoming Events -->
             <div class="management-card">

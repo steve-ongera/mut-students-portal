@@ -167,6 +167,11 @@ urlpatterns = [
     path('profile/update/', views.student_profile_update, name='student_profile_update'), 
     path('profile/change-password/', views.student_change_password, name='student_change_password'),
     path('profile/delete-picture/', views.student_delete_profile_picture, name='student_delete_profile_picture'),
+    
+    # Hostel URLs
+    path('hostel/application/', views.hostel_application, name='hostel_application'),
+    path('hostel/application/status/', views.hostel_application_status, name='hostel_application_status'),
+    path('hostel/application/<int:application_id>/cancel/', views.cancel_hostel_application, name='cancel_hostel_application'),
 
 
 ]

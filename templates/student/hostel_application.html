@@ -1,0 +1,949 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Hostel Application{% endblock %}
+
+{% block page_title %}Hostel Application{% endblock %}
+{% block page_subtitle %}{{ current_semester }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Hostel Application</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Existing Application Alert -->
+    {% if existing_application %}
+    <div class="alert alert-{% if existing_application.status == 'pending' %}warning{% elif existing_application.status == 'approved' %}success{% elif existing_application.status == 'rejected' %}danger{% else %}info{% endif %} mb-4">
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h6 class="alert-heading mb-1">
+                    <i class="ri-information-line me-2"></i>
+                    Existing Application Found
+                </h6>
+                <p class="mb-0">
+                    You have {{ existing_application.get_status_display|lower }} application for 
+                    <strong>{{ existing_application.hostel.name }}</strong> - 
+                    {{ existing_application.get_preferred_room_type_display }} Room
+                </p>
+                {% if existing_application.remarks %}
+                <small class="text-muted d-block mt-1">{{ existing_application.remarks }}</small>
+                {% endif %}
+            </div>
+            <a href="{% url 'hostel_application_status' %}" class="btn btn-sm btn-outline-primary">
+                View Status
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if existing_application.status == 'pending' or existing_application.status == 'approved' %}
+    <!-- Show status only, don't allow new application -->
+    <div class="management-card">
+        <div class="card-body text-center p-5">
+            <div class="status-icon mb-3">
+                {% if existing_application.status == 'pending' %}
+                <i class="ri-time-line text-warning" style="font-size: 4rem;"></i>
+                {% else %}
+                <i class="ri-check-line text-success" style="font-size: 4rem;"></i>
+                {% endif %}
+            </div>
+            <h3>Application {{ existing_application.get_status_display }}</h3>
+            <p class="text-muted">
+                Your hostel application is currently {{ existing_application.get_status_display|lower }}.
+                {% if existing_application.status == 'pending' %}
+                Please wait for approval from the hostel warden.
+                {% else %}
+                You will be allocated a room soon.
+                {% endif %}
+            </p>
+            <div class="mt-4">
+                <a href="{% url 'hostel_application_status' %}" class="btn btn-primary me-2">
+                    <i class="ri-eye-line me-2"></i>View Application Details
+                </a>
+                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="ri-arrow-left-line me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Application Form -->
+    <form method="post" id="hostelApplicationForm">
+        {% csrf_token %}
+        
+        <!-- Available Hostels -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-hotel-line me-2"></i>
+                    Available Hostels
+                </h5>
+                <div class="card-subtitle">Select a hostel that matches your preference</div>
+            </div>
+            
+            <div class="card-body">
+                {% if available_hostels %}
+                <div class="hostels-grid">
+                    {% for hostel in available_hostels %}
+                    <div class="hostel-card {% if hostel.available_spaces <= 0 %}hostel-full{% endif %}" 
+                         data-hostel-id="{{ hostel.id }}"
+                         data-single-fee="{{ hostel.fee_info.fee_amount|default:0 }}"
+                         data-double-fee="{{ hostel.fee_info.fee_amount|default:0 }}"
+                         data-triple-fee="{{ hostel.fee_info.fee_amount|default:0 }}"
+                         data-quad-fee="{{ hostel.fee_info.fee_amount|default:0 }}"
+                         data-booking-fee="{{ hostel.fee_info.booking_fee|default:0 }}"
+                         data-deposit="{{ hostel.fee_info.security_deposit|default:0 }}">
+                        <input type="radio" 
+                               name="hostel" 
+                               value="{{ hostel.id }}" 
+                               id="hostel_{{ hostel.id }}"
+                               {% if hostel.available_spaces <= 0 %}disabled{% endif %}
+                               required>
+                        
+                        <label for="hostel_{{ hostel.id }}" class="hostel-label">
+                            <div class="hostel-header">
+                                <div class="hostel-icon">
+                                    <i class="ri-hotel-line"></i>
+                                </div>
+                                <div class="hostel-info">
+                                    <h6 class="hostel-name">{{ hostel.name }}</h6>
+                                    <div class="hostel-meta">
+                                        <span class="badge badge-{{ hostel.gender_type }}">
+                                            {% if hostel.gender_type == 'M' %}Boys
+                                            {% elif hostel.gender_type == 'F' %}Girls
+                                            {% else %}Mixed{% endif %}
+                                        </span>
+                                        <span class="hostel-location">
+                                            <i class="ri-map-pin-line"></i>
+                                            {{ hostel.location|default:"Campus" }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="hostel-body">
+                                <div class="hostel-capacity">
+                                    <div class="capacity-info">
+                                        <span class="capacity-label">Available Spaces</span>
+                                        <span class="capacity-value {% if hostel.available_spaces <= 10 %}text-warning{% endif %}">
+                                            {{ hostel.available_spaces }} / {{ hostel.total_capacity }}
+                                        </span>
+                                    </div>
+                                    <div class="capacity-bar">
+                                        <div class="capacity-fill" 
+                                             style="width: {{ hostel.occupancy_percentage }}%"></div>
+                                    </div>
+                                </div>
+                                
+                                {% if hostel.amenities %}
+                                <div class="hostel-amenities">
+                                    <p class="amenities-label">Amenities:</p>
+                                    <p class="amenities-text">{{ hostel.amenities|truncatewords:10 }}</p>
+                                </div>
+                                {% endif %}
+                                
+                                {% if hostel.available_spaces <= 0 %}
+                                <div class="hostel-full-badge">
+                                    <i class="ri-error-warning-line"></i>
+                                    Fully Occupied
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="hostel-footer">
+                                <i class="ri-checkbox-circle-line check-icon"></i>
+                                <span class="select-text">Select Hostel</span>
+                            </div>
+                        </label>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="ri-hotel-line"></i>
+                    <h5>No Hostels Available</h5>
+                    <p>No hostels are currently available for your gender category.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Room Type Selection -->
+        <div class="management-card mb-4" id="roomTypeSection" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-door-open-line me-2"></i>
+                    Room Type Preference
+                </h5>
+            </div>
+            
+            <div class="card-body">
+                <div class="room-types-grid">
+                    <div class="room-type-card">
+                        <input type="radio" name="room_type" value="single" id="room_single" required>
+                        <label for="room_single">
+                            <div class="room-icon">
+                                <i class="ri-user-line"></i>
+                            </div>
+                            <h6>Single Room</h6>
+                            <p class="room-description">Private room for one person</p>
+                            <div class="room-fee" data-fee-type="single">
+                                <span class="fee-label">Fee:</span>
+                                <span class="fee-amount">-</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="room-type-card">
+                        <input type="radio" name="room_type" value="double" id="room_double" required>
+                        <label for="room_double">
+                            <div class="room-icon">
+                                <i class="ri-group-line"></i>
+                            </div>
+                            <h6>Double Room</h6>
+                            <p class="room-description">Shared room for two people</p>
+                            <div class="room-fee" data-fee-type="double">
+                                <span class="fee-label">Fee:</span>
+                                <span class="fee-amount">-</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="room-type-card">
+                        <input type="radio" name="room_type" value="triple" id="room_triple" required>
+                        <label for="room_triple">
+                            <div class="room-icon">
+                                <i class="ri-team-line"></i>
+                            </div>
+                            <h6>Triple Room</h6>
+                            <p class="room-description">Shared room for three people</p>
+                            <div class="room-fee" data-fee-type="triple">
+                                <span class="fee-label">Fee:</span>
+                                <span class="fee-amount">-</span>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="room-type-card">
+                        <input type="radio" name="room_type" value="quad" id="room_quad" required>
+                        <label for="room_quad">
+                            <div class="room-icon">
+                                <i class="ri-group-2-line"></i>
+                            </div>
+                            <h6>Quad Room</h6>
+                            <p class="room-description">Shared room for four people</p>
+                            <div class="room-fee" data-fee-type="quad">
+                                <span class="fee-label">Fee:</span>
+                                <span class="fee-amount">-</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Summary -->
+        <div class="management-card mb-4" id="feeSummary" style="display: none;">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="ri-money-dollar-circle-line me-2"></i>
+                    Fee Summary
+                </h5>
+            </div>
+            
+            <div class="card-body">
+                <div class="fee-breakdown">
+                    <div class="fee-item">
+                        <span class="fee-label">Hostel Fee</span>
+                        <span class="fee-value" id="hostelFee">Ksh 0.00</span>
+                    </div>
+                    <div class="fee-item">
+                        <span class="fee-label">Booking Fee</span>
+                        <span class="fee-value" id="bookingFee">Ksh 0.00</span>
+                    </div>
+                    <div class="fee-item">
+                        <span class="fee-label">Security Deposit</span>
+                        <span class="fee-value" id="securityDeposit">Ksh 0.00</span>
+                    </div>
+                    <div class="fee-item fee-total">
+                        <span class="fee-label">Total Amount</span>
+                        <span class="fee-value" id="totalFee">Ksh 0.00</span>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="ri-information-line me-2"></i>
+                    <small>
+                        Booking fee must be paid within 7 days of approval to secure your allocation.
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="ri-check-line me-2"></i>
+                Submit Application
+            </button>
+            <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                <i class="ri-close-line me-2"></i>
+                Cancel
+            </a>
+        </div>
+    </form>
+    {% endif %}
+</div>
+
+<style>
+    :root {
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-400: #ced4da;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --radius-md: 8px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 1.5rem;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+    }
+    
+    .card-subtitle {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Alert */
+    .alert {
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border: 1px solid;
+    }
+    
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.2);
+        color: var(--color-warning);
+    }
+    
+    .alert-success {
+        background: rgba(76, 175, 80, 0.1);
+        border-color: rgba(76, 175, 80, 0.2);
+        color: var(--color-success);
+    }
+    
+    .alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        border-color: rgba(244, 67, 54, 0.2);
+        color: var(--color-danger);
+    }
+    
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: var(--color-info);
+    }
+    
+    /* Hostels Grid */
+    .hostels-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .hostel-card {
+        position: relative;
+    }
+    
+    .hostel-card input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    
+    .hostel-label {
+        display: block;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .hostel-label:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+    
+    .hostel-card input:checked + .hostel-label {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+    
+    .hostel-card.hostel-full .hostel-label {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+    
+    .hostel-header {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .hostel-icon {
+        width: 50px;
+        height: 50px;
+        background: rgba(46, 125, 50, 0.1);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--color-primary);
+        flex-shrink: 0;
+    }
+    
+    .hostel-info {
+        flex: 1;
+    }
+    
+    .hostel-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .hostel-meta {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .badge-M {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .badge-F {
+        background: rgba(233, 30, 99, 0.1);
+        color: #E91E63;
+    }
+    
+    .badge-mixed {
+        background: rgba(156, 39, 176, 0.1);
+        color: #9C27B0;
+    }
+    
+    .hostel-location {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .hostel-body {
+        margin-bottom: 1rem;
+    }
+    
+    .hostel-capacity {
+        margin-bottom: 1rem;
+    }
+    
+    .capacity-info {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    
+    .capacity-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    .capacity-value {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .capacity-bar {
+        height: 6px;
+        background: var(--color-gray-200);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .capacity-fill {
+        height: 100%;
+        background: var(--color-primary);
+        transition: width 0.3s ease;
+    }
+    
+    .hostel-amenities {
+        margin-top: 0.75rem;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: 4px;
+    }
+    
+    .amenities-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .amenities-text {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    .hostel-full-badge {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+        padding: 0.5rem;
+        border-radius: 4px;
+        text-align: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-top: 0.75rem;
+    }
+    
+    .hostel-footer {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    .check-icon {
+        font-size: 1.25rem;
+        color: var(--color-gray-400);
+        transition: color 0.3s ease;
+    }
+    
+    .hostel-card input:checked + .hostel-label .check-icon {
+        color: var(--color-primary);
+    }
+    
+    .select-text {
+        font-weight: 500;
+        color: var(--color-gray-600);
+    }
+    
+    .hostel-card input:checked + .hostel-label .select-text {
+        color: var(--color-primary);
+    }
+    
+    /* Room Types Grid */
+    .room-types-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .room-type-card input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+    
+    .room-type-card label {
+        display: block;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.5rem 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-align: center;
+        background: white;
+    }
+    
+    .room-type-card label:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .room-type-card input:checked + label {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+    
+    .room-icon {
+        width: 50px;
+        height: 50px;
+        background: rgba(46, 125, 50, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--color-primary);
+        margin: 0 auto 0.75rem;
+    }
+    
+    .room-type-card h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .room-description {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.75rem;
+    }
+    
+    .room-fee {
+        padding: 0.5rem;
+        background: var(--color-gray-100);
+        border-radius: 4px;
+        margin-top: 0.75rem;
+    }
+    
+    .fee-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+    }
+    
+    .fee-amount {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        display: block;
+        margin-top: 0.25rem;
+    }
+    
+    /* Fee Breakdown */
+    .fee-breakdown {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .fee-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .fee-item:last-child {
+        border-bottom: none;
+    }
+    
+    .fee-total {
+        padding-top: 1rem;
+        border-top: 2px solid var(--color-gray-200);
+        font-weight: 600;
+    }
+    
+    .fee-item .fee-label {
+        color: var(--color-gray-600);
+    }
+    
+    .fee-item .fee-value {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Form Actions */
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+    
+    .btn-lg {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        box-shadow: var(--shadow-md);
+    }
+    
+    .btn-outline-secondary {
+        border: 1px solid var(--color-gray-300);
+        background: white;
+        color: var(--color-gray-600);
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    .btn-outline-primary {
+        border: 1px solid var(--color-primary);
+        background: white;
+        color: var(--color-primary);
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: var(--color-gray-400);
+        margin-bottom: 1rem;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .hostels-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .room-types-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .form-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .room-types-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const hostelCards = document.querySelectorAll('.hostel-card input[type="radio"]');
+    const roomTypeCards = document.querySelectorAll('.room-type-card input[type="radio"]');
+    const roomTypeSection = document.getElementById('roomTypeSection');
+    const feeSummary = document.getElementById('feeSummary');
+    
+    let selectedHostel = null;
+    let selectedRoomType = null;
+    let currentHostelData = {};
+    
+    // Format currency
+    function formatCurrency(amount) {
+        return 'Ksh ' + parseFloat(amount).toLocaleString('en-KE', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+    
+    // When hostel is selected
+    hostelCards.forEach(radio => {
+        radio.addEventListener('change', function() {
+            selectedHostel = this.value;
+            const hostelCard = this.closest('.hostel-card');
+            
+            // Get fee data from data attributes
+            currentHostelData = {
+                singleFee: parseFloat(hostelCard.dataset.singleFee) || 0,
+                doubleFee: parseFloat(hostelCard.dataset.doubleFee) || 0,
+                tripleFee: parseFloat(hostelCard.dataset.tripleFee) || 0,
+                quadFee: parseFloat(hostelCard.dataset.quadFee) || 0,
+                bookingFee: parseFloat(hostelCard.dataset.bookingFee) || 0,
+                deposit: parseFloat(hostelCard.dataset.deposit) || 0
+            };
+            
+            // Update room type fees
+            document.querySelector('[data-fee-type="single"] .fee-amount').textContent = 
+                formatCurrency(currentHostelData.singleFee);
+            document.querySelector('[data-fee-type="double"] .fee-amount').textContent = 
+                formatCurrency(currentHostelData.doubleFee);
+            document.querySelector('[data-fee-type="triple"] .fee-amount').textContent = 
+                formatCurrency(currentHostelData.tripleFee);
+            document.querySelector('[data-fee-type="quad"] .fee-amount').textContent = 
+                formatCurrency(currentHostelData.quadFee);
+            
+            // Show room type section
+            roomTypeSection.style.display = 'block';
+            roomTypeSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            // Reset room type selection
+            roomTypeCards.forEach(r => r.checked = false);
+            feeSummary.style.display = 'none';
+        });
+    });
+    
+    // When room type is selected
+    roomTypeCards.forEach(radio => {
+        radio.addEventListener('change', function() {
+            selectedRoomType = this.value;
+            updateFeeSummary();
+        });
+    });
+    
+    // Update fee summary
+    function updateFeeSummary() {
+        if (!selectedHostel || !selectedRoomType) return;
+        
+        let hostelFee = 0;
+        
+        switch(selectedRoomType) {
+            case 'single':
+                hostelFee = currentHostelData.singleFee;
+                break;
+            case 'double':
+                hostelFee = currentHostelData.doubleFee;
+                break;
+            case 'triple':
+                hostelFee = currentHostelData.tripleFee;
+                break;
+            case 'quad':
+                hostelFee = currentHostelData.quadFee;
+                break;
+        }
+        
+        const bookingFee = currentHostelData.bookingFee;
+        const deposit = currentHostelData.deposit;
+        const total = hostelFee + bookingFee + deposit;
+        
+        // Update display
+        document.getElementById('hostelFee').textContent = formatCurrency(hostelFee);
+        document.getElementById('bookingFee').textContent = formatCurrency(bookingFee);
+        document.getElementById('securityDeposit').textContent = formatCurrency(deposit);
+        document.getElementById('totalFee').textContent = formatCurrency(total);
+        
+        // Show fee summary
+        feeSummary.style.display = 'block';
+        feeSummary.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    // Form validation
+    const form = document.getElementById('hostelApplicationForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!selectedHostel) {
+                e.preventDefault();
+                alert('Please select a hostel');
+                return false;
+            }
+            
+            if (!selectedRoomType) {
+                e.preventDefault();
+                alert('Please select a room type');
+                return false;
+            }
+            
+            // Confirm submission
+            const confirmed = confirm(
+                'Are you sure you want to submit this hostel application?\n\n' +
+                'Hostel: ' + document.querySelector('input[name="hostel"]:checked').nextElementSibling.querySelector('.hostel-name').textContent + '\n' +
+                'Room Type: ' + selectedRoomType.charAt(0).toUpperCase() + selectedRoomType.slice(1) + '\n' +
+                'Total Fee: ' + document.getElementById('totalFee').textContent
+            );
+            
+            if (!confirmed) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

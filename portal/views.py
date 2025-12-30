@@ -457,46 +457,378 @@ def admin_dashboard(request):
 
 @login_required
 def student_dashboard(request):
-    """Student dashboard view"""
+    """Enhanced Student dashboard view"""
     try:
         student = Student.objects.get(user=request.user)
         
-        # Get student's current registrations
-        from portal.models import UnitRegistration, FeeBalance, HostelAllocation
+        from portal.models import (
+            UnitEnrollment, FeeBalance, HostelAllocation, 
+            Semester, SemesterGPA, HostelApplication
+        )
         from django.utils import timezone
+        from django.db.models import Sum, Count
         
-        current_semester = student.programme.get_current_semester() if hasattr(student.programme, 'get_current_semester') else None
+        # Get current semester
+        current_semester = Semester.objects.filter(is_current=True).first()
         
-        registrations = UnitRegistration.objects.filter(
+        # Get enrolled units (using UnitEnrollment instead of UnitRegistration)
+        enrollments = UnitEnrollment.objects.filter(
             student=student,
-            semester__is_current=True
-        ).select_related('programme_unit__unit')
+            semester=current_semester,
+            status__in=['approved', 'pending']
+        ).select_related(
+            'programme_unit__unit',
+            'programme_unit__unit__department'
+        ).prefetch_related(
+            'programme_unit__allocations__lecturer'  # lecturer is already User model
+        )
         
-        # Get fee balance - Fixed: changed created_at to updated_at
+        # Get fee balance for current semester
         fee_balance = FeeBalance.objects.filter(
-            student=student
-        ).order_by('-updated_at').first()
-        
-        # Get hostel info
-        hostel_allocation = HostelAllocation.objects.filter(
             student=student,
-            is_active=True
-        ).select_related('bed__room__hostel').first()
+            semester=current_semester
+        ).first()
+        
+        # If no fee balance for current semester, get the most recent one
+        if not fee_balance:
+            fee_balance = FeeBalance.objects.filter(
+                student=student
+            ).order_by('-updated_at').first()
+        
+        # Get current GPA
+        current_gpa = SemesterGPA.objects.filter(
+            student=student
+        ).order_by('-semester__academic_year__start_date').first()
+        
+        # Update student's cumulative GPA if exists
+        if current_gpa:
+            student.cumulative_gpa = current_gpa.cumulative_gpa
+            student.total_credit_hours = current_gpa.cumulative_credit_hours
+        
+        # Hostel logic: Year 1 students can apply, others see their allocation
+        hostel_allocation = None
+        hostel_application = None
+        hostel_history = None
+        can_apply_hostel = False
+        
+        if student.current_year == 1:
+            # Year 1 students: Check if they can apply or have already applied
+            can_apply_hostel = True
+            
+            # Check for existing application
+            hostel_application = HostelApplication.objects.filter(
+                student=student,
+                semester=current_semester,
+                status__in=['pending', 'approved']
+            ).select_related('hostel').first()
+            
+            # Check for allocation if application was approved
+            if hostel_application and hostel_application.status == 'approved':
+                hostel_allocation = HostelAllocation.objects.filter(
+                    student=student,
+                    semester=current_semester,
+                    is_active=True
+                ).select_related('bed__room__hostel').first()
+        else:
+            # Year 2+ students: Show their current allocation
+            hostel_allocation = HostelAllocation.objects.filter(
+                student=student,
+                academic_year=current_semester.academic_year if current_semester else None,
+                is_active=True
+            ).select_related('bed__room__hostel').first()
+            
+            # Also get their hostel history
+            hostel_history = HostelAllocation.objects.filter(
+                student=student
+            ).select_related(
+                'bed__room__hostel',
+                'academic_year',
+                'semester'
+            ).order_by('-allocation_date')[:5]  # Last 5 allocations
+        
+        # Calculate enrollment statistics
+        total_enrollments = enrollments.count()
+        approved_enrollments = enrollments.filter(status='approved').count()
+        pending_enrollments = enrollments.filter(status='pending').count()
+        resit_enrollments = enrollments.filter(enrollment_type='resit').count()
+        
+        # Calculate total credit hours for enrolled units
+        enrolled_credit_hours = enrollments.filter(
+            status='approved'
+        ).aggregate(
+            total=Sum('programme_unit__unit__credit_hours')
+        )['total'] or 0
         
         context = {
             'page_title': 'Student Dashboard',
             'student': student,
-            'registrations': registrations,
+            'current_semester': current_semester,
+            
+            # Enrollments (renamed from registrations)
+            'registrations': enrollments,  # Keep same name for template compatibility
+            'total_enrollments': total_enrollments,
+            'approved_enrollments': approved_enrollments,
+            'pending_enrollments': pending_enrollments,
+            'resit_enrollments': resit_enrollments,
+            'enrolled_credit_hours': enrolled_credit_hours,
+            
+            # Financial info
             'fee_balance': fee_balance,
+            
+            # Academic info
+            'current_gpa': current_gpa,
+            
+            # Hostel info
             'hostel_allocation': hostel_allocation,
+            'hostel_application': hostel_application,
+            'can_apply_hostel': can_apply_hostel,
+            'hostel_history': hostel_history if student.current_year > 1 else None,
         }
+        
         return render(request, 'student/dashboard.html', context)
     
     except Student.DoesNotExist:
         messages.error(request, 'Student profile not found.')
         return redirect('login')
+    except Exception as e:
+        messages.error(request, f'An error occurred: {str(e)}')
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'Student dashboard error: {str(e)}', exc_info=True)
+        return redirect('login')
 
 
+@login_required
+def hostel_application(request):
+    """Hostel application view for Year 1 students"""
+    try:
+        student = Student.objects.get(user=request.user)
+        
+        from portal.models import (
+            Hostel, HostelApplication, HostelFeeStructure, 
+            Semester, FeeBalance, HostelRoom
+        )
+        from django.utils import timezone
+        from django.db import transaction
+        from decimal import Decimal
+        
+        # Check if student is Year 1
+        if student.current_year != 1:
+            messages.warning(request, 'Hostel applications are only available for Year 1 students.')
+            return redirect('student_dashboard')
+        
+        # Get current semester
+        current_semester = Semester.objects.filter(is_current=True).first()
+        if not current_semester:
+            messages.error(request, 'No active semester found.')
+            return redirect('student_dashboard')
+        
+        # Check for existing application
+        existing_application = HostelApplication.objects.filter(
+            student=student,
+            semester=current_semester
+        ).select_related('hostel').first()
+        
+        # Get available hostels based on student gender
+        available_hostels = Hostel.objects.filter(
+            is_active=True,
+            gender_type__in=[student.gender, 'mixed']
+        ).prefetch_related('rooms')
+        
+        # Calculate available spaces for each hostel
+        for hostel in available_hostels:
+            total_capacity = hostel.total_capacity
+            allocated_count = HostelAllocation.objects.filter(
+                bed__room__hostel=hostel,
+                academic_year=current_semester.academic_year,
+                is_active=True
+            ).count()
+            hostel.available_spaces = total_capacity - allocated_count
+            hostel.occupancy_percentage = (allocated_count / total_capacity * 100) if total_capacity > 0 else 0
+            
+            # Get fee structure
+            fee_structure = HostelFeeStructure.objects.filter(
+                hostel=hostel,
+                academic_year=current_semester.academic_year,
+                semester=current_semester,
+                is_active=True
+            ).first()
+            hostel.fee_info = fee_structure
+        
+        # Get student's fee balance
+        fee_balance = FeeBalance.objects.filter(
+            student=student,
+            semester=current_semester
+        ).first()
+        
+        context = {
+            'student': student,
+            'current_semester': current_semester,
+            'existing_application': existing_application,
+            'available_hostels': available_hostels,
+            'fee_balance': fee_balance,
+        }
+        
+        if request.method == 'POST':
+            # Check if already has pending/approved application
+            if existing_application and existing_application.status in ['pending', 'approved']:
+                messages.warning(request, 'You already have an active hostel application.')
+                return redirect('hostel_application')
+            
+            hostel_id = request.POST.get('hostel')
+            room_type = request.POST.get('room_type')
+            
+            if not hostel_id or not room_type:
+                messages.error(request, 'Please select a hostel and room type.')
+                return render(request, 'student/hostel_application.html', context)
+            
+            try:
+                hostel = Hostel.objects.get(id=hostel_id, is_active=True)
+                
+                # Verify hostel gender compatibility
+                if hostel.gender_type not in [student.gender, 'mixed']:
+                    messages.error(request, 'Selected hostel is not compatible with your gender.')
+                    return render(request, 'student/hostel_application.html', context)
+                
+                # Check hostel capacity
+                allocated_count = HostelAllocation.objects.filter(
+                    bed__room__hostel=hostel,
+                    academic_year=current_semester.academic_year,
+                    is_active=True
+                ).count()
+                
+                if allocated_count >= hostel.total_capacity:
+                    messages.error(request, 'Selected hostel is fully occupied.')
+                    return render(request, 'student/hostel_application.html', context)
+                
+                # Get fee structure
+                fee_structure = HostelFeeStructure.objects.filter(
+                    hostel=hostel,
+                    room_type=room_type,
+                    academic_year=current_semester.academic_year,
+                    semester=current_semester,
+                    is_active=True
+                ).first()
+                
+                if not fee_structure:
+                    messages.error(request, 'Fee structure not found for selected room type.')
+                    return render(request, 'student/hostel_application.html', context)
+                
+                with transaction.atomic():
+                    # Create or update application
+                    if existing_application:
+                        # Update existing rejected/cancelled application
+                        existing_application.hostel = hostel
+                        existing_application.preferred_room_type = room_type
+                        existing_application.status = 'pending'
+                        existing_application.booking_fee_paid = False
+                        existing_application.remarks = 'Application resubmitted'
+                        existing_application.save()
+                        application = existing_application
+                    else:
+                        # Create new application
+                        application = HostelApplication.objects.create(
+                            student=student,
+                            hostel=hostel,
+                            academic_year=current_semester.academic_year,
+                            semester=current_semester,
+                            preferred_room_type=room_type,
+                            status='pending',
+                            booking_fee_paid=False
+                        )
+                    
+                    messages.success(
+                        request, 
+                        f'Hostel application submitted successfully for {hostel.name}. '
+                        f'Booking fee: Ksh {fee_structure.booking_fee:,.2f}'
+                    )
+                    return redirect('hostel_application_status')
+                    
+            except Hostel.DoesNotExist:
+                messages.error(request, 'Selected hostel not found.')
+            except Exception as e:
+                messages.error(request, f'Error submitting application: {str(e)}')
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f'Hostel application error: {str(e)}', exc_info=True)
+        
+        return render(request, 'student/hostel_application.html', context)
+    
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+
+
+@login_required
+def hostel_application_status(request):
+    """View hostel application status"""
+    try:
+        student = Student.objects.get(user=request.user)
+        
+        from portal.models import HostelApplication, Semester
+        
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        # Get all applications
+        applications = HostelApplication.objects.filter(
+            student=student
+        ).select_related(
+            'hostel',
+            'academic_year',
+            'semester',
+            'approved_by'
+        ).order_by('-application_date')
+        
+        # Get current application
+        current_application = applications.filter(
+            semester=current_semester
+        ).first()
+        
+        context = {
+            'student': student,
+            'current_semester': current_semester,
+            'current_application': current_application,
+            'applications': applications,
+        }
+        
+        return render(request, 'student/hostel_application_status.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+
+
+@login_required
+def cancel_hostel_application(request, application_id):
+    """Cancel hostel application"""
+    try:
+        student = Student.objects.get(user=request.user)
+        
+        from portal.models import HostelApplication
+        
+        application = HostelApplication.objects.get(
+            id=application_id,
+            student=student
+        )
+        
+        if application.status not in ['pending']:
+            messages.error(request, 'Only pending applications can be cancelled.')
+            return redirect('hostel_application_status')
+        
+        application.status = 'cancelled'
+        application.remarks = 'Cancelled by student'
+        application.save()
+        
+        messages.success(request, 'Hostel application cancelled successfully.')
+        return redirect('hostel_application_status')
+        
+    except HostelApplication.DoesNotExist:
+        messages.error(request, 'Application not found.')
+        return redirect('hostel_application_status')
+    except Exception as e:
+        messages.error(request, f'Error cancelling application: {str(e)}')
+        return redirect('hostel_application_status')
+    
 # views.py
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
