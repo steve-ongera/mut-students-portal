@@ -148,11 +148,11 @@ urlpatterns = [
     
     # Teaching Materials Management
     path('teaching-materials/', views.lecturer_teaching_materials, name='lecturer_teaching_materials'),
-    path('materials/upload/<int:allocation_id>/', views.upload_teaching_material, name='upload_teaching_material'),
-    path('materials/update/<int:material_id>/', views.update_teaching_material, name='update_teaching_material'),
-    path('materials/delete/<int:material_id>/', views.delete_teaching_material, name='delete_teaching_material'),
-    path('materials/toggle-publish/<int:material_id>/', views.toggle_material_publish, name='toggle_material_publish'),
-    path('materials/stats/<int:allocation_id>/', views.get_material_stats, name='get_material_stats'),
+    path('lecturer/materials/upload/<int:allocation_id>/', views.upload_teaching_material, name='upload_teaching_material'),
+    path('lecturer/materials/update/<int:material_id>/', views.update_teaching_material, name='update_teaching_material'),
+    path('lecturer/materials/delete/<int:material_id>/', views.delete_teaching_material, name='delete_teaching_material'),
+    path('lecturer/materials/toggle-publish/<int:material_id>/', views.toggle_material_publish, name='toggle_material_publish'),
+    path('lecturer/materials/stats/<int:allocation_id>/', views.get_material_stats, name='get_material_stats'),
     
     
     # Teaching Materials Access
