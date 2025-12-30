@@ -759,6 +759,759 @@ def hostel_application(request):
         return redirect('student_dashboard')
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Avg, Count, Q, Max
+from django.utils import timezone
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from decimal import Decimal
+import json
+import uuid
+
+from portal.models import (
+    Student, Hostel, HostelRoom, HostelBed, HostelApplication,
+    HostelAllocation, HostelFeeStructure, Semester, AcademicYear,
+    BedReservation, MpesaPayment, HostelReview, HostelImage,
+    HostelRoomImage, SMSNotification
+)
+
+# ============= HOSTEL DETAIL VIEW =============
+@login_required
+def hostel_detail(request, hostel_id):
+    """View detailed information about a specific hostel"""
+    try:
+        student = Student.objects.get(user=request.user)
+        hostel = get_object_or_404(Hostel, id=hostel_id, is_active=True)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_semester:
+            messages.error(request, 'No active semester found.')
+            return redirect('hostel_application')
+        
+        # Get hostel images
+        images = hostel.images.all().order_by('-is_primary', 'display_order')
+        
+        # Get fee structures for current semester
+        fee_structures = HostelFeeStructure.objects.filter(
+            hostel=hostel,
+            academic_year=current_semester.academic_year,
+            semester=current_semester,
+            is_active=True
+        ).order_by('room_type')
+        
+        # Get all rooms grouped by floor
+        rooms = hostel.rooms.filter(is_active=True).prefetch_related('images')
+        
+        # Calculate availability for each room
+        rooms_data = []
+        for room in rooms:
+            total_beds = room.capacity
+            available_beds_count = room.beds.filter(
+                status='available',
+                academic_year=current_semester.academic_year
+            ).count()
+            
+            room.available_beds = available_beds_count
+            room.total_beds = total_beds
+            room.occupancy_rate = ((total_beds - available_beds_count) / total_beds * 100) if total_beds > 0 else 0
+            rooms_data.append(room)
+        
+        # Group rooms by floor
+        rooms_by_floor = {}
+        for room in rooms_data:
+            if room.floor not in rooms_by_floor:
+                rooms_by_floor[room.floor] = []
+            rooms_by_floor[room.floor].append(room)
+        
+        # Sort floors
+        rooms_by_floor = dict(sorted(rooms_by_floor.items()))
+        
+        # Calculate total available spaces
+        total_capacity = hostel.total_capacity
+        allocated_count = HostelAllocation.objects.filter(
+            bed__room__hostel=hostel,
+            academic_year=current_semester.academic_year,
+            is_active=True
+        ).count()
+        hostel.available_spaces = total_capacity - allocated_count
+        
+        # Get reviews and ratings
+        reviews = HostelReview.objects.filter(
+            hostel=hostel,
+            is_approved=True
+        ).select_related('student__user').order_by('-created_at')[:10]
+        
+        ratings = {
+            'overall': reviews.aggregate(avg=Avg('overall_rating'))['avg'] or 0,
+            'cleanliness': reviews.aggregate(avg=Avg('cleanliness_rating'))['avg'] or 0,
+            'facilities': reviews.aggregate(avg=Avg('facilities_rating'))['avg'] or 0,
+            'security': reviews.aggregate(avg=Avg('security_rating'))['avg'] or 0,
+            'management': reviews.aggregate(avg=Avg('management_rating'))['avg'] or 0,
+        }
+        
+        context = {
+            'student': student,
+            'hostel': hostel,
+            'current_semester': current_semester,
+            'images': images,
+            'fee_structures': fee_structures,
+            'rooms_by_floor': rooms_by_floor,
+            'reviews': reviews,
+            'ratings': ratings,
+        }
+        
+        return render(request, 'student/hostel_detail.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+
+
+# ============= ROOM DETAIL VIEW =============
+@login_required
+def room_detail(request, room_id):
+    """View detailed information about a specific room and its beds"""
+    try:
+        student = Student.objects.get(user=request.user)
+        room = get_object_or_404(HostelRoom, id=room_id, is_active=True)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_semester:
+            messages.error(request, 'No active semester found.')
+            return redirect('hostel_application')
+        
+        # Check if student has an active application (optional now)
+        application = HostelApplication.objects.filter(
+            student=student,
+            hostel=room.hostel,
+            semester=current_semester,
+            status__in=['pending', 'approved']
+        ).first()
+        
+        # Check if student has existing allocation in this hostel
+        existing_allocation = HostelAllocation.objects.filter(
+            student=student,
+            bed__room__hostel=room.hostel,
+            semester=current_semester,
+            is_active=True
+        ).first()
+        
+        # Determine if student can book
+        can_book = False
+        booking_message = None
+        
+        if existing_allocation:
+            can_book = False
+            booking_message = {
+                'type': 'info',
+                'text': f'You already have an allocation in {existing_allocation.bed.room.room_number}.'
+            }
+        elif application and application.status == 'approved':
+            can_book = True
+            booking_message = {
+                'type': 'success',
+                'text': 'Your application is approved. You can now book a bed.'
+            }
+        elif application and application.status == 'pending':
+            can_book = False
+            booking_message = {
+                'type': 'warning',
+                'text': 'Your application is pending approval. You cannot book yet.'
+            }
+        else:
+            can_book = False
+            booking_message = {
+                'type': 'info',
+                'text': 'You are viewing this room in preview mode. Apply for this hostel to book a bed.'
+            }
+        
+        # Get room images
+        room_images = room.images.all().order_by('-is_primary')
+        
+        # Get beds for this room
+        beds = room.beds.filter(
+            academic_year=current_semester.academic_year
+        ).order_by('bed_number')
+        
+        # Check for active reservations on each bed
+        beds_data = []
+        for bed in beds:
+            active_reservation = BedReservation.objects.filter(
+                bed=bed,
+                status='pending',
+                expires_at__gt=timezone.now()
+            ).first()
+            
+            bed.is_reserved = active_reservation is not None
+            bed.reservation_expires = active_reservation.expires_at if active_reservation else None
+            bed.can_reserve = (
+                bed.status == 'available' and 
+                not bed.is_reserved and 
+                can_book
+            )
+            beds_data.append(bed)
+        
+        # Get fee structure for this room type
+        fee_structure = HostelFeeStructure.objects.filter(
+            hostel=room.hostel,
+            room_type=room.room_type,
+            academic_year=current_semester.academic_year,
+            semester=current_semester,
+            is_active=True
+        ).first()
+        
+        # Calculate total fee
+        if fee_structure:
+            total_fee = (
+                fee_structure.fee_amount + 
+                fee_structure.booking_fee + 
+                fee_structure.security_deposit
+            )
+        else:
+            total_fee = 0
+        
+        # Check if student needs to apply
+        needs_application = not application and not existing_allocation
+        
+        context = {
+            'student': student,
+            'room': room,
+            'hostel': room.hostel,
+            'current_semester': current_semester,
+            'room_images': room_images,
+            'beds': beds_data,
+            'fee_structure': fee_structure,
+            'total_fee': total_fee,
+            'application': application,
+            'existing_allocation': existing_allocation,
+            'can_book': can_book,
+            'booking_message': booking_message,
+            'needs_application': needs_application,
+        }
+        
+        return render(request, 'student/room_detail.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+
+# ============= RESERVE BED VIEW =============
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.db import transaction
+from django.utils import timezone
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.conf import settings
+from decimal import Decimal
+import json
+import logging
+
+from portal.models import (
+    Student, HostelBed, Semester, HostelApplication, 
+    HostelFeeStructure, BedReservation, MpesaPayment,
+    SMSNotification, HostelAllocation
+)
+from portal.mpesa_utils import initiate_stk_push, query_stk_status
+
+logger = logging.getLogger(__name__)
+
+
+@login_required
+@require_http_methods(["POST"])
+def reserve_bed(request, bed_id):
+    """
+    Reserve a bed and initiate M-Pesa payment
+    Requirements:
+    1. Student must have an approved hostel application first
+    2. Student cannot have existing active allocation
+    3. Collect full student data
+    4. Process full payment amount
+    """
+    try:
+        student = Student.objects.get(user=request.user)
+        bed = get_object_or_404(HostelBed, id=bed_id, is_active=True)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_semester:
+            return JsonResponse({
+                'success': False,
+                'message': 'No active semester found'
+            }, status=400)
+        
+        # Get form data
+        phone_number = request.POST.get('phone_number', '').strip()
+        id_number = request.POST.get('id_number', '').strip()
+        emergency_contact = request.POST.get('emergency_contact', '').strip()
+        emergency_phone = request.POST.get('emergency_phone', '').strip()
+        
+        # Validate required fields
+        if not all([phone_number, id_number, emergency_contact, emergency_phone]):
+            return JsonResponse({
+                'success': False,
+                'message': 'All fields are required'
+            }, status=400)
+        
+        # 1. CHECK: Student must have APPROVED application first
+        application = HostelApplication.objects.filter(
+            student=student,
+            hostel=bed.room.hostel,
+            semester=current_semester,
+            status='approved'  # Must be approved
+        ).first()
+        
+        if not application:
+            return JsonResponse({
+                'success': False,
+                'message': 'You must have an approved hostel application before booking a bed. Please apply first.'
+            }, status=400)
+        
+        # 2. CHECK: Ensure bed is available
+        if bed.status != 'available':
+            return JsonResponse({
+                'success': False,
+                'message': 'This bed is not available'
+            }, status=400)
+        
+        # 3. CHECK: No existing active reservation
+        existing_reservation = BedReservation.objects.filter(
+            bed=bed,
+            status='pending',
+            expires_at__gt=timezone.now()
+        ).first()
+        
+        if existing_reservation:
+            return JsonResponse({
+                'success': False,
+                'message': 'This bed is currently reserved by another student. Please choose another bed.'
+            }, status=400)
+        
+        # 4. CHECK: Student doesn't have existing allocation for this semester
+        existing_allocation = HostelAllocation.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).first()
+        
+        if existing_allocation:
+            return JsonResponse({
+                'success': False,
+                'message': f'You already have an active allocation in {existing_allocation.bed.room.hostel.name}, Room {existing_allocation.bed.room.room_number}. You cannot book multiple beds.'
+            }, status=400)
+        
+        # 5. CHECK: Student doesn't have pending reservation
+        pending_reservation = BedReservation.objects.filter(
+            student=student,
+            status='pending',
+            expires_at__gt=timezone.now()
+        ).first()
+        
+        if pending_reservation:
+            return JsonResponse({
+                'success': False,
+                'message': 'You already have a pending reservation. Please complete or cancel it first.'
+            }, status=400)
+        
+        # Get fee structure - FULL AMOUNT
+        fee_structure = HostelFeeStructure.objects.filter(
+            hostel=bed.room.hostel,
+            room_type=bed.room.room_type,
+            academic_year=current_semester.academic_year,
+            semester=current_semester,
+            is_active=True
+        ).first()
+        
+        if not fee_structure:
+            return JsonResponse({
+                'success': False,
+                'message': 'Fee structure not found for this hostel'
+            }, status=400)
+        
+        # Calculate FULL amount (not just booking fee)
+        total_amount = (
+            fee_structure.fee_amount + 
+            fee_structure.booking_fee + 
+            fee_structure.security_deposit
+        )
+        
+        # Format phone number for M-Pesa (254XXXXXXXXX)
+        if phone_number.startswith('0'):
+            phone_number = '254' + phone_number[1:]
+        elif phone_number.startswith('+254'):
+            phone_number = phone_number[1:]
+        elif phone_number.startswith('254'):
+            pass
+        else:
+            phone_number = '254' + phone_number
+        
+        # Validate phone number length
+        if len(phone_number) != 12:
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid phone number format. Please enter a valid Kenyan phone number.'
+            }, status=400)
+        
+        with transaction.atomic():
+            # Update student emergency contact info
+            student.emergency_contact_name = emergency_contact
+            student.emergency_contact_phone = emergency_phone
+            if id_number:
+                student.national_id = id_number
+            student.save()
+            
+            # Create bed reservation with full amount
+            reservation = BedReservation.objects.create(
+                student=student,
+                bed=bed,
+                application=application,
+                amount=total_amount,
+                payment_phone=phone_number,
+                status='pending',
+                expires_at=timezone.now() + timezone.timedelta(minutes=15)
+            )
+            
+            # Initiate M-Pesa STK Push for FULL AMOUNT
+            account_reference = f"HOSTEL-{student.registration_number}"
+            transaction_desc = f"Hostel Fee - {bed.room.hostel.name}"
+            
+            mpesa_response = initiate_stk_push(
+                phone_number=phone_number,
+                amount=float(total_amount),
+                account_reference=account_reference,
+                transaction_desc=transaction_desc,
+                student=student,
+                reservation=reservation,
+                application=application
+            )
+            
+            if mpesa_response['success']:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Payment request sent to your phone. Please enter your M-Pesa PIN.',
+                    'reservation_id': str(reservation.reservation_id),
+                    'checkout_request_id': mpesa_response['checkout_request_id'],
+                    'expires_at': reservation.expires_at.isoformat(),
+                    'amount': str(total_amount)
+                })
+            else:
+                # Delete reservation if M-Pesa failed
+                reservation.delete()
+                return JsonResponse({
+                    'success': False,
+                    'message': mpesa_response.get('message', 'Failed to initiate payment')
+                }, status=400)
+    
+    except Student.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Student profile not found'
+        }, status=404)
+    except Exception as e:
+        logger.error(f'Bed reservation error: {str(e)}', exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'message': f'An error occurred: {str(e)}'
+        }, status=500)
+
+
+@login_required
+def check_payment_status(request, reservation_id):
+    """Check payment status via AJAX"""
+    try:
+        student = Student.objects.get(user=request.user)
+        reservation = get_object_or_404(
+            BedReservation,
+            reservation_id=reservation_id,
+            student=student
+        )
+        
+        # Get latest payment
+        latest_payment = reservation.mpesa_payments.order_by('-initiated_at').first()
+        
+        if not latest_payment:
+            return JsonResponse({
+                'success': False,
+                'message': 'No payment found'
+            })
+        
+        # Check if reservation expired
+        is_expired = reservation.is_expired()
+        
+        return JsonResponse({
+            'success': True,
+            'reservation_status': reservation.status,
+            'payment_status': latest_payment.status,
+            'is_expired': is_expired,
+            'mpesa_receipt': latest_payment.mpesa_receipt_number or '',
+            'amount': str(reservation.amount)
+        })
+        
+    except Student.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Student not found'
+        }, status=404)
+    except Exception as e:
+        logger.error(f'Payment status check error: {str(e)}')
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mpesa_callback(request):
+    """
+    M-Pesa STK Push Callback
+    Receives payment status from Safaricom
+    """
+    try:
+        # Parse callback data
+        data = json.loads(request.body.decode('utf-8'))
+        logger.info(f'M-Pesa Callback received: {json.dumps(data, indent=2)}')
+        
+        # Extract callback data
+        stk_callback = data.get('Body', {}).get('stkCallback', {})
+        merchant_request_id = stk_callback.get('MerchantRequestID')
+        checkout_request_id = stk_callback.get('CheckoutRequestID')
+        result_code = stk_callback.get('ResultCode')
+        result_desc = stk_callback.get('ResultDesc')
+        
+        # Find payment record
+        payment = MpesaPayment.objects.filter(
+            checkout_request_id=checkout_request_id
+        ).first()
+        
+        if not payment:
+            logger.error(f'Payment not found for CheckoutRequestID: {checkout_request_id}')
+            return JsonResponse({
+                'ResultCode': 1,
+                'ResultDesc': 'Payment record not found'
+            })
+        
+        with transaction.atomic():
+            # Update payment record
+            payment.result_code = str(result_code)
+            payment.result_desc = result_desc
+            payment.completed_at = timezone.now()
+            
+            if result_code == 0:
+                # Payment successful
+                payment.status = 'success'
+                
+                # Extract callback metadata
+                callback_metadata = stk_callback.get('CallbackMetadata', {}).get('Item', [])
+                for item in callback_metadata:
+                    if item.get('Name') == 'MpesaReceiptNumber':
+                        payment.mpesa_receipt_number = item.get('Value')
+                    elif item.get('Name') == 'TransactionDate':
+                        payment.transaction_date = timezone.now()
+                
+                payment.save()
+                
+                # Update reservation
+                if payment.bed_reservation:
+                    reservation = payment.bed_reservation
+                    reservation.status = 'confirmed'
+                    reservation.save()
+                    
+                    # Create hostel allocation
+                    allocation = HostelAllocation.objects.create(
+                        student=reservation.student,
+                        bed=reservation.bed,
+                        academic_year=reservation.bed.academic_year,
+                        semester=Semester.objects.filter(is_current=True).first(),
+                        check_in_date=timezone.now(),
+                        is_active=True,
+                        fee_paid=True,
+                        payment_reference=payment.mpesa_receipt_number,
+                        allocated_by=None,  # Auto-allocated via payment
+                        remarks=f'Auto-allocated after payment. Receipt: {payment.mpesa_receipt_number}'
+                    )
+                    
+                    # Update bed status
+                    reservation.bed.status = 'occupied'
+                    reservation.bed.save()
+                    
+                    # Send confirmation email
+                    send_booking_confirmation_email(reservation.student, allocation, payment)
+                    
+                    # Send SMS notification
+                    send_booking_confirmation_sms(reservation.student, allocation, payment)
+                    
+                    logger.info(f'Allocation created for {reservation.student.registration_number}')
+            
+            else:
+                # Payment failed
+                payment.status = 'failed'
+                payment.save()
+                
+                if payment.bed_reservation:
+                    reservation = payment.bed_reservation
+                    reservation.status = 'cancelled'
+                    reservation.save()
+                    
+                    # Release bed
+                    reservation.bed.status = 'available'
+                    reservation.bed.save()
+                    
+                    # Send failure SMS
+                    send_payment_failure_sms(reservation.student, result_desc)
+        
+        return JsonResponse({
+            'ResultCode': 0,
+            'ResultDesc': 'Success'
+        })
+        
+    except Exception as e:
+        logger.error(f'M-Pesa callback error: {str(e)}', exc_info=True)
+        return JsonResponse({
+            'ResultCode': 1,
+            'ResultDesc': str(e)
+        })
+
+
+def send_booking_confirmation_email(student, allocation, payment):
+    """Send booking confirmation email with receipt"""
+    try:
+        subject = f'Hostel Booking Confirmation - {allocation.bed.room.hostel.name}'
+        
+        context = {
+            'student': student,
+            'allocation': allocation,
+            'payment': payment,
+            'bed': allocation.bed,
+            'room': allocation.bed.room,
+            'hostel': allocation.bed.room.hostel,
+        }
+        
+        html_message = render_to_string('emails/hostel_booking_confirmation.html', context)
+        plain_message = f"""
+Dear {student.user.get_full_name()},
+
+Your hostel booking has been confirmed!
+
+BOOKING DETAILS:
+- Hostel: {allocation.bed.room.hostel.name}
+- Room: {allocation.bed.room.room_number}
+- Bed: {allocation.bed.bed_number}
+- Floor: {allocation.bed.room.floor}
+
+PAYMENT DETAILS:
+- Amount Paid: Ksh {payment.amount}
+- M-Pesa Receipt: {payment.mpesa_receipt_number}
+- Payment Date: {payment.transaction_date}
+
+Please present this email when checking in.
+
+For any queries, contact the hostel office.
+
+Best regards,
+University Hostel Management
+        """
+        
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[student.user.email],
+            html_message=html_message,
+            fail_silently=False
+        )
+        
+        logger.info(f'Confirmation email sent to {student.user.email}')
+        
+    except Exception as e:
+        logger.error(f'Email sending error: {str(e)}')
+
+
+def send_booking_confirmation_sms(student, allocation, payment):
+    """Send SMS confirmation"""
+    try:
+        message = (
+            f"Hostel booking confirmed! "
+            f"{allocation.bed.room.hostel.name}, Room {allocation.bed.room.room_number}, "
+            f"Bed {allocation.bed.bed_number}. "
+            f"Receipt: {payment.mpesa_receipt_number}. "
+            f"Check your email for details."
+        )
+        
+        # Create SMS notification record
+        SMSNotification.objects.create(
+            student=student,
+            phone_number=student.user.phone_number,
+            sms_type='booking_confirmation',
+            message=message,
+            status='sent',
+            mpesa_payment=payment,
+            hostel_allocation=allocation,
+            sent_at=timezone.now()
+        )
+        
+        # TODO: Integrate with actual SMS gateway (Africa's Talking, etc.)
+        # send_sms(phone_number=student.user.phone_number, message=message)
+        
+        logger.info(f'SMS sent to {student.user.phone_number}')
+        
+    except Exception as e:
+        logger.error(f'SMS sending error: {str(e)}')
+
+
+def send_payment_failure_sms(student, reason):
+    """Send SMS for failed payment"""
+    try:
+        message = f"Hostel payment failed: {reason}. Please try again or contact support."
+        
+        SMSNotification.objects.create(
+            student=student,
+            phone_number=student.user.phone_number,
+            sms_type='payment_failed',
+            message=message,
+            status='sent',
+            sent_at=timezone.now()
+        )
+        
+        logger.info(f'Failure SMS sent to {student.user.phone_number}')
+        
+    except Exception as e:
+        logger.error(f'SMS sending error: {str(e)}')
+
+
+@login_required
+def my_hostel_allocation(request):
+    """View student's current allocation"""
+    try:
+        student = Student.objects.get(user=request.user)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        allocation = HostelAllocation.objects.filter(
+            student=student,
+            semester=current_semester,
+            is_active=True
+        ).select_related(
+            'bed__room__hostel',
+            'bed__room'
+        ).first()
+        
+        context = {
+            'student': student,
+            'allocation': allocation,
+        }
+        
+        return render(request, 'student/my_hostel_allocation.html', context)
+        
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+        
 @login_required
 def hostel_application_status(request):
     """View hostel application status"""

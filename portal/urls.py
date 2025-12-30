@@ -170,7 +170,7 @@ urlpatterns = [
     
     # Hostel URLs
     # Hostel Application
-    path('hostel/application/', views.hostel_application, name='hostel_application'),
+    path('hostel/application/', views.hostel_application, name='hostel_application'), 
     path('hostel/<int:hostel_id>/', views.hostel_detail, name='hostel_detail'),
     path('hostel/room/<int:room_id>/', views.room_detail, name='room_detail'),
     path('hostel/bed/<int:bed_id>/reserve/', views.reserve_bed, name='reserve_bed'),

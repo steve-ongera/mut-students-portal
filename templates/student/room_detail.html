@@ -13,9 +13,30 @@
     </ol>
 </nav>
 
+<!-- Alert if student has no approved application -->
+{% if not has_approved_application %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="ri-alert-line me-2"></i>
+    <strong>Application Required!</strong> You must have an approved hostel application before booking a bed.
+    <a href="{% url 'hostel_application' %}" class="alert-link">Apply Now</a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Alert if student has existing allocation -->
+{% if has_existing_allocation %}
+<div class="alert alert-info alert-dismissible fade show" role="alert">
+    <i class="ri-information-line me-2"></i>
+    <strong>You already have an allocation!</strong> View your current hostel allocation 
+    <a href="{% url 'my_hostel_allocation' %}" class="alert-link">here</a>.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
 <div class="room-detail-container">
-    <!-- Room Header -->
+    <!-- Room Header (same as before) -->
     <div class="room-header-card">
+        <!-- Images section -->
         <div class="room-images">
             {% if room.images.all %}
             <div class="main-room-image">
@@ -38,6 +59,7 @@
             {% endif %}
         </div>
 
+        <!-- Room details section -->
         <div class="room-details">
             <div class="room-title-section">
                 <h2>Room {{ room.room_number }}</h2>
@@ -83,7 +105,7 @@
 
             {% if fee_structure %}
             <div class="room-pricing">
-                <h5>Room Fees</h5>
+                <h5>Total Fees (Full Payment)</h5>
                 <div class="pricing-breakdown">
                     <div class="price-row">
                         <span>Accommodation Fee:</span>
@@ -94,13 +116,17 @@
                         <strong>Ksh {{ fee_structure.booking_fee|floatformat:2 }}</strong>
                     </div>
                     <div class="price-row">
-                        <span>Security Deposit:</span>
+                        <span>Security Deposit (Refundable):</span>
                         <strong>Ksh {{ fee_structure.security_deposit|floatformat:2 }}</strong>
                     </div>
                     <div class="price-row total">
-                        <span>Total Amount:</span>
-                        <strong>Ksh {{ fee_structure.fee_amount|add:fee_structure.booking_fee|add:fee_structure.security_deposit|floatformat:2 }}</strong>
+                        <span>Total Amount (Pay Now):</span>
+                        <strong>Ksh {{ total_amount|floatformat:2 }}</strong>
                     </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="ri-information-line me-2"></i>
+                    <small>Full payment required upon booking. Security deposit will be refunded at checkout if no damages.</small>
                 </div>
             </div>
             {% endif %}
@@ -116,29 +142,28 @@
 
         <div class="beds-container">
             {% for bed in beds %}
-            <div class="bed-card {% if bed.status != 'available' %}bed-unavailable{% endif %} {% if bed.is_reserved %}bed-reserved{% endif %}" 
+            <div class="bed-card {% if bed.status != 'available' or not has_approved_application or has_existing_allocation %}bed-unavailable{% endif %}" 
                  data-bed-id="{{ bed.id }}"
                  data-bed-number="{{ bed.bed_number }}"
-                 {% if bed.status == 'available' %}onclick="selectBed(this)"{% endif %}>
+                 {% if bed.status == 'available' and has_approved_application and not has_existing_allocation %}
+                 onclick="selectBed(this)"
+                 {% endif %}>
                 <div class="bed-icon">
                     <i class="ri-hotel-bed-line"></i>
                 </div>
                 <div class="bed-number">Bed {{ bed.bed_number }}</div>
                 <div class="bed-status">
                     {% if bed.status == 'available' %}
-                        {% if bed.is_reserved %}
-                        <span class="status-badge reserved">
-                            <i class="ri-time-line"></i> Reserved
-                        </span>
-                        <small class="expiry-time">Expires in <span class="countdown" data-expiry="{{ bed.reservation_expires|date:'c' }}"></span></small>
-                        {% else %}
-                        <span class="status-badge available">
-                            <i class="ri-check-line"></i> Available
-                        </span>
-                        {% endif %}
+                    <span class="status-badge available">
+                        <i class="ri-check-line"></i> Available
+                    </span>
                     {% elif bed.status == 'occupied' %}
                     <span class="status-badge occupied">
                         <i class="ri-user-line"></i> Occupied
+                    </span>
+                    {% elif bed.status == 'reserved' %}
+                    <span class="status-badge reserved">
+                        <i class="ri-time-line"></i> Reserved
                     </span>
                     {% elif bed.status == 'maintenance' %}
                     <span class="status-badge maintenance">
@@ -147,10 +172,10 @@
                     {% endif %}
                 </div>
                 
-                {% if bed.status == 'available' and not bed.is_reserved %}
+                {% if bed.status == 'available' and has_approved_application and not has_existing_allocation %}
                 <div class="bed-action">
                     <button class="btn-select-bed" onclick="event.stopPropagation(); confirmBedSelection({{ bed.id }}, '{{ bed.bed_number }}')">
-                        Select This Bed
+                        Book This Bed
                     </button>
                 </div>
                 {% endif %}
@@ -160,77 +185,195 @@
     </div>
 </div>
 
-<!-- Payment Modal -->
+<!-- Enhanced Payment Modal with Full Details -->
 <div id="paymentModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content modal-lg">
         <div class="modal-header">
-            <h4>Complete Your Booking</h4>
+            <h4><i class="ri-secure-payment-line me-2"></i>Complete Your Booking</h4>
             <span class="close-modal" onclick="closePaymentModal()">&times;</span>
         </div>
         <div class="modal-body">
-            <div class="booking-summary">
-                <h5>Booking Summary</h5>
-                <div class="summary-row">
-                    <span>Hostel:</span>
-                    <strong>{{ room.hostel.name }}</strong>
+            <!-- Progress Indicator -->
+            <div class="progress-steps">
+                <div class="step active">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Details</div>
                 </div>
-                <div class="summary-row">
-                    <span>Room:</span>
-                    <strong>{{ room.room_number }} ({{ room.get_room_type_display }})</strong>
+                <div class="step-line"></div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Payment</div>
                 </div>
-                <div class="summary-row">
-                    <span>Bed:</span>
-                    <strong id="selectedBedNumber">-</strong>
-                </div>
-                <div class="summary-row">
-                    <span>Floor:</span>
-                    <strong>{{ room.floor }}</strong>
-                </div>
-                <div class="summary-row total">
-                    <span>Booking Fee (Pay Now):</span>
-                    <strong>Ksh {{ fee_structure.booking_fee|floatformat:2 }}</strong>
+                <div class="step-line"></div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Confirm</div>
                 </div>
             </div>
 
+            <!-- Booking Summary -->
+            <div class="booking-summary">
+                <h5><i class="ri-file-list-line me-2"></i>Booking Summary</h5>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Student Name:</span>
+                        <strong>{{ student.user.get_full_name }}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Registration No:</span>
+                        <strong>{{ student.registration_number }}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Programme:</span>
+                        <strong>{{ student.programme.name }}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Current Year:</span>
+                        <strong>Year {{ student.current_year }}</strong>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Hostel:</span>
+                        <strong>{{ room.hostel.name }}</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Room:</span>
+                        <strong>{{ room.room_number }} ({{ room.get_room_type_display }})</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Bed:</span>
+                        <strong id="selectedBedNumber">-</strong>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Floor:</span>
+                        <strong>{{ room.floor }}</strong>
+                    </div>
+                </div>
+
+                <div class="payment-breakdown-modal">
+                    <div class="breakdown-row">
+                        <span>Accommodation Fee:</span>
+                        <span>Ksh {{ fee_structure.fee_amount|floatformat:2 }}</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Booking Fee:</span>
+                        <span>Ksh {{ fee_structure.booking_fee|floatformat:2 }}</span>
+                    </div>
+                    <div class="breakdown-row">
+                        <span>Security Deposit:</span>
+                        <span>Ksh {{ fee_structure.security_deposit|floatformat:2 }}</span>
+                    </div>
+                    <div class="breakdown-row total-row">
+                        <span><strong>Total Amount:</strong></span>
+                        <span><strong>Ksh {{ total_amount|floatformat:2 }}</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Details Form -->
             <form id="paymentForm">
                 {% csrf_token %}
                 <input type="hidden" id="selectedBedId" name="bed_id">
                 
-                <div class="form-group">
-                    <label for="phoneNumber">M-Pesa Phone Number</label>
-                    <div class="input-group">
-                        <span class="input-prefix">+254</span>
-                        <input type="tel" 
-                               id="phoneNumber" 
-                               name="phone_number" 
+                <h5 class="form-section-title">
+                    <i class="ri-user-line me-2"></i>Personal Information
+                </h5>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="idNumber">National ID / Passport Number *</label>
+                        <input type="text" 
+                               id="idNumber" 
+                               name="id_number" 
                                class="form-control"
-                               placeholder="712345678"
-                               pattern="[0-9]{9}"
+                               value="{{ student.national_id }}"
                                required>
+                        <small class="form-text">Enter your National ID or Passport number</small>
                     </div>
-                    <small class="form-text">Enter your M-Pesa number without the leading 0 or +254</small>
+                    
+                    <div class="form-group">
+                        <label for="phoneNumber">M-Pesa Phone Number *</label>
+                        <div class="input-group">
+                            <span class="input-prefix">+254</span>
+                            <input type="tel" 
+                                   id="phoneNumber" 
+                                   name="phone_number" 
+                                   class="form-control"
+                                   placeholder="712345678"
+                                   pattern="[0-9]{9}"
+                                   required>
+                        </div>
+                        <small class="form-text">Enter your M-Pesa number (without 0 or +254)</small>
+                    </div>
                 </div>
 
+                <h5 class="form-section-title">
+                    <i class="ri-contacts-line me-2"></i>Emergency Contact
+                </h5>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="emergencyContact">Emergency Contact Name *</label>
+                        <input type="text" 
+                               id="emergencyContact" 
+                               name="emergency_contact" 
+                               class="form-control"
+                               value="{{ student.emergency_contact_name }}"
+                               placeholder="Parent/Guardian Name"
+                               required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="emergencyPhone">Emergency Contact Phone *</label>
+                        <input type="tel" 
+                               id="emergencyPhone" 
+                               name="emergency_phone" 
+                               class="form-control"
+                               value="{{ student.emergency_contact_phone }}"
+                               placeholder="0712345678"
+                               required>
+                    </div>
+                </div>
+
+                <!-- Terms and Conditions -->
+                <div class="form-check-custom">
+                    <input type="checkbox" id="termsCheck" required>
+                    <label for="termsCheck">
+                        I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">hostel terms and conditions</a> and confirm that all information provided is accurate.
+                    </label>
+                </div>
+
+                <!-- Important Notes -->
                 <div class="alert alert-info">
                     <i class="ri-information-line me-2"></i>
                     <div>
                         <strong>Payment Process:</strong>
                         <ol class="mb-0">
-                            <li>You'll receive an M-Pesa prompt on your phone</li>
+                            <li>Click "Pay Now" to initiate M-Pesa payment</li>
+                            <li>You'll receive a prompt on your phone (within 30 seconds)</li>
                             <li>Enter your M-Pesa PIN to complete payment</li>
-                            <li>Your bed will be reserved for 15 minutes</li>
-                            <li>Upon successful payment, you'll receive confirmation via SMS</li>
+                            <li>Upon successful payment:
+                                <ul>
+                                    <li>Your bed will be confirmed immediately</li>
+                                    <li>Receipt sent to your email ({{ student.user.email }})</li>
+                                    <li>SMS confirmation sent to your phone</li>
+                                </ul>
+                            </li>
                         </ol>
                     </div>
                 </div>
 
                 <div class="modal-actions">
-                    <button type="submit" class="btn btn-primary btn-lg" id="payBtn">
+                    <button type="submit" class="btn btn-primary btn-lg btn-block" id="payBtn">
                         <i class="ri-smartphone-line me-2"></i>
-                        Pay Ksh {{ fee_structure.booking_fee|floatformat:2 }}
+                        Pay Ksh {{ total_amount|floatformat:2 }} via M-Pesa
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="closePaymentModal()">
-                        Cancel
+                    <button type="button" class="btn btn-outline-secondary btn-block" onclick="closePaymentModal()">
+                        Cancel Booking
                     </button>
                 </div>
             </form>
@@ -242,436 +385,288 @@
 <div id="loadingOverlay" class="loading-overlay">
     <div class="loading-spinner">
         <div class="spinner"></div>
-        <p>Processing payment...</p>
-        <small>Please check your phone for M-Pesa prompt</small>
+        <p>Processing M-Pesa Payment...</p>
+        <small>Please check your phone for payment prompt</small>
+        <div class="mt-3">
+            <div class="spinner-status" id="paymentStatus">
+                Waiting for payment confirmation...
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div id="successModal" class="modal">
+    <div class="modal-content">
+        <div class="success-content">
+            <div class="success-icon">
+                <i class="ri-checkbox-circle-line"></i>
+            </div>
+            <h2>Payment Successful!</h2>
+            <p class="success-message">Your hostel booking has been confirmed</p>
+            
+            <div class="success-details">
+                <div class="detail-row">
+                    <span>Receipt Number:</span>
+                    <strong id="receiptNumber">-</strong>
+                </div>
+                <div class="detail-row">
+                    <span>Amount Paid:</span>
+                    <strong>Ksh <span id="amountPaid">{{ total_amount|floatformat:2 }}</span></strong>
+                </div>
+            </div>
+            
+            <div class="alert alert-success">
+                <i class="ri-mail-line me-2"></i>
+                A detailed receipt has been sent to <strong>{{ student.user.email }}</strong>
+            </div>
+            
+            <div class="modal-actions">
+                <a href="{% url 'my_hostel_allocation' %}" class="btn btn-primary btn-lg btn-block">
+                    <i class="ri-home-smile-line me-2"></i>
+                    View My Allocation
+                </a>
+                <a href="{% url 'student_dashboard' %}" class="btn btn-outline-secondary btn-block">
+                    Go to Dashboard
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 
 <style>
-    .room-detail-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 1rem;
-    }
+/* Previous styles remain the same */
+.room-detail-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem;
+}
 
+.room-header-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Modal enhancements */
+.modal-lg {
+    max-width: 800px;
+}
+
+.progress-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e0e0e0;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    transition: all 0.3s;
+}
+
+.step.active .step-number {
+    background: #2E7D32;
+    color: white;
+}
+
+.step-label {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.step.active .step-label {
+    color: #2E7D32;
+    font-weight: 600;
+}
+
+.step-line {
+    width: 60px;
+    height: 2px;
+    background: #e0e0e0;
+    margin: 0 1rem;
+}
+
+.form-section-title {
+    margin: 1.5rem 0 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-check-custom {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 1.5rem 0;
+}
+
+.form-check-custom input {
+    margin-right: 0.5rem;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.summary-label {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.payment-breakdown-modal {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.total-row {
+    border-top: 2px solid #2E7D32;
+    border-bottom: none;
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    font-size: 1.125rem;
+    color: #2E7D32;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.spinner-status {
+    padding: 1rem;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    font-size: 0.875rem;
+}
+
+.success-content {
+    text-align: center;
+    padding: 2rem;
+}
+
+.success-icon {
+    font-size: 5rem;
+    color: #2E7D32;
+    margin-bottom: 1rem;
+}
+
+.success-content h2 {
+    color: #2E7D32;
+    margin-bottom: 0.5rem;
+}
+
+.success-message {
+    font-size: 1.25rem;
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+.success-details {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin: 2rem 0;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+@media (max-width: 768px) {
     .room-header-card {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2rem;
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        grid-template-columns: 1fr;
     }
-
-    .main-room-image {
-        width: 100%;
-        height: 400px;
-        border-radius: 12px;
-        overflow: hidden;
+    
+    .form-row, .summary-grid {
+        grid-template-columns: 1fr;
     }
-
-    .main-room-image img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
+    
+    .modal-lg {
+        max-width: 95%;
     }
-
-    .room-thumbnails {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-    }
-
-    .room-thumb {
-        width: 100%;
-        height: 80px;
-        object-fit: cover;
-        border-radius: 8px;
-        cursor: pointer;
-        border: 3px solid transparent;
-        transition: all 0.3s;
-    }
-
-    .room-thumb:hover, .room-thumb.active {
-        border-color: #2E7D32;
-    }
-
-    .room-details h2 {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    .room-type-badge-large {
-        display: inline-block;
-        padding: 0.5rem 1rem;
-        background: #2E7D32;
-        color: white;
-        border-radius: 20px;
-        font-size: 0.875rem;
-        margin-left: 1rem;
-    }
-
-    .room-meta {
-        display: flex;
-        gap: 1.5rem;
-        margin: 1.5rem 0;
-        padding: 1rem 0;
-        border-top: 1px solid #e0e0e0;
-        border-bottom: 1px solid #e0e0e0;
-    }
-
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: #666;
-    }
-
-    .meta-item i {
-        font-size: 1.25rem;
-        color: #2E7D32;
-    }
-
-    .features-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-
-    .feature-item {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem;
-        background: #f5f5f5;
-        border-radius: 8px;
-    }
-
-    .feature-item.available {
-        background: #e8f5e9;
-        color: #2E7D32;
-    }
-
-    .feature-item.unavailable {
-        opacity: 0.5;
-    }
-
-    .room-pricing {
-        margin-top: 2rem;
-        padding: 1.5rem;
-        background: #f5f5f5;
-        border-radius: 8px;
-    }
-
-    .price-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #e0e0e0;
-    }
-
-    .price-row.total {
-        border-top: 2px solid #2E7D32;
-        border-bottom: none;
-        font-size: 1.25rem;
-        color: #2E7D32;
-        margin-top: 0.5rem;
-        padding-top: 1rem;
-    }
-
-    .bed-selection-section {
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .section-header {
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #e0e0e0;
-    }
-
-    .beds-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .bed-card {
-        border: 2px solid #e0e0e0;
-        border-radius: 12px;
-        padding: 1.5rem;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.3s;
-        position: relative;
-    }
-
-    .bed-card:hover:not(.bed-unavailable) {
-        border-color: #2E7D32;
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(46, 125, 50, 0.2);
-    }
-
-    .bed-card.selected {
-        border-color: #2E7D32;
-        background: #e8f5e9;
-    }
-
-    .bed-unavailable {
-        opacity: 0.5;
-        cursor: not-allowed;
-        background: #fafafa;
-    }
-
-    .bed-reserved {
-        border-color: #FF9800;
-        background: #fff3e0;
-    }
-
-    .bed-icon {
-        font-size: 3rem;
-        color: #2E7D32;
-        margin-bottom: 1rem;
-    }
-
-    .bed-unavailable .bed-icon {
-        color: #999;
-    }
-
-    .bed-number {
-        font-size: 1.25rem;
-        font-weight: bold;
-        margin-bottom: 0.5rem;
-    }
-
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
-    }
-
-    .status-badge.available {
-        background: #e8f5e9;
-        color: #2E7D32;
-    }
-
-    .status-badge.occupied {
-        background: #ffebee;
-        color: #c62828;
-    }
-
-    .status-badge.reserved {
-        background: #fff3e0;
-        color: #f57c00;
-    }
-
-    .status-badge.maintenance {
-        background: #e3f2fd;
-        color: #1976d2;
-    }
-
-    .btn-select-bed {
-        margin-top: 1rem;
-        width: 100%;
-        padding: 0.75rem;
-        background: #2E7D32;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-
-    .btn-select-bed:hover {
-        background: #1B5E20;
-    }
-
-    .modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.5);
-        animation: fadeIn 0.3s;
-    }
-
-    .modal-content {
-        background: white;
-        margin: 5% auto;
-        padding: 0;
-        width: 90%;
-        max-width: 600px;
-        border-radius: 12px;
-        animation: slideDown 0.3s;
-    }
-
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1.5rem;
-        border-bottom: 1px solid #e0e0e0;
-    }
-
-    .close-modal {
-        font-size: 2rem;
-        cursor: pointer;
-        color: #999;
-    }
-
-    .modal-body {
-        padding: 2rem;
-    }
-
-    .booking-summary {
-        background: #f5f5f5;
-        padding: 1.5rem;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-    }
-
-    .summary-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-    }
-
-    .summary-row.total {
-        border-top: 2px solid #2E7D32;
-        margin-top: 1rem;
-        padding-top: 1rem;
-        font-size: 1.25rem;
-        color: #2E7D32;
-    }
-
-    .input-group {
-        display: flex;
-        align-items: center;
-        border: 2px solid #e0e0e0;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    .input-prefix {
-        padding: 0.75rem 1rem;
-        background: #f5f5f5;
-        border-right: 2px solid #e0e0e0;
-        font-weight: 600;
-    }
-
-    .form-control {
-        flex: 1;
-        padding: 0.75rem 1rem;
-        border: none;
-        outline: none;
-        font-size: 1rem;
-    }
-
-    .modal-actions {
-        display: flex;
-        gap: 1rem;
-        margin-top: 2rem;
-    }
-
-    .modal-actions button {
-        flex: 1;
-    }
-
-    .loading-overlay {
-        display: none;
-        position: fixed;
-        z-index: 2000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0,0,0,0.7);
-    }
-
-    .loading-spinner {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        color: white;
-    }
-
-    .spinner {
-        width: 60px;
-        height: 60px;
-        border: 4px solid rgba(255,255,255,0.3);
-        border-top-color: white;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin: 0 auto 1rem;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-
-    @keyframes slideDown {
-        from {
-            transform: translateY(-50px);
-            opacity: 0;
-        }
-        to {
-            transform: translateY(0);
-            opacity: 1;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .room-header-card {
-            grid-template-columns: 1fr;
-        }
-
-        .beds-container {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
+}
 </style>
 
 <script>
 let selectedBed = null;
-
-function changeRoomImage(url, thumb) {
-    document.getElementById('mainRoomImage').src = url;
-    document.querySelectorAll('.room-thumb').forEach(t => t.classList.remove('active'));
-    thumb.classList.add('active');
-}
+let pollInterval = null;
 
 function selectBed(bedCard) {
-    if (bedCard.classList.contains('bed-unavailable') || bedCard.classList.contains('bed-reserved')) {
+    if (bedCard.classList.contains('bed-unavailable')) {
         return;
     }
-
     document.querySelectorAll('.bed-card').forEach(card => card.classList.remove('selected'));
     bedCard.classList.add('selected');
     selectedBed = bedCard;
 }
 
 function confirmBedSelection(bedId, bedNumber) {
+    {% if not has_approved_application %}
+        alert('You need an approved hostel application before booking a bed.');
+        return;
+    {% endif %}
+    
+    {% if has_existing_allocation %}
+        alert('You already have an active hostel allocation. You cannot book multiple beds.');
+        return;
+    {% endif %}
+    
     document.getElementById('selectedBedId').value = bedId;
     document.getElementById('selectedBedNumber').textContent = 'Bed ' + bedNumber;
     document.getElementById('paymentModal').style.display = 'block';
@@ -681,38 +676,29 @@ function closePaymentModal() {
     document.getElementById('paymentModal').style.display = 'none';
 }
 
-// Handle payment form submission
 document.getElementById('paymentForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    const formData = new FormData(this);
     const bedId = document.getElementById('selectedBedId').value;
-    const phoneNumber = document.getElementById('phoneNumber').value;
     
-    if (!bedId || !phoneNumber) {
-        alert('Please fill in all required fields');
+    if (!document.getElementById('termsCheck').checked) {
+        alert('Please accept the terms and conditions');
         return;
     }
     
-    // Show loading
     document.getElementById('loadingOverlay').style.display = 'block';
     closePaymentModal();
     
     try {
         const response = await fetch('{% url "reserve_bed" 0 %}'.replace('0', bedId), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': '{{ csrf_token }}'
-            },
-            body: new URLSearchParams({
-                'phone_number': phoneNumber
-            })
+            body: formData
         });
         
         const data = await response.json();
         
         if (data.success) {
-            // Start polling for payment status
             pollPaymentStatus(data.reservation_id, data.checkout_request_id);
         } else {
             document.getElementById('loadingOverlay').style.display = 'none';
@@ -727,83 +713,51 @@ document.getElementById('paymentForm').addEventListener('submit', async function
 
 function pollPaymentStatus(reservationId, checkoutRequestId) {
     let attempts = 0;
-    const maxAttempts = 30; // Poll for 2 minutes (30 * 4 seconds)
+    const maxAttempts = 40; // 3 minutes
     
-    const interval = setInterval(async () => {
+    pollInterval = setInterval(async () => {
         attempts++;
         
+        document.getElementById('paymentStatus').textContent = 
+            `Checking payment status... (${attempts}/${maxAttempts})`;
+        
         try {
-            const response = await fetch('{% url "check_payment_status" "00000000-0000-0000-0000-000000000000" %}'.replace('00000000-0000-0000-0000-000000000000', reservationId));
+            const response = await fetch(
+                '{% url "check_payment_status" "00000000-0000-0000-0000-000000000000" %}'
+                    .replace('00000000-0000-0000-0000-000000000000', reservationId)
+            );
             const data = await response.json();
             
             if (data.success) {
-                if (data.reservation_status === 'confirmed') {
-                    // Payment successful
-                    clearInterval(interval);
+                if (data.reservation_status === 'confirmed' && data.payment_status === 'success') {
+                    clearInterval(pollInterval);
                     document.getElementById('loadingOverlay').style.display = 'none';
-                    showSuccessMessage();
-                } else if (data.reservation_status === 'cancelled' || data.is_expired) {
-                    // Payment failed or expired
-                    clearInterval(interval);
+                    showSuccessModal(data.mpesa_receipt, data.amount);
+                } else if (data.payment_status === 'failed' || data.is_expired) {
+                    clearInterval(pollInterval);
                     document.getElementById('loadingOverlay').style.display = 'none';
-                    alert('Payment failed or timed out. Please try again.');
+                    alert('Payment failed or expired. Please try again.');
+                    location.reload();
                 }
             }
             
             if (attempts >= maxAttempts) {
-                clearInterval(interval);
+                clearInterval(pollInterval);
                 document.getElementById('loadingOverlay').style.display = 'none';
-                alert('Payment verification timed out. Please check your application status.');
+                alert('Payment verification timed out. Please check your email or contact support.');
             }
         } catch (error) {
-            console.error('Error checking payment status:', error);
+            console.error('Error:', error);
         }
-    }, 4000); // Check every 4 seconds
+    }, 5000);
 }
 
-function showSuccessMessage() {
-    const successHtml = `
-        <div style="text-align: center; padding: 3rem;">
-            <div style="font-size: 4rem; color: #2E7D32; margin-bottom: 1rem;">
-                <i class="ri-checkbox-circle-line"></i>
-            </div>
-            <h2 style="color: #2E7D32;">Payment Successful!</h2>
-            <p style="font-size: 1.25rem; margin: 1rem 0;">Your bed has been successfully reserved.</p>
-            <p>You will receive an SMS confirmation with your booking details.</p>
-            <div style="margin-top: 2rem;">
-                <a href="{% url 'my_hostel_allocation' %}" class="btn btn-primary btn-lg">
-                    View My Allocation
-                </a>
-            </div>
-        </div>
-    `;
-    
-    document.querySelector('.room-detail-container').innerHTML = successHtml;
+function showSuccessModal(receiptNumber, amount) {
+    document.getElementById('receiptNumber').textContent = receiptNumber || 'Processing...';
+    document.getElementById('amountPaid').textContent = parseFloat(amount).toFixed(2);
+    document.getElementById('successModal').style.display = 'block';
 }
 
-// Update countdown timers
-function updateCountdowns() {
-    document.querySelectorAll('.countdown').forEach(element => {
-        const expiry = new Date(element.dataset.expiry);
-        const now = new Date();
-        const diff = expiry - now;
-        
-        if (diff > 0) {
-            const minutes = Math.floor(diff / 60000);
-            const seconds = Math.floor((diff % 60000) / 1000);
-            element.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-        } else {
-            element.textContent = 'Expired';
-            element.closest('.bed-card').classList.remove('bed-reserved');
-        }
-    });
-}
-
-// Update countdowns every second
-setInterval(updateCountdowns, 1000);
-updateCountdowns();
-
-// Close modal on outside click
 window.onclick = function(event) {
     const modal = document.getElementById('paymentModal');
     if (event.target === modal) {
