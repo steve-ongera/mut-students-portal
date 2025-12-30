@@ -161,5 +161,12 @@ urlpatterns = [
     path('materials/view/<int:material_id>/', views.view_material, name='view_material'),
     path('materials/comment/<int:material_id>/', views.add_material_comment, name='add_material_comment'),
     path('materials/unit/<int:enrollment_id>/', views.unit_materials_view, name='unit_materials_view'),
+    
+    # Profile Management
+    path('profile/', views.student_profile_view, name='student_profile_view'),
+    path('profile/update/', views.student_profile_update, name='student_profile_update'),
+    path('profile/change-password/', views.student_change_password, name='student_change_password'),
+    path('profile/delete-picture/', views.student_delete_profile_picture, name='student_delete_profile_picture'),
+
 
 ]
