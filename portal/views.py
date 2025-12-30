@@ -5839,3 +5839,146 @@ def unit_materials_view(request, enrollment_id):
     }
     
     return render(request, 'student/unit_materials.html', context)
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from .models import Student, User
+from .forms import StudentProfileUpdateForm, StudentContactUpdateForm
+import re
+
+@login_required
+def student_profile_view(request):
+    """View student profile"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+    
+    context = {
+        'student': student,
+        'user': request.user,
+    }
+    return render(request, 'student/profile/profile_view.html', context)
+
+
+@login_required
+def student_profile_update(request):
+    """Update student profile (limited fields)"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+    
+    if request.method == 'POST':
+        # Fields that students can update
+        allowed_fields = [
+            'phone_number',
+            'profile_picture',
+            'current_address',
+            'emergency_contact_name',
+            'emergency_contact_phone',
+            'emergency_contact_relationship',
+            'sponsor_name',
+            'sponsor_phone',
+            'sponsor_email',
+        ]
+        
+        try:
+            with transaction.atomic():
+                # Update User fields (limited)
+                if 'phone_number' in request.POST:
+                    phone = request.POST.get('phone_number', '').strip()
+                    if phone:
+                        # Validate phone number format
+                        if not re.match(r'^[0-9+\-() ]{10,15}$', phone):
+                            raise ValidationError("Invalid phone number format.")
+                        request.user.phone_number = phone
+                
+                # Update profile picture
+                if 'profile_picture' in request.FILES:
+                    request.user.profile_picture = request.FILES['profile_picture']
+                
+                request.user.save()
+                
+                # Update Student fields
+                student.current_address = request.POST.get('current_address', '').strip()
+                student.emergency_contact_name = request.POST.get('emergency_contact_name', '').strip()
+                student.emergency_contact_phone = request.POST.get('emergency_contact_phone', '').strip()
+                student.emergency_contact_relationship = request.POST.get('emergency_contact_relationship', '').strip()
+                student.sponsor_name = request.POST.get('sponsor_name', '').strip()
+                student.sponsor_phone = request.POST.get('sponsor_phone', '').strip()
+                student.sponsor_email = request.POST.get('sponsor_email', '').strip()
+                
+                student.save()
+                
+                messages.success(request, "Profile updated successfully!")
+                return redirect('student_profile_view')
+                
+        except ValidationError as e:
+            messages.error(request, str(e))
+        except Exception as e:
+            messages.error(request, f"Error updating profile: {str(e)}")
+    
+    context = {
+        'student': student,
+        'user': request.user,
+    }
+    return render(request, 'student/profile/profile_update.html', context)
+
+
+@login_required
+def student_change_password(request):
+    """Change student password"""
+    try:
+        student = request.user.student_profile
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+    
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Important: Update session to prevent logout
+            update_session_auth_hash(request, user)
+            
+            messages.success(request, "Your password has been changed successfully!")
+            return redirect('student_profile_view')
+        else:
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, error)
+    else:
+        form = PasswordChangeForm(request.user)
+    
+    context = {
+        'form': form,
+        'student': student,
+    }
+    return render(request, 'student/profile/change_password.html', context)
+
+
+@login_required
+def student_delete_profile_picture(request):
+    """Delete student profile picture"""
+    if request.method == 'POST':
+        try:
+            if request.user.profile_picture:
+                request.user.profile_picture.delete()
+                request.user.profile_picture = None
+                request.user.save()
+                messages.success(request, "Profile picture deleted successfully!")
+            else:
+                messages.info(request, "No profile picture to delete.")
+        except Exception as e:
+            messages.error(request, f"Error deleting profile picture: {str(e)}")
+    
+    return redirect('student_profile_update')

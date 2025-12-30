@@ -405,3 +405,86 @@ class LecturerForm(forms.ModelForm):
                 )
         
         return cleaned_data
+    
+    
+
+# forms.py
+from django import forms
+from django.core.validators import RegexValidator
+from .models import Student, User
+
+phone_validator = RegexValidator(
+    regex=r'^[0-9+\-() ]{10,15}$',
+    message="Phone number must be 10-15 digits and can contain +, -, (), and spaces."
+)
+
+class StudentProfileUpdateForm(forms.ModelForm):
+    """Form for updating student profile"""
+    phone_number = forms.CharField(
+        max_length=15,
+        required=False,
+        validators=[phone_validator],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., +254712345678'
+        })
+    )
+    
+    profile_picture = forms.ImageField(
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/*'
+        })
+    )
+    
+    class Meta:
+        model = User
+        fields = ['phone_number', 'profile_picture']
+
+
+class StudentContactUpdateForm(forms.ModelForm):
+    """Form for updating student contact information"""
+    
+    class Meta:
+        model = Student
+        fields = [
+            'current_address',
+            'emergency_contact_name',
+            'emergency_contact_phone',
+            'emergency_contact_relationship',
+            'sponsor_name',
+            'sponsor_phone',
+            'sponsor_email',
+        ]
+        widgets = {
+            'current_address': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Enter your current address'
+            }),
+            'emergency_contact_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Emergency contact name'
+            }),
+            'emergency_contact_phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Emergency contact phone'
+            }),
+            'emergency_contact_relationship': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Relationship (e.g., Mother, Father)'
+            }),
+            'sponsor_name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Sponsor/Guardian name'
+            }),
+            'sponsor_phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Sponsor phone number'
+            }),
+            'sponsor_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Sponsor email address'
+            }),
+        }
