@@ -891,6 +891,346 @@ class HostelAllocation(models.Model):
         unique_together = ('student', 'academic_year', 'semester')
         ordering = ['-allocation_date']
 
+# ============= ENHANCED HOSTEL MANAGEMENT MODELS =============
+# Add these models to your existing models.py file
+
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from decimal import Decimal
+import uuid
+
+class HostelImage(models.Model):
+    """Images for hostels"""
+    hostel = models.ForeignKey('Hostel', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='hostel_images/')
+    caption = models.CharField(max_length=200, blank=True)
+    is_primary = models.BooleanField(default=False)
+    display_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'hostel_images'
+        ordering = ['display_order', '-is_primary']
+
+    def __str__(self):
+        return f"{self.hostel.name} - Image {self.id}"
+
+
+class HostelRoomImage(models.Model):
+    """Images for hostel rooms"""
+    room = models.ForeignKey('HostelRoom', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='room_images/')
+    caption = models.CharField(max_length=200, blank=True)
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'hostel_room_images'
+        ordering = ['-is_primary', '-created_at']
+
+    def __str__(self):
+        return f"{self.room.hostel.code} - Room {self.room.room_number} Image"
+
+
+class BedReservation(models.Model):
+    """Temporary bed reservations during booking process"""
+    RESERVATION_STATUS = (
+        ('pending', 'Pending Payment'),
+        ('confirmed', 'Payment Confirmed'),
+        ('expired', 'Expired'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    reservation_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='bed_reservations')
+    bed = models.ForeignKey('HostelBed', on_delete=models.CASCADE, related_name='reservations')
+    application = models.ForeignKey('HostelApplication', on_delete=models.CASCADE, 
+                                   related_name='bed_reservations', null=True)
+    
+    # Reservation details
+    reserved_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()  # 15 minutes from reservation
+    status = models.CharField(max_length=20, choices=RESERVATION_STATUS, default='pending')
+    
+    # Payment details
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_phone = models.CharField(max_length=15)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        """Validate that bed is available"""
+        if self.bed.status != 'available':
+            raise ValidationError(f'Bed {self.bed.bed_number} is not available.')
+        
+        # Check for existing active reservation
+        existing = BedReservation.objects.filter(
+            bed=self.bed,
+            status='pending',
+            expires_at__gt=timezone.now()
+        ).exclude(pk=self.pk)
+        
+        if existing.exists():
+            raise ValidationError('This bed is currently reserved by another student.')
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            # Set expiration to 15 minutes from now
+            self.expires_at = timezone.now() + timezone.timedelta(minutes=15)
+        
+        self.full_clean()
+        
+        # Update bed status
+        if self.status == 'pending':
+            self.bed.status = 'reserved'
+            self.bed.save()
+        elif self.status == 'confirmed':
+            self.bed.status = 'occupied'
+            self.bed.save()
+        elif self.status in ['expired', 'cancelled']:
+            self.bed.status = 'available'
+            self.bed.save()
+        
+        super().save(*args, **kwargs)
+
+    def is_expired(self):
+        """Check if reservation has expired"""
+        return timezone.now() > self.expires_at and self.status == 'pending'
+
+    class Meta:
+        db_table = 'bed_reservations'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['bed', 'status']),
+            models.Index(fields=['expires_at', 'status']),
+        ]
+
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.bed} - {self.status}"
+
+
+class MpesaPayment(models.Model):
+    """Track M-Pesa STK Push payments"""
+    PAYMENT_STATUS = (
+        ('initiated', 'Initiated'),
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    # Unique identifiers
+    merchant_request_id = models.CharField(max_length=100, unique=True)
+    checkout_request_id = models.CharField(max_length=100, unique=True)
+    
+    # Payment details
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='mpesa_payments')
+    phone_number = models.CharField(max_length=15)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    account_reference = models.CharField(max_length=100)  # e.g., "HOSTEL-APP-123"
+    transaction_desc = models.CharField(max_length=200)
+    
+    # Response from M-Pesa
+    mpesa_receipt_number = models.CharField(max_length=100, blank=True)
+    transaction_date = models.DateTimeField(null=True, blank=True)
+    result_code = models.CharField(max_length=10, blank=True)
+    result_desc = models.TextField(blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='initiated')
+    
+    # Relations
+    bed_reservation = models.ForeignKey(BedReservation, on_delete=models.SET_NULL, 
+                                       null=True, blank=True, related_name='mpesa_payments')
+    hostel_application = models.ForeignKey('HostelApplication', on_delete=models.SET_NULL,
+                                          null=True, blank=True, related_name='mpesa_payments')
+    
+    # Timestamps
+    initiated_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'mpesa_payments'
+        ordering = ['-initiated_at']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['checkout_request_id']),
+            models.Index(fields=['mpesa_receipt_number']),
+        ]
+
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.amount} - {self.status}"
+
+
+class SMSNotification(models.Model):
+    """Track SMS notifications sent to students"""
+    SMS_TYPE = (
+        ('booking_confirmation', 'Booking Confirmation'),
+        ('payment_success', 'Payment Success'),
+        ('payment_failed', 'Payment Failed'),
+        ('allocation_notice', 'Allocation Notice'),
+        ('reminder', 'Reminder'),
+    )
+    
+    STATUS = (
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('failed', 'Failed'),
+    )
+    
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='sms_notifications')
+    phone_number = models.CharField(max_length=15)
+    sms_type = models.CharField(max_length=30, choices=SMS_TYPE)
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS, default='pending')
+    
+    # External SMS service response
+    message_id = models.CharField(max_length=100, blank=True)
+    response = models.TextField(blank=True)
+    
+    # Relations
+    mpesa_payment = models.ForeignKey(MpesaPayment, on_delete=models.SET_NULL, 
+                                     null=True, blank=True, related_name='sms_notifications')
+    hostel_allocation = models.ForeignKey('HostelAllocation', on_delete=models.SET_NULL,
+                                         null=True, blank=True, related_name='sms_notifications')
+    
+    sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'sms_notifications'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.sms_type} - {self.status}"
+
+
+class HostelReview(models.Model):
+    """Student reviews for hostels"""
+    hostel = models.ForeignKey('Hostel', on_delete=models.CASCADE, related_name='reviews')
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='hostel_reviews')
+    allocation = models.ForeignKey('HostelAllocation', on_delete=models.CASCADE, 
+                                  related_name='reviews')
+    
+    # Ratings (1-5 stars)
+    cleanliness_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    facilities_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    security_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    management_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    overall_rating = models.DecimalField(max_digits=3, decimal_places=2)
+    
+    # Review
+    title = models.CharField(max_length=200)
+    review = models.TextField()
+    
+    # Moderation
+    is_approved = models.BooleanField(default=False)
+    is_featured = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate overall rating
+        self.overall_rating = (
+            self.cleanliness_rating + 
+            self.facilities_rating + 
+            self.security_rating + 
+            self.management_rating
+        ) / 4.0
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'hostel_reviews'
+        ordering = ['-created_at']
+        unique_together = ('student', 'allocation')
+
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.hostel.name} - {self.overall_rating}★"
+
+
+class HostelMaintenanceRequest(models.Model):
+    """Maintenance requests from students"""
+    REQUEST_TYPE = (
+        ('plumbing', 'Plumbing'),
+        ('electrical', 'Electrical'),
+        ('furniture', 'Furniture'),
+        ('cleaning', 'Cleaning'),
+        ('security', 'Security'),
+        ('other', 'Other'),
+    )
+    
+    STATUS = (
+        ('pending', 'Pending'),
+        ('acknowledged', 'Acknowledged'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    PRIORITY = (
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    )
+    
+    request_number = models.CharField(max_length=50, unique=True)
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, 
+                               related_name='maintenance_requests')
+    allocation = models.ForeignKey('HostelAllocation', on_delete=models.CASCADE,
+                                  related_name='maintenance_requests')
+    
+    request_type = models.CharField(max_length=20, choices=REQUEST_TYPE)
+    priority = models.CharField(max_length=10, choices=PRIORITY, default='medium')
+    subject = models.CharField(max_length=200)
+    description = models.TextField()
+    image = models.ImageField(upload_to='maintenance_requests/', null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS, default='pending')
+    assigned_to = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='assigned_maintenance_requests')
+    
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    resolution_notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.request_number:
+            # Generate request number: MR-YYYY-NNNN
+            from django.db.models import Max
+            year = timezone.now().year
+            last_request = HostelMaintenanceRequest.objects.filter(
+                request_number__startswith=f'MR-{year}-'
+            ).aggregate(Max('id'))
+            
+            next_id = (last_request['id__max'] or 0) + 1
+            self.request_number = f'MR-{year}-{next_id:04d}'
+        
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'hostel_maintenance_requests'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['status', 'priority']),
+        ]
+
+    def __str__(self):
+        return f"{self.request_number} - {self.subject}"
+    
 # ============= LIBRARY MANAGEMENT =============
 class BookCategory(models.Model):
     """Library book categories"""
