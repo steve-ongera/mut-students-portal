@@ -1,148 +1,710 @@
-
 {% extends 'admin/admin_base.html' %}
 {% load static %}
 
 {% block title %}{% if is_update %}Edit Unit{% else %}Add New Unit{% endif %}{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}{% if is_update %}Edit Unit{% else %}Add New Unit{% endif %}{% endblock %}
 {% block page_subtitle %}{% if is_update %}Update unit information{% else %}Create a new course unit{% endif %}{% endblock %}
 
 {% block content %}
-<div class="content-card">
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'units_list' %}">Units</a></li>
+        <li class="breadcrumb-item active" aria-current="page">
+            {% if is_update %}Edit Unit{% else %}Add New Unit{% endif %}
+        </li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">
+                    {% if is_update %}
+                    <i class="ri-edit-line me-2"></i>Edit Unit
+                    {% else %}
+                    <i class="ri-add-line me-2"></i>Add New Unit
+                    {% endif %}
+                </h1>
+                <p class="text-muted mb-0">
+                    {% if is_update %}Update unit information and prerequisites{% else %}Create a new course unit for your institution{% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
     <form method="post" id="unitForm">
         {% csrf_token %}
         
-        <div class="row">
+        <div class="row g-4">
             <!-- Left Column -->
-            <div class="col-md-6">
-                <!-- Basic Information -->
-                <h5 class="mb-3">
-                    <i class="ri-information-line me-2"></i>Basic Information
-                </h5>
-                
-                <div class="mb-3">
-                    <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
-                    <select class="form-select" id="department" name="department" required>
-                        <option value="">Select Department</option>
-                        {% for department in departments %}
-                        <option value="{{ department.id }}" {% if unit and unit.department.id == department.id %}selected{% endif %}>
-                            {{ department.code }} - {{ department.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="code" class="form-label">Unit Code <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="code" name="code" 
-                           value="{% if unit %}{{ unit.code }}{% endif %}" 
-                           placeholder="e.g., BIT 1101" required>
-                    <small class="text-muted">Unit code will be converted to uppercase</small>
-                </div>
-
-                <div class="mb-3">
-                    <label for="name" class="form-label">Unit Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="name" name="name" 
-                           value="{% if unit %}{{ unit.name }}{% endif %}" 
-                           placeholder="e.g., Introduction to Programming" required>
-                </div>
-
-                <div class="mb-3">
-                    <label for="unit_level" class="form-label">Unit Level <span class="text-danger">*</span></label>
-                    <select class="form-select" id="unit_level" name="unit_level" required>
-                        <option value="">Select Level</option>
-                        {% for level_code, level_name in unit_levels %}
-                        <option value="{{ level_code }}" {% if unit and unit.unit_level == level_code %}selected{% endif %}>
-                            {{ level_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="mb-3">
-                    <label for="credit_hours" class="form-label">Credit Hours <span class="text-danger">*</span></label>
-                    <input type="number" class="form-control" id="credit_hours" name="credit_hours" 
-                           value="{% if unit %}{{ unit.credit_hours }}{% else %}3{% endif %}" 
-                           min="1" max="6" required>
-                </div>
-
-                <div class="mb-3">
-                    <div class="form-check form-switch">
-                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
-                               {% if not unit or unit.is_active %}checked{% endif %}>
-                        <label class="form-check-label" for="is_active">
-                            Active Status
-                        </label>
+            <div class="col-lg-6">
+                <!-- Basic Information Card -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-information-line me-2"></i>
+                            Basic Information
+                        </h5>
+                        <div class="card-subtitle">Required unit details</div>
                     </div>
-                    <small class="text-muted">Inactive units won't be available for assignment</small>
+                    
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="department" class="form-label">
+                                Department <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="department" name="department" required>
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" 
+                                        {% if unit and unit.department.id == department.id %}selected{% endif %}>
+                                    {{ department.code }} - {{ department.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">
+                                Department that will manage this unit
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="code" class="form-label">
+                                Unit Code <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="code" 
+                                   name="code" 
+                                   value="{% if unit %}{{ unit.code }}{% endif %}" 
+                                   placeholder="e.g., BIT 1101" 
+                                   required>
+                            <small class="form-text text-muted">
+                                Unit code will be automatically converted to uppercase
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">
+                                Unit Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{% if unit %}{{ unit.name }}{% endif %}" 
+                                   placeholder="e.g., Introduction to Programming" 
+                                   required>
+                            <small class="form-text text-muted">
+                                Full name of the course unit
+                            </small>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="unit_level" class="form-label">
+                                    Unit Level <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="unit_level" name="unit_level" required>
+                                    <option value="">Select Level</option>
+                                    {% for level_code, level_name in unit_levels %}
+                                    <option value="{{ level_code }}" 
+                                            {% if unit and unit.unit_level == level_code %}selected{% endif %}>
+                                        {{ level_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="credit_hours" class="form-label">
+                                    Credit Hours <span class="text-danger">*</span>
+                                </label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="credit_hours" 
+                                       name="credit_hours" 
+                                       value="{% if unit %}{{ unit.credit_hours }}{% else %}3{% endif %}" 
+                                       min="1" 
+                                       max="6" 
+                                       required>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="is_active" 
+                                       name="is_active" 
+                                       {% if not unit or unit.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    <strong>Active Status</strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        Inactive units won't be available for programme assignment
+                                    </small>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Unit Description Card -->
+                <div class="management-card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-file-text-line me-2"></i>
+                            Unit Description
+                        </h5>
+                        <div class="card-subtitle">Optional learning outcomes and content</div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <div class="mb-0">
+                            <label for="description" class="form-label">
+                                Description
+                            </label>
+                            <textarea class="form-control" 
+                                      id="description" 
+                                      name="description" 
+                                      rows="8" 
+                                      placeholder="Enter unit description, learning outcomes, course content, etc.">{% if unit %}{{ unit.description }}{% endif %}</textarea>
+                            <small class="form-text text-muted">
+                                Provide detailed information about the unit content and objectives
+                            </small>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Right Column -->
-            <div class="col-md-6">
-                <h5 class="mb-3">
-                    <i class="ri-links-line me-2"></i>Prerequisites
-                </h5>
-                
-                <div class="mb-3">
-                    <label class="form-label">Select Prerequisites (Optional)</label>
-                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
-                        {% if all_units %}
-                        {% for avail_unit in all_units %}
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" 
-                                   name="prerequisites" 
-                                   value="{{ avail_unit.id }}" 
-                                   id="prereq{{ avail_unit.id }}"
-                                   {% if unit and avail_unit in unit.prerequisites.all %}checked{% endif %}>
-                            <label class="form-check-label" for="prereq{{ avail_unit.id }}">
-                                <strong>{{ avail_unit.code }}</strong> - {{ avail_unit.name }}
-                                <br><small class="text-muted">{{ avail_unit.get_unit_level_display }} • {{ avail_unit.credit_hours }} CH</small>
-                            </label>
+            <div class="col-lg-6">
+                <!-- Prerequisites Card -->
+                <div class="management-card">
+                    <div class="card-header">
+                        <h5 class="card-title">
+                            <i class="ri-links-line me-2"></i>
+                            Prerequisites Management
+                        </h5>
+                        <div class="card-subtitle">
+                            {% if all_units %}
+                            Select units required before this one
+                            {% else %}
+                            No other units available
+                            {% endif %}
                         </div>
-                        {% endfor %}
+                    </div>
+                    
+                    <div class="card-body">
+                        {% if all_units %}
+                        <div class="prerequisites-info mb-3">
+                            <div class="alert alert-info d-flex align-items-start" role="alert">
+                                <i class="ri-information-line fs-5 me-2 mt-1"></i>
+                                <div>
+                                    <strong>About Prerequisites</strong>
+                                    <p class="mb-0 mt-1">
+                                        Students must complete selected prerequisite units before enrolling in this unit. 
+                                        Choose carefully to maintain logical course progression.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="prerequisites-search mb-3">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-search-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control border-start-0 ps-0" 
+                                       id="prerequisiteSearch" 
+                                       placeholder="Search prerequisites...">
+                            </div>
+                        </div>
+                        
+                        <div class="prerequisites-container">
+                            <div class="prerequisites-list">
+                                {% for avail_unit in all_units %}
+                                <div class="prerequisite-item" data-unit-code="{{ avail_unit.code|lower }}" data-unit-name="{{ avail_unit.name|lower }}">
+                                    <div class="form-check">
+                                        <input class="form-check-input" 
+                                               type="checkbox" 
+                                               name="prerequisites" 
+                                               value="{{ avail_unit.id }}" 
+                                               id="prereq{{ avail_unit.id }}"
+                                               {% if unit and avail_unit in unit.prerequisites.all %}checked{% endif %}>
+                                        <label class="form-check-label w-100" for="prereq{{ avail_unit.id }}">
+                                            <div class="prerequisite-header">
+                                                <strong>{{ avail_unit.code }}</strong>
+                                                <div class="prerequisite-badges">
+                                                    <span class="badge bg-info-subtle text-info">
+                                                        {{ avail_unit.get_unit_level_display }}
+                                                    </span>
+                                                    <span class="badge bg-secondary-subtle text-secondary">
+                                                        {{ avail_unit.credit_hours }} CH
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="prerequisite-name">{{ avail_unit.name }}</div>
+                                            <div class="prerequisite-department">
+                                                <small class="text-muted">
+                                                    <i class="ri-building-line"></i>
+                                                    {{ avail_unit.department.code }}
+                                                </small>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="prerequisites-summary mt-3">
+                            <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+                                <span class="text-muted">Selected Prerequisites:</span>
+                                <span class="badge bg-primary" id="selectedCount">
+                                    {% if unit %}{{ unit.prerequisites.count }}{% else %}0{% endif %}
+                                </span>
+                            </div>
+                        </div>
                         {% else %}
-                        <p class="text-muted mb-0">No other units available</p>
+                        <div class="empty-state-small">
+                            <i class="ri-information-line display-5 text-muted mb-3"></i>
+                            <p class="text-muted mb-0">
+                                No other units available to set as prerequisites. 
+                                Create more units first.
+                            </p>
+                        </div>
                         {% endif %}
                     </div>
-                    <small class="text-muted">Students must complete these units before enrolling in this unit</small>
-                </div>
-
-                <h5 class="mb-3 mt-4">
-                    <i class="ri-file-text-line me-2"></i>Description
-                </h5>
-                
-                <div class="mb-3">
-                    <label for="description" class="form-label">Unit Description (Optional)</label>
-                    <textarea class="form-control" id="description" name="description" rows="6" 
-                              placeholder="Enter unit description, learning outcomes, etc.">{% if unit %}{{ unit.description }}{% endif %}</textarea>
                 </div>
             </div>
         </div>
 
         <!-- Form Actions -->
-        <div class="d-flex justify-content-between mt-4 pt-3 border-top">
-            <a href="{% if unit %}{% url 'unit_detail' unit.pk %}{% else %}{% url 'units_list' %}{% endif %}" 
-               class="btn btn-outline-secondary">
-                <i class="ri-close-line me-1"></i> Cancel
-            </a>
-            <button type="submit" class="btn btn-primary">
-                <i class="ri-save-line me-1"></i> 
-                {% if is_update %}Update Unit{% else %}Create Unit{% endif %}
-            </button>
+        <div class="management-card mt-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% if unit %}{% url 'unit_detail' unit.pk %}{% else %}{% url 'units_list' %}{% endif %}" 
+                       class="btn btn-outline-secondary">
+                        <i class="ri-close-line me-2"></i>
+                        Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-2"></i>
+                        {% if is_update %}Update Unit{% else %}Create Unit{% endif %}
+                    </button>
+                </div>
+            </div>
         </div>
     </form>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 4px;
+        --radius-md: 8px;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.03);
+        --shadow-md: 0 2px 4px rgba(0,0,0,0.04);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+    
+    .management-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    /* Form Controls */
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control,
+    .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.75rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+        outline: none;
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+        display: block;
+    }
+    
+    textarea.form-control {
+        resize: vertical;
+    }
+    
+    /* Form Check (Checkboxes & Switches) */
+    .form-check-input {
+        width: 1.125rem;
+        height: 1.125rem;
+        margin-top: 0.125rem;
+        cursor: pointer;
+        border: 2px solid var(--color-gray-300);
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .form-switch .form-check-input {
+        width: 2rem;
+        height: 1.125rem;
+    }
+    
+    /* Prerequisites Container */
+    .prerequisites-container {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem;
+        background: var(--color-gray-100);
+    }
+    
+    .prerequisites-list {
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 0.5rem;
+    }
+    
+    .prerequisite-item {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        padding: 0.75rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .prerequisite-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .prerequisite-item:hover {
+        background: var(--color-gray-100);
+        transform: translateX(2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .prerequisite-item .form-check {
+        margin: 0;
+    }
+    
+    .prerequisite-item .form-check-input {
+        margin-top: 0.25rem;
+    }
+    
+    .prerequisite-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.375rem;
+    }
+    
+    .prerequisite-header strong {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .prerequisite-badges {
+        display: flex;
+        gap: 0.375rem;
+    }
+    
+    .prerequisite-name {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.375rem;
+        line-height: 1.3;
+    }
+    
+    .prerequisite-department {
+        font-size: 0.75rem;
+    }
+    
+    /* Prerequisites Search */
+    .prerequisites-search .input-group {
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+        border: 1px solid var(--color-gray-300);
+    }
+    
+    .prerequisites-search .input-group-text {
+        border: none;
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .prerequisites-search .form-control {
+        border: none;
+        padding: 0.5rem 0.75rem 0.5rem 0;
+    }
+    
+    .prerequisites-search .form-control:focus {
+        box-shadow: none;
+    }
+    
+    /* Empty State */
+    .empty-state-small {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    /* Alert */
+    .alert {
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+    }
+    
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: #0d47a1;
+    }
+    
+    /* Badge Styles */
+    .badge {
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.75rem;
+    }
+    
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1); }
+    .bg-primary { background-color: var(--color-primary); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        border: 1px solid transparent;
+    }
+    
+    .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+        color: white;
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        border-color: var(--color-gray-600);
+        background: var(--color-gray-600);
+        color: white;
+    }
+    
+    /* Responsive */
+    @media (max-width: 992px) {
+        .prerequisites-list {
+            max-height: 300px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .prerequisite-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+    }
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('unitForm');
     const codeInput = document.getElementById('code');
+    const prerequisiteCheckboxes = document.querySelectorAll('input[name="prerequisites"]');
+    const selectedCountBadge = document.getElementById('selectedCount');
+    const searchInput = document.getElementById('prerequisiteSearch');
     
     // Auto-uppercase unit code
     if (codeInput) {
         codeInput.addEventListener('input', function() {
             this.value = this.value.toUpperCase();
+        });
+    }
+    
+    // Update selected prerequisites count
+    function updatePrerequisiteCount() {
+        const checkedCount = document.querySelectorAll('input[name="prerequisites"]:checked').length;
+        if (selectedCountBadge) {
+            selectedCountBadge.textContent = checkedCount;
+        }
+    }
+    
+    // Initialize count
+    updatePrerequisiteCount();
+    
+    // Add change listeners to checkboxes
+    prerequisiteCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updatePrerequisiteCount);
+    });
+    
+    // Search functionality for prerequisites
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.prerequisite-item');
+            
+            items.forEach(item => {
+                const code = item.getAttribute('data-unit-code');
+                const name = item.getAttribute('data-unit-name');
+                
+                if (code.includes(searchTerm) || name.includes(searchTerm)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         });
     }
     
@@ -152,13 +714,64 @@ document.addEventListener('DOMContentLoaded', function() {
         const code = document.getElementById('code').value;
         const name = document.getElementById('name').value;
         const level = document.getElementById('unit_level').value;
+        const creditHours = document.getElementById('credit_hours').value;
         
-        if (!department || !code || !name || !level) {
+        // Check required fields
+        if (!department || !code || !name || !level || !creditHours) {
             e.preventDefault();
             alert('Please fill in all required fields.');
+            
+            // Focus on first empty required field
+            if (!department) document.getElementById('department').focus();
+            else if (!code) document.getElementById('code').focus();
+            else if (!name) document.getElementById('name').focus();
+            else if (!level) document.getElementById('unit_level').focus();
+            else if (!creditHours) document.getElementById('credit_hours').focus();
+            
             return false;
         }
+        
+        // Validate credit hours range
+        const creditValue = parseInt(creditHours);
+        if (creditValue < 1 || creditValue > 6) {
+            e.preventDefault();
+            alert('Credit hours must be between 1 and 6.');
+            document.getElementById('credit_hours').focus();
+            return false;
+        }
+        
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="ri-loader-4-line animate-spin me-2"></i>Saving...';
+        
+        // Re-enable button if there's an error (backend validation)
+        setTimeout(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        }, 3000);
     });
+    
+    // Smooth scroll to validation errors
+    const errorMessages = document.querySelectorAll('.alert-danger');
+    if (errorMessages.length > 0) {
+        errorMessages[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 });
+
+// Loading animation CSS
+const style = document.createElement('style');
+style.textContent = `
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
 </script>
 {% endblock %}
