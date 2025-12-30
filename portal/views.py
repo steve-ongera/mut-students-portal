@@ -1604,7 +1604,6 @@ def semester_report_history(request):
 
 
 # ============= UNIT ENROLLMENT VIEWS =============
-
 @login_required
 def unit_enrollment_view(request):
     """View for students to enroll in units"""
@@ -1636,26 +1635,33 @@ def unit_enrollment_view(request):
         semester=current_semester
     ).first()
     
-    if not enrollment_period or not enrollment_period.is_enrollment_open():
+    if not enrollment_period:
+        messages.error(request, 'No enrollment period configured for this semester.')
+        return redirect('student_dashboard')
+    
+    # Check if enrollment is open
+    is_enrollment_open = enrollment_period.is_enrollment_open()
+    is_resit_open = enrollment_period.is_resit_enrollment_open()
+    
+    if not is_enrollment_open and not is_resit_open:
         messages.error(request, 'Unit enrollment is not currently open.')
         return redirect('student_dashboard')
     
-    # Get available units for student's year and semester
+    # Get ALL available units for student's year and semester
+    # (regardless of lecturer allocation)
     available_units = ProgrammeUnit.objects.filter(
         programme=student.programme,
         academic_year=current_semester.academic_year,
         year_of_study=student.current_year,
         semester_number=student.current_semester,
         is_active=True
-    ).select_related('unit', 'programme')
+    ).select_related(
+        'unit', 
+        'unit__department', 
+        'programme'
+    ).prefetch_related('allocations')
     
-    # Filter units that are allocated (have lecturers)
-    available_units = available_units.filter(
-        allocations__semester=current_semester,
-        allocations__status='approved_dean'
-    ).distinct()
-    
-    # Get already enrolled units
+    # Get already enrolled units for this semester
     enrolled_units = UnitEnrollment.objects.filter(
         student=student,
         semester=current_semester,
@@ -1667,18 +1673,39 @@ def unit_enrollment_view(request):
         student=student,
         is_passed=False
     ).exclude(
+        # Don't show units already enrolled
         programme_unit__in=enrolled_units
-    ).select_related('programme_unit', 'programme_unit__unit')
+    ).select_related(
+        'programme_unit', 
+        'programme_unit__unit',
+        'semester'
+    ).order_by('-semester__academic_year__start_date')
     
     # Filter failed units that are offered this semester
     failed_units_offered = []
-    for result in failed_units:
-        if UnitAllocation.objects.filter(
-            programme_unit=result.programme_unit,
-            semester=current_semester,
-            status='approved_dean'
-        ).exists():
-            failed_units_offered.append(result)
+    if is_resit_open:
+        for result in failed_units:
+            # Check if the unit exists in the programme for current semester
+            unit_offered = ProgrammeUnit.objects.filter(
+                programme=student.programme,
+                unit=result.programme_unit.unit,
+                academic_year=current_semester.academic_year,
+                is_active=True
+            ).exists()
+            
+            if unit_offered:
+                failed_units_offered.append(result)
+    
+    # Get fee balance information
+    fee_balance = None
+    try:
+        from .models import FeeBalance
+        fee_balance = FeeBalance.objects.filter(
+            student=student,
+            semester=current_semester
+        ).first()
+    except:
+        pass
     
     context = {
         'student': student,
@@ -1686,73 +1713,142 @@ def unit_enrollment_view(request):
         'semester_report': semester_report,
         'enrollment_period': enrollment_period,
         'available_units': available_units,
-        'enrolled_units': enrolled_units,
+        'enrolled_units': list(enrolled_units),
         'failed_units_offered': failed_units_offered,
+        'is_enrollment_open': is_enrollment_open,
+        'is_resit_open': is_resit_open,
+        'fee_balance': fee_balance,
     }
     
     if request.method == 'POST':
         selected_units = request.POST.getlist('units')
         resit_units = request.POST.getlist('resit_units')
         
+        # Validate that at least one unit is selected
+        if not selected_units and not resit_units:
+            messages.warning(request, 'Please select at least one unit to enroll.')
+            return render(request, 'student/unit_enrollment.html', context)
+        
+        # Check enrollment period again before processing
+        if selected_units and not is_enrollment_open:
+            messages.error(request, 'Normal unit enrollment is not currently open.')
+            return render(request, 'student/unit_enrollment.html', context)
+        
+        if resit_units and not is_resit_open:
+            messages.error(request, 'Resit unit enrollment is not currently open.')
+            return render(request, 'student/unit_enrollment.html', context)
+        
         try:
-            enrolled_count = 0
-            
-            # Enroll in normal units
-            for unit_id in selected_units:
-                programme_unit = get_object_or_404(ProgrammeUnit, id=unit_id)
+            with transaction.atomic():
+                enrolled_count = 0
+                resit_count = 0
                 
-                enrollment = UnitEnrollment(
-                    student=student,
-                    semester_report=semester_report,
-                    programme_unit=programme_unit,
-                    semester=current_semester,
-                    enrollment_type='normal'
-                )
-                enrollment.save()
-                enrolled_count += 1
-            
-            # Enroll in resit units
-            for result_id in resit_units:
-                result = get_object_or_404(SemesterResults, id=result_id, student=student)
+                # Enroll in normal units
+                if selected_units and is_enrollment_open:
+                    for unit_id in selected_units:
+                        programme_unit = get_object_or_404(ProgrammeUnit, id=unit_id)
+                        
+                        # Check if already enrolled
+                        if UnitEnrollment.objects.filter(
+                            student=student,
+                            programme_unit=programme_unit,
+                            semester=current_semester,
+                            status__in=['pending', 'approved']
+                        ).exists():
+                            continue
+                        
+                        # Create enrollment
+                        enrollment = UnitEnrollment(
+                            student=student,
+                            semester_report=semester_report,
+                            programme_unit=programme_unit,
+                            semester=current_semester,
+                            enrollment_type='normal',
+                            status='pending'
+                        )
+                        enrollment.save()
+                        enrolled_count += 1
                 
-                # Create resit exam record
-                resit_exam = ResitExam(
-                    student=student,
-                    original_result=result,
-                    resit_semester=current_semester,
-                    original_semester=result.semester,
-                    original_marks=result.total_marks,
-                    original_grade=result.grade,
-                    original_grade_point=result.grade_point,
-                    resit_fee_amount=Decimal('2000.00'),  # Set appropriate resit fee
-                )
-                resit_exam.save()
+                # Enroll in resit units
+                if resit_units and is_resit_open:
+                    for result_id in resit_units:
+                        result = get_object_or_404(SemesterResults, id=result_id, student=student)
+                        
+                        # Check if already enrolled
+                        if UnitEnrollment.objects.filter(
+                            student=student,
+                            programme_unit=result.programme_unit,
+                            semester=current_semester,
+                            status__in=['pending', 'approved']
+                        ).exists():
+                            continue
+                        
+                        # Check if resit exam already exists
+                        existing_resit = ResitExam.objects.filter(
+                            student=student,
+                            original_result=result,
+                            resit_semester=current_semester
+                        ).first()
+                        
+                        if existing_resit:
+                            resit_exam = existing_resit
+                        else:
+                            # Create resit exam record
+                            resit_exam = ResitExam(
+                                student=student,
+                                original_result=result,
+                                resit_semester=current_semester,
+                                original_semester=result.semester,
+                                original_marks=result.total_marks,
+                                original_grade=result.grade,
+                                original_grade_point=result.grade_point,
+                                resit_fee_amount=Decimal('2000.00'),
+                                status='registered'
+                            )
+                            resit_exam.save()
+                        
+                        # Create enrollment
+                        enrollment = UnitEnrollment(
+                            student=student,
+                            semester_report=semester_report,
+                            programme_unit=result.programme_unit,
+                            semester=current_semester,
+                            enrollment_type='resit',
+                            resit_exam=resit_exam,
+                            status='pending'
+                        )
+                        enrollment.save()
+                        resit_count += 1
                 
-                # Create enrollment
-                enrollment = UnitEnrollment(
-                    student=student,
-                    semester_report=semester_report,
-                    programme_unit=result.programme_unit,
-                    semester=current_semester,
-                    enrollment_type='resit',
-                    resit_exam=resit_exam
-                )
-                enrollment.save()
-                enrolled_count += 1
-            
-            if enrolled_count > 0:
-                messages.success(request, f'Successfully enrolled in {enrolled_count} unit(s).')
-            else:
-                messages.warning(request, 'No units selected for enrollment.')
-            
-            return redirect('unit_enrollment_status')
-            
+                # Success messages
+                if enrolled_count > 0 and resit_count > 0:
+                    messages.success(
+                        request, 
+                        f'Successfully enrolled in {enrolled_count} normal unit(s) and {resit_count} resit unit(s).'
+                    )
+                elif enrolled_count > 0:
+                    messages.success(request, f'Successfully enrolled in {enrolled_count} unit(s).')
+                elif resit_count > 0:
+                    messages.success(
+                        request, 
+                        f'Successfully enrolled in {resit_count} resit unit(s). Total resit fee: Ksh {resit_count * 2000:,}'
+                    )
+                else:
+                    messages.info(request, 'All selected units were already enrolled.')
+                
+                return redirect('unit_enrollment_status')
+                
         except ValidationError as e:
             messages.error(request, str(e))
         except Exception as e:
             messages.error(request, f'Error enrolling in units: {str(e)}')
+            # Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'Unit enrollment error for student {student.registration_number}: {str(e)}')
     
     return render(request, 'student/unit_enrollment.html', context)
+
 
 
 @login_required
