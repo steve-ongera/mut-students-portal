@@ -1,0 +1,508 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Unit Allocations List{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --radius-md: 8px;
+    }
+
+    body {
+        font-family: var(--font-family);
+        background: var(--color-gray-100);
+    }
+
+    .allocations-container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    /* Header */
+    .page-header {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .page-header h4 {
+        margin: 0 0 0.5rem 0;
+        color: var(--color-gray-800);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0;
+        margin: 0;
+    }
+
+    /* Filters */
+    .filters-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control, .form-select {
+        width: 100%;
+        padding: 0.625rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+
+    /* Table */
+    .table-section {
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+    }
+
+    .table-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .allocation-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .allocation-table thead {
+        background: var(--color-gray-100);
+    }
+
+    .allocation-table th {
+        padding: 1rem;
+        text-align: left;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        border-bottom: 2px solid var(--color-gray-300);
+    }
+
+    .allocation-table td {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        font-size: 0.875rem;
+    }
+
+    .allocation-table tbody tr:hover {
+        background: var(--color-gray-100);
+    }
+
+    .unit-code {
+        font-weight: 600;
+        color: var(--color-primary);
+        font-family: 'Courier New', monospace;
+    }
+
+    .status-badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+    }
+
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: #E65100;
+    }
+
+    .status-approved_hod, .status-approved_hos {
+        background: rgba(33, 150, 243, 0.1);
+        color: #1565C0;
+    }
+
+    .status-approved_dean {
+        background: rgba(76, 175, 80, 0.1);
+        color: #2E7D32;
+    }
+
+    .status-rejected {
+        background: rgba(244, 67, 54, 0.1);
+        color: #C62828;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .btn-outline-primary {
+        background: white;
+        border: 1px solid var(--color-primary);
+        color: var(--color-primary);
+    }
+
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    /* Pagination */
+    .pagination-section {
+        padding: 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .pagination {
+        display: flex;
+        gap: 0.5rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .page-link {
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 6px;
+        color: var(--color-gray-800);
+        text-decoration: none;
+    }
+
+    .page-link:hover {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+
+    .page-item.active .page-link {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--color-gray-600);
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Unit Allocations{% endblock %}
+{% block page_subtitle %}View and manage all unit allocations{% endblock %}
+
+{% block content %}
+<div class="allocations-container">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'unit_allocation_dashboard' %}">Allocations</a></li>
+            <li class="breadcrumb-item active">List</li>
+        </ol>
+    </nav>
+
+    <!-- Filters -->
+    <div class="filters-section">
+        <form method="get" id="filterForm">
+            <div class="filters-grid">
+                <div class="form-group">
+                    <label for="semester">Semester</label>
+                    <select name="semester" id="semester" class="form-select">
+                        {% for sem in semesters %}
+                        <option value="{{ sem.id }}" {% if sem.id == semester.id %}selected{% endif %}>
+                            {{ sem.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="school">School</label>
+                    <select name="school" id="school" class="form-select">
+                        <option value="">All Schools</option>
+                        {% for school in schools %}
+                        <option value="{{ school.id }}" {% if selected_school == school.id|stringformat:"s" %}selected{% endif %}>
+                            {{ school.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <select name="department" id="department" class="form-select">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if selected_department == dept.id|stringformat:"s" %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="pending" {% if selected_status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="approved_hod" {% if selected_status == 'approved_hod' %}selected{% endif %}>HOD Approved</option>
+                        <option value="approved_hos" {% if selected_status == 'approved_hos' %}selected{% endif %}>HOS Approved</option>
+                        <option value="approved_dean" {% if selected_status == 'approved_dean' %}selected{% endif %}>Approved</option>
+                        <option value="rejected" {% if selected_status == 'rejected' %}selected{% endif %}>Rejected</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="lecturer">Lecturer</label>
+                    <select name="lecturer" id="lecturer" class="form-select">
+                        <option value="">All Lecturers</option>
+                        {% for lect in lecturers %}
+                        <option value="{{ lect.id }}" {% if selected_lecturer == lect.id|stringformat:"s" %}selected{% endif %}>
+                            {{ lect.user.get_full_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="search">Search</label>
+                    <input type="text" name="search" id="search" class="form-control" 
+                           placeholder="Unit code, name..." value="{{ search }}">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="ri-search-line" style="margin-right: 0.5rem;"></i>
+                    Filter
+                </button>
+                <a href="{% url 'unit_allocation_list' %}" class="btn btn-outline-primary">
+                    <i class="ri-refresh-line" style="margin-right: 0.5rem;"></i>
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Table -->
+    <div class="table-section">
+        <div class="table-header">
+            <div>
+                <h5 style="margin: 0;">Allocations</h5>
+                <small style="color: var(--color-gray-600);">
+                    Showing {{ allocations.start_index }} to {{ allocations.end_index }} of {{ allocations.paginator.count }} results
+                </small>
+            </div>
+            <a href="{% url 'create_unit_allocation' %}" class="btn btn-primary">
+                <i class="ri-add-line" style="margin-right: 0.5rem;"></i>
+                New Allocation
+            </a>
+        </div>
+
+        {% if allocations %}
+        <div class="table-responsive">
+            <table class="allocation-table">
+                <thead>
+                    <tr>
+                        <th>Unit Code</th>
+                        <th>Unit Name</th>
+                        <th>Programme</th>
+                        <th>Lecturer</th>
+                        <th>Status</th>
+                        <th>Year/Sem</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for allocation in allocations %}
+                    <tr>
+                        <td>
+                            <span class="unit-code">{{ allocation.programme_unit.unit.code }}</span>
+                        </td>
+                        <td>{{ allocation.programme_unit.unit.name|truncatewords:6 }}</td>
+                        <td>
+                            <div>
+                                <div style="font-weight: 500;">{{ allocation.programme_unit.programme.code }}</div>
+                                <small style="color: var(--color-gray-600);">
+                                    {{ allocation.programme_unit.programme.department.name }}
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <div style="font-weight: 500;">{{ allocation.lecturer.user.get_full_name }}</div>
+                                <small style="color: var(--color-gray-600);">
+                                    {{ allocation.lecturer.employee_number }}
+                                </small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ allocation.status }}">
+                                {% if allocation.status == 'pending' %}
+                                    <i class="ri-time-line" style="margin-right: 0.25rem;"></i>Pending
+                                {% elif allocation.status == 'approved_hod' %}
+                                    <i class="ri-checkbox-line" style="margin-right: 0.25rem;"></i>HOD Approved
+                                {% elif allocation.status == 'approved_hos' %}
+                                    <i class="ri-checkbox-line" style="margin-right: 0.25rem;"></i>HOS Approved
+                                {% elif allocation.status == 'approved_dean' %}
+                                    <i class="ri-checkbox-circle-fill" style="margin-right: 0.25rem;"></i>Approved
+                                {% elif allocation.status == 'rejected' %}
+                                    <i class="ri-close-circle-line" style="margin-right: 0.25rem;"></i>Rejected
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            Y{{ allocation.programme_unit.year_of_study }} S{{ allocation.programme_unit.semester_number }}
+                        </td>
+                        <td>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <a href="{% url 'unit_allocation_detail' allocation.id %}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-section">
+            <div>
+                Page {{ allocations.number }} of {{ allocations.paginator.num_pages }}
+            </div>
+            <nav>
+                <ul class="pagination">
+                    {% if allocations.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                            First
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ allocations.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                            Previous
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ allocations.number }}</span>
+                    </li>
+
+                    {% if allocations.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ allocations.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                            Next
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ allocations.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                            Last
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="ri-inbox-line"></i>
+            <p>No allocations found</p>
+            <a href="{% url 'create_unit_allocation' %}" class="btn btn-primary">
+                Create First Allocation
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // Auto-submit form on select change
+    document.querySelectorAll('#filterForm select').forEach(select => {
+        select.addEventListener('change', () => {
+            document.getElementById('filterForm').submit();
+        });
+    });
+</script>
+{% endblock %}

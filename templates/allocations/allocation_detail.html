@@ -1,0 +1,504 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Allocation Details{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --font-family: 'Inter', sans-serif;
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --radius-md: 8px;
+    }
+
+    body {
+        font-family: var(--font-family);
+        background: var(--color-gray-100);
+    }
+
+    .detail-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+    }
+
+    .detail-header {
+        background: white;
+        padding: 2rem;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-header h4 {
+        margin: 0 0 1rem 0;
+        color: var(--color-gray-800);
+    }
+
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 12px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: #E65100;
+    }
+
+    .status-approved_hod, .status-approved_hos {
+        background: rgba(33, 150, 243, 0.1);
+        color: #1565C0;
+    }
+
+    .status-approved_dean {
+        background: rgba(76, 175, 80, 0.1);
+        color: #2E7D32;
+    }
+
+    .status-rejected {
+        background: rgba(244, 67, 54, 0.1);
+        color: #C62828;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .info-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+    }
+
+    .info-card-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    .info-value {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        font-weight: 600;
+        text-align: right;
+    }
+
+    .approval-timeline {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        margin-top: 1.5rem;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 1rem;
+        padding: 1rem 0;
+        border-left: 2px solid var(--color-gray-300);
+        padding-left: 1.5rem;
+        position: relative;
+    }
+
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -6px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--color-gray-300);
+    }
+
+    .timeline-item.completed::before {
+        background: var(--color-success);
+    }
+
+    .timeline-item.active::before {
+        background: var(--color-warning);
+    }
+
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+        margin-right: 0.5rem;
+    }
+
+    .btn-success {
+        background: var(--color-success);
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #388E3C;
+    }
+
+    .btn-danger {
+        background: var(--color-danger);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #D32F2F;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+    }
+
+    .btn-outline-secondary {
+        background: white;
+        border: 1px solid var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-600);
+        color: white;
+    }
+
+    .actions-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Allocation Details{% endblock %}
+{% block page_subtitle %}View unit allocation information{% endblock %}
+
+{% block content %}
+<div class="detail-container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'unit_allocation_dashboard' %}">Allocations</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'unit_allocation_list' %}">List</a></li>
+            <li class="breadcrumb-item active">Details</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="detail-header">
+        <div style="display: flex; justify-content: space-between; align-items: start;">
+            <div>
+                <h4>
+                    <span style="color: var(--color-primary); font-family: 'Courier New', monospace;">
+                        {{ allocation.programme_unit.unit.code }}
+                    </span>
+                    - {{ allocation.programme_unit.unit.name }}
+                </h4>
+                <p style="color: var(--color-gray-600); margin: 0;">
+                    {{ allocation.programme_unit.programme.name }} | 
+                    Year {{ allocation.programme_unit.year_of_study }} 
+                    Semester {{ allocation.programme_unit.semester_number }}
+                </p>
+            </div>
+            <div>
+                <span class="status-badge status-{{ allocation.status }}">
+                    {% if allocation.status == 'pending' %}
+                        <i class="ri-time-line" style="margin-right: 0.5rem;"></i>Pending Approval
+                    {% elif allocation.status == 'approved_hod' %}
+                        <i class="ri-checkbox-line" style="margin-right: 0.5rem;"></i>HOD Approved
+                    {% elif allocation.status == 'approved_hos' %}
+                        <i class="ri-checkbox-line" style="margin-right: 0.5rem;"></i>HOS Approved
+                    {% elif allocation.status == 'approved_dean' %}
+                        <i class="ri-checkbox-circle-fill" style="margin-right: 0.5rem;"></i>Fully Approved
+                    {% elif allocation.status == 'rejected' %}
+                        <i class="ri-close-circle-line" style="margin-right: 0.5rem;"></i>Rejected
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="info-grid">
+        <!-- Unit Information -->
+        <div class="info-card">
+            <div class="info-card-title">
+                <i class="ri-book-2-line" style="margin-right: 0.5rem;"></i>
+                Unit Information
+            </div>
+            <div class="info-row">
+                <span class="info-label">Unit Code</span>
+                <span class="info-value">{{ allocation.programme_unit.unit.code }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Unit Name</span>
+                <span class="info-value">{{ allocation.programme_unit.unit.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Credit Hours</span>
+                <span class="info-value">{{ allocation.programme_unit.unit.credit_hours }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Unit Type</span>
+                <span class="info-value">{{ allocation.programme_unit.get_unit_type_display }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Level</span>
+                <span class="info-value">{{ allocation.programme_unit.unit.get_unit_level_display }}</span>
+            </div>
+        </div>
+
+        <!-- Programme Information -->
+        <div class="info-card">
+            <div class="info-card-title">
+                <i class="ri-graduation-cap-line" style="margin-right: 0.5rem;"></i>
+                Programme Information
+            </div>
+            <div class="info-row">
+                <span class="info-label">Programme</span>
+                <span class="info-value">{{ allocation.programme_unit.programme.code }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Department</span>
+                <span class="info-value">{{ allocation.programme_unit.programme.department.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">School</span>
+                <span class="info-value">{{ allocation.programme_unit.programme.department.school.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Year of Study</span>
+                <span class="info-value">Year {{ allocation.programme_unit.year_of_study }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Semester</span>
+                <span class="info-value">Semester {{ allocation.programme_unit.semester_number }}</span>
+            </div>
+        </div>
+
+        <!-- Lecturer Information -->
+        <div class="info-card">
+            <div class="info-card-title">
+                <i class="ri-user-line" style="margin-right: 0.5rem;"></i>
+                Lecturer Information
+            </div>
+            <div class="info-row">
+                <span class="info-label">Name</span>
+                <span class="info-value">{{ allocation.lecturer.user.get_full_name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Employee Number</span>
+                <span class="info-value">{{ allocation.lecturer.employee_number }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Designation</span>
+                <span class="info-value">{{ allocation.lecturer.get_designation_display }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Department</span>
+                <span class="info-value">{{ allocation.lecturer.department.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Email</span>
+                <span class="info-value">{{ allocation.lecturer.user.email }}</span>
+            </div>
+        </div>
+
+        <!-- Allocation Details -->
+        <div class="info-card">
+            <div class="info-card-title">
+                <i class="ri-information-line" style="margin-right: 0.5rem;"></i>
+                Allocation Details
+            </div>
+            <div class="info-row">
+                <span class="info-label">Semester</span>
+                <span class="info-value">{{ allocation.semester.name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Assigned By</span>
+                <span class="info-value">{{ allocation.assigned_by.get_full_name }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Assigned Date</span>
+                <span class="info-value">{{ allocation.created_at|date:"M d, Y" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Max Students</span>
+                <span class="info-value">{{ allocation.max_students|default:"No limit" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Enrolled Students</span>
+                <span class="info-value">{{ enrolled_students }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approval Timeline -->
+    <div class="approval-timeline">
+        <div class="info-card-title">
+            <i class="ri-time-line" style="margin-right: 0.5rem;"></i>
+            Approval Timeline
+        </div>
+
+        <div class="timeline-item completed">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--color-gray-800);">Created</div>
+                <div style="font-size: 0.8125rem; color: var(--color-gray-600);">
+                    By {{ allocation.assigned_by.get_full_name }} on {{ allocation.created_at|date:"M d, Y H:i" }}
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline-item {% if allocation.approved_by_hod %}completed{% elif allocation.status == 'pending' %}active{% endif %}">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--color-gray-800);">HOD Approval</div>
+                {% if allocation.approved_by_hod %}
+                <div style="font-size: 0.8125rem; color: var(--color-success);">
+                    ✓ Approved by {{ allocation.approved_by_hod.get_full_name }}
+                </div>
+                {% else %}
+                <div style="font-size: 0.8125rem; color: var(--color-gray-600);">
+                    Pending HOD approval
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="timeline-item {% if allocation.approved_by_hos %}completed{% elif allocation.status == 'approved_hod' %}active{% endif %}">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--color-gray-800);">HOS Approval</div>
+                {% if allocation.approved_by_hos %}
+                <div style="font-size: 0.8125rem; color: var(--color-success);">
+                    ✓ Approved by {{ allocation.approved_by_hos.get_full_name }}
+                </div>
+                {% else %}
+                <div style="font-size: 0.8125rem; color: var(--color-gray-600);">
+                    Pending HOS approval
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="timeline-item {% if allocation.approved_by_dean %}completed{% elif allocation.status == 'approved_hos' %}active{% endif %}">
+            <div style="flex: 1;">
+                <div style="font-weight: 600; color: var(--color-gray-800);">Dean Approval</div>
+                {% if allocation.approved_by_dean %}
+                <div style="font-size: 0.8125rem; color: var(--color-success);">
+                    ✓ Approved by {{ allocation.approved_by_dean.get_full_name }}
+                </div>
+                {% else %}
+                <div style="font-size: 0.8125rem; color: var(--color-gray-600);">
+                    Pending Dean approval
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Remarks -->
+    {% if allocation.remarks %}
+    <div class="info-card" style="margin-top: 1.5rem;">
+        <div class="info-card-title">
+            <i class="ri-message-2-line" style="margin-right: 0.5rem;"></i>
+            Remarks
+        </div>
+        <div style="padding: 0.5rem 0; white-space: pre-wrap; color: var(--color-gray-800);">
+            {{ allocation.remarks }}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="actions-section">
+        <div class="info-card-title">
+            <i class="ri-settings-line" style="margin-right: 0.5rem;"></i>
+            Actions
+        </div>
+        <div style="margin-top: 1rem;">
+            {% if can_approve %}
+            <a href="{% url 'approve_allocation' allocation.id %}" class="btn btn-success">
+                <i class="ri-checkbox-circle-line" style="margin-right: 0.5rem;"></i>
+                Approve
+            </a>
+            <a href="{% url 'reject_allocation' allocation.id %}" class="btn btn-danger">
+                <i class="ri-close-circle-line" style="margin-right: 0.5rem;"></i>
+                Reject
+            </a>
+            {% endif %}
+
+            {% if allocation.status in 'pending,rejected' and user_role in 'ict_admin,hod,dean' %}
+            <a href="{% url 'edit_unit_allocation' allocation.id %}" class="btn btn-primary">
+                <i class="ri-edit-line" style="margin-right: 0.5rem;"></i>
+                Edit
+            </a>
+            {% endif %}
+
+            {% if allocation.status in 'pending,rejected' and user_role in 'ict_admin,dean' %}
+            <a href="{% url 'delete_unit_allocation' allocation.id %}" class="btn btn-danger">
+                <i class="ri-delete-bin-line" style="margin-right: 0.5rem;"></i>
+                Delete
+            </a>
+            {% endif %}
+
+            <a href="{% url 'unit_allocation_list' %}" class="btn btn-outline-secondary">
+                <i class="ri-arrow-left-line" style="margin-right: 0.5rem;"></i>
+                Back to List
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

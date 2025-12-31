@@ -1,0 +1,252 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Edit Unit Allocation{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --font-family: 'Inter', sans-serif;
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --radius-md: 8px;
+    }
+
+    body {
+        font-family: var(--font-family);
+        background: var(--color-gray-100);
+    }
+
+    .edit-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+    }
+
+    .form-section {
+        background: white;
+        padding: 2rem;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control, .form-select, .form-textarea {
+        width: 100%;
+        padding: 0.625rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-control:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+
+    .info-box {
+        padding: 1rem;
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.3);
+        border-radius: 6px;
+        margin-bottom: 1.5rem;
+    }
+
+    .lecturer-item {
+        padding: 1rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .lecturer-item:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+
+    .lecturer-item.selected {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.1);
+    }
+
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+    }
+
+    .btn-outline-secondary {
+        background: white;
+        border: 1px solid var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-600);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Edit Unit Allocation{% endblock %}
+{% block page_subtitle %}Update allocation details{% endblock %}
+
+{% block content %}
+<div class="edit-container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'unit_allocation_dashboard' %}">Allocations</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'unit_allocation_detail' allocation.id %}">Details</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+        </ol>
+    </nav>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- Current Allocation Info -->
+        <div class="info-box">
+            <div style="font-weight: 600; margin-bottom: 0.5rem;">Current Allocation</div>
+            <div style="font-size: 0.875rem; color: var(--color-gray-800);">
+                <strong>{{ allocation.programme_unit.unit.code }}</strong> - {{ allocation.programme_unit.unit.name }}
+                <br>
+                {{ allocation.programme_unit.programme.name }} | 
+                Year {{ allocation.programme_unit.year_of_study }} 
+                Semester {{ allocation.programme_unit.semester_number }}
+                <br>
+                <strong>Current Lecturer:</strong> {{ allocation.lecturer.user.get_full_name }}
+            </div>
+        </div>
+
+        <!-- Select New Lecturer -->
+        <div class="form-section">
+            <h5 class="section-title">
+                <i class="ri-user-line" style="margin-right: 0.5rem;"></i>
+                Select Lecturer
+            </h5>
+
+            {% if is_common_unit %}
+            <div style="padding: 0.75rem; background: rgba(255, 152, 0, 0.1); border: 1px solid rgba(255, 152, 0, 0.3); 
+                        border-radius: 6px; margin-bottom: 1rem; font-size: 0.875rem; color: #E65100;">
+                <i class="ri-information-line" style="margin-right: 0.5rem;"></i>
+                This is a common unit - lecturers from all departments are available
+            </div>
+            {% endif %}
+
+            <div style="max-height: 400px; overflow-y: auto;">
+                {% for lecturer in lecturers %}
+                <label class="lecturer-item {% if lecturer.id == allocation.lecturer.id %}selected{% endif %}">
+                    <input type="radio" name="lecturer" value="{{ lecturer.id }}" 
+                           {% if lecturer.id == allocation.lecturer.id %}checked{% endif %} required>
+                    <div style="display: inline-block; width: calc(100% - 30px);">
+                        <div style="display: flex; justify-content: space-between;">
+                            <div>
+                                <strong>{{ lecturer.user.get_full_name }}</strong>
+                                <span style="margin-left: 1rem; color: var(--color-gray-600);">
+                                    {{ lecturer.employee_number }}
+                                </span>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
+                            {{ lecturer.get_designation_display }} | 
+                            {{ lecturer.department.name }}
+                        </div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Additional Details -->
+        <div class="form-section">
+            <h5 class="section-title">
+                <i class="ri-settings-line" style="margin-right: 0.5rem;"></i>
+                Additional Details
+            </h5>
+
+            <div class="form-group">
+                <label for="max_students">Maximum Students (Optional)</label>
+                <input type="number" name="max_students" id="max_students" 
+                       class="form-control" min="1" value="{{ allocation.max_students|default:'' }}"
+                       placeholder="e.g., 50">
+                <small style="color: var(--color-gray-600); font-size: 0.8125rem;">
+                    Leave empty for no limit
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="remarks">Remarks (Optional)</label>
+                <textarea name="remarks" id="remarks" class="form-textarea" 
+                          placeholder="Additional notes or special instructions...">{{ allocation.remarks }}</textarea>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="ri-save-line" style="margin-right: 0.5rem;"></i>
+                    Update Allocation
+                </button>
+                <a href="{% url 'unit_allocation_detail' allocation.id %}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,455 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Create Unit Allocation{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --font-family: 'Inter', sans-serif;
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --radius-md: 8px;
+    }
+
+    body {
+        font-family: var(--font-family);
+        background: var(--color-gray-100);
+    }
+
+    .create-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+    }
+
+    .form-section {
+        background: white;
+        padding: 2rem;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control, .form-select, .form-textarea {
+        width: 100%;
+        padding: 0.625rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 6px;
+        font-size: 0.875rem;
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-control:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+
+    .units-list {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 6px;
+    }
+
+    .unit-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .unit-item:hover {
+        background: var(--color-gray-100);
+    }
+
+    .unit-item:last-child {
+        border-bottom: none;
+    }
+
+    .unit-item input[type="radio"] {
+        margin-right: 1rem;
+    }
+
+    .unit-code {
+        font-weight: 600;
+        color: var(--color-primary);
+        font-family: 'Courier New', monospace;
+    }
+
+    .lecturer-item {
+        padding: 1rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .lecturer-item:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+
+    .lecturer-item.selected {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.1);
+    }
+
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+    }
+
+    .btn-outline-secondary {
+        background: white;
+        border: 1px solid var(--color-gray-300);
+        color: var(--color-gray-600);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-600);
+        color: white;
+    }
+
+    .alert {
+        padding: 1rem;
+        border-radius: 6px;
+        margin-bottom: 1rem;
+    }
+
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.3);
+        color: #1565C0;
+    }
+
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid rgba(255, 152, 0, 0.3);
+        color: #E65100;
+    }
+
+    #lecturersSection {
+        display: none;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--color-gray-600);
+    }
+</style>
+{% endblock %}
+
+{% block page_title %}Create Unit Allocation{% endblock %}
+{% block page_subtitle %}Allocate units to lecturers{% endblock %}
+
+{% block content %}
+<div class="create-container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'unit_allocation_dashboard' %}">Allocations</a></li>
+            <li class="breadcrumb-item active">Create</li>
+        </ol>
+    </nav>
+
+    <form method="post" id="allocationForm">
+        {% csrf_token %}
+
+        <!-- Step 1: Filters -->
+        <div class="form-section">
+            <h5 class="section-title">
+                <i class="ri-filter-line" style="margin-right: 0.5rem;"></i>
+                Step 1: Filter Units
+            </h5>
+
+            <div class="filters-grid">
+                <div class="form-group">
+                    <label for="semester">Semester *</label>
+                    <select name="semester_filter" id="semester" class="form-select" required>
+                        {% for sem in semesters %}
+                        <option value="{{ sem.id }}" {% if sem.id == semester.id %}selected{% endif %}>
+                            {{ sem.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="school">School</label>
+                    <select name="school_filter" id="school" class="form-select">
+                        <option value="">All Schools</option>
+                        {% for school in schools %}
+                        <option value="{{ school.id }}" {% if selected_school == school.id|stringformat:"s" %}selected{% endif %}>
+                            {{ school.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <select name="department_filter" id="department" class="form-select">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.id }}" {% if selected_department == dept.id|stringformat:"s" %}selected{% endif %}>
+                            {{ dept.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <button type="button" onclick="applyFilters()" class="btn btn-primary">
+                <i class="ri-filter-line" style="margin-right: 0.5rem;"></i>
+                Apply Filters
+            </button>
+        </div>
+
+        <!-- Step 2: Select Unit -->
+        <div class="form-section">
+            <h5 class="section-title">
+                <i class="ri-book-2-line" style="margin-right: 0.5rem;"></i>
+                Step 2: Select Unit
+            </h5>
+
+            {% if programme_units %}
+            <div class="units-list" id="unitsList">
+                {% for pu in programme_units %}
+                <label class="unit-item">
+                    <input type="radio" name="programme_unit" value="{{ pu.id }}" 
+                           onchange="loadLecturers({{ pu.id }})" required>
+                    <div style="display: inline-block;">
+                        <div>
+                            <span class="unit-code">{{ pu.unit.code }}</span>
+                            <span style="margin-left: 1rem;">{{ pu.unit.name }}</span>
+                            <span style="margin-left: 1rem; padding: 0.25rem 0.5rem; background: rgba(33, 150, 243, 0.1); 
+                                  border-radius: 4px; font-size: 0.75rem; color: #1565C0;">
+                                {{ pu.get_unit_type_display }}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
+                            {{ pu.programme.code }} - {{ pu.programme.department.name }} | 
+                            Year {{ pu.year_of_study }} Semester {{ pu.semester_number }} | 
+                            {{ pu.unit.credit_hours }} Credits
+                        </div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="ri-inbox-line" style="font-size: 3rem; opacity: 0.3;"></i>
+                <p>No unallocated units found. All units for this semester are already allocated.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Step 3: Select Lecturer -->
+        <div class="form-section" id="lecturersSection">
+            <h5 class="section-title">
+                <i class="ri-user-line" style="margin-right: 0.5rem;"></i>
+                Step 3: Select Lecturer
+            </h5>
+
+            <div id="lecturersLoading" style="text-align: center; padding: 2rem; display: none;">
+                <i class="ri-loader-4-line" style="font-size: 2rem; animation: spin 1s linear infinite;"></i>
+                <p>Loading lecturers...</p>
+            </div>
+
+            <div id="unitInfo" class="alert alert-info" style="display: none;"></div>
+
+            <div id="lecturersList"></div>
+        </div>
+
+        <!-- Step 4: Additional Details -->
+        <div class="form-section" id="detailsSection" style="display: none;">
+            <h5 class="section-title">
+                <i class="ri-settings-line" style="margin-right: 0.5rem;"></i>
+                Step 4: Additional Details
+            </h5>
+
+            <input type="hidden" name="semester" value="{{ semester.id }}">
+
+            <div class="form-group">
+                <label for="max_students">Maximum Students (Optional)</label>
+                <input type="number" name="max_students" id="max_students" 
+                       class="form-control" min="1" placeholder="e.g., 50">
+                <small style="color: var(--color-gray-600); font-size: 0.8125rem;">
+                    Leave empty for no limit
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="remarks">Remarks (Optional)</label>
+                <textarea name="remarks" id="remarks" class="form-textarea" 
+                          placeholder="Additional notes or special instructions..."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="ri-save-line" style="margin-right: 0.5rem;"></i>
+                    Create Allocation
+                </button>
+                <a href="{% url 'unit_allocation_list' %}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<script>
+function applyFilters() {
+    const semester = document.getElementById('semester').value;
+    const school = document.getElementById('school').value;
+    const department = document.getElementById('department').value;
+    
+    let url = '{% url "create_unit_allocation" %}?';
+    if (semester) url += `semester=${semester}&`;
+    if (school) url += `school=${school}&`;
+    if (department) url += `department=${department}&`;
+    
+    window.location.href = url;
+}
+
+function loadLecturers(programmeUnitId) {
+    const section = document.getElementById('lecturersSection');
+    const loading = document.getElementById('lecturersLoading');
+    const list = document.getElementById('lecturersList');
+    const unitInfo = document.getElementById('unitInfo');
+    
+    section.style.display = 'block';
+    loading.style.display = 'block';
+    list.innerHTML = '';
+    unitInfo.style.display = 'none';
+    
+    fetch(`{% url 'get_lecturers_ajax' %}?programme_unit_id=${programmeUnitId}`)
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            
+            // Show unit info
+            if (data.unit_info) {
+                unitInfo.innerHTML = `
+                    <strong>${data.unit_info.code}</strong> - ${data.unit_info.name}<br>
+                    <small>Department: ${data.unit_info.department}</small>
+                    ${data.is_common_unit ? '<br><span style="color: #E65100;">⚠ This is a common unit - lecturers from all departments are available</span>' : ''}
+                `;
+                unitInfo.style.display = 'block';
+            }
+            
+            // Display lecturers
+            if (data.lecturers && data.lecturers.length > 0) {
+                data.lecturers.forEach(lecturer => {
+                    const div = document.createElement('label');
+                    div.className = 'lecturer-item';
+                    div.innerHTML = `
+                        <input type="radio" name="lecturer" value="${lecturer.id}" 
+                               onchange="showDetails()" required>
+                        <div style="display: inline-block; width: calc(100% - 30px);">
+                            <div style="display: flex; justify-content: space-between;">
+                                <div>
+                                    <strong>${lecturer.name}</strong>
+                                    <span style="margin-left: 1rem; color: var(--color-gray-600);">
+                                        ${lecturer.employee_number}
+                                    </span>
+                                </div>
+                                <span style="padding: 0.25rem 0.5rem; background: rgba(33, 150, 243, 0.1); 
+                                      border-radius: 4px; font-size: 0.75rem; color: #1565C0;">
+                                    ${lecturer.current_allocations} current allocations
+                                </span>
+                            </div>
+                            <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
+                                ${lecturer.designation} | ${lecturer.department} | ${lecturer.school}
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            } else {
+                list.innerHTML = '<div class="empty-state">No lecturers available</div>';
+            }
+        })
+        .catch(error => {
+            loading.style.display = 'none';
+            list.innerHTML = `<div class="alert alert-warning">Error loading lecturers: ${error}</div>`;
+        });
+}
+
+function showDetails() {
+    document.getElementById('detailsSection').style.display = 'block';
+    document.getElementById('detailsSection').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}
