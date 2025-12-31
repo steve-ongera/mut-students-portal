@@ -7919,6 +7919,7 @@ def unit_allocation_list(request):
         semester = Semester.objects.filter(is_current=True).first()
     
     # Build query
+    # FIXED: Access lecturer profile through the reverse relation
     allocations = UnitAllocation.objects.filter(
         semester=semester
     ).select_related(
@@ -7926,8 +7927,9 @@ def unit_allocation_list(request):
         'programme_unit__programme',
         'programme_unit__programme__department',
         'programme_unit__programme__department__school',
-        'lecturer__user',
-        'lecturer__department',
+        'lecturer',  # lecturer is User
+        'lecturer__lecturer_profile',  # Access Lecturer through reverse relation
+        'lecturer__lecturer_profile__department',  # Access department
         'assigned_by',
         'approved_by_hod',
         'approved_by_hos',
@@ -7956,15 +7958,21 @@ def unit_allocation_list(request):
         allocations = allocations.filter(status=status)
     
     if lecturer_id:
-        allocations = allocations.filter(lecturer_id=lecturer_id)
+        # FIXED: lecturer_id should match the User ID, not Lecturer ID
+        # Need to get the User from Lecturer
+        try:
+            lecturer = Lecturer.objects.get(id=lecturer_id)
+            allocations = allocations.filter(lecturer=lecturer.user)
+        except Lecturer.DoesNotExist:
+            pass
     
     if search:
         allocations = allocations.filter(
             Q(programme_unit__unit__code__icontains=search) |
             Q(programme_unit__unit__name__icontains=search) |
-            Q(lecturer__user__first_name__icontains=search) |
-            Q(lecturer__user__last_name__icontains=search) |
-            Q(lecturer__employee_number__icontains=search)
+            Q(lecturer__first_name__icontains=search) |  # FIXED: lecturer is User
+            Q(lecturer__last_name__icontains=search) |
+            Q(lecturer__lecturer_profile__employee_number__icontains=search)  # FIXED: Access through profile
         )
     
     # Order by
@@ -7979,7 +7987,14 @@ def unit_allocation_list(request):
     semesters = Semester.objects.filter(is_active=True).order_by('-start_date')
     schools = get_user_schools(request.user)
     departments = get_user_departments(request.user)
-    lecturers = get_available_lecturers(request.user)
+    
+    # FIXED: Get lecturers based on user access
+    # Get all lecturers from departments user has access to
+    lecturers = Lecturer.objects.filter(
+        is_active=True,
+        user__is_active=True,
+        department__in=departments
+    ).select_related('user', 'department').order_by('user__first_name', 'user__last_name')
     
     context = {
         'allocations': allocations_page,
@@ -7998,6 +8013,21 @@ def unit_allocation_list(request):
     
     return render(request, 'allocations/allocation_list.html', context)
 
+
+def get_user_schools(user):
+    """Get schools a user has access to"""
+    if user.role == 'ict_admin':
+        return School.objects.all()
+    elif user.role == 'hod':
+        departments = Department.objects.filter(hod=user)
+        school_ids = departments.values_list('school_id', flat=True).distinct()
+        return School.objects.filter(id__in=school_ids)
+    elif user.role == 'hos':
+        return School.objects.filter(head_of_school=user)
+    elif user.role == 'dean':
+        return School.objects.filter(dean=user)
+    else:
+        return School.objects.none()
 
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
