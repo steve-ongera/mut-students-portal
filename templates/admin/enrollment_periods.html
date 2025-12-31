@@ -603,30 +603,62 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[type="datetime-local"]').forEach(input => {
         input.min = today;
     });
+    
+    // Initialize everything
+    setupFormValidation();
+    
+    // Initialize modals
+    const addPeriodModal = document.getElementById('addPeriodModal');
+    const editPeriodModal = document.getElementById('editPeriodModal');
+    const viewPeriodModal = document.getElementById('viewPeriodModal');
+    
+    // Clear add form when modal is hidden
+    if (addPeriodModal) {
+        addPeriodModal.addEventListener('hidden.bs.modal', function() {
+            const form = document.getElementById('addPeriodForm');
+            if (form) {
+                form.reset();
+            }
+        });
+    }
 });
 
 // Utility function to format date for input fields
 function formatDateForInput(dateString) {
     if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toISOString().slice(0, 16);
+    try {
+        const date = new Date(dateString);
+        // Adjust for timezone offset
+        const timezoneOffset = date.getTimezoneOffset() * 60000;
+        const adjustedDate = new Date(date.getTime() - timezoneOffset);
+        return adjustedDate.toISOString().slice(0, 16);
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return '';
+    }
 }
 
 // Utility function to format date for display
 function formatDate(dateString) {
     if (!dateString) return 'Not set';
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+    } catch (error) {
+        console.error('Error formatting date for display:', error);
+        return 'Invalid date';
+    }
 }
 
 // Utility function to get status badge HTML
-function getStatusBadge(status, type) {
+function getStatusBadge(status) {
     const badges = {
         'active': '<span class="status-badge status-active"><i class="ri-checkbox-circle-fill me-1"></i>Active</span>',
         'inactive': '<span class="status-badge status-inactive"><i class="ri-close-circle-fill me-1"></i>Inactive</span>',
@@ -636,197 +668,357 @@ function getStatusBadge(status, type) {
     return badges[status] || '';
 }
 
+// Utility function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Show alert/notification
+function showAlert(type, message) {
+    // Remove any existing alerts first
+    const existingAlert = document.querySelector('.custom-alert');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+    
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `custom-alert alert alert-${type === 'error' ? 'danger' : 'success'} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        <strong>${type === 'error' ? 'Error!' : 'Success!'}</strong> ${escapeHtml(message)}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Show loading state in modal
+function showLoading(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    
+    const modalBody = modal.querySelector('.modal-body');
+    if (modalBody) {
+        modalBody.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading...</p>
+            </div>
+        `;
+    }
+}
+
 // Add new enrollment period
-document.getElementById('addPeriodForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="ri-loader-4-line me-1"></i> Creating...';
-    submitBtn.disabled = true;
-    
-    const formData = new FormData(this);
-    const data = {
-        semester_id: formData.get('semester_id'),
-        start_date: formData.get('start_date'),
-        end_date: formData.get('end_date'),
-        resit_start_date: formData.get('resit_start_date') || null,
-        resit_end_date: formData.get('resit_end_date') || null,
-        is_active: formData.get('is_active') === 'on',
-        remarks: formData.get('remarks')
-    };
-    
-    // Validate dates
-    if (data.start_date && data.end_date) {
-        const start = new Date(data.start_date);
-        const end = new Date(data.end_date);
-        if (end <= start) {
-            showAlert('error', 'End date must be after start date.');
-            submitBtn.innerHTML = originalBtnText;
-            submitBtn.disabled = false;
-            return;
-        }
+document.addEventListener('DOMContentLoaded', function() {
+    const addPeriodForm = document.getElementById('addPeriodForm');
+    if (addPeriodForm) {
+        addPeriodForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="ri-loader-4-line me-1"></i> Creating...';
+            submitBtn.disabled = true;
+            
+            const formData = new FormData(this);
+            const csrfToken = formData.get('csrfmiddlewaretoken');
+            
+            const data = {
+                semester_id: formData.get('semester_id'),
+                start_date: formData.get('start_date') + ':00', // Add seconds
+                end_date: formData.get('end_date') + ':00', // Add seconds
+                is_active: formData.get('is_active') === 'on',
+                remarks: formData.get('remarks')
+            };
+            
+            // Add resit dates if provided
+            const resitStart = formData.get('resit_start_date');
+            const resitEnd = formData.get('resit_end_date');
+            if (resitStart && resitEnd) {
+                data.resit_start_date = resitStart + ':00';
+                data.resit_end_date = resitEnd + ':00';
+            }
+            
+            // Validate dates
+            if (data.start_date && data.end_date) {
+                const start = new Date(data.start_date);
+                const end = new Date(data.end_date);
+                if (end <= start) {
+                    showAlert('error', 'End date must be after start date.');
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                    return;
+                }
+            }
+            
+            if (data.resit_start_date && data.resit_end_date) {
+                const resitStart = new Date(data.resit_start_date);
+                const resitEnd = new Date(data.resit_end_date);
+                if (resitEnd <= resitStart) {
+                    showAlert('error', 'Resit end date must be after resit start date.');
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                    return;
+                }
+            }
+            
+            // Use the correct URL - make sure this matches your Django URL pattern
+            fetch('/enrollment-periods/create/', {  // Adjust this URL based on your actual URL structure
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addPeriodModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    // Reload the page to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showAlert('error', data.error || 'An error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'An error occurred. Please try again. ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+            });
+        });
     }
-    
-    if (data.resit_start_date && data.resit_end_date) {
-        const resitStart = new Date(data.resit_start_date);
-        const resitEnd = new Date(data.resit_end_date);
-        if (resitEnd <= resitStart) {
-            showAlert('error', 'Resit end date must be after resit start date.');
-            submitBtn.innerHTML = originalBtnText;
-            submitBtn.disabled = false;
-            return;
-        }
-    }
-    
-    fetch('{% url "enrollment_period_create" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            $('#addPeriodModal').modal('hide');
-            addPeriodToTable(data.period);
-            updatePeriodsCount();
-        } else {
-            showAlert('error', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('error', 'An error occurred. Please try again.');
-    })
-    .finally(() => {
-        submitBtn.innerHTML = originalBtnText;
-        submitBtn.disabled = false;
-    });
 });
 
 // Edit enrollment period
 function editPeriod(periodId) {
+    if (!periodId) {
+        showAlert('error', 'Invalid period ID');
+        return;
+    }
+    
     showLoading('editPeriodModal');
     
-    fetch(`/enrollment-periods/${periodId}/`)
-    .then(response => response.json())
+    // Use the correct URL - make sure this matches your Django URL pattern
+    fetch(`/enrollment-periods/${periodId}/`, {  // Adjust this URL based on your actual URL structure
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             const period = data.period;
-            document.getElementById('edit_period_id').value = period.id;
-            document.getElementById('edit_semester').value = period.semester;
-            document.getElementById('edit_start_date').value = formatDateForInput(period.start_date);
-            document.getElementById('edit_end_date').value = formatDateForInput(period.end_date);
-            document.getElementById('edit_resit_start_date').value = period.resit_start_date ? formatDateForInput(period.resit_start_date) : '';
-            document.getElementById('edit_resit_end_date').value = period.resit_end_date ? formatDateForInput(period.resit_end_date) : '';
-            document.getElementById('edit_isActive').checked = period.is_active;
-            document.getElementById('edit_remarks').value = period.remarks || '';
             
-            new bootstrap.Modal(document.getElementById('editPeriodModal')).show();
+            // Get modal elements
+            const editPeriodId = document.getElementById('edit_period_id');
+            const editSemester = document.getElementById('edit_semester');
+            const editStartDate = document.getElementById('edit_start_date');
+            const editEndDate = document.getElementById('edit_end_date');
+            const editResitStartDate = document.getElementById('edit_resit_start_date');
+            const editResitEndDate = document.getElementById('edit_resit_end_date');
+            const editIsActive = document.getElementById('edit_isActive');
+            const editRemarks = document.getElementById('edit_remarks');
+            
+            // Set values
+            if (editPeriodId) editPeriodId.value = period.id;
+            if (editSemester) editSemester.value = period.semester;
+            if (editStartDate) editStartDate.value = formatDateForInput(period.start_date);
+            if (editEndDate) editEndDate.value = formatDateForInput(period.end_date);
+            if (editResitStartDate) editResitStartDate.value = period.resit_start_date ? formatDateForInput(period.resit_start_date) : '';
+            if (editResitEndDate) editResitEndDate.value = period.resit_end_date ? formatDateForInput(period.resit_end_date) : '';
+            if (editIsActive) editIsActive.checked = period.is_active;
+            if (editRemarks) editRemarks.value = period.remarks || '';
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('editPeriodModal'));
+            modal.show();
         } else {
-            showAlert('error', data.error);
+            showAlert('error', data.error || 'Failed to load period details');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('error', 'An error occurred. Please try again.');
+        showAlert('error', 'Failed to load period details. Please try again.');
     });
 }
 
-document.getElementById('editPeriodForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const submitBtn = this.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.innerHTML;
-    submitBtn.innerHTML = '<i class="ri-loader-4-line me-1"></i> Updating...';
-    submitBtn.disabled = true;
-    
-    const periodId = document.getElementById('edit_period_id').value;
-    const formData = new FormData(this);
-    const data = {
-        start_date: formData.get('start_date'),
-        end_date: formData.get('end_date'),
-        resit_start_date: formData.get('resit_start_date') || '',
-        resit_end_date: formData.get('resit_end_date') || '',
-        is_active: formData.get('is_active') === 'on',
-        remarks: formData.get('remarks')
-    };
-    
-    // Validate dates
-    if (data.start_date && data.end_date) {
-        const start = new Date(data.start_date);
-        const end = new Date(data.end_date);
-        if (end <= start) {
-            showAlert('error', 'End date must be after start date.');
-            submitBtn.innerHTML = originalBtnText;
-            submitBtn.disabled = false;
-            return;
-        }
+// Handle edit form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const editPeriodForm = document.getElementById('editPeriodForm');
+    if (editPeriodForm) {
+        editPeriodForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="ri-loader-4-line me-1"></i> Updating...';
+            submitBtn.disabled = true;
+            
+            const periodId = document.getElementById('edit_period_id')?.value;
+            if (!periodId) {
+                showAlert('error', 'Invalid period ID');
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+                return;
+            }
+            
+            const formData = new FormData(this);
+            const csrfToken = formData.get('csrfmiddlewaretoken');
+            
+            const data = {
+                start_date: formData.get('start_date') + ':00',
+                end_date: formData.get('end_date') + ':00',
+                is_active: formData.get('is_active') === 'on',
+                remarks: formData.get('remarks')
+            };
+            
+            // Handle resit dates
+            const resitStart = formData.get('resit_start_date');
+            const resitEnd = formData.get('resit_end_date');
+            if (resitStart && resitEnd) {
+                data.resit_start_date = resitStart + ':00';
+                data.resit_end_date = resitEnd + ':00';
+            } else {
+                data.resit_start_date = '';
+                data.resit_end_date = '';
+            }
+            
+            // Validate dates
+            if (data.start_date && data.end_date) {
+                const start = new Date(data.start_date);
+                const end = new Date(data.end_date);
+                if (end <= start) {
+                    showAlert('error', 'End date must be after start date.');
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                    return;
+                }
+            }
+            
+            if (data.resit_start_date && data.resit_end_date) {
+                const resitStart = new Date(data.resit_start_date);
+                const resitEnd = new Date(data.resit_end_date);
+                if (resitEnd <= resitStart) {
+                    showAlert('error', 'Resit end date must be after resit start date.');
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                    return;
+                }
+            }
+            
+            // Use the correct URL - make sure this matches your Django URL pattern
+            fetch(`/enrollment-periods/${periodId}/update/`, {  // Adjust this URL based on your actual URL structure
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editPeriodModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                    // Reload the page to show updated data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showAlert('error', data.error || 'An error occurred');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'An error occurred. Please try again. ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+            });
+        });
     }
-    
-    if (data.resit_start_date && data.resit_end_date) {
-        const resitStart = new Date(data.resit_start_date);
-        const resitEnd = new Date(data.resit_end_date);
-        if (resitEnd <= resitStart) {
-            showAlert('error', 'Resit end date must be after resit start date.');
-            submitBtn.innerHTML = originalBtnText;
-            submitBtn.disabled = false;
-            return;
-        }
-    }
-    
-    fetch(`/enrollment-periods/${periodId}/update/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            $('#editPeriodModal').modal('hide');
-            updatePeriodInTable(data.period);
-        } else {
-            showAlert('error', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showAlert('error', 'An error occurred. Please try again.');
-    })
-    .finally(() => {
-        submitBtn.innerHTML = originalBtnText;
-        submitBtn.disabled = false;
-    });
 });
 
 // View period details
 function viewPeriod(periodId) {
+    if (!periodId) {
+        showAlert('error', 'Invalid period ID');
+        return;
+    }
+    
     showLoading('viewPeriodModal');
     
-    fetch(`/enrollment-periods/${periodId}/`)
-    .then(response => response.json())
+    // Use the correct URL - make sure this matches your Django URL pattern
+    fetch(`/enrollment-periods/${periodId}/`, {  // Adjust this URL based on your actual URL structure
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             const period = data.period;
-            const stats = period.statistics;
+            const stats = period.statistics || { total_enrollments: 0, pending_enrollments: 0, approved_enrollments: 0 };
             
             const content = `
                 <div class="row g-3">
                     <div class="col-md-6">
                         <h6 class="fw-semibold mb-2">Semester</h6>
-                        <p class="mb-0">${period.semester}</p>
+                        <p class="mb-0">${escapeHtml(period.semester)}</p>
                     </div>
                     <div class="col-md-6">
                         <h6 class="fw-semibold mb-2">Academic Year</h6>
-                        <p class="mb-0">${period.academic_year}</p>
+                        <p class="mb-0">${escapeHtml(period.academic_year)}</p>
                     </div>
                     
                     <div class="col-12"><hr></div>
@@ -863,16 +1055,16 @@ function viewPeriod(periodId) {
                     
                     <div class="col-md-4">
                         <h6 class="fw-semibold mb-2">Status</h6>
-                        ${getStatusBadge(period.is_active ? 'active' : 'inactive', 'status')}
+                        ${getStatusBadge(period.is_active ? 'active' : 'inactive')}
                     </div>
                     <div class="col-md-4">
                         <h6 class="fw-semibold mb-2">Enrollment Status</h6>
-                        ${getStatusBadge(period.is_enrollment_open ? 'open' : 'closed', 'enrollment')}
+                        ${getStatusBadge(period.is_enrollment_open ? 'open' : 'closed')}
                     </div>
                     <div class="col-md-4">
                         <h6 class="fw-semibold mb-2">Resit Status</h6>
                         ${period.resit_start_date && period.resit_end_date ? 
-                          getStatusBadge(period.is_resit_enrollment_open ? 'open' : 'closed', 'resit') : 
+                          getStatusBadge(period.is_resit_enrollment_open ? 'open' : 'closed') : 
                           '<span class="text-muted">Not set</span>'}
                     </div>
                     
@@ -880,7 +1072,7 @@ function viewPeriod(periodId) {
                     <div class="col-12"><hr></div>
                     <div class="col-12">
                         <h6 class="fw-semibold mb-2">Remarks</h6>
-                        <p class="mb-0">${period.remarks}</p>
+                        <p class="mb-0">${escapeHtml(period.remarks)}</p>
                     </div>
                     ` : ''}
                     
@@ -893,7 +1085,7 @@ function viewPeriod(periodId) {
                     <div class="col-md-4">
                         <div class="card bg-light border-0">
                             <div class="card-body text-center">
-                                <h3 class="fw-bold text-primary">${stats.total_enrollments}</h3>
+                                <h3 class="fw-bold text-primary">${stats.total_enrollments || 0}</h3>
                                 <p class="mb-0 small">Total Enrollments</p>
                             </div>
                         </div>
@@ -902,7 +1094,7 @@ function viewPeriod(periodId) {
                     <div class="col-md-4">
                         <div class="card bg-light border-0">
                             <div class="card-body text-center">
-                                <h3 class="fw-bold text-warning">${stats.pending_enrollments}</h3>
+                                <h3 class="fw-bold text-warning">${stats.pending_enrollments || 0}</h3>
                                 <p class="mb-0 small">Pending</p>
                             </div>
                         </div>
@@ -911,7 +1103,7 @@ function viewPeriod(periodId) {
                     <div class="col-md-4">
                         <div class="card bg-light border-0">
                             <div class="card-body text-center">
-                                <h3 class="fw-bold text-success">${stats.approved_enrollments}</h3>
+                                <h3 class="fw-bold text-success">${stats.approved_enrollments || 0}</h3>
                                 <p class="mb-0 small">Approved</p>
                             </div>
                         </div>
@@ -919,189 +1111,72 @@ function viewPeriod(periodId) {
                 </div>
             `;
             
-            document.getElementById('viewPeriodContent').innerHTML = content;
-            new bootstrap.Modal(document.getElementById('viewPeriodModal')).show();
+            const viewPeriodContent = document.getElementById('viewPeriodContent');
+            if (viewPeriodContent) {
+                viewPeriodContent.innerHTML = content;
+            }
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('viewPeriodModal'));
+            modal.show();
         } else {
-            showAlert('error', data.error);
+            showAlert('error', data.error || 'Failed to load period details');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('error', 'An error occurred. Please try again.');
+        showAlert('error', 'Failed to load period details. Please try again.');
     });
 }
 
 // Delete enrollment period
 function deletePeriod(periodId, semesterName) {
-    if (!confirm(`Are you sure you want to delete the enrollment period for "${semesterName}"?`)) {
+    if (!periodId || !semesterName) {
+        showAlert('error', 'Invalid parameters');
         return;
     }
     
-    fetch(`/enrollment-periods/${periodId}/delete/`, {
-        method: 'DELETE',
+    if (!confirm(`Are you sure you want to delete the enrollment period for "${semesterName}"?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    
+    // Use the correct URL - make sure this matches your Django URL pattern
+    fetch(`/enrollment-periods/${periodId}/delete/`, {  // Adjust this URL based on your actual URL structure
+        method: 'POST',  // Django expects POST for delete with CSRF
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
             showAlert('success', data.message);
-            removePeriodFromTable(periodId);
-            updatePeriodsCount();
+            // Reload the page to show updated data
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } else {
-            showAlert('error', data.error);
+            showAlert('error', data.error || 'Failed to delete period');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showAlert('error', 'An error occurred. Please try again.');
+        showAlert('error', 'Failed to delete period. Please try again. ' + error.message);
     });
-}
-
-// Helper functions for table operations
-function addPeriodToTable(period) {
-    const tbody = document.getElementById('periodsTableBody');
-    const emptyRow = tbody.querySelector('tr:has(td[colspan="7"])');
-    
-    if (emptyRow) {
-        emptyRow.remove();
-    }
-    
-    const row = document.createElement('tr');
-    row.setAttribute('data-period-id', period.id);
-    row.innerHTML = `
-        <td class="ps-4">
-            <strong>${period.semester}</strong>
-        </td>
-        <td>${period.academic_year}</td>
-        <td>
-            <div class="small">
-                <strong>Start:</strong> ${formatDate(period.start_date)}<br>
-                <strong>End:</strong> ${formatDate(period.end_date)}
-            </div>
-        </td>
-        <td>
-            ${period.resit_start_date && period.resit_end_date ? 
-                `<div class="small">
-                    <strong>Start:</strong> ${formatDate(period.resit_start_date)}<br>
-                    <strong>End:</strong> ${formatDate(period.resit_end_date)}
-                </div>` : 
-                '<span class="text-muted small">Not Set</span>'}
-        </td>
-        <td>
-            ${getStatusBadge(period.is_active ? 'active' : 'inactive', 'status')}
-        </td>
-        <td>
-            ${getStatusBadge(period.is_enrollment_open ? 'open' : 'closed', 'enrollment')}
-        </td>
-        <td class="pe-4">
-            <div class="d-flex gap-1">
-                <button class="btn btn-icon btn-outline-primary btn-sm" 
-                        title="View Details"
-                        data-bs-toggle="tooltip"
-                        onclick="viewPeriod(${period.id})">
-                    <i class="ri-eye-line"></i>
-                </button>
-                
-                <button class="btn btn-icon btn-outline-warning btn-sm" 
-                        title="Edit"
-                        data-bs-toggle="tooltip"
-                        onclick="editPeriod(${period.id})">
-                    <i class="ri-edit-line"></i>
-                </button>
-                
-                <button class="btn btn-icon btn-outline-danger btn-sm" 
-                        title="Delete"
-                        data-bs-toggle="tooltip"
-                        onclick="deletePeriod(${period.id}, '${period.semester}')">
-                    <i class="ri-delete-bin-line"></i>
-                </button>
-            </div>
-        </td>
-    `;
-    
-    tbody.insertBefore(row, tbody.firstChild);
-    
-    // Reinitialize tooltips for new row
-    new bootstrap.Tooltip(row.querySelector('[data-bs-toggle="tooltip"]'));
-}
-
-function updatePeriodInTable(period) {
-    const row = document.querySelector(`tr[data-period-id="${period.id}"]`);
-    if (row) {
-        row.cells[0].innerHTML = `<strong>${period.semester}</strong>`;
-        row.cells[1].textContent = period.academic_year;
-        row.cells[2].innerHTML = `
-            <div class="small">
-                <strong>Start:</strong> ${formatDate(period.start_date)}<br>
-                <strong>End:</strong> ${formatDate(period.end_date)}
-            </div>
-        `;
-        row.cells[3].innerHTML = period.resit_start_date && period.resit_end_date ? 
-            `<div class="small">
-                <strong>Start:</strong> ${formatDate(period.resit_start_date)}<br>
-                <strong>End:</strong> ${formatDate(period.resit_end_date)}
-            </div>` : 
-            '<span class="text-muted small">Not Set</span>';
-        row.cells[4].innerHTML = getStatusBadge(period.is_active ? 'active' : 'inactive', 'status');
-        row.cells[5].innerHTML = getStatusBadge(period.is_enrollment_open ? 'open' : 'closed', 'enrollment');
-    }
-}
-
-function removePeriodFromTable(periodId) {
-    const row = document.querySelector(`tr[data-period-id="${periodId}"]`);
-    if (row) {
-        row.remove();
-    }
-    
-    // Show empty state if no periods left
-    const tbody = document.getElementById('periodsTableBody');
-    if (tbody.children.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center py-5">
-                    <div class="empty-state">
-                        <i class="ri-calendar-line display-4 text-muted mb-3"></i>
-                        <h5 class="text-muted">No enrollment periods found</h5>
-                        <p class="text-muted mb-0">Create your first enrollment period to get started</p>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }
-}
-
-function updatePeriodsCount() {
-    const tbody = document.getElementById('periodsTableBody');
-    const count = tbody.querySelectorAll('tr[data-period-id]').length;
-    document.querySelector('.badge .count').textContent = count;
-}
-
-function showLoading(modalId) {
-    const modalContent = document.querySelector(`#${modalId} .modal-body`);
-    if (modalContent) {
-        modalContent.innerHTML = `
-            <div class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2 text-muted">Loading...</p>
-            </div>
-        `;
-    }
-}
-
-function showAlert(type, message) {
-    // You can implement a toast notification system here
-    // For now, using browser alert
-    alert(message);
 }
 
 // Form validation
 function setupFormValidation() {
-    // Add form validation
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
         form.addEventListener('submit', function(e) {
@@ -1112,8 +1187,22 @@ function setupFormValidation() {
                 if (!field.value.trim()) {
                     isValid = false;
                     field.classList.add('is-invalid');
+                    
+                    // Add error message
+                    let errorDiv = field.nextElementSibling;
+                    if (!errorDiv || !errorDiv.classList.contains('invalid-feedback')) {
+                        errorDiv = document.createElement('div');
+                        errorDiv.className = 'invalid-feedback';
+                        field.parentNode.appendChild(errorDiv);
+                    }
+                    errorDiv.textContent = 'This field is required';
                 } else {
                     field.classList.remove('is-invalid');
+                    // Remove error message
+                    const errorDiv = field.nextElementSibling;
+                    if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+                        errorDiv.remove();
+                    }
                 }
             });
             
@@ -1122,20 +1211,35 @@ function setupFormValidation() {
                 showAlert('error', 'Please fill in all required fields.');
             }
         });
-    });
-    
-    // Clear form when modal is closed
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('hidden.bs.modal', function() {
-            const form = this.querySelector('form');
-            if (form && form.id === 'addPeriodForm') {
-                form.reset();
+        
+        // Clear validation on input
+        form.addEventListener('input', function(e) {
+            if (e.target.hasAttribute('required')) {
+                e.target.classList.remove('is-invalid');
+                const errorDiv = e.target.nextElementSibling;
+                if (errorDiv && errorDiv.classList.contains('invalid-feedback')) {
+                    errorDiv.remove();
+                }
             }
         });
     });
 }
 
-// Initialize everything
-setupFormValidation();
+// Date validation helper
+function validateDateRange(startDateId, endDateId, errorMessage) {
+    const startInput = document.getElementById(startDateId);
+    const endInput = document.getElementById(endDateId);
+    
+    if (startInput && endInput && startInput.value && endInput.value) {
+        const startDate = new Date(startInput.value);
+        const endDate = new Date(endInput.value);
+        
+        if (endDate <= startDate) {
+            showAlert('error', errorMessage);
+            return false;
+        }
+    }
+    return true;
+}
 </script>
 {% endblock %}
