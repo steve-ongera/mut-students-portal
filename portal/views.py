@@ -8068,7 +8068,7 @@ def create_unit_allocation(request):
         
         try:
             programme_unit = get_object_or_404(ProgrammeUnit, id=programme_unit_id)
-            lecturer = get_object_or_404(Lecturer, id=lecturer_id)
+            lecturer = get_object_or_404(Lecturer, id=lecturer_id)  # This is a Lecturer instance
             semester = get_object_or_404(Semester, id=semester_id)
             
             # Check if user has permission to allocate this unit
@@ -8080,12 +8080,12 @@ def create_unit_allocation(request):
                         messages.error(request, 'You do not have permission to allocate this unit.')
                         return redirect('unit_allocation_list')
             
-            # Modified: Allow duplicate allocations with different conditions
-            # Check if exact same allocation exists (same unit, semester, lecturer, programme, year)
+            # Modified: Check if exact same allocation exists
+            # FIXED: Use lecturer.user since UnitAllocation.lecturer expects User instance
             existing = UnitAllocation.objects.filter(
                 programme_unit=programme_unit,
                 semester=semester,
-                lecturer=lecturer
+                lecturer=lecturer.user  # FIXED: Pass User instance, not Lecturer instance
             ).first()
             
             if existing:
@@ -8099,9 +8099,10 @@ def create_unit_allocation(request):
                 return redirect('unit_allocation_list')
             
             # Create allocation
+            # FIXED: Pass lecturer.user instead of lecturer
             allocation = UnitAllocation.objects.create(
                 programme_unit=programme_unit,
-                lecturer=lecturer,
+                lecturer=lecturer.user,  # FIXED: Pass User instance
                 semester=semester,
                 assigned_by=request.user,
                 max_students=max_students if max_students else None,
@@ -8152,7 +8153,6 @@ def create_unit_allocation(request):
     }
     
     return render(request, 'allocations/create_allocation.html', context)
-
 
 @login_required
 def search_units_ajax(request):
