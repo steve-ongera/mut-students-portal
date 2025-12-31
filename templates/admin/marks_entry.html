@@ -1,0 +1,532 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Admin - Marks Entry{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-container {
+        position: relative;
+        margin-bottom: 2rem;
+    }
+    
+    .search-results {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        display: none;
+    }
+    
+    .search-results.show {
+        display: block;
+    }
+    
+    .search-result-item {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .search-result-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    
+    .student-info {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .marks-table {
+        background: white;
+        border-radius: 0.5rem;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .marks-table th {
+        background: #f8f9fa;
+        font-weight: 600;
+        padding: 1rem;
+        border-bottom: 2px solid #dee2e6;
+    }
+    
+    .marks-table td {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .marks-input {
+        width: 100px;
+        padding: 0.5rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        text-align: center;
+    }
+    
+    .marks-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .badge-success {
+        background: #10b981;
+        color: white;
+    }
+    
+    .badge-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .badge-warning {
+        background: #f59e0b;
+        color: white;
+    }
+    
+    .badge-info {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .loading {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+    
+    .loading.show {
+        display: block;
+    }
+    
+    .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .no-data {
+        text-align: center;
+        padding: 3rem;
+        color: #6b7280;
+    }
+    
+    .save-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        font-weight: 500;
+        transition: transform 0.2s;
+    }
+    
+    .save-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .save-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-gradient-primary">
+                    <h3 class="text-white mb-0">
+                        <i class="fas fa-edit"></i> Admin Marks Entry
+                    </h3>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Filters Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Academic Year</label>
+                            <select id="academic_year" class="form-select">
+                                {% for year in academic_years %}
+                                <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                                    {{ year.name }} {% if year.is_current %}(Current){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Semester</label>
+                            <select id="semester" class="form-select">
+                                {% for sem in semesters %}
+                                <option value="{{ sem.id }}" {% if sem.is_current %}selected{% endif %}>
+                                    {{ sem.name }} {% if sem.is_current %}(Current){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Search Section -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Search Student</label>
+                            <div class="search-container">
+                                <input 
+                                    type="text" 
+                                    id="student_search" 
+                                    class="form-control form-control-lg"
+                                    placeholder="Enter Registration Number, Phone, National ID, or Name (min 2 characters)..."
+                                    autocomplete="off"
+                                >
+                                <div id="search_results" class="search-results"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Student Info Section (Hidden initially) -->
+                    <div id="student_info_section" style="display: none;">
+                        <div class="student-info">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">Registration Number</h5>
+                                    <p class="mb-0 fs-4" id="student_reg_number">-</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">Student Name</h5>
+                                    <p class="mb-0 fs-4" id="student_name">-</p>
+                                </div>
+                                <div class="col-md-4">
+                                    <h5 class="mb-1">Programme</h5>
+                                    <p class="mb-0 fs-4" id="student_programme">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading Spinner -->
+                    <div id="loading" class="loading">
+                        <div class="spinner"></div>
+                        <p class="mt-3">Loading enrollments...</p>
+                    </div>
+                    
+                    <!-- Enrollments Table Section -->
+                    <div id="enrollments_section" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>Unit Enrollments & Marks</h4>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="auto_approve" checked>
+                                <label class="form-check-label" for="auto_approve">
+                                    Auto-approve marks
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="enrollments_container"></div>
+                    </div>
+                    
+                    <!-- No Data Message -->
+                    <div id="no_data" class="no-data" style="display: none;">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>Search for a student to view and enter their marks</p>
+                    </div>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedStudentId = null;
+let searchTimeout = null;
+
+// Search student with debounce
+document.getElementById('student_search').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.trim();
+    
+    clearTimeout(searchTimeout);
+    
+    if (searchTerm.length < 2) {
+        document.getElementById('search_results').classList.remove('show');
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        searchStudent(searchTerm);
+    }, 300);
+});
+
+function searchStudent(term) {
+    fetch(`/admin/marks/search-student/?term=${encodeURIComponent(term)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displaySearchResults(data.students);
+            } else {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error searching for students');
+        });
+}
+
+function displaySearchResults(students) {
+    const resultsDiv = document.getElementById('search_results');
+    
+    if (students.length === 0) {
+        resultsDiv.innerHTML = '<div class="search-result-item">No students found</div>';
+        resultsDiv.classList.add('show');
+        return;
+    }
+    
+    let html = '';
+    students.forEach(student => {
+        html += `
+            <div class="search-result-item" onclick="selectStudent(${student.id}, '${student.registration_number}', '${student.name}', '${student.programme}')">
+                <div class="fw-bold">${student.registration_number} - ${student.name}</div>
+                <div class="text-muted small">
+                    ${student.programme_code} | Phone: ${student.phone} | ID: ${student.national_id}
+                </div>
+            </div>
+        `;
+    });
+    
+    resultsDiv.innerHTML = html;
+    resultsDiv.classList.add('show');
+}
+
+function selectStudent(studentId, regNumber, name, programme) {
+    selectedStudentId = studentId;
+    
+    // Update student info
+    document.getElementById('student_reg_number').textContent = regNumber;
+    document.getElementById('student_name').textContent = name;
+    document.getElementById('student_programme').textContent = programme;
+    
+    // Show student info section
+    document.getElementById('student_info_section').style.display = 'block';
+    document.getElementById('no_data').style.display = 'none';
+    
+    // Hide search results
+    document.getElementById('search_results').classList.remove('show');
+    
+    // Clear search input
+    document.getElementById('student_search').value = regNumber;
+    
+    // Load enrollments
+    loadStudentEnrollments();
+}
+
+function loadStudentEnrollments() {
+    const semesterId = document.getElementById('semester').value;
+    
+    if (!selectedStudentId || !semesterId) {
+        return;
+    }
+    
+    // Show loading
+    document.getElementById('loading').classList.add('show');
+    document.getElementById('enrollments_section').style.display = 'none';
+    
+    fetch(`/admin/marks/get-enrollments/?student_id=${selectedStudentId}&semester_id=${semesterId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading').classList.remove('show');
+            
+            if (data.success) {
+                displayEnrollments(data.enrollments);
+            } else {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('loading').classList.remove('show');
+            alert('Error loading enrollments');
+        });
+}
+
+function displayEnrollments(enrollments) {
+    const container = document.getElementById('enrollments_container');
+    
+    if (enrollments.length === 0) {
+        container.innerHTML = '<div class="alert alert-info">No enrollments found for this semester</div>';
+        document.getElementById('enrollments_section').style.display = 'block';
+        return;
+    }
+    
+    let html = '';
+    
+    enrollments.forEach((enrollment, index) => {
+        const marks = enrollment.marks;
+        
+        html += `
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-0">${enrollment.unit_code} - ${enrollment.unit_name}</h5>
+                            <small class="text-muted">Credit Hours: ${enrollment.credit_hours}</small>
+                        </div>
+                        <div>
+                            ${enrollment.is_resit ? '<span class="badge badge-warning">Resit</span>' : ''}
+                            ${enrollment.grade ? `<span class="badge ${enrollment.is_passed ? 'badge-success' : 'badge-danger'}">${enrollment.grade} (${enrollment.grade_point})</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="table marks-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Assessment</th>
+                                <th>Max Marks</th>
+                                <th>Weight (%)</th>
+                                <th>Marks Obtained</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+        
+        for (const [type, data] of Object.entries(marks)) {
+            html += `
+                <tr>
+                    <td>${data.title}</td>
+                    <td>${data.max_marks}</td>
+                    <td>${data.weight_percentage}%</td>
+                    <td>
+                        <input 
+                            type="number" 
+                            class="marks-input" 
+                            id="marks_${data.assessment_id}"
+                            value="${data.value !== null ? data.value : ''}"
+                            min="0"
+                            max="${data.max_marks}"
+                            step="0.01"
+                            data-assessment-id="${data.assessment_id}"
+                            data-student-id="${selectedStudentId}"
+                        >
+                    </td>
+                    <td>
+                        <button 
+                            class="save-btn" 
+                            onclick="saveMark(${data.assessment_id}, ${selectedStudentId})"
+                        >
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+        
+        html += `
+                            <tr class="fw-bold bg-light">
+                                <td colspan="3">Total Marks</td>
+                                <td colspan="2">${enrollment.total_marks}/100</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    document.getElementById('enrollments_section').style.display = 'block';
+}
+
+function saveMark(assessmentId, studentId) {
+    const marksInput = document.getElementById(`marks_${assessmentId}`);
+    const marksObtained = marksInput.value;
+    
+    if (!marksObtained) {
+        alert('Please enter marks');
+        return;
+    }
+    
+    const autoApprove = document.getElementById('auto_approve').checked;
+    
+    const formData = new FormData();
+    formData.append('assessment_id', assessmentId);
+    formData.append('student_id', studentId);
+    formData.append('marks_obtained', marksObtained);
+    formData.append('auto_approve', autoApprove);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+    fetch('/admin/marks/save/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // Reload enrollments to show updated totals and grades
+            loadStudentEnrollments();
+        } else {
+            alert(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving marks');
+    });
+}
+
+// Reload enrollments when semester changes
+document.getElementById('semester').addEventListener('change', function() {
+    if (selectedStudentId) {
+        loadStudentEnrollments();
+    }
+});
+
+// Hide search results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.search-container')) {
+        document.getElementById('search_results').classList.remove('show');
+    }
+});
+
+// Show no data message on page load
+document.getElementById('no_data').style.display = 'block';
+</script>
+{% endblock %}

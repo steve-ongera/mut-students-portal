@@ -9246,3 +9246,451 @@ def download_semester_transcript(request, semester_id):
     # (Implementation similar to download_full_transcript but filtered)
     
     return HttpResponse("Semester transcript generation")
+
+
+# views.py - Add these views to your existing views file
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Q, Prefetch
+from decimal import Decimal
+from django.db import transaction
+
+# Import your models
+from .models import (
+    Student, UnitEnrollment, Assessment, StudentMarks, 
+    SemesterResults, SemesterGPA, UnitAllocation, 
+    AcademicYear, Semester, UnitGradingSystem, ResitExam
+)
+
+@login_required
+def admin_marks_entry(request):
+    """Admin interface for entering student marks"""
+    # Check if user is admin/registrar
+    if request.user.role not in ['registrar', 'vc', 'dean']:
+        messages.error(request, 'Unauthorized access.')
+        return redirect('dashboard')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all academic years and semesters for filters
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    semesters = Semester.objects.filter(is_active=True).order_by('-start_date')
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'academic_years': academic_years,
+        'semesters': semesters,
+    }
+    
+    return render(request, 'admin/marks_entry.html', context)
+
+
+@login_required
+def admin_search_student(request):
+    """AJAX endpoint to search for students"""
+    if request.user.role not in ['registrar', 'vc', 'dean']:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'})
+    
+    search_term = request.GET.get('term', '').strip()
+    
+    if len(search_term) < 2:
+        return JsonResponse({'success': False, 'error': 'Enter at least 2 characters'})
+    
+    # Search students by registration number, phone, or national ID
+    students = Student.objects.filter(
+        Q(registration_number__icontains=search_term) |
+        Q(user__phone_number__icontains=search_term) |
+        Q(national_id__icontains=search_term) |
+        Q(user__first_name__icontains=search_term) |
+        Q(user__last_name__icontains=search_term)
+    ).select_related(
+        'user',
+        'programme',
+        'programme__department'
+    )[:10]  # Limit to 10 results
+    
+    results = []
+    for student in students:
+        results.append({
+            'id': student.id,
+            'registration_number': student.registration_number,
+            'name': student.user.get_full_name(),
+            'phone': student.user.phone_number,
+            'national_id': student.national_id,
+            'programme': student.programme.name,
+            'programme_code': student.programme.code,
+            'current_year': student.current_year,
+            'current_semester': student.current_semester,
+        })
+    
+    return JsonResponse({'success': True, 'students': results})
+
+
+@login_required
+def admin_get_student_enrollments(request):
+    """AJAX endpoint to get student enrollments for a specific semester"""
+    if request.user.role not in ['registrar', 'vc', 'dean']:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'})
+    
+    student_id = request.GET.get('student_id')
+    semester_id = request.GET.get('semester_id')
+    
+    if not all([student_id, semester_id]):
+        return JsonResponse({'success': False, 'error': 'Missing parameters'})
+    
+    try:
+        student = get_object_or_404(Student, id=student_id)
+        semester = get_object_or_404(Semester, id=semester_id)
+        
+        # Get all enrollments for this student in this semester
+        enrollments = UnitEnrollment.objects.filter(
+            student=student,
+            semester=semester,
+            status='approved'
+        ).select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester',
+            'semester__academic_year'
+        ).order_by('programme_unit__unit__code')
+        
+        enrollment_data = []
+        for enrollment in enrollments:
+            unit = enrollment.programme_unit.unit
+            unit_allocation = UnitAllocation.objects.filter(
+                programme_unit=enrollment.programme_unit,
+                semester=semester
+            ).first()
+            
+            if not unit_allocation:
+                continue
+            
+            # Get assessments for this unit
+            assessments = Assessment.objects.filter(
+                unit_allocation=unit_allocation
+            ).order_by('assessment_type')
+            
+            # Get existing marks
+            marks_data = {}
+            total_marks = Decimal('0.00')
+            
+            for assessment in assessments:
+                student_mark = StudentMarks.objects.filter(
+                    assessment=assessment,
+                    student=student
+                ).first()
+                
+                mark_value = student_mark.marks_obtained if student_mark else None
+                marks_data[assessment.assessment_type] = {
+                    'assessment_id': assessment.id,
+                    'assessment_type': assessment.assessment_type,
+                    'title': assessment.title,
+                    'max_marks': float(assessment.max_marks),
+                    'weight_percentage': float(assessment.weight_percentage),
+                    'value': float(mark_value) if mark_value is not None else None,
+                    'mark_id': student_mark.id if student_mark else None,
+                }
+                
+                if mark_value is not None:
+                    weighted = (mark_value / assessment.max_marks) * assessment.weight_percentage
+                    total_marks += weighted
+            
+            # Get existing semester result
+            semester_result = SemesterResults.objects.filter(
+                student=student,
+                programme_unit=enrollment.programme_unit,
+                semester=semester
+            ).first()
+            
+            enrollment_data.append({
+                'enrollment_id': enrollment.id,
+                'unit_code': unit.code,
+                'unit_name': unit.name,
+                'credit_hours': unit.credit_hours,
+                'enrollment_type': enrollment.get_enrollment_type_display(),
+                'is_resit': enrollment.enrollment_type == 'resit',
+                'marks': marks_data,
+                'total_marks': float(round(total_marks, 2)),
+                'grade': semester_result.grade if semester_result else None,
+                'grade_point': float(semester_result.grade_point) if semester_result else None,
+                'is_passed': semester_result.is_passed if semester_result else None,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'enrollments': enrollment_data,
+            'student': {
+                'registration_number': student.registration_number,
+                'name': student.user.get_full_name(),
+                'programme': student.programme.name,
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@transaction.atomic
+def admin_save_student_marks(request):
+    """AJAX endpoint for admin to save and approve student marks"""
+    if request.user.role not in ['registrar', 'vc', 'dean']:
+        return JsonResponse({'success': False, 'error': 'Unauthorized'})
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    try:
+        assessment_id = request.POST.get('assessment_id')
+        student_id = request.POST.get('student_id')
+        marks_obtained = request.POST.get('marks_obtained')
+        auto_approve = request.POST.get('auto_approve', 'false') == 'true'
+        
+        # Validate inputs
+        if not all([assessment_id, student_id, marks_obtained]):
+            return JsonResponse({'success': False, 'error': 'Missing required fields'})
+        
+        assessment = get_object_or_404(Assessment, id=assessment_id)
+        student = get_object_or_404(Student, id=student_id)
+        
+        # Validate marks range
+        marks_obtained = Decimal(marks_obtained)
+        if marks_obtained < 0 or marks_obtained > assessment.max_marks:
+            return JsonResponse({
+                'success': False, 
+                'error': f'Marks must be between 0 and {assessment.max_marks}'
+            })
+        
+        # Verify student is enrolled in this unit
+        enrollment = UnitEnrollment.objects.filter(
+            student=student,
+            programme_unit=assessment.unit_allocation.programme_unit,
+            semester=assessment.unit_allocation.semester,
+            status='approved'
+        ).first()
+        
+        if not enrollment:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Student is not enrolled in this unit'
+            })
+        
+        # Determine approval status based on user role and auto_approve flag
+        if auto_approve:
+            if request.user.role == 'dean':
+                mark_status = 'approved_dean'
+            elif request.user.role == 'vc':
+                mark_status = 'published'
+            else:
+                mark_status = 'approved_hod'
+        else:
+            mark_status = 'draft'
+        
+        # Create or update student marks
+        student_mark, created = StudentMarks.objects.update_or_create(
+            assessment=assessment,
+            student=student,
+            defaults={
+                'marks_obtained': marks_obtained,
+                'attendance': True,
+                'status': mark_status,
+                'submitted_by': request.user
+            }
+        )
+        
+        # If auto-approve, set approval fields
+        if auto_approve:
+            if request.user.role in ['dean', 'vc']:
+                student_mark.approved_by_hod = request.user
+                student_mark.approved_by_hos = request.user
+                student_mark.approved_by_dean = request.user
+                student_mark.save()
+        
+        # Calculate total marks for the student across all assessments
+        all_assessments = Assessment.objects.filter(
+            unit_allocation=assessment.unit_allocation
+        )
+        
+        # Calculate CAT marks, assignment marks, and exam marks
+        cat_total = Decimal('0.00')
+        assignment_total = Decimal('0.00')
+        exam_marks = Decimal('0.00')
+        total_marks = Decimal('0.00')
+        
+        for assess in all_assessments:
+            mark = StudentMarks.objects.filter(
+                assessment=assess,
+                student=student
+            ).first()
+            
+            if mark:
+                weighted = (mark.marks_obtained / assess.max_marks) * assess.weight_percentage
+                total_marks += weighted
+                
+                # Separate CAT, Assignment, and Exam marks
+                if assess.assessment_type in ['cat1', 'cat2', 'cat3']:
+                    cat_total += weighted
+                elif assess.assessment_type == 'assignment':
+                    assignment_total += weighted
+                elif assess.assessment_type == 'final':
+                    exam_marks = weighted
+        
+        # Calculate grade
+        unit = assessment.unit_allocation.programme_unit.unit
+        grade, grade_point, is_passed = calculate_grade(total_marks, unit)
+        
+        # Determine if results should be published
+        result_published = auto_approve and request.user.role in ['dean', 'vc']
+        
+        # Get or create SemesterResults
+        semester_result, result_created = SemesterResults.objects.update_or_create(
+            student=student,
+            programme_unit=assessment.unit_allocation.programme_unit,
+            semester=assessment.unit_allocation.semester,
+            defaults={
+                'academic_year': assessment.unit_allocation.semester.academic_year,
+                'cat_marks': cat_total,
+                'assignment_marks': assignment_total,
+                'exam_marks': exam_marks,
+                'total_marks': total_marks,
+                'grade': grade,
+                'grade_point': grade_point,
+                'credit_hours': unit.credit_hours,
+                'quality_points': grade_point * unit.credit_hours,
+                'is_passed': is_passed,
+                'is_supplementary': enrollment.enrollment_type == 'resit',
+                'is_published': result_published,
+                'published_date': timezone.now() if result_published else None,
+            }
+        )
+        
+        # Set approvals if auto-approve
+        if auto_approve and request.user.role in ['dean', 'vc']:
+            semester_result.approved_by_hod = request.user
+            semester_result.approved_by_hos = request.user
+            semester_result.approved_by_dean = request.user
+            semester_result.save()
+        
+        # If this is a resit enrollment, update the ResitExam record
+        if enrollment.enrollment_type == 'resit' and enrollment.resit_exam:
+            resit_exam = enrollment.resit_exam
+            resit_exam.resit_marks = total_marks
+            resit_exam.resit_grade = grade
+            resit_exam.resit_grade_point = grade_point
+            if assessment.assessment_type == 'final':
+                resit_exam.status = 'completed'
+                resit_exam.marking_date = timezone.now()
+                resit_exam.marked_by = request.user
+            resit_exam.save()
+        
+        # Calculate semester GPA if results are published
+        if result_published:
+            update_semester_gpa(student, assessment.unit_allocation.semester)
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Marks saved and approved successfully' if auto_approve else 'Marks saved successfully',
+            'total_marks': float(round(total_marks, 2)),
+            'grade': grade,
+            'grade_point': float(grade_point),
+            'is_passed': is_passed,
+            'is_published': result_published,
+            'created': created,
+            'semester_result_created': result_created
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def calculate_grade(total_marks, unit):
+    """
+    Calculate grade based on total marks and unit grading system
+    Returns tuple: (grade, grade_point, is_passed)
+    """
+    grading = UnitGradingSystem.objects.filter(
+        unit=unit,
+        min_marks__lte=total_marks,
+        max_marks__gte=total_marks
+    ).first()
+    
+    if grading:
+        return (grading.grade, grading.grade_point, grading.is_pass)
+    
+    # Default grading if no grading system is defined
+    if total_marks >= 70:
+        return ('A', Decimal('5.00'), True)
+    elif total_marks >= 60:
+        return ('B', Decimal('4.00'), True)
+    elif total_marks >= 50:
+        return ('C', Decimal('3.00'), True)
+    elif total_marks >= 40:
+        return ('D', Decimal('2.00'), True)
+    else:
+        return ('E', Decimal('1.00'), False)
+
+
+def update_semester_gpa(student, semester):
+    """
+    Calculate and update student's semester GPA and cumulative GPA
+    """
+    # Get all semester results for this semester
+    semester_results = SemesterResults.objects.filter(
+        student=student,
+        semester=semester,
+        is_published=True
+    )
+    
+    if not semester_results.exists():
+        return
+    
+    # Calculate semester totals
+    total_credit_hours = sum(result.credit_hours for result in semester_results)
+    total_quality_points = sum(result.quality_points for result in semester_results)
+    
+    if total_credit_hours > 0:
+        semester_gpa = total_quality_points / total_credit_hours
+    else:
+        semester_gpa = Decimal('0.00')
+    
+    # Calculate cumulative GPA
+    all_results = SemesterResults.objects.filter(
+        student=student,
+        is_published=True
+    )
+    
+    cumulative_credit_hours = sum(result.credit_hours for result in all_results)
+    cumulative_quality_points = sum(result.quality_points for result in all_results)
+    
+    if cumulative_credit_hours > 0:
+        cumulative_gpa = cumulative_quality_points / cumulative_credit_hours
+    else:
+        cumulative_gpa = Decimal('0.00')
+    
+    # Update or create SemesterGPA record
+    SemesterGPA.objects.update_or_create(
+        student=student,
+        semester=semester,
+        defaults={
+            'academic_year': semester.academic_year,
+            'total_credit_hours': total_credit_hours,
+            'total_quality_points': total_quality_points,
+            'semester_gpa': round(semester_gpa, 2),
+            'cumulative_credit_hours': cumulative_credit_hours,
+            'cumulative_quality_points': cumulative_quality_points,
+            'cumulative_gpa': round(cumulative_gpa, 2),
+        }
+    )
+    
+    # Update student's cumulative GPA
+    student.cumulative_gpa = round(cumulative_gpa, 2)
+    student.total_credit_hours = cumulative_credit_hours
+    student.save()
+

@@ -217,5 +217,9 @@ urlpatterns = [
     path('student/transcript/download/year/<int:academic_year_id>/', views.download_yearly_transcript, name='download_yearly_transcript'),
     path('student/transcript/download/semester/<int:semester_id>/', views.download_semester_transcript, name='download_semester_transcript'),
 
-
+    path('admin-marks/entry/', views.admin_marks_entry, name='admin_marks_entry'),
+    path('admin-marks/search-student/', views.admin_search_student, name='admin_search_student'),
+    path('admin-marks/get-enrollments/', views.admin_get_student_enrollments, name='admin_get_student_enrollments'),
+    path('admin-marks/save/', views.admin_save_student_marks, name='admin_save_student_marks'),
+    
 ]
