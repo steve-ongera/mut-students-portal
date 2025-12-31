@@ -7799,87 +7799,104 @@ def get_available_lecturers(user, department=None, is_common_unit=False):
 
 
 # ============= MAIN VIEWS =============
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q
+from .models import (
+    UnitAllocation, Semester, School, Department, 
+    ProgrammeUnit, Lecturer
+)
+
 @login_required
 def unit_allocation_dashboard(request):
-    """Dashboard for unit allocation management"""
-    if not user_has_allocation_permission(request.user):
-        messages.error(request, 'You do not have permission to access this page.')
-        return redirect('dashboard')
+    """Dashboard for unit allocation management - DEBUG VERSION"""
     
-    # Get current semester
-    current_semester = Semester.objects.filter(is_current=True).first()
-    if not current_semester:
-        messages.warning(request, 'No active semester found.')
-        return render(request, 'allocations/dashboard.html', {})
+    try:
+        # Check user permissions
+        allowed_roles = ['ict_admin', 'dean', 'hos', 'hod', 'lecturer']
+        if request.user.role not in allowed_roles:
+            messages.error(request, 'You do not have permission to access this page.')
+            return redirect('dashboard')
+        
+        print("Step 1: User check passed")
+        
+        # Get current semester
+        current_semester = Semester.objects.filter(is_current=True).first()
+        print(f"Step 2: Current semester: {current_semester}")
+        
+        if not current_semester:
+            messages.warning(request, 'No active semester found.')
+            return render(request, 'allocations/dashboard.html', {
+                'current_semester': None,
+                'schools': [],
+                'departments': [],
+                'total_allocations': 0,
+                'pending_allocations': 0,
+                'approved_allocations': 0,
+                'rejected_allocations': 0,
+                'unallocated_count': 0,
+                'recent_allocations': [],
+                'user_role': request.user.role,
+            })
+        
+        # Simple allocations query - NO select_related at all for debugging
+        print("Step 3: Building query")
+        allocations_query = UnitAllocation.objects.filter(semester=current_semester)
+        
+        print("Step 4: Getting counts")
+        total_allocations = allocations_query.count()
+        pending_allocations = allocations_query.filter(status='pending').count()
+        approved_allocations = allocations_query.filter(
+            status__in=['approved_hod', 'approved_hos', 'approved_dean']
+        ).count()
+        
+        print("Step 5: Getting recent allocations")
+        # Get recent allocations WITHOUT select_related for now
+        recent_allocations_qs = allocations_query.order_by('-created_at')[:10]
+        recent_allocations = []
+        
+        # Manually load each allocation to see which one causes the error
+        for i, allocation in enumerate(recent_allocations_qs):
+            print(f"Processing allocation {i}: {allocation.id}")
+            try:
+                # Try to access all the fields used in the template
+                _ = allocation.programme_unit.unit.code
+                _ = allocation.programme_unit.unit.name
+                _ = allocation.programme_unit.programme.code
+                _ = allocation.programme_unit.programme.department.name
+                _ = allocation.lecturer.user.get_full_name()
+                _ = allocation.lecturer.employee_number
+                recent_allocations.append(allocation)
+                print(f"  ✓ Allocation {i} OK")
+            except Exception as e:
+                print(f"  ✗ Error on allocation {i}: {e}")
+                continue
+        
+        print(f"Step 6: Successfully loaded {len(recent_allocations)} allocations")
+        
+        context = {
+            'current_semester': current_semester,
+            'schools': [],
+            'departments': [],
+            'total_allocations': total_allocations,
+            'pending_allocations': pending_allocations,
+            'approved_allocations': approved_allocations,
+            'rejected_allocations': 0,
+            'unallocated_count': 0,
+            'recent_allocations': recent_allocations,
+            'user_role': request.user.role,
+        }
+        
+        print("Step 7: Rendering template")
+        return render(request, 'allocations/dashboard.html', context)
+        
+    except Exception as e:
+        print(f"ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
-    # Get accessible schools and departments
-    schools = get_user_schools(request.user)
-    departments = get_user_departments(request.user)
-    
-    # Build base query for allocations
-    allocations_query = UnitAllocation.objects.filter(
-        semester=current_semester
-    ).select_related(
-        'programme_unit__unit',
-        'programme_unit__programme',
-        'programme_unit__programme__department',
-        'programme_unit__programme__department__school',
-        'lecturer__user',
-        'lecturer__department',
-        'assigned_by'
-    )
-    
-    # Filter by user role
-    if request.user.role != 'ict_admin':
-        allocations_query = allocations_query.filter(
-            programme_unit__programme__department__in=departments
-        )
-    
-    # Statistics
-    total_allocations = allocations_query.count()
-    pending_allocations = allocations_query.filter(status='pending').count()
-    approved_allocations = allocations_query.filter(
-        status__in=['approved_hod', 'approved_hos', 'approved_dean']
-    ).count()
-    rejected_allocations = allocations_query.filter(status='rejected').count()
-    
-    # Get unallocated units
-    programme_units_query = ProgrammeUnit.objects.filter(
-        academic_year=current_semester.academic_year,
-        is_active=True
-    ).select_related(
-        'unit',
-        'programme',
-        'programme__department'
-    )
-    
-    if request.user.role != 'ict_admin':
-        programme_units_query = programme_units_query.filter(
-            programme__department__in=departments
-        )
-    
-    allocated_unit_ids = allocations_query.values_list('programme_unit_id', flat=True)
-    unallocated_units = programme_units_query.exclude(id__in=allocated_unit_ids)
-    
-    # Recent allocations
-    recent_allocations = allocations_query.order_by('-created_at')[:10]
-    
-    context = {
-        'current_semester': current_semester,
-        'schools': schools,
-        'departments': departments,
-        'total_allocations': total_allocations,
-        'pending_allocations': pending_allocations,
-        'approved_allocations': approved_allocations,
-        'rejected_allocations': rejected_allocations,
-        'unallocated_count': unallocated_units.count(),
-        'recent_allocations': recent_allocations,
-        'user_role': request.user.role,
-    }
-    
-    return render(request, 'allocations/dashboard.html', context)
-
-
 @login_required
 def unit_allocation_list(request):
     """List all unit allocations with filters"""
