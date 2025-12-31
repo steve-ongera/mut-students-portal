@@ -9270,7 +9270,7 @@ from .models import (
 def admin_marks_entry(request):
     """Admin interface for entering student marks"""
     # Check if user is admin/registrar
-    if request.user.role not in ['registrar', 'vc', 'dean']:
+    if request.user.role not in ['ict_admin', 'registrar', 'vc', 'dean']:
         messages.error(request, 'Unauthorized access.')
         return redirect('dashboard')
     
@@ -9295,7 +9295,7 @@ def admin_marks_entry(request):
 @login_required
 def admin_search_student(request):
     """AJAX endpoint to search for students"""
-    if request.user.role not in ['registrar', 'vc', 'dean']:
+    if request.user.role not in ['ict_admin','registrar', 'vc', 'dean']:
         return JsonResponse({'success': False, 'error': 'Unauthorized'})
     
     search_term = request.GET.get('term', '').strip()
@@ -9336,7 +9336,7 @@ def admin_search_student(request):
 @login_required
 def admin_get_student_enrollments(request):
     """AJAX endpoint to get student enrollments for a specific semester"""
-    if request.user.role not in ['registrar', 'vc', 'dean']:
+    if request.user.role not in ['ict_admin','registrar', 'vc', 'dean']:
         return JsonResponse({'success': False, 'error': 'Unauthorized'})
     
     student_id = request.GET.get('student_id')
@@ -9441,7 +9441,7 @@ def admin_get_student_enrollments(request):
 @transaction.atomic
 def admin_save_student_marks(request):
     """AJAX endpoint for admin to save and approve student marks"""
-    if request.user.role not in ['registrar', 'vc', 'dean']:
+    if request.user.role not in ['ict_admin','registrar', 'vc', 'dean']:
         return JsonResponse({'success': False, 'error': 'Unauthorized'})
     
     if request.method != 'POST':
@@ -9693,4 +9693,3 @@ def update_semester_gpa(student, semester):
     student.cumulative_gpa = round(cumulative_gpa, 2)
     student.total_credit_hours = cumulative_credit_hours
     student.save()
-

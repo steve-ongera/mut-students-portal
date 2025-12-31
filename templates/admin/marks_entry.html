@@ -294,7 +294,7 @@ document.getElementById('student_search').addEventListener('input', function(e) 
 });
 
 function searchStudent(term) {
-    fetch(`/admin/marks/search-student/?term=${encodeURIComponent(term)}`)
+    fetch(`/admin-marks/search-student/?term=${encodeURIComponent(term)}`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -367,7 +367,7 @@ function loadStudentEnrollments() {
     document.getElementById('loading').classList.add('show');
     document.getElementById('enrollments_section').style.display = 'none';
     
-    fetch(`/admin/marks/get-enrollments/?student_id=${selectedStudentId}&semester_id=${semesterId}`)
+    fetch(`/admin-marks/get-enrollments/?student_id=${selectedStudentId}&semester_id=${semesterId}`)
         .then(response => response.json())
         .then(data => {
             document.getElementById('loading').classList.remove('show');
@@ -492,7 +492,7 @@ function saveMark(assessmentId, studentId) {
     formData.append('auto_approve', autoApprove);
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
     
-    fetch('/admin/marks/save/', {
+    fetch('/admin-marks/save/', {
         method: 'POST',
         body: formData
     })
