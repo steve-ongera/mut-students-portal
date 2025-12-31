@@ -143,11 +143,19 @@
                 <div class="col-md-3">
                     <div class="d-flex align-items-center gap-3">
                         <div class="stat-icon">
-                            <i class="ri-percent-line text-warning"></i>
+                            <i class="ri-refresh-line text-warning"></i>
                         </div>
                         <div>
-                            <div class="stat-value">100%</div>
-                            <div class="stat-label">Total Weight</div>
+                            {% with resit_count=0 %}
+                                {% for student in students_data %}
+                                    {% if student.is_resit %}
+                                        {% with resit_count=resit_count|add:1 %}
+                                        {% endwith %}
+                                    {% endif %}
+                                {% endfor %}
+                                <div class="stat-value">{{ resit_count }}</div>
+                            {% endwith %}
+                            <div class="stat-label">Resit Students</div>
                         </div>
                     </div>
                 </div>
@@ -169,6 +177,7 @@
                             <th class="ps-4" width="50">#</th>
                             <th width="140">Reg Number</th>
                             <th width="200">Student Name</th>
+                            <th width="80">Type</th>
                             <th width="100">Attendance</th>
                             
                             {% for assessment in assessments %}
@@ -201,7 +210,7 @@
                     </thead>
                     <tbody>
                         {% for student_data in students_data %}
-                        <tr>
+                        <tr {% if student_data.is_resit %}class="table-warning"{% endif %}>
                             <td class="ps-4">{{ forloop.counter }}</td>
                             <td>
                                 <div class="registration-number">
@@ -212,6 +221,15 @@
                                 <div class="student-info">
                                     <h6 class="mb-0 fw-medium">{{ student_data.student.user.get_full_name }}</h6>
                                 </div>
+                            </td>
+                            <td>
+                                {% if student_data.is_resit %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="ri-refresh-line me-1"></i>Resit
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-info text-white">Normal</span>
+                                {% endif %}
                             </td>
                             <td>
                                 <div class="attendance-info text-center">
@@ -321,14 +339,14 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="{% with col_count=4 %}
+                            <td colspan="{% with col_count=5 %}
                                             {{ col_count|add:assessments.count|add:2 }}
                                          {% endwith %}" 
                                 class="text-center py-5">
                                 <div class="empty-state">
                                     <i class="ri-user-search-line display-4 text-muted mb-3"></i>
                                     <h5 class="text-muted">No students enrolled</h5>
-                                    <p class="text-muted mb-0">No students are registered for this unit</p>
+                                    <p class="text-muted mb-0">No students have enrolled for this unit</p>
                                 </div>
                             </td>
                         </tr>
@@ -523,6 +541,15 @@
     
     .table tbody tr:last-child {
         border-bottom: none;
+    }
+    
+    /* Resit row highlight */
+    .table tbody tr.table-warning {
+        background-color: rgba(255, 193, 7, 0.1);
+    }
+    
+    .table tbody tr.table-warning:hover {
+        background-color: rgba(255, 193, 7, 0.15);
     }
     
     /* Student Info */
@@ -745,6 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 inputElement.classList.remove('saving');
             }
         })
+        
         .catch(error => {
             console.error('Error:', error);
             alert('Failed to save marks. Please try again.');
