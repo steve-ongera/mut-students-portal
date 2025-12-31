@@ -8316,24 +8316,38 @@ def search_lecturers_ajax(request):
         # Limit results
         lecturers = lecturers[:20]
         
+        # Get current semester for allocation checks
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
         # Format response
         lecturers_data = []
         for lecturer in lecturers:
             try:
-                # Count current allocations
-                current_allocations = UnitAllocation.objects.filter(
-                    lecturer=lecturer,
-                    semester__is_current=True
-                ).count()
+                # Count current allocations - FIX: lecturer field points to User, so use lecturer.user
+                current_allocations = 0
+                if current_semester:
+                    current_allocations = UnitAllocation.objects.filter(
+                        lecturer=lecturer.user,  # FIXED: Pass the User instance directly
+                        semester=current_semester
+                    ).count()
                 
                 # If programme_unit_id is provided, check existing allocations for this unit
                 existing_allocation = None
-                if programme_unit_id:
+                existing_allocation_info = None
+                
+                if programme_unit_id and current_semester:
                     existing_allocation = UnitAllocation.objects.filter(
-                        lecturer=lecturer,
+                        lecturer=lecturer.user,  # FIXED: Pass the User instance directly
                         programme_unit_id=programme_unit_id,
-                        semester__is_current=True
+                        semester=current_semester
                     ).first()
+                    
+                    if existing_allocation:
+                        existing_allocation_info = (
+                            f"Already teaching this unit for "
+                            f"{existing_allocation.programme_unit.programme.code} "
+                            f"Year {existing_allocation.programme_unit.year_of_study}"
+                        )
                 
                 lecturers_data.append({
                     'id': lecturer.id,
@@ -8345,11 +8359,13 @@ def search_lecturers_ajax(request):
                     'designation': lecturer.get_designation_display(),
                     'current_allocations': current_allocations,
                     'has_existing_allocation': existing_allocation is not None,
-                    'existing_allocation_info': f"Already teaching this unit for {existing_allocation.programme_unit.programme.code}" if existing_allocation else None,
+                    'existing_allocation_info': existing_allocation_info,
                 })
             except Exception as e:
                 # Log error but continue with other lecturers
                 print(f"Error processing lecturer {lecturer.id}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 continue
         
         return JsonResponse({
