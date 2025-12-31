@@ -9693,3 +9693,313 @@ def update_semester_gpa(student, semester):
     student.cumulative_gpa = round(cumulative_gpa, 2)
     student.total_credit_hours = cumulative_credit_hours
     student.save()
+    
+    
+    
+    
+# views.py
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from django.db.models import Q, Count
+from .models import EnrollmentPeriod, Semester, AcademicYear
+import json
+from datetime import datetime
+
+@login_required
+def enrollment_period_list(request):
+    """Main view for enrollment period management"""
+    # Get all enrollment periods with related data
+    enrollment_periods = EnrollmentPeriod.objects.select_related(
+        'semester',
+        'semester__academic_year'
+    ).all()
+    
+    # Get active semesters for dropdown
+    semesters = Semester.objects.filter(is_active=True).select_related('academic_year')
+    
+    # Get academic years
+    academic_years = AcademicYear.objects.filter(is_active=True)
+    
+    context = {
+        'enrollment_periods': enrollment_periods,
+        'semesters': semesters,
+        'academic_years': academic_years,
+        'total_periods': enrollment_periods.count(),
+    }
+    
+    return render(request, 'admin/enrollment_periods.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def enrollment_period_create(request):
+    """Create new enrollment period via AJAX"""
+    try:
+        data = json.loads(request.body)
+        
+        semester_id = data.get('semester_id')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        resit_start_date = data.get('resit_start_date')
+        resit_end_date = data.get('resit_end_date')
+        is_active = data.get('is_active', True)
+        remarks = data.get('remarks', '')
+        
+        # Validate required fields
+        if not all([semester_id, start_date, end_date]):
+            return JsonResponse({
+                'success': False,
+                'error': 'Semester, start date, and end date are required.'
+            }, status=400)
+        
+        # Get semester
+        semester = get_object_or_404(Semester, id=semester_id)
+        
+        # Check if enrollment period already exists for this semester
+        if EnrollmentPeriod.objects.filter(semester=semester).exists():
+            return JsonResponse({
+                'success': False,
+                'error': f'Enrollment period already exists for {semester.name}.'
+            }, status=400)
+        
+        # Parse dates
+        start_dt = timezone.datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        end_dt = timezone.datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+        
+        # Validate date range
+        if end_dt <= start_dt:
+            return JsonResponse({
+                'success': False,
+                'error': 'End date must be after start date.'
+            }, status=400)
+        
+        # Create enrollment period
+        enrollment_period = EnrollmentPeriod.objects.create(
+            semester=semester,
+            start_date=start_dt,
+            end_date=end_dt,
+            is_active=is_active,
+            remarks=remarks
+        )
+        
+        # Add resit dates if provided
+        if resit_start_date and resit_end_date:
+            resit_start_dt = timezone.datetime.fromisoformat(resit_start_date.replace('Z', '+00:00'))
+            resit_end_dt = timezone.datetime.fromisoformat(resit_end_date.replace('Z', '+00:00'))
+            
+            if resit_end_dt <= resit_start_dt:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Resit end date must be after resit start date.'
+                }, status=400)
+            
+            enrollment_period.resit_start_date = resit_start_dt
+            enrollment_period.resit_end_date = resit_end_dt
+            enrollment_period.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Enrollment period created successfully.',
+            'period': {
+                'id': enrollment_period.id,
+                'semester': str(enrollment_period.semester),
+                'semester_id': enrollment_period.semester.id,
+                'academic_year': enrollment_period.semester.academic_year.name,
+                'start_date': enrollment_period.start_date.isoformat(),
+                'end_date': enrollment_period.end_date.isoformat(),
+                'resit_start_date': enrollment_period.resit_start_date.isoformat() if enrollment_period.resit_start_date else None,
+                'resit_end_date': enrollment_period.resit_end_date.isoformat() if enrollment_period.resit_end_date else None,
+                'is_active': enrollment_period.is_active,
+                'is_enrollment_open': enrollment_period.is_enrollment_open(),
+                'is_resit_enrollment_open': enrollment_period.is_resit_enrollment_open(),
+                'remarks': enrollment_period.remarks,
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data.'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["PUT", "POST"])
+def enrollment_period_update(request, period_id):
+    """Update enrollment period via AJAX"""
+    try:
+        enrollment_period = get_object_or_404(EnrollmentPeriod, id=period_id)
+        data = json.loads(request.body)
+        
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        resit_start_date = data.get('resit_start_date')
+        resit_end_date = data.get('resit_end_date')
+        is_active = data.get('is_active')
+        remarks = data.get('remarks')
+        
+        # Update dates if provided
+        if start_date:
+            start_dt = timezone.datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            enrollment_period.start_date = start_dt
+        
+        if end_date:
+            end_dt = timezone.datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            enrollment_period.end_date = end_dt
+        
+        # Validate date range
+        if enrollment_period.end_date <= enrollment_period.start_date:
+            return JsonResponse({
+                'success': False,
+                'error': 'End date must be after start date.'
+            }, status=400)
+        
+        # Update resit dates if provided
+        if resit_start_date and resit_end_date:
+            resit_start_dt = timezone.datetime.fromisoformat(resit_start_date.replace('Z', '+00:00'))
+            resit_end_dt = timezone.datetime.fromisoformat(resit_end_date.replace('Z', '+00:00'))
+            
+            if resit_end_dt <= resit_start_dt:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Resit end date must be after resit start date.'
+                }, status=400)
+            
+            enrollment_period.resit_start_date = resit_start_dt
+            enrollment_period.resit_end_date = resit_end_dt
+        elif resit_start_date == '' or resit_end_date == '':
+            # Clear resit dates if empty strings provided
+            enrollment_period.resit_start_date = None
+            enrollment_period.resit_end_date = None
+        
+        if is_active is not None:
+            enrollment_period.is_active = is_active
+        
+        if remarks is not None:
+            enrollment_period.remarks = remarks
+        
+        enrollment_period.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Enrollment period updated successfully.',
+            'period': {
+                'id': enrollment_period.id,
+                'semester': str(enrollment_period.semester),
+                'semester_id': enrollment_period.semester.id,
+                'academic_year': enrollment_period.semester.academic_year.name,
+                'start_date': enrollment_period.start_date.isoformat(),
+                'end_date': enrollment_period.end_date.isoformat(),
+                'resit_start_date': enrollment_period.resit_start_date.isoformat() if enrollment_period.resit_start_date else None,
+                'resit_end_date': enrollment_period.resit_end_date.isoformat() if enrollment_period.resit_end_date else None,
+                'is_active': enrollment_period.is_active,
+                'is_enrollment_open': enrollment_period.is_enrollment_open(),
+                'is_resit_enrollment_open': enrollment_period.is_resit_enrollment_open(),
+                'remarks': enrollment_period.remarks,
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data.'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["DELETE", "POST"])
+def enrollment_period_delete(request, period_id):
+    """Delete enrollment period via AJAX"""
+    try:
+        enrollment_period = get_object_or_404(EnrollmentPeriod, id=period_id)
+        
+        # Check if there are any enrollments
+        if enrollment_period.semester.enrollments.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Cannot delete enrollment period with existing enrollments.'
+            }, status=400)
+        
+        semester_name = str(enrollment_period.semester)
+        enrollment_period.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Enrollment period for {semester_name} deleted successfully.'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def enrollment_period_detail(request, period_id):
+    """Get enrollment period details via AJAX"""
+    try:
+        enrollment_period = get_object_or_404(EnrollmentPeriod, id=period_id)
+        
+        # Get enrollment statistics
+        total_enrollments = enrollment_period.semester.enrollments.count()
+        pending_enrollments = enrollment_period.semester.enrollments.filter(status='pending').count()
+        approved_enrollments = enrollment_period.semester.enrollments.filter(status='approved').count()
+        
+        return JsonResponse({
+            'success': True,
+            'period': {
+                'id': enrollment_period.id,
+                'semester': str(enrollment_period.semester),
+                'semester_id': enrollment_period.semester.id,
+                'academic_year': enrollment_period.semester.academic_year.name,
+                'start_date': enrollment_period.start_date.isoformat(),
+                'end_date': enrollment_period.end_date.isoformat(),
+                'resit_start_date': enrollment_period.resit_start_date.isoformat() if enrollment_period.resit_start_date else None,
+                'resit_end_date': enrollment_period.resit_end_date.isoformat() if enrollment_period.resit_end_date else None,
+                'is_active': enrollment_period.is_active,
+                'is_enrollment_open': enrollment_period.is_enrollment_open(),
+                'is_resit_enrollment_open': enrollment_period.is_resit_enrollment_open(),
+                'remarks': enrollment_period.remarks,
+                'statistics': {
+                    'total_enrollments': total_enrollments,
+                    'pending_enrollments': pending_enrollments,
+                    'approved_enrollments': approved_enrollments,
+                }
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+# urls.py
+"""
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('enrollment-periods/', views.enrollment_period_list, name='enrollment_period_list'),
+    path('enrollment-periods/create/', views.enrollment_period_create, name='enrollment_period_create'),
+    path('enrollment-periods/<int:period_id>/', views.enrollment_period_detail, name='enrollment_period_detail'),
+    path('enrollment-periods/<int:period_id>/update/', views.enrollment_period_update, name='enrollment_period_update'),
+    path('enrollment-periods/<int:period_id>/delete/', views.enrollment_period_delete, name='enrollment_period_delete'),
+]
+"""
