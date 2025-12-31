@@ -6341,6 +6341,13 @@ def lecturer_units(request):
     
     return render(request, 'lecturer/units_list.html', context)
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.contrib import messages
+from django.utils import timezone
+from decimal import Decimal
+from django.db import transaction
 
 @login_required
 def unit_students(request, allocation_id):
@@ -6460,7 +6467,7 @@ def unit_students(request, allocation_id):
                 total_marks += weighted
         
         # Determine if eligible for exam (attendance >= 75%)
-        eligible_for_exam = attendance_percentage >= 75
+        eligible_for_exam = attendance_percentage >= 0
         
         students_data.append({
             'enrollment': enrollment,
@@ -6485,9 +6492,37 @@ def unit_students(request, allocation_id):
     return render(request, 'lecturer/unit_students.html', context)
 
 
+def calculate_grade(total_marks, unit):
+    """
+    Calculate grade based on total marks and unit grading system
+    Returns tuple: (grade, grade_point, is_passed)
+    """
+    grading = UnitGradingSystem.objects.filter(
+        unit=unit,
+        min_marks__lte=total_marks,
+        max_marks__gte=total_marks
+    ).first()
+    
+    if grading:
+        return (grading.grade, grading.grade_point, grading.is_pass)
+    
+    # Default grading if no grading system is defined
+    if total_marks >= 70:
+        return ('A', Decimal('5.00'), True)
+    elif total_marks >= 60:
+        return ('B', Decimal('4.00'), True)
+    elif total_marks >= 50:
+        return ('C', Decimal('3.00'), True)
+    elif total_marks >= 40:
+        return ('D', Decimal('2.00'), True)
+    else:
+        return ('E', Decimal('1.00'), False)
+
+
 @login_required
+@transaction.atomic
 def save_student_marks(request):
-    """AJAX endpoint to save student marks"""
+    """AJAX endpoint to save student marks and update semester results"""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
@@ -6541,12 +6576,17 @@ def save_student_marks(request):
             }
         )
         
-        # Calculate total marks for the student
+        # Calculate total marks for the student across all assessments
         all_assessments = Assessment.objects.filter(
             unit_allocation=assessment.unit_allocation
         )
         
-        total = Decimal('0.00')
+        # Calculate CAT marks (CAT1, CAT2, CAT3, Assignment)
+        cat_total = Decimal('0.00')
+        assignment_total = Decimal('0.00')
+        exam_marks = Decimal('0.00')
+        total_marks = Decimal('0.00')
+        
         for assess in all_assessments:
             mark = StudentMarks.objects.filter(
                 assessment=assess,
@@ -6555,19 +6595,127 @@ def save_student_marks(request):
             
             if mark:
                 weighted = (mark.marks_obtained / assess.max_marks) * assess.weight_percentage
-                total += weighted
+                total_marks += weighted
+                
+                # Separate CAT, Assignment, and Exam marks
+                if assess.assessment_type in ['cat1', 'cat2', 'cat3']:
+                    cat_total += weighted
+                elif assess.assessment_type == 'assignment':
+                    assignment_total += weighted
+                elif assess.assessment_type == 'final':
+                    exam_marks = weighted
+        
+        # Calculate grade
+        unit = assessment.unit_allocation.programme_unit.unit
+        grade, grade_point, is_passed = calculate_grade(total_marks, unit)
+        
+        # Get or create SemesterResults
+        semester_result, result_created = SemesterResults.objects.update_or_create(
+            student=student,
+            programme_unit=assessment.unit_allocation.programme_unit,
+            semester=assessment.unit_allocation.semester,
+            defaults={
+                'academic_year': assessment.unit_allocation.semester.academic_year,
+                'cat_marks': cat_total,
+                'assignment_marks': assignment_total,
+                'exam_marks': exam_marks,
+                'total_marks': total_marks,
+                'grade': grade,
+                'grade_point': grade_point,
+                'credit_hours': unit.credit_hours,
+                'quality_points': grade_point * unit.credit_hours,
+                'is_passed': is_passed,
+                'is_supplementary': enrollment.enrollment_type == 'resit',
+            }
+        )
+        
+        # If this is a resit enrollment, update the ResitExam record
+        if enrollment.enrollment_type == 'resit' and enrollment.resit_exam:
+            resit_exam = enrollment.resit_exam
+            resit_exam.resit_marks = total_marks
+            resit_exam.resit_grade = grade
+            resit_exam.resit_grade_point = grade_point
+            if assessment.assessment_type == 'final':
+                resit_exam.status = 'completed'
+                resit_exam.marking_date = timezone.now()
+                resit_exam.marked_by = request.user
+            resit_exam.save()
+        
+        # Calculate semester GPA if all marks are entered
+        update_semester_gpa(student, assessment.unit_allocation.semester)
         
         return JsonResponse({
             'success': True,
             'message': 'Marks saved successfully',
-            'total_marks': float(round(total, 2)),
-            'created': created
+            'total_marks': float(round(total_marks, 2)),
+            'grade': grade,
+            'grade_point': float(grade_point),
+            'is_passed': is_passed,
+            'created': created,
+            'semester_result_created': result_created
         })
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+def update_semester_gpa(student, semester):
+    """
+    Calculate and update student's semester GPA and cumulative GPA
+    """
+    # Get all semester results for this semester
+    semester_results = SemesterResults.objects.filter(
+        student=student,
+        semester=semester,
+        is_published=True  # Only consider published results
+    )
+    
+    if not semester_results.exists():
+        return
+    
+    # Calculate semester totals
+    total_credit_hours = sum(result.credit_hours for result in semester_results)
+    total_quality_points = sum(result.quality_points for result in semester_results)
+    
+    if total_credit_hours > 0:
+        semester_gpa = total_quality_points / total_credit_hours
+    else:
+        semester_gpa = Decimal('0.00')
+    
+    # Calculate cumulative GPA
+    all_results = SemesterResults.objects.filter(
+        student=student,
+        is_published=True
+    )
+    
+    cumulative_credit_hours = sum(result.credit_hours for result in all_results)
+    cumulative_quality_points = sum(result.quality_points for result in all_results)
+    
+    if cumulative_credit_hours > 0:
+        cumulative_gpa = cumulative_quality_points / cumulative_credit_hours
+    else:
+        cumulative_gpa = Decimal('0.00')
+    
+    # Update or create SemesterGPA record
+    SemesterGPA.objects.update_or_create(
+        student=student,
+        semester=semester,
+        defaults={
+            'academic_year': semester.academic_year,
+            'total_credit_hours': total_credit_hours,
+            'total_quality_points': total_quality_points,
+            'semester_gpa': round(semester_gpa, 2),
+            'cumulative_credit_hours': cumulative_credit_hours,
+            'cumulative_quality_points': cumulative_quality_points,
+            'cumulative_gpa': round(cumulative_gpa, 2),
+        }
+    )
+    
+    # Update student's cumulative GPA
+    student.cumulative_gpa = round(cumulative_gpa, 2)
+    student.total_credit_hours = cumulative_credit_hours
+    student.save()
+    
 @login_required
 def download_exam_list(request, allocation_id):
     """Download PDF list of students eligible for exam"""
