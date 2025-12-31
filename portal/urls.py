@@ -210,6 +210,12 @@ urlpatterns = [
     
     # AJAX Endpoints
     path('allocations/ajax/lecturers/', views.get_lecturers_ajax, name='get_lecturers_ajax'),
+    
+    # Student Transcript URLs
+    path('student/transcript/', views.student_transcript_view, name='student_transcript'),
+    path('student/transcript/download/full/', views.download_full_transcript, name='download_full_transcript'),
+    path('student/transcript/download/year/<int:academic_year_id>/', views.download_yearly_transcript, name='download_yearly_transcript'),
+    path('student/transcript/download/semester/<int:semester_id>/', views.download_semester_transcript, name='download_semester_transcript'),
 
 
 ]

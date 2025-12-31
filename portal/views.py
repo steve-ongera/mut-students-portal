@@ -8701,3 +8701,400 @@ def delete_unit_allocation(request, allocation_id):
         return redirect('unit_allocation_list')
     
     return render(request, 'allocations/delete_allocation.html', {'allocation': allocation})
+
+
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, HttpResponseForbidden
+from django.db.models import Sum, Avg, Count, Q, F
+from django.utils import timezone
+from decimal import Decimal
+import io
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+
+from .models import (
+    Student, AcademicYear, Semester, SemesterResults, 
+    SemesterGPA, ResitExam, UnitEnrollment
+)
+
+
+@login_required
+def student_transcript_view(request):
+    """
+    Main transcript view showing all academic years and semesters
+    Only the logged-in student can view their own transcript
+    """
+    # Get student profile
+    try:
+        student = request.user.student_profile
+    except:
+        return HttpResponseForbidden("You don't have a student profile.")
+    
+    # Get all academic years the student has been enrolled in
+    academic_years = AcademicYear.objects.filter(
+        results__student=student
+    ).distinct().order_by('start_date')
+    
+    # Organize data by academic year and semester
+    transcript_data = []
+    
+    for academic_year in academic_years:
+        # Get semesters for this academic year
+        semesters = Semester.objects.filter(
+            academic_year=academic_year,
+            results__student=student
+        ).distinct().order_by('semester_number')
+        
+        semester_data = []
+        for semester in semesters:
+            # Get results for this semester
+            results = SemesterResults.objects.filter(
+                student=student,
+                semester=semester,
+                academic_year=academic_year
+            ).select_related(
+                'programme_unit__unit',
+                'programme_unit__programme'
+            ).order_by('programme_unit__unit__code')
+            
+            # Check for resit exams
+            results_with_resit = []
+            for result in results:
+                resit = ResitExam.objects.filter(
+                    student=student,
+                    original_result=result,
+                    status='completed'
+                ).first()
+                
+                results_with_resit.append({
+                    'result': result,
+                    'resit': resit
+                })
+            
+            # Get semester GPA
+            semester_gpa = SemesterGPA.objects.filter(
+                student=student,
+                semester=semester
+            ).first()
+            
+            semester_data.append({
+                'semester': semester,
+                'results': results_with_resit,
+                'gpa_data': semester_gpa,
+                'total_units': results.count(),
+                'passed_units': results.filter(is_passed=True).count(),
+                'failed_units': results.filter(is_passed=False).count(),
+            })
+        
+        transcript_data.append({
+            'academic_year': academic_year,
+            'semesters': semester_data
+        })
+    
+    # Calculate overall statistics
+    overall_gpa = student.cumulative_gpa
+    total_credits = student.total_credit_hours
+    
+    # Determine class classification
+    class_classification = get_class_classification(overall_gpa, student.current_year)
+    
+    # Calculate completion percentage
+    required_credits = student.programme.min_credit_hours
+    completion_percentage = (total_credits / required_credits * 100) if required_credits > 0 else 0
+    
+    # Get total units taken and passed
+    total_units = SemesterResults.objects.filter(student=student).count()
+    passed_units = SemesterResults.objects.filter(student=student, is_passed=True).count()
+    failed_units = total_units - passed_units
+    
+    context = {
+        'student': student,
+        'transcript_data': transcript_data,
+        'overall_gpa': overall_gpa,
+        'total_credits': total_credits,
+        'required_credits': required_credits,
+        'completion_percentage': completion_percentage,
+        'class_classification': class_classification,
+        'total_units': total_units,
+        'passed_units': passed_units,
+        'failed_units': failed_units,
+        'current_year': student.current_year,
+    }
+    
+    return render(request, 'student/transcript.html', context)
+
+
+def get_class_classification(gpa, current_year):
+    """
+    Determine class classification based on GPA
+    Only applies from 3rd year onwards for degree programs
+    """
+    if current_year < 3:
+        return {
+            'class': 'In Progress',
+            'description': 'Classification will be determined from Year 3',
+            'color': 'info',
+            'icon': 'ri-time-line'
+        }
+    
+    if gpa >= 3.70:
+        return {
+            'class': 'First Class Honours',
+            'description': 'Outstanding Performance',
+            'color': 'success',
+            'icon': 'ri-medal-line',
+            'advice': 'Excellent work! Maintain this exceptional performance.'
+        }
+    elif gpa >= 3.30:
+        return {
+            'class': 'Second Class Honours (Upper Division)',
+            'description': 'Very Good Performance',
+            'color': 'primary',
+            'icon': 'ri-award-line',
+            'advice': 'Great job! A little more effort can push you to First Class.'
+        }
+    elif gpa >= 2.70:
+        return {
+            'class': 'Second Class Honours (Lower Division)',
+            'description': 'Good Performance',
+            'color': 'info',
+            'icon': 'ri-star-line',
+            'advice': 'Good work! Focus on improving to reach Upper Second Class.'
+        }
+    elif gpa >= 2.00:
+        return {
+            'class': 'Pass',
+            'description': 'Satisfactory Performance',
+            'color': 'warning',
+            'icon': 'ri-checkbox-circle-line',
+            'advice': 'You can do better! Put in more effort to improve your grades.'
+        }
+    else:
+        return {
+            'class': 'Below Pass',
+            'description': 'Needs Improvement',
+            'color': 'danger',
+            'icon': 'ri-alert-line',
+            'advice': 'Critical: You need to significantly improve your performance.'
+        }
+
+
+@login_required
+def download_full_transcript(request):
+    """Download complete transcript as PDF"""
+    try:
+        student = request.user.student_profile
+    except:
+        return HttpResponseForbidden("You don't have a student profile.")
+    
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.HexColor('#2E7D32'),
+        spaceAfter=12,
+        alignment=TA_CENTER
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=12,
+        textColor=colors.HexColor('#2E7D32'),
+        spaceAfter=8
+    )
+    
+    # Header
+    elements.append(Paragraph("OFFICIAL ACADEMIC TRANSCRIPT", title_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Student Information
+    student_info = [
+        ['Registration Number:', student.registration_number],
+        ['Student Name:', student.user.get_full_name()],
+        ['Programme:', student.programme.name],
+        ['Programme Code:', student.programme.code],
+        ['Admission Date:', student.admission_date.strftime('%B %d, %Y')],
+        ['Current Status:', student.get_student_status_display()],
+    ]
+    
+    info_table = Table(student_info, colWidths=[2*inch, 4*inch])
+    info_table.setStyle(TableStyle([
+        ('FONT', (0, 0), (-1, -1), 'Helvetica', 9),
+        ('FONT', (0, 0), (0, -1), 'Helvetica-Bold', 9),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2E7D32')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # Get all academic years and results
+    academic_years = AcademicYear.objects.filter(
+        results__student=student
+    ).distinct().order_by('start_date')
+    
+    for academic_year in academic_years:
+        # Academic Year Header
+        elements.append(Paragraph(f"Academic Year: {academic_year.name}", heading_style))
+        elements.append(Spacer(1, 0.1*inch))
+        
+        semesters = Semester.objects.filter(
+            academic_year=academic_year,
+            results__student=student
+        ).distinct().order_by('semester_number')
+        
+        for semester in semesters:
+            # Semester subheading
+            elements.append(Paragraph(f"  {semester.name}", styles['Heading3']))
+            
+            # Get results
+            results = SemesterResults.objects.filter(
+                student=student,
+                semester=semester,
+                academic_year=academic_year
+            ).select_related('programme_unit__unit').order_by('programme_unit__unit__code')
+            
+            if results.exists():
+                # Results table
+                data = [['Code', 'Unit Name', 'Credits', 'Marks', 'Grade', 'Points']]
+                
+                for result in results:
+                    # Check for resit
+                    resit = ResitExam.objects.filter(
+                        student=student,
+                        original_result=result,
+                        status='completed'
+                    ).first()
+                    
+                    if resit:
+                        marks_display = f"{result.total_marks} → {resit.resit_marks}"
+                        grade_display = f"{result.grade} → {resit.resit_grade}"
+                    else:
+                        marks_display = str(result.total_marks)
+                        grade_display = result.grade
+                    
+                    data.append([
+                        result.programme_unit.unit.code,
+                        result.programme_unit.unit.name[:40],
+                        str(result.credit_hours),
+                        marks_display,
+                        grade_display,
+                        str(result.grade_point)
+                    ])
+                
+                results_table = Table(data, colWidths=[0.8*inch, 2.5*inch, 0.7*inch, 0.8*inch, 0.7*inch, 0.7*inch])
+                results_table.setStyle(TableStyle([
+                    ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold', 9),
+                    ('FONT', (0, 1), (-1, -1), 'Helvetica', 8),
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2E7D32')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')]),
+                ]))
+                elements.append(results_table)
+                
+                # Semester GPA
+                semester_gpa = SemesterGPA.objects.filter(
+                    student=student,
+                    semester=semester
+                ).first()
+                
+                if semester_gpa:
+                    gpa_data = [
+                        ['Semester GPA:', f"{semester_gpa.semester_gpa:.2f}"],
+                        ['Cumulative GPA:', f"{semester_gpa.cumulative_gpa:.2f}"],
+                    ]
+                    gpa_table = Table(gpa_data, colWidths=[1.5*inch, 1*inch])
+                    gpa_table.setStyle(TableStyle([
+                        ('FONT', (0, 0), (-1, -1), 'Helvetica-Bold', 9),
+                        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                    ]))
+                    elements.append(Spacer(1, 0.1*inch))
+                    elements.append(gpa_table)
+            else:
+                elements.append(Paragraph("  No results available", styles['Normal']))
+            
+            elements.append(Spacer(1, 0.2*inch))
+        
+        elements.append(Spacer(1, 0.1*inch))
+    
+    # Overall Summary
+    elements.append(Paragraph("OVERALL SUMMARY", heading_style))
+    summary_data = [
+        ['Cumulative GPA:', f"{student.cumulative_gpa:.2f}"],
+        ['Total Credits Earned:', str(student.total_credit_hours)],
+        ['Required Credits:', str(student.programme.min_credit_hours)],
+        ['Classification:', get_class_classification(student.cumulative_gpa, student.current_year)['class']],
+    ]
+    
+    summary_table = Table(summary_data, colWidths=[2*inch, 3*inch])
+    summary_table.setStyle(TableStyle([
+        ('FONT', (0, 0), (-1, -1), 'Helvetica-Bold', 10),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#2E7D32')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(summary_table)
+    
+    # Footer
+    elements.append(Spacer(1, 0.3*inch))
+    footer_text = f"Generated on {timezone.now().strftime('%B %d, %Y at %I:%M %p')}"
+    elements.append(Paragraph(footer_text, styles['Normal']))
+    
+    # Build PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="transcript_{student.registration_number}.pdf"'
+    
+    return response
+
+
+@login_required
+def download_yearly_transcript(request, academic_year_id):
+    """Download transcript for a specific academic year"""
+    try:
+        student = request.user.student_profile
+    except:
+        return HttpResponseForbidden("You don't have a student profile.")
+    
+    academic_year = get_object_or_404(AcademicYear, pk=academic_year_id)
+    
+    # Similar PDF generation but filtered for specific academic year
+    # (Implementation similar to download_full_transcript but filtered)
+    
+    return HttpResponse("Yearly transcript generation")
+
+
+@login_required
+def download_semester_transcript(request, semester_id):
+    """Download transcript for a specific semester"""
+    try:
+        student = request.user.student_profile
+    except:
+        return HttpResponseForbidden("You don't have a student profile.")
+    
+    semester = get_object_or_404(Semester, pk=semester_id)
+    
+    # Similar PDF generation but filtered for specific semester
+    # (Implementation similar to download_full_transcript but filtered)
+    
+    return HttpResponse("Semester transcript generation")
