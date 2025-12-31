@@ -222,4 +222,11 @@ urlpatterns = [
     path('admin-marks/get-enrollments/', views.admin_get_student_enrollments, name='admin_get_student_enrollments'),
     path('admin-marks/save/', views.admin_save_student_marks, name='admin_save_student_marks'),
     
+    path('enrollment-periods/', views.enrollment_period_list, name='enrollment_period_list'),
+    path('enrollment-periods/create/', views.enrollment_period_create, name='enrollment_period_create'),
+    path('enrollment-periods/<int:period_id>/', views.enrollment_period_detail, name='enrollment_period_detail'),
+    path('enrollment-periods/<int:period_id>/update/', views.enrollment_period_update, name='enrollment_period_update'),
+    path('enrollment-periods/<int:period_id>/delete/', views.enrollment_period_delete, name='enrollment_period_delete'),
+
+    
 ]

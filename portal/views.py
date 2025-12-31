@@ -9990,16 +9990,3 @@ def enrollment_period_detail(request, period_id):
         }, status=500)
 
 
-# urls.py
-"""
-from django.urls import path
-from . import views
-
-urlpatterns = [
-    path('enrollment-periods/', views.enrollment_period_list, name='enrollment_period_list'),
-    path('enrollment-periods/create/', views.enrollment_period_create, name='enrollment_period_create'),
-    path('enrollment-periods/<int:period_id>/', views.enrollment_period_detail, name='enrollment_period_detail'),
-    path('enrollment-periods/<int:period_id>/update/', views.enrollment_period_update, name='enrollment_period_update'),
-    path('enrollment-periods/<int:period_id>/delete/', views.enrollment_period_delete, name='enrollment_period_delete'),
-]
-"""

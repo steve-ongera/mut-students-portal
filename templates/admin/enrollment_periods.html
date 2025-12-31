@@ -1,0 +1,1141 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Enrollment Period Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-inactive {
+        background: rgba(108, 117, 125, 0.1);
+        color: var(--color-gray-600);
+    }
+    
+    .status-open {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .status-closed {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--color-gray-300);
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    /* Form Controls */
+    .form-select, .form-control {
+        border-radius: var(--radius-sm);
+        border-color: var(--color-gray-300);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+    }
+    
+    .form-select:focus, .form-control:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .form-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--color-gray-700);
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Form Check Switch */
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+        border-color: var(--color-primary);
+    }
+    
+    /* Buttons */
+    .btn {
+        font-weight: 500;
+        padding: 0.625rem 1.25rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-primary:hover {
+        background: #256428;
+        border-color: #256428;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Enrollment Periods</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Enrollment Period Management</h1>
+                <p class="text-muted mb-0">Manage enrollment periods for each semester</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ total_periods }} period(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <button class="btn btn-primary btn-sm d-flex align-items-center gap-1" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#addPeriodModal">
+                    <i class="ri-add-line fs-5"></i>
+                    <span>Add Enrollment Period</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment Periods Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Enrollment Periods</h5>
+            <div class="card-subtitle">Showing {{ enrollment_periods|length }} of {{ total_periods }} periods</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="periodsTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Semester</th>
+                            <th>Academic Year</th>
+                            <th>Enrollment Period</th>
+                            <th>Resit Period</th>
+                            <th>Status</th>
+                            <th>Open Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="periodsTableBody">
+                        {% for period in enrollment_periods %}
+                        <tr data-period-id="{{ period.id }}">
+                            <td class="ps-4">
+                                <strong>{{ period.semester.name }}</strong>
+                            </td>
+                            <td>{{ period.semester.academic_year.name }}</td>
+                            <td>
+                                <div class="small">
+                                    <strong>Start:</strong> {{ period.start_date|date:"M d, Y H:i" }}<br>
+                                    <strong>End:</strong> {{ period.end_date|date:"M d, Y H:i" }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if period.resit_start_date and period.resit_end_date %}
+                                <div class="small">
+                                    <strong>Start:</strong> {{ period.resit_start_date|date:"M d, Y H:i" }}<br>
+                                    <strong>End:</strong> {{ period.resit_end_date|date:"M d, Y H:i" }}
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">Not Set</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if period.is_active %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Active
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-inactive">
+                                    <i class="ri-close-circle-fill me-1"></i>
+                                    Inactive
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if period.is_enrollment_open %}
+                                <span class="status-badge status-open">
+                                    <i class="ri-door-open-fill me-1"></i>
+                                    Open
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-closed">
+                                    <i class="ri-door-closed-fill me-1"></i>
+                                    Closed
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-icon btn-outline-primary btn-sm" 
+                                            title="View Details"
+                                            data-bs-toggle="tooltip"
+                                            onclick="viewPeriod({{ period.id }})">
+                                        <i class="ri-eye-line"></i>
+                                    </button>
+                                    
+                                    <button class="btn btn-icon btn-outline-warning btn-sm" 
+                                            title="Edit"
+                                            data-bs-toggle="tooltip"
+                                            onclick="editPeriod({{ period.id }})">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
+                                    
+                                    <button class="btn btn-icon btn-outline-danger btn-sm" 
+                                            title="Delete"
+                                            data-bs-toggle="tooltip"
+                                            onclick="deletePeriod({{ period.id }}, '{{ period.semester.name }}')">
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-calendar-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No enrollment periods found</h5>
+                                    <p class="text-muted mb-0">Create your first enrollment period to get started</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Period Modal -->
+<div class="modal fade" id="addPeriodModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="addPeriodForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Enrollment Period</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Semester <span class="text-danger">*</span></label>
+                            <select name="semester_id" class="form-select" required>
+                                <option value="">Select Semester</option>
+                                {% for semester in semesters %}
+                                <option value="{{ semester.id }}">
+                                    {{ semester.name }} ({{ semester.academic_year.name }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-12">
+                            <h6 class="fw-semibold mb-3">Normal Enrollment Period</h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Start Date & Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" name="start_date" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">End Date & Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" name="end_date" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-12">
+                            <h6 class="fw-semibold mb-3 mt-2">Resit Enrollment Period (Optional)</h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Resit Start Date & Time</label>
+                            <input type="datetime-local" name="resit_start_date" class="form-control">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Resit End Date & Time</label>
+                            <input type="datetime-local" name="resit_end_date" class="form-control">
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="isActive" checked>
+                                <label class="form-check-label" for="isActive">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Remarks</label>
+                            <textarea name="remarks" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-add-line me-1"></i> Create Period
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Period Modal -->
+<div class="modal fade" id="editPeriodModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form id="editPeriodForm">
+                {% csrf_token %}
+                <input type="hidden" id="edit_period_id">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Enrollment Period</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Semester</label>
+                            <input type="text" id="edit_semester" class="form-control" readonly>
+                        </div>
+                        
+                        <div class="col-12">
+                            <h6 class="fw-semibold mb-3">Normal Enrollment Period</h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Start Date & Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="edit_start_date" name="start_date" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">End Date & Time <span class="text-danger">*</span></label>
+                            <input type="datetime-local" id="edit_end_date" name="end_date" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-12">
+                            <h6 class="fw-semibold mb-3 mt-2">Resit Enrollment Period</h6>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Resit Start Date & Time</label>
+                            <input type="datetime-local" id="edit_resit_start_date" name="resit_start_date" class="form-control">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Resit End Date & Time</label>
+                            <input type="datetime-local" id="edit_resit_end_date" name="resit_end_date" class="form-control">
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="edit_isActive">
+                                <label class="form-check-label" for="edit_isActive">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Remarks</label>
+                            <textarea id="edit_remarks" name="remarks" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-1"></i> Update Period
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Period Modal -->
+<div class="modal fade" id="viewPeriodModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enrollment Period Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="viewPeriodContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Initialize tooltips and format dates
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Set minimum date for date inputs to today
+    const today = new Date().toISOString().slice(0, 16);
+    document.querySelectorAll('input[type="datetime-local"]').forEach(input => {
+        input.min = today;
+    });
+});
+
+// Utility function to format date for input fields
+function formatDateForInput(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toISOString().slice(0, 16);
+}
+
+// Utility function to format date for display
+function formatDate(dateString) {
+    if (!dateString) return 'Not set';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Utility function to get status badge HTML
+function getStatusBadge(status, type) {
+    const badges = {
+        'active': '<span class="status-badge status-active"><i class="ri-checkbox-circle-fill me-1"></i>Active</span>',
+        'inactive': '<span class="status-badge status-inactive"><i class="ri-close-circle-fill me-1"></i>Inactive</span>',
+        'open': '<span class="status-badge status-open"><i class="ri-door-open-fill me-1"></i>Open</span>',
+        'closed': '<span class="status-badge status-closed"><i class="ri-door-closed-fill me-1"></i>Closed</span>'
+    };
+    return badges[status] || '';
+}
+
+// Add new enrollment period
+document.getElementById('addPeriodForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="ri-loader-4-line me-1"></i> Creating...';
+    submitBtn.disabled = true;
+    
+    const formData = new FormData(this);
+    const data = {
+        semester_id: formData.get('semester_id'),
+        start_date: formData.get('start_date'),
+        end_date: formData.get('end_date'),
+        resit_start_date: formData.get('resit_start_date') || null,
+        resit_end_date: formData.get('resit_end_date') || null,
+        is_active: formData.get('is_active') === 'on',
+        remarks: formData.get('remarks')
+    };
+    
+    // Validate dates
+    if (data.start_date && data.end_date) {
+        const start = new Date(data.start_date);
+        const end = new Date(data.end_date);
+        if (end <= start) {
+            showAlert('error', 'End date must be after start date.');
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+            return;
+        }
+    }
+    
+    if (data.resit_start_date && data.resit_end_date) {
+        const resitStart = new Date(data.resit_start_date);
+        const resitEnd = new Date(data.resit_end_date);
+        if (resitEnd <= resitStart) {
+            showAlert('error', 'Resit end date must be after resit start date.');
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+            return;
+        }
+    }
+    
+    fetch('{% url "enrollment_period_create" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            $('#addPeriodModal').modal('hide');
+            addPeriodToTable(data.period);
+            updatePeriodsCount();
+        } else {
+            showAlert('error', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred. Please try again.');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalBtnText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Edit enrollment period
+function editPeriod(periodId) {
+    showLoading('editPeriodModal');
+    
+    fetch(`/enrollment-periods/${periodId}/`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const period = data.period;
+            document.getElementById('edit_period_id').value = period.id;
+            document.getElementById('edit_semester').value = period.semester;
+            document.getElementById('edit_start_date').value = formatDateForInput(period.start_date);
+            document.getElementById('edit_end_date').value = formatDateForInput(period.end_date);
+            document.getElementById('edit_resit_start_date').value = period.resit_start_date ? formatDateForInput(period.resit_start_date) : '';
+            document.getElementById('edit_resit_end_date').value = period.resit_end_date ? formatDateForInput(period.resit_end_date) : '';
+            document.getElementById('edit_isActive').checked = period.is_active;
+            document.getElementById('edit_remarks').value = period.remarks || '';
+            
+            new bootstrap.Modal(document.getElementById('editPeriodModal')).show();
+        } else {
+            showAlert('error', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred. Please try again.');
+    });
+}
+
+document.getElementById('editPeriodForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="ri-loader-4-line me-1"></i> Updating...';
+    submitBtn.disabled = true;
+    
+    const periodId = document.getElementById('edit_period_id').value;
+    const formData = new FormData(this);
+    const data = {
+        start_date: formData.get('start_date'),
+        end_date: formData.get('end_date'),
+        resit_start_date: formData.get('resit_start_date') || '',
+        resit_end_date: formData.get('resit_end_date') || '',
+        is_active: formData.get('is_active') === 'on',
+        remarks: formData.get('remarks')
+    };
+    
+    // Validate dates
+    if (data.start_date && data.end_date) {
+        const start = new Date(data.start_date);
+        const end = new Date(data.end_date);
+        if (end <= start) {
+            showAlert('error', 'End date must be after start date.');
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+            return;
+        }
+    }
+    
+    if (data.resit_start_date && data.resit_end_date) {
+        const resitStart = new Date(data.resit_start_date);
+        const resitEnd = new Date(data.resit_end_date);
+        if (resitEnd <= resitStart) {
+            showAlert('error', 'Resit end date must be after resit start date.');
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+            return;
+        }
+    }
+    
+    fetch(`/enrollment-periods/${periodId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            $('#editPeriodModal').modal('hide');
+            updatePeriodInTable(data.period);
+        } else {
+            showAlert('error', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred. Please try again.');
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalBtnText;
+        submitBtn.disabled = false;
+    });
+});
+
+// View period details
+function viewPeriod(periodId) {
+    showLoading('viewPeriodModal');
+    
+    fetch(`/enrollment-periods/${periodId}/`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const period = data.period;
+            const stats = period.statistics;
+            
+            const content = `
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-2">Semester</h6>
+                        <p class="mb-0">${period.semester}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-2">Academic Year</h6>
+                        <p class="mb-0">${period.academic_year}</p>
+                    </div>
+                    
+                    <div class="col-12"><hr></div>
+                    <div class="col-12">
+                        <h6 class="fw-semibold mb-3">Normal Enrollment Period</h6>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-2">Start Date</h6>
+                        <p class="mb-0">${formatDate(period.start_date)}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-2">End Date</h6>
+                        <p class="mb-0">${formatDate(period.end_date)}</p>
+                    </div>
+                    
+                    ${period.resit_start_date && period.resit_end_date ? `
+                    <div class="col-12"><hr></div>
+                    <div class="col-12">
+                        <h6 class="fw-semibold mb-3">Resit Enrollment Period</h6>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-2">Resit Start Date</h6>
+                        <p class="mb-0">${formatDate(period.resit_start_date)}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-2">Resit End Date</h6>
+                        <p class="mb-0">${formatDate(period.resit_end_date)}</p>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="col-12"><hr></div>
+                    
+                    <div class="col-md-4">
+                        <h6 class="fw-semibold mb-2">Status</h6>
+                        ${getStatusBadge(period.is_active ? 'active' : 'inactive', 'status')}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="fw-semibold mb-2">Enrollment Status</h6>
+                        ${getStatusBadge(period.is_enrollment_open ? 'open' : 'closed', 'enrollment')}
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="fw-semibold mb-2">Resit Status</h6>
+                        ${period.resit_start_date && period.resit_end_date ? 
+                          getStatusBadge(period.is_resit_enrollment_open ? 'open' : 'closed', 'resit') : 
+                          '<span class="text-muted">Not set</span>'}
+                    </div>
+                    
+                    ${period.remarks ? `
+                    <div class="col-12"><hr></div>
+                    <div class="col-12">
+                        <h6 class="fw-semibold mb-2">Remarks</h6>
+                        <p class="mb-0">${period.remarks}</p>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="col-12"><hr></div>
+                    
+                    <div class="col-12">
+                        <h6 class="fw-semibold mb-3">Enrollment Statistics</h6>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card bg-light border-0">
+                            <div class="card-body text-center">
+                                <h3 class="fw-bold text-primary">${stats.total_enrollments}</h3>
+                                <p class="mb-0 small">Total Enrollments</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card bg-light border-0">
+                            <div class="card-body text-center">
+                                <h3 class="fw-bold text-warning">${stats.pending_enrollments}</h3>
+                                <p class="mb-0 small">Pending</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card bg-light border-0">
+                            <div class="card-body text-center">
+                                <h3 class="fw-bold text-success">${stats.approved_enrollments}</h3>
+                                <p class="mb-0 small">Approved</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('viewPeriodContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('viewPeriodModal')).show();
+        } else {
+            showAlert('error', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred. Please try again.');
+    });
+}
+
+// Delete enrollment period
+function deletePeriod(periodId, semesterName) {
+    if (!confirm(`Are you sure you want to delete the enrollment period for "${semesterName}"?`)) {
+        return;
+    }
+    
+    fetch(`/enrollment-periods/${periodId}/delete/`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            removePeriodFromTable(periodId);
+            updatePeriodsCount();
+        } else {
+            showAlert('error', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred. Please try again.');
+    });
+}
+
+// Helper functions for table operations
+function addPeriodToTable(period) {
+    const tbody = document.getElementById('periodsTableBody');
+    const emptyRow = tbody.querySelector('tr:has(td[colspan="7"])');
+    
+    if (emptyRow) {
+        emptyRow.remove();
+    }
+    
+    const row = document.createElement('tr');
+    row.setAttribute('data-period-id', period.id);
+    row.innerHTML = `
+        <td class="ps-4">
+            <strong>${period.semester}</strong>
+        </td>
+        <td>${period.academic_year}</td>
+        <td>
+            <div class="small">
+                <strong>Start:</strong> ${formatDate(period.start_date)}<br>
+                <strong>End:</strong> ${formatDate(period.end_date)}
+            </div>
+        </td>
+        <td>
+            ${period.resit_start_date && period.resit_end_date ? 
+                `<div class="small">
+                    <strong>Start:</strong> ${formatDate(period.resit_start_date)}<br>
+                    <strong>End:</strong> ${formatDate(period.resit_end_date)}
+                </div>` : 
+                '<span class="text-muted small">Not Set</span>'}
+        </td>
+        <td>
+            ${getStatusBadge(period.is_active ? 'active' : 'inactive', 'status')}
+        </td>
+        <td>
+            ${getStatusBadge(period.is_enrollment_open ? 'open' : 'closed', 'enrollment')}
+        </td>
+        <td class="pe-4">
+            <div class="d-flex gap-1">
+                <button class="btn btn-icon btn-outline-primary btn-sm" 
+                        title="View Details"
+                        data-bs-toggle="tooltip"
+                        onclick="viewPeriod(${period.id})">
+                    <i class="ri-eye-line"></i>
+                </button>
+                
+                <button class="btn btn-icon btn-outline-warning btn-sm" 
+                        title="Edit"
+                        data-bs-toggle="tooltip"
+                        onclick="editPeriod(${period.id})">
+                    <i class="ri-edit-line"></i>
+                </button>
+                
+                <button class="btn btn-icon btn-outline-danger btn-sm" 
+                        title="Delete"
+                        data-bs-toggle="tooltip"
+                        onclick="deletePeriod(${period.id}, '${period.semester}')">
+                    <i class="ri-delete-bin-line"></i>
+                </button>
+            </div>
+        </td>
+    `;
+    
+    tbody.insertBefore(row, tbody.firstChild);
+    
+    // Reinitialize tooltips for new row
+    new bootstrap.Tooltip(row.querySelector('[data-bs-toggle="tooltip"]'));
+}
+
+function updatePeriodInTable(period) {
+    const row = document.querySelector(`tr[data-period-id="${period.id}"]`);
+    if (row) {
+        row.cells[0].innerHTML = `<strong>${period.semester}</strong>`;
+        row.cells[1].textContent = period.academic_year;
+        row.cells[2].innerHTML = `
+            <div class="small">
+                <strong>Start:</strong> ${formatDate(period.start_date)}<br>
+                <strong>End:</strong> ${formatDate(period.end_date)}
+            </div>
+        `;
+        row.cells[3].innerHTML = period.resit_start_date && period.resit_end_date ? 
+            `<div class="small">
+                <strong>Start:</strong> ${formatDate(period.resit_start_date)}<br>
+                <strong>End:</strong> ${formatDate(period.resit_end_date)}
+            </div>` : 
+            '<span class="text-muted small">Not Set</span>';
+        row.cells[4].innerHTML = getStatusBadge(period.is_active ? 'active' : 'inactive', 'status');
+        row.cells[5].innerHTML = getStatusBadge(period.is_enrollment_open ? 'open' : 'closed', 'enrollment');
+    }
+}
+
+function removePeriodFromTable(periodId) {
+    const row = document.querySelector(`tr[data-period-id="${periodId}"]`);
+    if (row) {
+        row.remove();
+    }
+    
+    // Show empty state if no periods left
+    const tbody = document.getElementById('periodsTableBody');
+    if (tbody.children.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-5">
+                    <div class="empty-state">
+                        <i class="ri-calendar-line display-4 text-muted mb-3"></i>
+                        <h5 class="text-muted">No enrollment periods found</h5>
+                        <p class="text-muted mb-0">Create your first enrollment period to get started</p>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+function updatePeriodsCount() {
+    const tbody = document.getElementById('periodsTableBody');
+    const count = tbody.querySelectorAll('tr[data-period-id]').length;
+    document.querySelector('.badge .count').textContent = count;
+}
+
+function showLoading(modalId) {
+    const modalContent = document.querySelector(`#${modalId} .modal-body`);
+    if (modalContent) {
+        modalContent.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading...</p>
+            </div>
+        `;
+    }
+}
+
+function showAlert(type, message) {
+    // You can implement a toast notification system here
+    // For now, using browser alert
+    alert(message);
+}
+
+// Form validation
+function setupFormValidation() {
+    // Add form validation
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = this.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('is-invalid');
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+                showAlert('error', 'Please fill in all required fields.');
+            }
+        });
+    });
+    
+    // Clear form when modal is closed
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('hidden.bs.modal', function() {
+            const form = this.querySelector('form');
+            if (form && form.id === 'addPeriodForm') {
+                form.reset();
+            }
+        });
+    });
+}
+
+// Initialize everything
+setupFormValidation();
+</script>
+{% endblock %}
