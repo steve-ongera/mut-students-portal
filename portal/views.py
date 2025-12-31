@@ -8450,8 +8450,9 @@ def unit_allocation_detail(request, allocation_id):
             'programme_unit__programme',
             'programme_unit__programme__department',
             'programme_unit__programme__department__school',
-            'lecturer__user',
-            'lecturer__department',
+            'lecturer',  # FIXED: lecturer is already a User, not Lecturer
+            'lecturer__lecturer_profile',  # Access Lecturer through reverse relation
+            'lecturer__lecturer_profile__department',  # Access department through lecturer_profile
             'semester',
             'assigned_by',
             'approved_by_hod',
@@ -8591,7 +8592,8 @@ def edit_unit_allocation(request, allocation_id):
         try:
             lecturer = get_object_or_404(Lecturer, id=lecturer_id)
             
-            allocation.lecturer = lecturer
+            # FIXED: Assign User instance, not Lecturer instance
+            allocation.lecturer = lecturer.user
             allocation.max_students = max_students if max_students else None
             allocation.remarks = remarks
             allocation.status = 'pending'  # Reset to pending
