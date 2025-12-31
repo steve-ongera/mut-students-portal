@@ -2488,7 +2488,7 @@ def student_detail(request, reg_number):
     # Get current semester
     current_semester = Semester.objects.filter(is_current=True).first()
     
-    # Get student's current units
+    # Get student's current units  // we will modify this to unitenrollment instead
     current_units = UnitRegistration.objects.filter(
         student=student,
         semester=current_semester,

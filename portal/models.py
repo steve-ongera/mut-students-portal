@@ -401,6 +401,7 @@ class StudentProgression(models.Model):
         db_table = 'student_progressions'
         ordering = ['-progression_date']
 
+# Reminder dont use this model i have deleted eat instead am using unitregistration model kindly
 class UnitRegistration(models.Model):
     """Students registering for units in a specific semester"""
     REGISTRATION_STATUS = (
