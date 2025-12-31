@@ -8001,7 +8001,7 @@ def unit_allocation_list(request):
 
 @login_required
 def create_unit_allocation(request):
-    """Create new unit allocation"""
+    """Create new unit allocation with search functionality"""
     if not user_has_allocation_permission(request.user):
         messages.error(request, 'You do not have permission to allocate units.')
         return redirect('dashboard')
@@ -8027,7 +8027,8 @@ def create_unit_allocation(request):
                         messages.error(request, 'You do not have permission to allocate this unit.')
                         return redirect('unit_allocation_list')
             
-            # Check if allocation already exists
+            # Modified: Allow duplicate allocations with different conditions
+            # Check if exact same allocation exists (same unit, semester, lecturer, programme, year)
             existing = UnitAllocation.objects.filter(
                 programme_unit=programme_unit,
                 semester=semester,
@@ -8035,7 +8036,13 @@ def create_unit_allocation(request):
             ).first()
             
             if existing:
-                messages.warning(request, f'This unit is already allocated to {lecturer.user.get_full_name()}.')
+                messages.warning(
+                    request, 
+                    f'This exact allocation already exists. '
+                    f'{lecturer.user.get_full_name()} is already teaching '
+                    f'{programme_unit.unit.code} for {programme_unit.programme.code} '
+                    f'Year {programme_unit.year_of_study} Semester {programme_unit.semester_number}.'
+                )
                 return redirect('unit_allocation_list')
             
             # Create allocation
@@ -8051,7 +8058,8 @@ def create_unit_allocation(request):
             
             messages.success(
                 request, 
-                f'Unit {programme_unit.unit.code} successfully allocated to {lecturer.user.get_full_name()}.'
+                f'Unit {programme_unit.unit.code} successfully allocated to {lecturer.user.get_full_name()} '
+                f'for {programme_unit.programme.code} Year {programme_unit.year_of_study}.'
             )
             return redirect('unit_allocation_detail', allocation_id=allocation.id)
             
@@ -8061,8 +8069,6 @@ def create_unit_allocation(request):
     
     # GET request - show form
     semester_id = request.GET.get('semester')
-    school_id = request.GET.get('school')
-    department_id = request.GET.get('department')
     
     # Get current semester if not specified
     if semester_id:
@@ -8070,66 +8076,212 @@ def create_unit_allocation(request):
     else:
         semester = Semester.objects.filter(is_current=True).first()
     
-    # Get available programme units
-    programme_units = ProgrammeUnit.objects.filter(
-        academic_year=semester.academic_year if semester else AcademicYear.objects.filter(is_current=True).first(),
-        is_active=True
-    ).select_related(
-        'unit',
-        'programme',
-        'programme__department',
-        'programme__department__school'
+    # Get available semesters
+    semesters = Semester.objects.filter(is_active=True).order_by('-start_date')
+    
+    # Get programmes for filter
+    programmes = Programme.objects.filter(is_active=True).select_related(
+        'department', 'department__school'
     )
     
     # Filter by user role
     if request.user.role != 'ict_admin':
         departments = get_user_departments(request.user)
-        programme_units = programme_units.filter(
-            programme__department__in=departments
-        )
+        programmes = programmes.filter(department__in=departments)
     
-    # Apply filters
-    if school_id:
-        programme_units = programme_units.filter(
-            programme__department__school_id=school_id
-        )
-    
-    if department_id:
-        programme_units = programme_units.filter(
-            programme__department_id=department_id
-        )
-    
-    # Exclude already allocated units
-    if semester:
-        allocated_ids = UnitAllocation.objects.filter(
-            semester=semester
-        ).values_list('programme_unit_id', flat=True)
-        programme_units = programme_units.exclude(id__in=allocated_ids)
-    
-    programme_units = programme_units.order_by(
-        'programme__department__school__name',
-        'programme__department__name',
-        'unit__code'
-    )
-    
-    # Get filter options
-    semesters = Semester.objects.filter(is_active=True).order_by('-start_date')
-    schools = get_user_schools(request.user)
-    departments = get_user_departments(request.user)
+    programmes = programmes.order_by('department__school__name', 'name')
     
     context = {
         'semester': semester,
         'semesters': semesters,
-        'schools': schools,
-        'departments': departments,
-        'programme_units': programme_units,
-        'selected_school': school_id,
-        'selected_department': department_id,
+        'programmes': programmes,
         'user_role': request.user.role,
     }
     
     return render(request, 'allocations/create_allocation.html', context)
 
+
+@login_required
+def search_units_ajax(request):
+    """AJAX endpoint to search for units"""
+    if not user_has_allocation_permission(request.user):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    query = request.GET.get('q', '').strip()
+    programme_id = request.GET.get('programme_id')
+    year_of_study = request.GET.get('year_of_study')
+    semester_number = request.GET.get('semester_number')
+    semester_id = request.GET.get('semester_id')
+    
+    if not query or len(query) < 2:
+        return JsonResponse({'units': []})
+    
+    try:
+        # Get semester
+        if semester_id:
+            semester = Semester.objects.get(id=semester_id)
+        else:
+            semester = Semester.objects.filter(is_current=True).first()
+        
+        if not semester:
+            return JsonResponse({'error': 'No active semester found'}, status=400)
+        
+        # Base query
+        programme_units = ProgrammeUnit.objects.filter(
+            academic_year=semester.academic_year,
+            is_active=True
+        ).select_related(
+            'unit',
+            'programme',
+            'programme__department',
+            'programme__department__school'
+        )
+        
+        # Filter by user role
+        if request.user.role != 'ict_admin':
+            departments = get_user_departments(request.user)
+            programme_units = programme_units.filter(
+                programme__department__in=departments
+            )
+        
+        # Apply filters
+        if programme_id:
+            programme_units = programme_units.filter(programme_id=programme_id)
+        
+        if year_of_study:
+            programme_units = programme_units.filter(year_of_study=year_of_study)
+        
+        if semester_number:
+            programme_units = programme_units.filter(semester_number=semester_number)
+        
+        # Search by unit code or name
+        programme_units = programme_units.filter(
+            Q(unit__code__icontains=query) | 
+            Q(unit__name__icontains=query)
+        )
+        
+        # Limit results
+        programme_units = programme_units[:20]
+        
+        # Format response
+        units_data = []
+        for pu in programme_units:
+            # Count existing allocations for this unit in this semester
+            allocation_count = UnitAllocation.objects.filter(
+                programme_unit=pu,
+                semester=semester
+            ).count()
+            
+            units_data.append({
+                'id': pu.id,
+                'unit_code': pu.unit.code,
+                'unit_name': pu.unit.name,
+                'programme_code': pu.programme.code,
+                'programme_name': pu.programme.name,
+                'department': pu.programme.department.name,
+                'school': pu.programme.department.school.name,
+                'year_of_study': pu.year_of_study,
+                'semester_number': pu.semester_number,
+                'unit_type': pu.get_unit_type_display(),
+                'credit_hours': pu.unit.credit_hours,
+                'allocation_count': allocation_count,
+            })
+        
+        return JsonResponse({'units': units_data})
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def search_lecturers_ajax(request):
+    """AJAX endpoint to search for lecturers"""
+    if not user_has_allocation_permission(request.user):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    query = request.GET.get('q', '').strip()
+    programme_unit_id = request.GET.get('programme_unit_id')
+    
+    if not query or len(query) < 2:
+        return JsonResponse({'lecturers': []})
+    
+    try:
+        # Get programme unit to determine if it's a common unit
+        is_common_unit = False
+        target_department = None
+        
+        if programme_unit_id:
+            programme_unit = ProgrammeUnit.objects.select_related(
+                'programme__department'
+            ).get(id=programme_unit_id)
+            is_common_unit = programme_unit.unit_type == 'common'
+            target_department = programme_unit.programme.department
+        
+        # Base query
+        lecturers = Lecturer.objects.filter(
+            is_active=True,
+            user__is_active=True
+        ).select_related(
+            'user',
+            'department',
+            'department__school'
+        )
+        
+        # Filter by department unless it's a common unit
+        if not is_common_unit and target_department:
+            lecturers = lecturers.filter(department=target_department)
+        
+        # Search by name, employee number, or phone
+        lecturers = lecturers.filter(
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(employee_number__icontains=query) |
+            Q(user__phone_number__icontains=query)
+        )
+        
+        # Limit results
+        lecturers = lecturers[:20]
+        
+        # Format response
+        lecturers_data = []
+        for lecturer in lecturers:
+            # Count current allocations
+            current_allocations = UnitAllocation.objects.filter(
+                lecturer=lecturer,
+                semester__is_current=True
+            ).count()
+            
+            # If programme_unit_id is provided, check existing allocations for this unit
+            existing_allocation = None
+            if programme_unit_id:
+                existing_allocation = UnitAllocation.objects.filter(
+                    lecturer=lecturer,
+                    programme_unit_id=programme_unit_id,
+                    semester__is_current=True
+                ).first()
+            
+            lecturers_data.append({
+                'id': lecturer.id,
+                'name': lecturer.user.get_full_name(),
+                'employee_number': lecturer.employee_number,
+                'phone_number': lecturer.user.phone_number,
+                'department': lecturer.department.name,
+                'school': lecturer.department.school.name,
+                'designation': lecturer.get_designation_display(),
+                'current_allocations': current_allocations,
+                'has_existing_allocation': existing_allocation is not None,
+                'existing_allocation_info': f"Already teaching this unit for {existing_allocation.programme_unit.programme.code}" if existing_allocation else None,
+            })
+        
+        return JsonResponse({
+            'lecturers': lecturers_data,
+            'is_common_unit': is_common_unit,
+        })
+        
+    except ProgrammeUnit.DoesNotExist:
+        return JsonResponse({'error': 'Programme unit not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def get_lecturers_ajax(request):

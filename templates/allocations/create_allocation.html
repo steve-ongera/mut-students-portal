@@ -52,9 +52,38 @@
         border-bottom: 2px solid var(--color-gray-200);
     }
 
+    .search-box {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 0.875rem 1rem 0.875rem 3rem;
+        border: 2px solid var(--color-gray-300);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--color-gray-600);
+        font-size: 1.25rem;
+    }
+
     .filters-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
@@ -89,55 +118,78 @@
         border-color: var(--color-primary);
     }
 
-    .units-list {
+    .results-container {
         max-height: 400px;
         overflow-y: auto;
         border: 1px solid var(--color-gray-300);
         border-radius: 6px;
+        display: none;
     }
 
-    .unit-item {
+    .results-container.show {
+        display: block;
+    }
+
+    .result-item {
         padding: 1rem;
         border-bottom: 1px solid var(--color-gray-200);
         cursor: pointer;
         transition: background 0.2s;
     }
 
-    .unit-item:hover {
+    .result-item:hover {
         background: var(--color-gray-100);
     }
 
-    .unit-item:last-child {
+    .result-item:last-child {
         border-bottom: none;
     }
 
-    .unit-item input[type="radio"] {
-        margin-right: 1rem;
+    .result-item.selected {
+        background: rgba(46, 125, 50, 0.1);
+        border-left: 3px solid var(--color-primary);
     }
 
-    .unit-code {
+    .unit-code, .lecturer-id {
         font-weight: 600;
         color: var(--color-primary);
         font-family: 'Courier New', monospace;
     }
 
-    .lecturer-item {
-        padding: 1rem;
-        border: 1px solid var(--color-gray-300);
-        border-radius: 6px;
-        margin-bottom: 0.75rem;
-        cursor: pointer;
-        transition: all 0.2s;
+    .badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        display: inline-block;
     }
 
-    .lecturer-item:hover {
-        border-color: var(--color-primary);
-        background: rgba(46, 125, 50, 0.05);
+    .badge-info {
+        background: rgba(33, 150, 243, 0.1);
+        color: #1565C0;
     }
 
-    .lecturer-item.selected {
-        border-color: var(--color-primary);
+    .badge-warning {
+        background: rgba(255, 152, 0, 0.1);
+        color: #E65100;
+    }
+
+    .badge-success {
         background: rgba(46, 125, 50, 0.1);
+        color: #2E7D32;
+    }
+
+    .selected-item-card {
+        padding: 1rem;
+        background: rgba(46, 125, 50, 0.05);
+        border: 2px solid var(--color-primary);
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: none;
+    }
+
+    .selected-item-card.show {
+        display: block;
     }
 
     .btn {
@@ -173,6 +225,11 @@
         color: white;
     }
 
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
     .alert {
         padding: 1rem;
         border-radius: 6px;
@@ -185,26 +242,31 @@
         color: #1565C0;
     }
 
-    .alert-warning {
-        background: rgba(255, 152, 0, 0.1);
-        border: 1px solid rgba(255, 152, 0, 0.3);
-        color: #E65100;
-    }
-
-    #lecturersSection {
-        display: none;
-    }
-
     .empty-state {
         text-align: center;
         padding: 2rem;
         color: var(--color-gray-600);
     }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .loading {
+        text-align: center;
+        padding: 2rem;
+        display: none;
+    }
+
+    .loading.show {
+        display: block;
+    }
 </style>
 {% endblock %}
 
 {% block page_title %}Create Unit Allocation{% endblock %}
-{% block page_subtitle %}Allocate units to lecturers{% endblock %}
+{% block page_subtitle %}Search and allocate units to lecturers{% endblock %}
 
 {% block content %}
 <div class="create-container">
@@ -219,120 +281,142 @@
     <form method="post" id="allocationForm">
         {% csrf_token %}
 
-        <!-- Step 1: Filters -->
+        <!-- Semester Selection -->
         <div class="form-section">
             <h5 class="section-title">
-                <i class="ri-filter-line" style="margin-right: 0.5rem;"></i>
-                Step 1: Filter Units
+                <i class="ri-calendar-line" style="margin-right: 0.5rem;"></i>
+                Select Semester
             </h5>
-
-            <div class="filters-grid">
-                <div class="form-group">
-                    <label for="semester">Semester *</label>
-                    <select name="semester_filter" id="semester" class="form-select" required>
-                        {% for sem in semesters %}
-                        <option value="{{ sem.id }}" {% if sem.id == semester.id %}selected{% endif %}>
-                            {{ sem.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="school">School</label>
-                    <select name="school_filter" id="school" class="form-select">
-                        <option value="">All Schools</option>
-                        {% for school in schools %}
-                        <option value="{{ school.id }}" {% if selected_school == school.id|stringformat:"s" %}selected{% endif %}>
-                            {{ school.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="department">Department</label>
-                    <select name="department_filter" id="department" class="form-select">
-                        <option value="">All Departments</option>
-                        {% for dept in departments %}
-                        <option value="{{ dept.id }}" {% if selected_department == dept.id|stringformat:"s" %}selected{% endif %}>
-                            {{ dept.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
+            <div class="form-group">
+                <label for="semester">Semester *</label>
+                <select name="semester" id="semester" class="form-select" required>
+                    {% for sem in semesters %}
+                    <option value="{{ sem.id }}" {% if sem.id == semester.id %}selected{% endif %}>
+                        {{ sem.name }}
+                    </option>
+                    {% endfor %}
+                </select>
             </div>
-
-            <button type="button" onclick="applyFilters()" class="btn btn-primary">
-                <i class="ri-filter-line" style="margin-right: 0.5rem;"></i>
-                Apply Filters
-            </button>
         </div>
 
-        <!-- Step 2: Select Unit -->
+        <!-- Step 1: Search and Select Unit -->
         <div class="form-section">
             <h5 class="section-title">
                 <i class="ri-book-2-line" style="margin-right: 0.5rem;"></i>
-                Step 2: Select Unit
+                Step 1: Search and Select Unit
             </h5>
 
-            {% if programme_units %}
-            <div class="units-list" id="unitsList">
-                {% for pu in programme_units %}
-                <label class="unit-item">
-                    <input type="radio" name="programme_unit" value="{{ pu.id }}" 
-                           onchange="loadLecturers({{ pu.id }})" required>
-                    <div style="display: inline-block;">
-                        <div>
-                            <span class="unit-code">{{ pu.unit.code }}</span>
-                            <span style="margin-left: 1rem;">{{ pu.unit.name }}</span>
-                            <span style="margin-left: 1rem; padding: 0.25rem 0.5rem; background: rgba(33, 150, 243, 0.1); 
-                                  border-radius: 4px; font-size: 0.75rem; color: #1565C0;">
-                                {{ pu.get_unit_type_display }}
-                            </span>
-                        </div>
-                        <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
-                            {{ pu.programme.code }} - {{ pu.programme.department.name }} | 
-                            Year {{ pu.year_of_study }} Semester {{ pu.semester_number }} | 
-                            {{ pu.unit.credit_hours }} Credits
-                        </div>
+            <!-- Filters -->
+            <div class="filters-grid">
+                <div class="form-group">
+                    <label for="programme_filter">Programme</label>
+                    <select id="programme_filter" class="form-select">
+                        <option value="">All Programmes</option>
+                        {% for prog in programmes %}
+                        <option value="{{ prog.id }}">{{ prog.code }} - {{ prog.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="year_filter">Year of Study</label>
+                    <select id="year_filter" class="form-select">
+                        <option value="">All Years</option>
+                        <option value="1">Year 1</option>
+                        <option value="2">Year 2</option>
+                        <option value="3">Year 3</option>
+                        <option value="4">Year 4</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="semester_filter">Semester</label>
+                    <select id="semester_filter" class="form-select">
+                        <option value="">All Semesters</option>
+                        <option value="1">Semester 1</option>
+                        <option value="2">Semester 2</option>
+                        <option value="3">Semester 3</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Search Box -->
+            <div class="search-box">
+                <i class="ri-search-line search-icon"></i>
+                <input type="text" id="unitSearch" class="search-input" 
+                       placeholder="Search by unit code or name (e.g., CSC 101, Programming)...">
+            </div>
+
+            <!-- Loading -->
+            <div id="unitLoading" class="loading">
+                <i class="ri-loader-4-line" style="font-size: 2rem; animation: spin 1s linear infinite;"></i>
+                <p>Searching units...</p>
+            </div>
+
+            <!-- Results -->
+            <div id="unitResults" class="results-container"></div>
+
+            <!-- Selected Unit -->
+            <div id="selectedUnitCard" class="selected-item-card">
+                <input type="hidden" name="programme_unit" id="selectedUnitId">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h6 style="margin: 0 0 0.5rem 0; font-size: 1rem;">Selected Unit:</h6>
+                        <div id="selectedUnitInfo"></div>
                     </div>
-                </label>
-                {% endfor %}
+                    <button type="button" onclick="clearUnitSelection()" class="btn btn-outline-secondary" 
+                            style="padding: 0.375rem 0.75rem;">
+                        Change
+                    </button>
+                </div>
             </div>
-            {% else %}
-            <div class="empty-state">
-                <i class="ri-inbox-line" style="font-size: 3rem; opacity: 0.3;"></i>
-                <p>No unallocated units found. All units for this semester are already allocated.</p>
-            </div>
-            {% endif %}
         </div>
 
-        <!-- Step 3: Select Lecturer -->
-        <div class="form-section" id="lecturersSection">
+        <!-- Step 2: Search and Select Lecturer -->
+        <div class="form-section" id="lecturerSection" style="display: none;">
             <h5 class="section-title">
                 <i class="ri-user-line" style="margin-right: 0.5rem;"></i>
-                Step 3: Select Lecturer
+                Step 2: Search and Select Lecturer
             </h5>
 
-            <div id="lecturersLoading" style="text-align: center; padding: 2rem; display: none;">
-                <i class="ri-loader-4-line" style="font-size: 2rem; animation: spin 1s linear infinite;"></i>
-                <p>Loading lecturers...</p>
+            <div id="unitTypeInfo" class="alert alert-info" style="display: none;"></div>
+
+            <!-- Search Box -->
+            <div class="search-box">
+                <i class="ri-search-line search-icon"></i>
+                <input type="text" id="lecturerSearch" class="search-input" 
+                       placeholder="Search by name, employee number, or phone number...">
             </div>
 
-            <div id="unitInfo" class="alert alert-info" style="display: none;"></div>
+            <!-- Loading -->
+            <div id="lecturerLoading" class="loading">
+                <i class="ri-loader-4-line" style="font-size: 2rem; animation: spin 1s linear infinite;"></i>
+                <p>Searching lecturers...</p>
+            </div>
 
-            <div id="lecturersList"></div>
+            <!-- Results -->
+            <div id="lecturerResults" class="results-container"></div>
+
+            <!-- Selected Lecturer -->
+            <div id="selectedLecturerCard" class="selected-item-card">
+                <input type="hidden" name="lecturer" id="selectedLecturerId">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h6 style="margin: 0 0 0.5rem 0; font-size: 1rem;">Selected Lecturer:</h6>
+                        <div id="selectedLecturerInfo"></div>
+                    </div>
+                    <button type="button" onclick="clearLecturerSelection()" class="btn btn-outline-secondary" 
+                            style="padding: 0.375rem 0.75rem;">
+                        Change
+                    </button>
+                </div>
+            </div>
         </div>
 
-        <!-- Step 4: Additional Details -->
+        <!-- Step 3: Additional Details -->
         <div class="form-section" id="detailsSection" style="display: none;">
             <h5 class="section-title">
                 <i class="ri-settings-line" style="margin-right: 0.5rem;"></i>
-                Step 4: Additional Details
+                Step 3: Additional Details
             </h5>
-
-            <input type="hidden" name="semester" value="{{ semester.id }}">
 
             <div class="form-group">
                 <label for="max_students">Maximum Students (Optional)</label>
@@ -350,7 +434,7 @@
             </div>
 
             <div style="display: flex; gap: 1rem; margin-top: 2rem;">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-primary" id="submitBtn">
                     <i class="ri-save-line" style="margin-right: 0.5rem;"></i>
                     Create Allocation
                 </button>
@@ -362,94 +446,235 @@
     </form>
 </div>
 
-<style>
-    @keyframes spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-</style>
-
 <script>
-function applyFilters() {
-    const semester = document.getElementById('semester').value;
-    const school = document.getElementById('school').value;
-    const department = document.getElementById('department').value;
-    
-    let url = '{% url "create_unit_allocation" %}?';
-    if (semester) url += `semester=${semester}&`;
-    if (school) url += `school=${school}&`;
-    if (department) url += `department=${department}&`;
-    
-    window.location.href = url;
-}
+let searchTimeout;
+let selectedUnit = null;
+let selectedLecturer = null;
 
-function loadLecturers(programmeUnitId) {
-    const section = document.getElementById('lecturersSection');
-    const loading = document.getElementById('lecturersLoading');
-    const list = document.getElementById('lecturersList');
-    const unitInfo = document.getElementById('unitInfo');
+// Unit Search
+document.getElementById('unitSearch').addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
     
-    section.style.display = 'block';
-    loading.style.display = 'block';
-    list.innerHTML = '';
-    unitInfo.style.display = 'none';
+    if (query.length < 2) {
+        document.getElementById('unitResults').classList.remove('show');
+        return;
+    }
     
-    fetch(`{% url 'get_lecturers_ajax' %}?programme_unit_id=${programmeUnitId}`)
+    searchTimeout = setTimeout(() => searchUnits(query), 300);
+});
+
+// Apply filters on unit search
+['programme_filter', 'year_filter', 'semester_filter'].forEach(id => {
+    document.getElementById(id).addEventListener('change', function() {
+        const query = document.getElementById('unitSearch').value.trim();
+        if (query.length >= 2) {
+            searchUnits(query);
+        }
+    });
+});
+
+function searchUnits(query) {
+    const loading = document.getElementById('unitLoading');
+    const results = document.getElementById('unitResults');
+    
+    loading.classList.add('show');
+    results.classList.remove('show');
+    
+    const params = new URLSearchParams({
+        q: query,
+        semester_id: document.getElementById('semester').value,
+        programme_id: document.getElementById('programme_filter').value,
+        year_of_study: document.getElementById('year_filter').value,
+        semester_number: document.getElementById('semester_filter').value,
+    });
+    
+    fetch(`/allocations/search-units/?${params}`)
         .then(response => response.json())
         .then(data => {
-            loading.style.display = 'none';
-            
-            // Show unit info
-            if (data.unit_info) {
-                unitInfo.innerHTML = `
-                    <strong>${data.unit_info.code}</strong> - ${data.unit_info.name}<br>
-                    <small>Department: ${data.unit_info.department}</small>
-                    ${data.is_common_unit ? '<br><span style="color: #E65100;">⚠ This is a common unit - lecturers from all departments are available</span>' : ''}
-                `;
-                unitInfo.style.display = 'block';
-            }
-            
-            // Display lecturers
-            if (data.lecturers && data.lecturers.length > 0) {
-                data.lecturers.forEach(lecturer => {
-                    const div = document.createElement('label');
-                    div.className = 'lecturer-item';
-                    div.innerHTML = `
-                        <input type="radio" name="lecturer" value="${lecturer.id}" 
-                               onchange="showDetails()" required>
-                        <div style="display: inline-block; width: calc(100% - 30px);">
-                            <div style="display: flex; justify-content: space-between;">
-                                <div>
-                                    <strong>${lecturer.name}</strong>
-                                    <span style="margin-left: 1rem; color: var(--color-gray-600);">
-                                        ${lecturer.employee_number}
-                                    </span>
-                                </div>
-                                <span style="padding: 0.25rem 0.5rem; background: rgba(33, 150, 243, 0.1); 
-                                      border-radius: 4px; font-size: 0.75rem; color: #1565C0;">
-                                    ${lecturer.current_allocations} current allocations
-                                </span>
-                            </div>
-                            <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
-                                ${lecturer.designation} | ${lecturer.department} | ${lecturer.school}
-                            </div>
-                        </div>
-                    `;
-                    list.appendChild(div);
-                });
-            } else {
-                list.innerHTML = '<div class="empty-state">No lecturers available</div>';
-            }
+            loading.classList.remove('show');
+            displayUnitResults(data.units);
         })
         .catch(error => {
-            loading.style.display = 'none';
-            list.innerHTML = `<div class="alert alert-warning">Error loading lecturers: ${error}</div>`;
+            loading.classList.remove('show');
+            results.innerHTML = `<div class="empty-state">Error searching units</div>`;
+            results.classList.add('show');
         });
 }
 
-function showDetails() {
+function displayUnitResults(units) {
+    const results = document.getElementById('unitResults');
+    
+    if (units.length === 0) {
+        results.innerHTML = '<div class="empty-state">No units found</div>';
+        results.classList.add('show');
+        return;
+    }
+    
+    results.innerHTML = units.map(unit => `
+        <div class="result-item" onclick='selectUnit(${JSON.stringify(unit)})'>
+            <div>
+                <span class="unit-code">${unit.unit_code}</span>
+                <span style="margin-left: 1rem;">${unit.unit_name}</span>
+                <span class="badge badge-info" style="margin-left: 0.5rem;">${unit.unit_type}</span>
+                ${unit.allocation_count > 0 ? `<span class="badge badge-warning" style="margin-left: 0.5rem;">${unit.allocation_count} existing allocation(s)</span>` : ''}
+            </div>
+            <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
+                ${unit.programme_code} - ${unit.programme_name} | 
+                Year ${unit.year_of_study} Semester ${unit.semester_number} | 
+                ${unit.credit_hours} Credits
+            </div>
+            <div style="font-size: 0.8125rem; color: var(--color-gray-600);">
+                ${unit.department} | ${unit.school}
+            </div>
+        </div>
+    `).join('');
+    
+    results.classList.add('show');
+}
+
+function selectUnit(unit) {
+    selectedUnit = unit;
+    document.getElementById('selectedUnitId').value = unit.id;
+    document.getElementById('selectedUnitInfo').innerHTML = `
+        <div><span class="unit-code">${unit.unit_code}</span> - ${unit.unit_name}</div>
+        <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
+            ${unit.programme_code} | Year ${unit.year_of_study} Semester ${unit.semester_number} | 
+            ${unit.department}
+        </div>
+        ${unit.allocation_count > 0 ? `<div class="badge badge-warning" style="margin-top: 0.5rem;">Note: This unit has ${unit.allocation_count} existing allocation(s). You can still allocate it to another lecturer or same lecturer for different programmes.</div>` : ''}
+    `;
+    
+    document.getElementById('selectedUnitCard').classList.add('show');
+    document.getElementById('unitResults').classList.remove('show');
+    document.getElementById('lecturerSection').style.display = 'block';
+    document.getElementById('lecturerSection').scrollIntoView({ behavior: 'smooth' });
+    
+    // Show info about unit type
+    if (unit.unit_type === 'Common Unit') {
+        document.getElementById('unitTypeInfo').innerHTML = 
+            '⚠ This is a common unit - lecturers from all departments are available for selection.';
+        document.getElementById('unitTypeInfo').style.display = 'block';
+    } else {
+        document.getElementById('unitTypeInfo').style.display = 'none';
+    }
+}
+
+function clearUnitSelection() {
+    selectedUnit = null;
+    document.getElementById('selectedUnitId').value = '';
+    document.getElementById('selectedUnitCard').classList.remove('show');
+    document.getElementById('lecturerSection').style.display = 'none';
+    document.getElementById('detailsSection').style.display = 'none';
+    document.getElementById('unitSearch').focus();
+}
+
+// Lecturer Search
+document.getElementById('lecturerSearch').addEventListener('input', function(e) {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    
+    if (query.length < 2) {
+        document.getElementById('lecturerResults').classList.remove('show');
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => searchLecturers(query), 300);
+});
+
+function searchLecturers(query) {
+    const loading = document.getElementById('lecturerLoading');
+    const results = document.getElementById('lecturerResults');
+    
+    if (!selectedUnit) {
+        return;
+    }
+    
+    loading.classList.add('show');
+    results.classList.remove('show');
+    
+    const params = new URLSearchParams({
+        q: query,
+        programme_unit_id: selectedUnit.id,
+    });
+    
+    fetch(`/allocations/search-lecturers/?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            loading.classList.remove('show');
+            displayLecturerResults(data.lecturers);
+        })
+        .catch(error => {
+            loading.classList.remove('show');
+            results.innerHTML = `<div class="empty-state">Error searching lecturers</div>`;
+            results.classList.add('show');
+        });
+}
+
+function displayLecturerResults(lecturers) {
+    const results = document.getElementById('lecturerResults');
+    
+    if (lecturers.length === 0) {
+        results.innerHTML = '<div class="empty-state">No lecturers found</div>';
+        results.classList.add('show');
+        return;
+    }
+    
+    results.innerHTML = lecturers.map(lecturer => `
+        <div class="result-item" onclick='selectLecturer(${JSON.stringify(lecturer)})'>
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <strong>${lecturer.name}</strong>
+                    <span style="margin-left: 1rem; color: var(--color-gray-600);" class="lecturer-id">
+                        ${lecturer.employee_number}
+                    </span>
+                    ${lecturer.phone_number ? `<span style="margin-left: 1rem; color: var(--color-gray-600);">📱 ${lecturer.phone_number}</span>` : ''}
+                </div>
+                <span class="badge badge-info">
+                    ${lecturer.current_allocations} current allocations
+                </span>
+            </div>
+            <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
+                ${lecturer.designation} | ${lecturer.department} | ${lecturer.school}
+            </div>
+            ${lecturer.has_existing_allocation ? `<div class="badge badge-warning" style="margin-top: 0.5rem;">${lecturer.existing_allocation_info}</div>` : ''}
+        </div>
+    `).join('');
+    
+    results.classList.add('show');
+}
+
+function selectLecturer(lecturer) {
+    selectedLecturer = lecturer;
+    document.getElementById('selectedLecturerId').value = lecturer.id;
+    document.getElementById('selectedLecturerInfo').innerHTML = `
+        <div><strong>${lecturer.name}</strong> - ${lecturer.employee_number}</div>
+        <div style="font-size: 0.8125rem; color: var(--color-gray-600); margin-top: 0.25rem;">
+            ${lecturer.designation} | ${lecturer.department} | ${lecturer.current_allocations} current allocations
+        </div>
+        ${lecturer.has_existing_allocation ? `<div class="badge badge-info" style="margin-top: 0.5rem;">Note: ${lecturer.existing_allocation_info}. This will create an additional allocation.</div>` : ''}
+    `;
+    
+    document.getElementById('selectedLecturerCard').classList.add('show');
+    document.getElementById('lecturerResults').classList.remove('show');
     document.getElementById('detailsSection').style.display = 'block';
     document.getElementById('detailsSection').scrollIntoView({ behavior: 'smooth' });
 }
+
+function clearLecturerSelection() {
+    selectedLecturer = null;
+    document.getElementById('selectedLecturerId').value = '';
+    document.getElementById('selectedLecturerCard').classList.remove('show');
+    document.getElementById('detailsSection').style.display = 'none';
+    document.getElementById('lecturerSearch').focus();
+}
+
+// Form validation
+document.getElementById('allocationForm').addEventListener('submit', function(e) {
+    if (!selectedUnit || !selectedLecturer) {
+        e.preventDefault();
+        alert('Please select both a unit and a lecturer.');
+    }
+});
 </script>
 {% endblock %}
