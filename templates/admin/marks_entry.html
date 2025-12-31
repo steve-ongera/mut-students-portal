@@ -4,10 +4,106 @@
 {% block title %}Admin - Marks Entry{% endblock %}
 
 {% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Search Container */
     .search-container {
         position: relative;
-        margin-bottom: 2rem;
+        margin-bottom: 0;
     }
     
     .search-results {
@@ -16,13 +112,14 @@
         left: 0;
         right: 0;
         background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 0.375rem;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
         max-height: 300px;
         overflow-y: auto;
         z-index: 1000;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-lg);
         display: none;
+        margin-top: 0.25rem;
     }
     
     .search-results.show {
@@ -31,87 +128,66 @@
     
     .search-result-item {
         padding: 0.75rem 1rem;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--color-gray-100);
         cursor: pointer;
         transition: background-color 0.2s;
     }
     
     .search-result-item:hover {
-        background-color: #f8f9fa;
+        background-color: var(--color-gray-100);
     }
     
     .search-result-item:last-child {
         border-bottom: none;
     }
     
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+        background: white;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    /* Student Info Section */
     .student-info {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 2rem;
+        border-radius: var(--radius-md);
     }
     
-    .marks-table {
-        background: white;
-        border-radius: 0.5rem;
-        overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-    }
-    
-    .marks-table th {
-        background: #f8f9fa;
-        font-weight: 600;
-        padding: 1rem;
-        border-bottom: 2px solid #dee2e6;
-    }
-    
-    .marks-table td {
-        padding: 0.75rem 1rem;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .marks-input {
-        width: 100px;
-        padding: 0.5rem;
-        border: 1px solid #dee2e6;
-        border-radius: 0.375rem;
-        text-align: center;
-    }
-    
-    .marks-input:focus {
-        outline: none;
-        border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-    }
-    
-    .badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 0.25rem;
+    .student-info h5 {
         font-size: 0.875rem;
         font-weight: 500;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     
-    .badge-success {
-        background: #10b981;
-        color: white;
+    .student-info .fs-4 {
+        font-size: 1.125rem;
+        font-weight: 600;
     }
     
-    .badge-danger {
-        background: #ef4444;
-        color: white;
-    }
-    
-    .badge-warning {
-        background: #f59e0b;
-        color: white;
-    }
-    
-    .badge-info {
-        background: #3b82f6;
-        color: white;
-    }
-    
+    /* Loading Spinner */
     .loading {
         display: none;
         text-align: center;
@@ -123,8 +199,8 @@
     }
     
     .spinner {
-        border: 3px solid #f3f3f3;
-        border-top: 3px solid #667eea;
+        border: 3px solid var(--color-gray-200);
+        border-top: 3px solid var(--color-primary);
         border-radius: 50%;
         width: 40px;
         height: 40px;
@@ -137,137 +213,324 @@
         100% { transform: rotate(360deg); }
     }
     
+    /* No Data Message */
     .no-data {
         text-align: center;
         padding: 3rem;
-        color: #6b7280;
+        color: var(--color-gray-600);
     }
     
+    .no-data i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: var(--color-gray-300);
+    }
+    
+    /* Compact Unit Cards */
+    .unit-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+        overflow: hidden;
+    }
+    
+    .unit-card-header {
+        padding: 0.75rem 1rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .unit-card-header h6 {
+        margin: 0;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .unit-card-header small {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .unit-card-body {
+        padding: 0;
+    }
+    
+    /* Compact Marks Table */
+    .marks-table-compact {
+        width: 100%;
+        margin: 0;
+        font-size: 0.875rem;
+    }
+    
+    .marks-table-compact thead th {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        color: var(--color-gray-600);
+        padding: 0.625rem 0.75rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .marks-table-compact tbody td {
+        padding: 0.625rem 0.75rem;
+        border-bottom: 1px solid var(--color-gray-100);
+        vertical-align: middle;
+    }
+    
+    .marks-table-compact tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .marks-table-compact tbody tr.total-row {
+        background: var(--color-gray-100);
+        font-weight: 600;
+    }
+    
+    .marks-table-compact tbody tr:hover:not(.total-row) {
+        background: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Marks Input - Compact */
+    .marks-input {
+        width: 80px;
+        padding: 0.375rem 0.5rem;
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        text-align: center;
+        font-size: 0.875rem;
+    }
+    
+    .marks-input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+    }
+    
+    /* Save Button - Compact */
     .save-btn {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: var(--color-primary);
         color: white;
-        padding: 0.5rem 1rem;
+        padding: 0.375rem 0.75rem;
         border: none;
-        border-radius: 0.375rem;
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-weight: 500;
-        transition: transform 0.2s;
+        font-size: 0.8125rem;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
     }
     
     .save-btn:hover {
-        transform: translateY(-2px);
+        background: #256428;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
     }
     
     .save-btn:disabled {
         opacity: 0.6;
         cursor: not-allowed;
     }
+    
+    /* Badges */
+    .badge {
+        padding: 0.25rem 0.625rem;
+        border-radius: 20px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .badge-success {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .badge-danger {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .badge-warning {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .badge-info {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    /* Form Controls */
+    .form-select, .form-control {
+        border-radius: var(--radius-sm);
+        border-color: var(--color-gray-300);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+    }
+    
+    .form-select:focus, .form-control:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .form-label {
+        font-weight: 500;
+        font-size: 0.875rem;
+        color: var(--color-gray-700);
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Form Check Switch */
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+        border-color: var(--color-primary);
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-gradient-primary">
-                    <h3 class="text-white mb-0">
-                        <i class="fas fa-edit"></i> Admin Marks Entry
-                    </h3>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Marks Entry</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Admin Marks Entry</h1>
+                <p class="text-muted mb-0">Search for students and manage their marks</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Academic Filters</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Academic Year</label>
+                    <select id="academic_year" class="form-select">
+                        {% for year in academic_years %}
+                        <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                            {{ year.name }} {% if year.is_current %}(Current){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-body">
-                    
-                    <!-- Filters Section -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Academic Year</label>
-                            <select id="academic_year" class="form-select">
-                                {% for year in academic_years %}
-                                <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
-                                    {{ year.name }} {% if year.is_current %}(Current){% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">Semester</label>
-                            <select id="semester" class="form-select">
-                                {% for sem in semesters %}
-                                <option value="{{ sem.id }}" {% if sem.is_current %}selected{% endif %}>
-                                    {{ sem.name }} {% if sem.is_current %}(Current){% endif %}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Search Section -->
-                    <div class="row mb-4">
-                        <div class="col-12">
-                            <label class="form-label fw-bold">Search Student</label>
-                            <div class="search-container">
-                                <input 
-                                    type="text" 
-                                    id="student_search" 
-                                    class="form-control form-control-lg"
-                                    placeholder="Enter Registration Number, Phone, National ID, or Name (min 2 characters)..."
-                                    autocomplete="off"
-                                >
-                                <div id="search_results" class="search-results"></div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Student Info Section (Hidden initially) -->
-                    <div id="student_info_section" style="display: none;">
-                        <div class="student-info">
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <h5 class="mb-1">Registration Number</h5>
-                                    <p class="mb-0 fs-4" id="student_reg_number">-</p>
-                                </div>
-                                <div class="col-md-4">
-                                    <h5 class="mb-1">Student Name</h5>
-                                    <p class="mb-0 fs-4" id="student_name">-</p>
-                                </div>
-                                <div class="col-md-4">
-                                    <h5 class="mb-1">Programme</h5>
-                                    <p class="mb-0 fs-4" id="student_programme">-</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Loading Spinner -->
-                    <div id="loading" class="loading">
-                        <div class="spinner"></div>
-                        <p class="mt-3">Loading enrollments...</p>
-                    </div>
-                    
-                    <!-- Enrollments Table Section -->
-                    <div id="enrollments_section" style="display: none;">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h4>Unit Enrollments & Marks</h4>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="auto_approve" checked>
-                                <label class="form-check-label" for="auto_approve">
-                                    Auto-approve marks
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div id="enrollments_container"></div>
-                    </div>
-                    
-                    <!-- No Data Message -->
-                    <div id="no_data" class="no-data" style="display: none;">
-                        <i class="fas fa-inbox fa-3x mb-3"></i>
-                        <p>Search for a student to view and enter their marks</p>
-                    </div>
-                    
+                <div class="col-md-6">
+                    <label class="form-label">Semester</label>
+                    <select id="semester" class="form-select">
+                        {% for sem in semesters %}
+                        <option value="{{ sem.id }}" {% if sem.is_current %}selected{% endif %}>
+                            {{ sem.name }} {% if sem.is_current %}(Current){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Search Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Search Student</h5>
+            <div class="card-subtitle">Search by registration number, phone, national ID, or name</div>
+        </div>
+        <div class="card-body">
+            <div class="search-container">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="ri-search-line text-muted"></i>
+                    </span>
+                    <input 
+                        type="text" 
+                        id="student_search" 
+                        class="form-control border-start-0 ps-0"
+                        placeholder="Enter Registration Number, Phone, National ID, or Name (min 2 characters)..."
+                        autocomplete="off"
+                    >
+                </div>
+                <div id="search_results" class="search-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Info Section -->
+    <div id="student_info_section" class="management-card" style="display: none;">
+        <div class="card-body">
+            <div class="student-info">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h5 class="mb-1">Registration Number</h5>
+                        <p class="mb-0 fs-4" id="student_reg_number">-</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5 class="mb-1">Student Name</h5>
+                        <p class="mb-0 fs-4" id="student_name">-</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h5 class="mb-1">Programme</h5>
+                        <p class="mb-0 fs-4" id="student_programme">-</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p class="mt-3">Loading enrollments...</p>
+    </div>
+
+    <!-- Enrollments Section -->
+    <div id="enrollments_section" class="management-card" style="display: none;">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="card-title">Unit Enrollments & Marks</h5>
+                    <div class="card-subtitle">Enter and save marks for each assessment</div>
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="auto_approve" checked>
+                    <label class="form-check-label" for="auto_approve">
+                        Auto-approve marks
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div id="enrollments_container"></div>
+        </div>
+    </div>
+
+    <!-- No Data Message -->
+    <div id="no_data" class="no-data" style="display: none;">
+        <i class="fas fa-inbox"></i>
+        <p>Search for a student to view and enter their marks</p>
     </div>
 </div>
 {% endblock %}
@@ -400,28 +663,26 @@ function displayEnrollments(enrollments) {
         const marks = enrollment.marks;
         
         html += `
-            <div class="card mb-3">
-                <div class="card-header bg-light">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="mb-0">${enrollment.unit_code} - ${enrollment.unit_name}</h5>
-                            <small class="text-muted">Credit Hours: ${enrollment.credit_hours}</small>
-                        </div>
-                        <div>
-                            ${enrollment.is_resit ? '<span class="badge badge-warning">Resit</span>' : ''}
-                            ${enrollment.grade ? `<span class="badge ${enrollment.is_passed ? 'badge-success' : 'badge-danger'}">${enrollment.grade} (${enrollment.grade_point})</span>` : ''}
-                        </div>
+            <div class="unit-card">
+                <div class="unit-card-header">
+                    <div>
+                        <h6>${enrollment.unit_code} - ${enrollment.unit_name}</h6>
+                        <small>Credit Hours: ${enrollment.credit_hours}</small>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        ${enrollment.is_resit ? '<span class="badge badge-warning">Resit</span>' : ''}
+                        ${enrollment.grade ? `<span class="badge ${enrollment.is_passed ? 'badge-success' : 'badge-danger'}">${enrollment.grade} (${enrollment.grade_point})</span>` : ''}
                     </div>
                 </div>
-                <div class="card-body">
-                    <table class="table marks-table mb-0">
+                <div class="unit-card-body">
+                    <table class="marks-table-compact">
                         <thead>
                             <tr>
                                 <th>Assessment</th>
-                                <th>Max Marks</th>
-                                <th>Weight (%)</th>
-                                <th>Marks Obtained</th>
-                                <th>Action</th>
+                                <th style="text-align: center;">Max</th>
+                                <th style="text-align: center;">Weight</th>
+                                <th style="text-align: center;">Marks</th>
+                                <th style="text-align: center;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -431,9 +692,9 @@ function displayEnrollments(enrollments) {
             html += `
                 <tr>
                     <td>${data.title}</td>
-                    <td>${data.max_marks}</td>
-                    <td>${data.weight_percentage}%</td>
-                    <td>
+                    <td style="text-align: center;">${data.max_marks}</td>
+                    <td style="text-align: center;">${data.weight_percentage}%</td>
+                    <td style="text-align: center;">
                         <input 
                             type="number" 
                             class="marks-input" 
@@ -446,7 +707,7 @@ function displayEnrollments(enrollments) {
                             data-student-id="${selectedStudentId}"
                         >
                     </td>
-                    <td>
+                    <td style="text-align: center;">
                         <button 
                             class="save-btn" 
                             onclick="saveMark(${data.assessment_id}, ${selectedStudentId})"
@@ -459,9 +720,9 @@ function displayEnrollments(enrollments) {
         }
         
         html += `
-                            <tr class="fw-bold bg-light">
+                            <tr class="total-row">
                                 <td colspan="3">Total Marks</td>
-                                <td colspan="2">${enrollment.total_marks}/100</td>
+                                <td colspan="2" style="text-align: center;">${enrollment.total_marks}/100</td>
                             </tr>
                         </tbody>
                     </table>
