@@ -9987,6 +9987,6 @@ def enrollment_period_detail(request, period_id):
         return JsonResponse({
             'success': False,
             'error': str(e)
-        }, status=500)
+        }, status=500) 
 
 
