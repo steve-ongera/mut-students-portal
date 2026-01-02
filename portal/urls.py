@@ -227,6 +227,19 @@ urlpatterns = [
     path('enrollment-periods/<int:period_id>/', views.enrollment_period_detail, name='enrollment_period_detail'),
     path('enrollment-periods/<int:period_id>/update/', views.enrollment_period_update, name='enrollment_period_update'),
     path('enrollment-periods/<int:period_id>/delete/', views.enrollment_period_delete, name='enrollment_period_delete'),
+    
+    # Main fee structure management
+    path('fee-structures/', views.fee_structure_list, name='fee_structure_list'),
+    path('fee-structures/add/', views.add_fee_structure, name='add_fee_structure'),
+    path('fee-structures/<int:structure_id>/', views.view_fee_structure, name='view_fee_structure'),
+    path('fee-structures/<int:structure_id>/update/', views.update_fee_structure, name='update_fee_structure'),
+    path('fee-structures/<int:structure_id>/delete/', views.delete_fee_structure, name='delete_fee_structure'),
+    path('fee-structures/<int:structure_id>/duplicate/', views.duplicate_fee_structure, name='duplicate_fee_structure'),
+    path('fee-structures/bulk-create/', views.bulk_create_fee_structures, name='bulk_create_fee_structures'),
+    
+    # AJAX API endpoints
+    path('api/fee-structures/<int:structure_id>/', views.get_fee_structure_details, name='get_fee_structure_details'),
+    path('api/programmes/<int:programme_id>/fee-structures/', views.get_programme_fee_structures, name='get_programme_fee_structures'),
 
     
 ]
