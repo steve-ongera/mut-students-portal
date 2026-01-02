@@ -251,6 +251,32 @@ urlpatterns = [
     
     # API endpoint for student payment history
     path('api/student-payment-history/<str:registration_number>/', views.student_payment_history, name='student_payment_history'),
+    
+    # ============= HOSTEL MANAGEMENT URLS =============
+    
+    # Hostel List & CRUD
+    path('admin-hostels/', views.admin_hostel_list, name='admin_hostel_list'),
+    path('admin-hostels/add/', views.admin_add_hostel, name='admin_add_hostel'),
+    path('admin-hostels/<str:hostel_code>/', views.admin_hostel_detail, name='admin_hostel_detail'),
+    path('admin-hostels/<str:hostel_code>/update/', views.admin_update_hostel, name='admin_update_hostel'),
+    path('admin-hostels/<str:hostel_code>/delete/', views.admin_delete_hostel, name='admin_delete_hostel'),
+    
+    # Room Detail
+    path('admin-rooms/<int:room_id>/', views.admin_hostel_room_detail, name='admin_hostel_room_detail'),
+    
+    # Bed Detail
+    path('admin-beds/<int:bed_id>/', views.admin_hostel_bed_detail, name='admin_hostel_bed_detail'),
+    
+    # ============= API ENDPOINTS =============
+    
+    # Bulk Creation APIs
+    path('api/hostels/bulk-create/', views.api_bulk_create_hostels, name='api_bulk_create_hostels'),
+    path('api/hostels/<str:hostel_code>/rooms/bulk-create/', views.api_bulk_create_rooms, name='api_bulk_create_rooms'),
+    path('api/rooms/<int:room_id>/beds/bulk-create/', views.api_bulk_create_beds, name='api_bulk_create_beds'),
+    
+    # Statistics APIs
+    path('api/hostels/<str:hostel_code>/stats/', views.api_hostel_stats, name='api_hostel_stats'),
+    path('api/beds/available/', views.api_available_beds, name='api_available_beds'),
 
     
 ]
