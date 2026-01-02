@@ -9990,3 +9990,451 @@ def enrollment_period_detail(request, period_id):
         }, status=500) 
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q, Sum, Count
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from decimal import Decimal
+from .models import (
+    FeeStructure, Programme, AcademicYear, Semester, 
+    Student, FeePayment, FeeBalance
+)
+
+@login_required
+def fee_structure_list(request):
+    """List all fee structures with filters"""
+    # Get filter parameters
+    programme_filter = request.GET.get('programme', '')
+    year_filter = request.GET.get('year', '')
+    semester_filter = request.GET.get('semester', '')
+    academic_year_filter = request.GET.get('academic_year', '')
+    search_query = request.GET.get('search', '')
+    
+    # Base queryset
+    fee_structures = FeeStructure.objects.filter(is_active=True).select_related(
+        'programme', 
+        'programme__department',
+        'programme__department__school',
+        'academic_year'
+    ).order_by('programme__code', 'year_of_study', 'semester_number')
+    
+    # Apply filters
+    if programme_filter:
+        fee_structures = fee_structures.filter(programme_id=programme_filter)
+    
+    if year_filter:
+        fee_structures = fee_structures.filter(year_of_study=year_filter)
+    
+    if semester_filter:
+        fee_structures = fee_structures.filter(semester_number=semester_filter)
+    
+    if academic_year_filter:
+        fee_structures = fee_structures.filter(academic_year_id=academic_year_filter)
+    
+    if search_query:
+        fee_structures = fee_structures.filter(
+            Q(programme__code__icontains=search_query) |
+            Q(programme__name__icontains=search_query) |
+            Q(programme__department__name__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(fee_structures, 20)
+    page_number = request.GET.get('page')
+    fee_structures_page = paginator.get_page(page_number)
+    
+    # Get data for filters
+    programmes = Programme.objects.filter(is_active=True).order_by('code')
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    years = range(1, 8)  # Years 1-7
+    semester_choices = Semester.SEMESTER_NAMES
+    
+    context = {
+        'fee_structures': fee_structures_page,
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'years': years,
+        'semester_choices': semester_choices,
+        'total_structures': fee_structures.count(),
+        'programme_filter': programme_filter,
+        'year_filter': year_filter,
+        'semester_filter': semester_filter,
+        'academic_year_filter': academic_year_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'finance/fee_structure_list.html', context)
+
+
+@login_required
+def add_fee_structure(request):
+    """Add new fee structure"""
+    if request.method == 'POST':
+        try:
+            programme_id = request.POST.get('programme')
+            academic_year_id = request.POST.get('academic_year')
+            year_of_study = request.POST.get('year_of_study')
+            semester_number = request.POST.get('semester_number')
+            
+            # Get fee components
+            tuition_fee = Decimal(request.POST.get('tuition_fee', '0'))
+            activity_fee = Decimal(request.POST.get('activity_fee', '0'))
+            examination_fee = Decimal(request.POST.get('examination_fee', '0'))
+            library_fee = Decimal(request.POST.get('library_fee', '0'))
+            medical_fee = Decimal(request.POST.get('medical_fee', '0'))
+            technology_fee = Decimal(request.POST.get('technology_fee', '0'))
+            other_fees = Decimal(request.POST.get('other_fees', '0'))
+            
+            # Check if fee structure already exists
+            existing = FeeStructure.objects.filter(
+                programme_id=programme_id,
+                academic_year_id=academic_year_id,
+                year_of_study=year_of_study,
+                semester_number=semester_number
+            ).exists()
+            
+            if existing:
+                messages.error(request, 'Fee structure already exists for this programme, year, and semester.')
+                return redirect('add_fee_structure')
+            
+            # Create fee structure
+            fee_structure = FeeStructure.objects.create(
+                programme_id=programme_id,
+                academic_year_id=academic_year_id,
+                year_of_study=year_of_study,
+                semester_number=semester_number,
+                tuition_fee=tuition_fee,
+                activity_fee=activity_fee,
+                examination_fee=examination_fee,
+                library_fee=library_fee,
+                medical_fee=medical_fee,
+                technology_fee=technology_fee,
+                other_fees=other_fees,
+            )
+            # total_fee is calculated automatically in model's save method
+            
+            messages.success(request, f'Fee structure created successfully. Total: KES {fee_structure.total_fee:,.2f}')
+            return redirect('fee_structure_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating fee structure: {str(e)}')
+            return redirect('add_fee_structure')
+    
+    # GET request
+    programmes = Programme.objects.filter(is_active=True).select_related('department').order_by('code')
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    years = range(1, 8)
+    semester_choices = Semester.SEMESTER_NAMES
+    
+    context = {
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'years': years,
+        'semester_choices': semester_choices,
+    }
+    
+    return render(request, 'finance/add_fee_structure.html', context)
+
+
+@login_required
+def update_fee_structure(request, structure_id):
+    """Update existing fee structure"""
+    fee_structure = get_object_or_404(FeeStructure, id=structure_id)
+    
+    if request.method == 'POST':
+        try:
+            # Update fee components
+            fee_structure.tuition_fee = Decimal(request.POST.get('tuition_fee', '0'))
+            fee_structure.activity_fee = Decimal(request.POST.get('activity_fee', '0'))
+            fee_structure.examination_fee = Decimal(request.POST.get('examination_fee', '0'))
+            fee_structure.library_fee = Decimal(request.POST.get('library_fee', '0'))
+            fee_structure.medical_fee = Decimal(request.POST.get('medical_fee', '0'))
+            fee_structure.technology_fee = Decimal(request.POST.get('technology_fee', '0'))
+            fee_structure.other_fees = Decimal(request.POST.get('other_fees', '0'))
+            
+            fee_structure.save()  # total_fee calculated automatically
+            
+            messages.success(request, f'Fee structure updated successfully. New total: KES {fee_structure.total_fee:,.2f}')
+            return redirect('fee_structure_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating fee structure: {str(e)}')
+    
+    context = {
+        'fee_structure': fee_structure,
+    }
+    
+    return render(request, 'finance/update_fee_structure.html', context)
+
+
+@login_required
+def delete_fee_structure(request, structure_id):
+    """Delete fee structure (soft delete)"""
+    fee_structure = get_object_or_404(FeeStructure, id=structure_id)
+    
+    if request.method == 'POST':
+        try:
+            # Check if any payments exist for this structure
+            payment_count = FeePayment.objects.filter(fee_structure=fee_structure).count()
+            
+            if payment_count > 0:
+                messages.warning(
+                    request, 
+                    f'Cannot delete. {payment_count} payment(s) are linked to this fee structure. '
+                    'Consider deactivating instead.'
+                )
+                return redirect('fee_structure_list')
+            
+            # Soft delete
+            fee_structure.is_active = False
+            fee_structure.save()
+            
+            messages.success(request, 'Fee structure deactivated successfully.')
+            return redirect('fee_structure_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting fee structure: {str(e)}')
+            return redirect('fee_structure_list')
+    
+    context = {
+        'fee_structure': fee_structure,
+    }
+    
+    return render(request, 'finance/delete_fee_structure.html', context)
+
+
+@login_required
+def view_fee_structure(request, structure_id):
+    """View detailed fee structure"""
+    fee_structure = get_object_or_404(
+        FeeStructure.objects.select_related(
+            'programme',
+            'programme__department',
+            'programme__department__school',
+            'academic_year'
+        ),
+        id=structure_id
+    )
+    
+    # Get statistics
+    total_students = Student.objects.filter(
+        programme=fee_structure.programme,
+        current_year=fee_structure.year_of_study,
+        student_status='active'
+    ).count()
+    
+    # Get payment statistics for this structure
+    payments = FeePayment.objects.filter(
+        fee_structure=fee_structure,
+        status='completed'
+    ).aggregate(
+        total_collected=Sum('amount'),
+        payment_count=Count('id')
+    )
+    
+    # Calculate expected revenue
+    expected_revenue = fee_structure.total_fee * total_students
+    collected_revenue = payments['total_collected'] or Decimal('0')
+    collection_percentage = (collected_revenue / expected_revenue * 100) if expected_revenue > 0 else 0
+    
+    context = {
+        'fee_structure': fee_structure,
+        'total_students': total_students,
+        'expected_revenue': expected_revenue,
+        'collected_revenue': collected_revenue,
+        'collection_percentage': collection_percentage,
+        'payment_count': payments['payment_count'] or 0,
+    }
+    
+    return render(request, 'finance/view_fee_structure.html', context)
+
+
+@login_required
+def duplicate_fee_structure(request, structure_id):
+    """Duplicate fee structure to another academic year"""
+    source_structure = get_object_or_404(FeeStructure, id=structure_id)
+    
+    if request.method == 'POST':
+        try:
+            target_academic_year_id = request.POST.get('target_academic_year')
+            
+            # Check if target structure already exists
+            existing = FeeStructure.objects.filter(
+                programme=source_structure.programme,
+                academic_year_id=target_academic_year_id,
+                year_of_study=source_structure.year_of_study,
+                semester_number=source_structure.semester_number
+            ).exists()
+            
+            if existing:
+                messages.error(request, 'Fee structure already exists for the target academic year.')
+                return redirect('fee_structure_list')
+            
+            # Create duplicate
+            new_structure = FeeStructure.objects.create(
+                programme=source_structure.programme,
+                academic_year_id=target_academic_year_id,
+                year_of_study=source_structure.year_of_study,
+                semester_number=source_structure.semester_number,
+                tuition_fee=source_structure.tuition_fee,
+                activity_fee=source_structure.activity_fee,
+                examination_fee=source_structure.examination_fee,
+                library_fee=source_structure.library_fee,
+                medical_fee=source_structure.medical_fee,
+                technology_fee=source_structure.technology_fee,
+                other_fees=source_structure.other_fees,
+            )
+            
+            messages.success(request, f'Fee structure duplicated successfully to {new_structure.academic_year}.')
+            return redirect('fee_structure_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error duplicating fee structure: {str(e)}')
+            return redirect('fee_structure_list')
+    
+    academic_years = AcademicYear.objects.filter(is_active=True).exclude(
+        id=source_structure.academic_year_id
+    ).order_by('-start_date')
+    
+    context = {
+        'source_structure': source_structure,
+        'academic_years': academic_years,
+    }
+    
+    return render(request, 'finance/duplicate_fee_structure.html', context)
+
+
+@login_required
+def bulk_create_fee_structures(request):
+    """Bulk create fee structures for all years and semesters of a programme"""
+    if request.method == 'POST':
+        try:
+            programme_id = request.POST.get('programme')
+            academic_year_id = request.POST.get('academic_year')
+            programme = get_object_or_404(Programme, id=programme_id)
+            
+            created_count = 0
+            skipped_count = 0
+            
+            # Loop through all years and semesters
+            for year in range(1, programme.duration_years + 1):
+                for semester_num in range(1, 3):  # Assuming 2 semesters per year
+                    semester_str = str(semester_num)
+                    
+                    # Check if already exists
+                    if FeeStructure.objects.filter(
+                        programme=programme,
+                        academic_year_id=academic_year_id,
+                        year_of_study=year,
+                        semester_number=semester_str
+                    ).exists():
+                        skipped_count += 1
+                        continue
+                    
+                    # Get base fees from POST or use defaults
+                    base_tuition = Decimal(request.POST.get(f'tuition_year_{year}_sem_{semester_num}', 
+                                                           request.POST.get('base_tuition', '50000')))
+                    
+                    FeeStructure.objects.create(
+                        programme=programme,
+                        academic_year_id=academic_year_id,
+                        year_of_study=year,
+                        semester_number=semester_str,
+                        tuition_fee=base_tuition,
+                        activity_fee=Decimal(request.POST.get('activity_fee', '2000')),
+                        examination_fee=Decimal(request.POST.get('examination_fee', '3000')),
+                        library_fee=Decimal(request.POST.get('library_fee', '1500')),
+                        medical_fee=Decimal(request.POST.get('medical_fee', '2500')),
+                        technology_fee=Decimal(request.POST.get('technology_fee', '1000')),
+                        other_fees=Decimal(request.POST.get('other_fees', '0')),
+                    )
+                    created_count += 1
+            
+            messages.success(
+                request, 
+                f'Bulk creation completed. Created: {created_count}, Skipped (already exist): {skipped_count}'
+            )
+            return redirect('fee_structure_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error in bulk creation: {str(e)}')
+            return redirect('bulk_create_fee_structures')
+    
+    programmes = Programme.objects.filter(is_active=True).select_related('department').order_by('code')
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    
+    context = {
+        'programmes': programmes,
+        'academic_years': academic_years,
+    }
+    
+    return render(request, 'finance/bulk_create_fee_structures.html', context)
+
+
+# AJAX API Endpoints
+@login_required
+def get_fee_structure_details(request, structure_id):
+    """AJAX endpoint to get fee structure details"""
+    try:
+        fee_structure = FeeStructure.objects.select_related(
+            'programme', 'academic_year'
+        ).get(id=structure_id)
+        
+        data = {
+            'success': True,
+            'structure': {
+                'id': fee_structure.id,
+                'programme_code': fee_structure.programme.code,
+                'programme_name': fee_structure.programme.name,
+                'academic_year': fee_structure.academic_year.name,
+                'year_of_study': fee_structure.year_of_study,
+                'semester_number': fee_structure.semester_number,
+                'tuition_fee': str(fee_structure.tuition_fee),
+                'activity_fee': str(fee_structure.activity_fee),
+                'examination_fee': str(fee_structure.examination_fee),
+                'library_fee': str(fee_structure.library_fee),
+                'medical_fee': str(fee_structure.medical_fee),
+                'technology_fee': str(fee_structure.technology_fee),
+                'other_fees': str(fee_structure.other_fees),
+                'total_fee': str(fee_structure.total_fee),
+            }
+        }
+        return JsonResponse(data)
+    except FeeStructure.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Fee structure not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def get_programme_fee_structures(request, programme_id):
+    """AJAX endpoint to get all fee structures for a programme"""
+    try:
+        academic_year_id = request.GET.get('academic_year')
+        
+        filters = {'programme_id': programme_id, 'is_active': True}
+        if academic_year_id:
+            filters['academic_year_id'] = academic_year_id
+        
+        structures = FeeStructure.objects.filter(**filters).select_related(
+            'academic_year'
+        ).order_by('year_of_study', 'semester_number')
+        
+        data = {
+            'success': True,
+            'structures': [
+                {
+                    'id': s.id,
+                    'year': s.year_of_study,
+                    'semester': s.semester_number,
+                    'academic_year': s.academic_year.name,
+                    'total_fee': str(s.total_fee),
+                }
+                for s in structures
+            ]
+        }
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
