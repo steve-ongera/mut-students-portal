@@ -240,6 +240,19 @@ urlpatterns = [
     # AJAX API endpoints
     path('api/fee-structures/<int:structure_id>/', views.get_fee_structure_details, name='get_fee_structure_details'),
     path('api/programmes/<int:programme_id>/fee-structures/', views.get_programme_fee_structures, name='get_programme_fee_structures'),
+    
+    # Fee Payment Management URLs
+    path('admin/fee-payments/', views.fee_payment_list, name='fee_payment_list'),
+    path('admin/fee-payments/add/', views.admin_add_fee_payment, name='add_fee_payment'),
+    path('admin/fee-payments/<int:payment_id>/', views.fee_payment_detail, name='fee_payment_detail'),
+    path('admin/fee-payments/<int:payment_id>/update/', views.update_fee_payment, name='update_fee_payment'),
+    path('admin/fee-payments/<int:payment_id>/delete/', views.delete_fee_payment, name='delete_fee_payment'),
+    path('admin/fee-payments/export/', views.export_fee_payments, name='export_fee_payments'),
+    
+    # API endpoint for student payment history
+    path('api/student-payment-history/<str:registration_number>/', 
+         views.student_payment_history, 
+         name='student_payment_history'),
 
     
 ]

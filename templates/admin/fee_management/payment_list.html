@@ -1,0 +1,1040 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Fee Payment Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+{% endblock %}
+
+{% block page_title %}Fee Payment Management{% endblock %}
+{% block page_subtitle %}Manage student fee payments, view history, and track balances{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Fee Payments</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Fee Payment Management</h1>
+                <p class="text-muted mb-0">Track and manage all student fee payments</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-money-dollar-circle-line me-2"></i>
+                    {{ total_payments }} payment(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card stat-primary">
+                <div class="stat-icon">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">KES {{ total_amount|floatformat:2 }}</div>
+                    <div class="stat-label">Total Collected</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-success">
+                <div class="stat-icon">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ completed_payments }}</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-warning">
+                <div class="stat-icon">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ pending_payments }}</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-danger">
+                <div class="stat-icon">
+                    <i class="ri-error-warning-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ failed_payments }}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Actions</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number, name, transaction reference, or receipt number..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Student Payment History Search -->
+            <div class="mb-4">
+                <label class="form-label fw-semibold">Student Payment History</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white">
+                        <i class="ri-user-search-line text-muted"></i>
+                    </span>
+                    <input type="text" 
+                           class="form-control" 
+                           id="studentSearch" 
+                           placeholder="Enter student registration number to view payment history..."
+                           autocomplete="off">
+                    <button class="btn btn-info" type="button" id="searchStudentBtn">
+                        <i class="ri-search-line me-1"></i> View History
+                    </button>
+                </div>
+                <div id="studentSearchResults" class="list-group mt-2" style="display: none;"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#filterModal">
+                        <i class="ri-filter-line fs-5"></i>
+                        <span>Advanced Filters</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                            onclick="window.location.reload()">
+                        <i class="ri-refresh-line fs-5"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'add_fee_payment' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                        <i class="ri-add-line fs-5"></i>
+                        <span>Add Payment</span>
+                    </a>
+                    <a href="{% url 'export_fee_payments' %}?{{ request.GET.urlencode }}" 
+                       class="btn btn-sm btn-success d-flex align-items-center gap-1">
+                        <i class="ri-download-line fs-5"></i>
+                        <span>Export CSV</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payments Table Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Payment Records</h5>
+            <div class="card-subtitle">Showing {{ payments|length }} of {{ total_payments }} payments</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="paymentsTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Receipt No.</th>
+                            <th>Student Details</th>
+                            <th>Academic Info</th>
+                            <th>Amount</th>
+                            <th>Payment Info</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="receipt-number">
+                                    <strong class="d-block">{{ payment.receipt_number|default:"Pending" }}</strong>
+                                    <small class="text-muted">{{ payment.transaction_reference }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-3">
+                                            <img src="{% if payment.student.user.profile_picture %}{{ payment.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ payment.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ payment.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ payment.student.registration_number }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="academic-info">
+                                    <strong class="d-block">{{ payment.academic_year.name }}</strong>
+                                    <small class="text-muted d-block">{{ payment.semester.name }}</small>
+                                    <small class="text-muted">{{ payment.student.programme.code }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-display">
+                                    <strong class="text-success">KES {{ payment.amount|floatformat:2 }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="payment-info">
+                                    <span class="badge bg-info-subtle text-info mb-1">
+                                        {{ payment.get_payment_method_display }}
+                                    </span>
+                                    {% if payment.processed_by %}
+                                    <small class="text-muted d-block">By: {{ payment.processed_by.get_full_name }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="date-info">
+                                    <strong class="d-block">{{ payment.payment_date|date:"d M Y" }}</strong>
+                                    <small class="text-muted">{{ payment.payment_date|date:"H:i" }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if payment.status == 'completed' %}
+                                <span class="status-badge status-completed">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Completed
+                                </span>
+                                {% elif payment.status == 'pending' %}
+                                <span class="status-badge status-pending">
+                                    <i class="ri-time-fill me-1"></i>
+                                    Pending
+                                </span>
+                                {% elif payment.status == 'failed' %}
+                                <span class="status-badge status-failed">
+                                    <i class="ri-close-circle-fill me-1"></i>
+                                    Failed
+                                </span>
+                                {% elif payment.status == 'reversed' %}
+                                <span class="status-badge status-reversed">
+                                    <i class="ri-arrow-go-back-fill me-1"></i>
+                                    Reversed
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'fee_payment_detail' payment.id %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="View Details"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'update_fee_payment' payment.id %}" 
+                                           class="btn btn-icon btn-outline-warning btn-sm" 
+                                           title="Update"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-edit-line"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'delete_fee_payment' payment.id %}" 
+                                           class="btn btn-icon btn-outline-danger btn-sm" 
+                                           title="Delete"
+                                           data-bs-toggle="tooltip"
+                                           onclick="return confirm('Are you sure you want to delete this payment? This action cannot be undone.')">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-list-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No payments found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your search or filter criteria</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if payments.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if payments.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ payments.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in payments.paginator.page_range %}
+                    {% if payments.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > payments.number|add:'-3' and i < payments.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if payments.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ payments.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Advanced Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Advanced Filters</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Programme</label>
+                            <select name="programme" class="form-select">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}" 
+                                        {% if programme_filter == programme.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ programme.code }} - {{ programme.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Academic Year</label>
+                            <select name="academic_year" class="form-select">
+                                <option value="">All Academic Years</option>
+                                {% for year in academic_years %}
+                                <option value="{{ year.id }}" 
+                                        {% if academic_year_filter == year.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ year.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Semester</label>
+                            <select name="semester" class="form-select">
+                                <option value="">All Semesters</option>
+                                {% for semester in semesters %}
+                                <option value="{{ semester.id }}" 
+                                        {% if semester_filter == semester.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ semester.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                {% for status_code, status_name in status_choices %}
+                                <option value="{{ status_code }}" 
+                                        {% if status_filter == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment Method</label>
+                            <select name="payment_method" class="form-select">
+                                <option value="">All Methods</option>
+                                {% for method_code, method_name in payment_method_choices %}
+                                <option value="{{ method_code }}" 
+                                        {% if payment_method_filter == method_code %}selected{% endif %}>
+                                    {{ method_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date From</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Date To</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'fee_payment_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Student Payment History Modal -->
+<div class="modal fade" id="studentHistoryModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="studentHistoryTitle">Payment History</h5>
+                    <p class="text-muted mb-0 small" id="studentHistorySubtitle"></p>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="studentHistoryBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Statistics Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+    
+    .stat-primary .stat-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+    
+    .stat-success .stat-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .stat-warning .stat-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .stat-danger .stat-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .stat-content {
+        flex: 1;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1.2;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    /* Student Avatar */
+    .student-avatar {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-completed {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-failed {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .status-reversed {
+        background: rgba(108, 117, 125, 0.1);
+        color: var(--color-gray-600);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    /* Pagination */
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Payment History Tabs */
+    .history-tabs {
+        border-bottom: 2px solid var(--color-gray-200);
+        margin-bottom: 1.5rem;
+    }
+    
+    .history-tabs .nav-link {
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: var(--color-gray-600);
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .history-tabs .nav-link:hover {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-gray-300);
+    }
+    
+    .history-tabs .nav-link.active {
+        color: var(--color-primary);
+        border-bottom-color: var(--color-primary);
+        background: transparent;
+    }
+    
+    /* Payment Card */
+    .payment-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .payment-card:hover {
+        box-shadow: var(--shadow-sm);
+border-color: var(--color-primary);
+}
+/* Balance Summary */
+.balance-summary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, #1B5E20 100%);
+    color: white;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.balance-summary .balance-item {
+    margin-bottom: 0.75rem;
+}
+
+.balance-summary .balance-label {
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+
+.balance-summary .balance-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+/* Modal Styles */
+.modal-content {
+    border: none;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-xl {
+    max-width: 1200px;
+}
+
+/* Utilities */
+.bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+.text-info { color: var(--color-info); }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Student search functionality
+    const studentSearch = document.getElementById('studentSearch');
+    const searchStudentBtn = document.getElementById('searchStudentBtn');
+    const studentHistoryModal = new bootstrap.Modal(document.getElementById('studentHistoryModal'));
+    
+    // Search student on button click
+    searchStudentBtn.addEventListener('click', function() {
+        const registrationNumber = studentSearch.value.trim();
+        if (registrationNumber) {
+            loadStudentPaymentHistory(registrationNumber);
+        } else {
+            alert('Please enter a student registration number');
+        }
+    });
+    
+    // Search student on Enter key
+    studentSearch.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            searchStudentBtn.click();
+        }
+    });
+    
+    // Function to load student payment history
+    function loadStudentPaymentHistory(registrationNumber) {
+        const modalBody = document.getElementById('studentHistoryBody');
+        const modalTitle = document.getElementById('studentHistoryTitle');
+        const modalSubtitle = document.getElementById('studentHistorySubtitle');
+        
+        // Show modal with loading state
+        studentHistoryModal.show();
+        modalBody.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-3">Loading payment history...</p>
+            </div>
+        `;
+        
+        // Fetch payment history
+        fetch(`/api/student-payment-history/${registrationNumber}/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Student not found');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    displayPaymentHistory(data, modalBody, modalTitle, modalSubtitle);
+                } else {
+                    throw new Error('Failed to load payment history');
+                }
+            })
+            .catch(error => {
+                modalBody.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="ri-error-warning-line display-4 text-danger mb-3"></i>
+                        <h5 class="text-danger">Error Loading Payment History</h5>
+                        <p class="text-muted">${error.message}</p>
+                    </div>
+                `;
+            });
+    }
+    
+    // Function to display payment history
+    function displayPaymentHistory(data, modalBody, modalTitle, modalSubtitle) {
+        const student = data.student;
+        const paymentHistory = data.payment_history;
+        
+        // Update modal title
+        modalTitle.textContent = `Payment History - ${student.name}`;
+        modalSubtitle.textContent = `${student.registration_number} | ${student.programme} | Year ${student.current_year}, Sem ${student.current_semester}`;
+        
+        if (paymentHistory.length === 0) {
+            modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="ri-file-list-line display-4 text-muted mb-3"></i>
+                    <h5 class="text-muted">No Payment History</h5>
+                    <p class="text-muted mb-0">This student has no payment records yet.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Create tabs for academic years
+        let tabsHtml = '<ul class="nav nav-tabs history-tabs" role="tablist">';
+        let contentHtml = '<div class="tab-content mt-3">';
+        
+        paymentHistory.forEach((yearData, index) => {
+            const tabId = `year-${yearData.academic_year.id}-sem-${yearData.semester.id}`;
+            const isActive = index === 0 ? 'active' : '';
+            
+            // Tab header
+            tabsHtml += `
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link ${isActive}" 
+                            id="${tabId}-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#${tabId}" 
+                            type="button" 
+                            role="tab">
+                        ${yearData.academic_year.name} - ${yearData.semester.name}
+                    </button>
+                </li>
+            `;
+            
+            // Tab content
+            contentHtml += `<div class="tab-pane fade ${isActive ? 'show active' : ''}" id="${tabId}" role="tabpanel">`;
+            
+            // Balance summary
+            if (yearData.balance) {
+                const balanceClass = yearData.balance.is_cleared ? 'bg-success' : 'bg-warning';
+                contentHtml += `
+                    <div class="balance-summary ${balanceClass}">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="balance-item">
+                                    <div class="balance-label">Total Fees</div>
+                                    <div class="balance-value">KES ${parseFloat(yearData.balance.total_fees).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="balance-item">
+                                    <div class="balance-label">Amount Paid</div>
+                                    <div class="balance-value">KES ${parseFloat(yearData.balance.amount_paid).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="balance-item">
+                                    <div class="balance-label">Balance</div>
+                                    <div class="balance-value">KES ${parseFloat(yearData.balance.balance).toLocaleString()}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="balance-item">
+                                    <div class="balance-label">Status</div>
+                                    <div class="balance-value">
+                                        ${yearData.balance.is_cleared ? 
+                                            '<i class="ri-checkbox-circle-fill me-2"></i>Cleared' : 
+                                            '<i class="ri-error-warning-fill me-2"></i>Outstanding'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Payment records
+            contentHtml += '<h6 class="fw-semibold mb-3">Payment Records</h6>';
+            
+            if (yearData.payments.length === 0) {
+                contentHtml += '<p class="text-muted">No payments recorded for this period.</p>';
+            } else {
+                yearData.payments.forEach(payment => {
+                    contentHtml += `
+                        <div class="payment-card">
+                            <div class="row align-items-center">
+                                <div class="col-md-2">
+                                    <strong class="d-block text-success">KES ${parseFloat(payment.amount).toLocaleString()}</strong>
+                                    <small class="text-muted">${payment.payment_method}</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <strong class="d-block">${payment.receipt_number}</strong>
+                                    <small class="text-muted">${payment.transaction_reference}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <small class="text-muted">${payment.payment_date}</small>
+                                </div>
+                                <div class="col-md-2">
+                                    <span class="status-badge ${payment.status_class}">${payment.status}</span>
+                                </div>
+                                <div class="col-md-3 text-end">
+                                    <a href="/admin/fee-payments/${payment.id}/" 
+                                       class="btn btn-sm btn-outline-primary"
+                                       target="_blank">
+                                        <i class="ri-eye-line me-1"></i> View
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // Total for this period
+                contentHtml += `
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong>Total Paid for this Period:</strong>
+                            <strong class="text-success fs-5">KES ${parseFloat(yearData.total_paid).toLocaleString()}</strong>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            contentHtml += '</div>';
+        });
+        
+        tabsHtml += '</ul>';
+        contentHtml += '</div>';
+        
+        modalBody.innerHTML = tabsHtml + contentHtml;
+    }
+});
+</script>
+{% endblock %}

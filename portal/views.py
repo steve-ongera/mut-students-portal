@@ -10438,3 +10438,502 @@ def get_programme_fee_structures(request, programme_id):
         return JsonResponse(data)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Sum, Count
+from django.core.paginator import Paginator
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from decimal import Decimal
+from datetime import datetime
+import csv
+from .models import (
+    FeePayment, FeeStructure, FeeBalance, Student, 
+    AcademicYear, Semester, Programme
+)
+from .forms import FeePaymentForm
+
+@login_required
+def fee_payment_list(request):
+    """List all fee payments with filters and search"""
+    
+    # Get all payments
+    payments = FeePayment.objects.select_related(
+        'student__user',
+        'student__programme',
+        'semester',
+        'academic_year',
+        'fee_structure',
+        'processed_by'
+    ).order_by('-payment_date')
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    programme_filter = request.GET.get('programme', '')
+    semester_filter = request.GET.get('semester', '')
+    academic_year_filter = request.GET.get('academic_year', '')
+    status_filter = request.GET.get('status', '')
+    payment_method_filter = request.GET.get('payment_method', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Apply search
+    if search_query:
+        payments = payments.filter(
+            Q(student__registration_number__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(transaction_reference__icontains=search_query) |
+            Q(receipt_number__icontains=search_query)
+        )
+    
+    # Apply filters
+    if programme_filter:
+        payments = payments.filter(student__programme_id=programme_filter)
+    
+    if semester_filter:
+        payments = payments.filter(semester_id=semester_filter)
+    
+    if academic_year_filter:
+        payments = payments.filter(academic_year_id=academic_year_filter)
+    
+    if status_filter:
+        payments = payments.filter(status=status_filter)
+    
+    if payment_method_filter:
+        payments = payments.filter(payment_method=payment_method_filter)
+    
+    # Apply date filters
+    if date_from:
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+            payments = payments.filter(payment_date__gte=date_from_obj)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+            payments = payments.filter(payment_date__lte=date_to_obj)
+        except ValueError:
+            pass
+    
+    # Get statistics
+    total_payments = payments.count()
+    total_amount = payments.filter(status='completed').aggregate(
+        total=Sum('amount')
+    )['total'] or Decimal('0.00')
+    
+    pending_payments = payments.filter(status='pending').count()
+    completed_payments = payments.filter(status='completed').count()
+    failed_payments = payments.filter(status='failed').count()
+    
+    # Pagination
+    paginator = Paginator(payments, 25)  # Show 25 payments per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    programmes = Programme.objects.filter(is_active=True).order_by('code')
+    semesters = Semester.objects.filter(is_active=True).order_by('-academic_year__start_date')
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    
+    context = {
+        'payments': page_obj,
+        'total_payments': total_payments,
+        'total_amount': total_amount,
+        'pending_payments': pending_payments,
+        'completed_payments': completed_payments,
+        'failed_payments': failed_payments,
+        'search_query': search_query,
+        'programmes': programmes,
+        'semesters': semesters,
+        'academic_years': academic_years,
+        'programme_filter': programme_filter,
+        'semester_filter': semester_filter,
+        'academic_year_filter': academic_year_filter,
+        'status_filter': status_filter,
+        'payment_method_filter': payment_method_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'status_choices': FeePayment.PAYMENT_STATUS,
+        'payment_method_choices': FeePayment.PAYMENT_METHODS,
+    }
+    
+    return render(request, 'admin/fee_management/payment_list.html', context)
+
+
+@login_required
+def fee_payment_detail(request, payment_id):
+    """View detailed information about a specific payment"""
+    payment = get_object_or_404(
+        FeePayment.objects.select_related(
+            'student__user',
+            'student__programme',
+            'semester',
+            'academic_year',
+            'fee_structure',
+            'processed_by'
+        ),
+        id=payment_id
+    )
+    
+    # Get student's payment history
+    payment_history = FeePayment.objects.filter(
+        student=payment.student
+    ).exclude(id=payment.id).order_by('-payment_date')[:5]
+    
+    # Get student's fee balance
+    try:
+        fee_balance = FeeBalance.objects.get(
+            student=payment.student,
+            semester=payment.semester
+        )
+    except FeeBalance.DoesNotExist:
+        fee_balance = None
+    
+    context = {
+        'payment': payment,
+        'payment_history': payment_history,
+        'fee_balance': fee_balance,
+    }
+    
+    return render(request, 'admin/fee_management/payment_detail.html', context)
+
+
+@login_required
+def admin_add_fee_payment(request):
+    """Add a new fee payment"""
+    if request.method == 'POST':
+        form = FeePaymentForm(request.POST)
+        if form.is_valid():
+            payment = form.save(commit=False)
+            payment.processed_by = request.user
+            
+            # Generate receipt number if completed
+            if payment.status == 'completed' and not payment.receipt_number:
+                payment.receipt_number = generate_receipt_number()
+            
+            payment.save()
+            
+            # Update fee balance
+            update_fee_balance(payment.student, payment.semester)
+            
+            messages.success(request, 'Fee payment added successfully!')
+            return redirect('fee_payment_detail', payment_id=payment.id)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = FeePaymentForm()
+    
+    context = {
+        'form': form,
+        'action': 'add',
+    }
+    
+    return render(request, 'admin/fee_management/payment_form.html', context)
+
+
+@login_required
+def update_fee_payment(request, payment_id):
+    """Update an existing fee payment"""
+    payment = get_object_or_404(FeePayment, id=payment_id)
+    
+    if request.method == 'POST':
+        form = FeePaymentForm(request.POST, instance=payment)
+        if form.is_valid():
+            updated_payment = form.save(commit=False)
+            
+            # Generate receipt number if status changed to completed
+            if updated_payment.status == 'completed' and not updated_payment.receipt_number:
+                updated_payment.receipt_number = generate_receipt_number()
+            
+            updated_payment.save()
+            
+            # Update fee balance
+            update_fee_balance(updated_payment.student, updated_payment.semester)
+            
+            messages.success(request, 'Fee payment updated successfully!')
+            return redirect('fee_payment_detail', payment_id=payment.id)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = FeePaymentForm(instance=payment)
+    
+    context = {
+        'form': form,
+        'payment': payment,
+        'action': 'update',
+    }
+    
+    return render(request, 'admin/fee_management/payment_form.html', context)
+
+
+@login_required
+def delete_fee_payment(request, payment_id):
+    """Delete a fee payment"""
+    payment = get_object_or_404(FeePayment, id=payment_id)
+    
+    if request.method == 'POST':
+        student = payment.student
+        semester = payment.semester
+        payment.delete()
+        
+        # Update fee balance
+        update_fee_balance(student, semester)
+        
+        messages.success(request, 'Fee payment deleted successfully!')
+        return redirect('fee_payment_list')
+    
+    context = {
+        'payment': payment,
+    }
+    
+    return render(request, 'admin/fee_management/payment_confirm_delete.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def student_payment_history(request, registration_number):
+    """Get payment history for a specific student (AJAX)"""
+    student = get_object_or_404(Student, registration_number=registration_number)
+    
+    # Get all payments grouped by academic year and semester
+    payments = FeePayment.objects.filter(
+        student=student
+    ).select_related(
+        'academic_year',
+        'semester',
+        'fee_structure'
+    ).order_by('-academic_year__start_date', '-semester__semester_number', '-payment_date')
+    
+    # Get fee balances
+    fee_balances = FeeBalance.objects.filter(
+        student=student
+    ).select_related(
+        'academic_year',
+        'semester'
+    ).order_by('-academic_year__start_date', '-semester__semester_number')
+    
+    # Group payments by academic year and semester
+    grouped_payments = {}
+    for payment in payments:
+        key = f"{payment.academic_year.id}_{payment.semester.id}"
+        if key not in grouped_payments:
+            grouped_payments[key] = {
+                'academic_year': payment.academic_year,
+                'semester': payment.semester,
+                'payments': [],
+                'total_paid': Decimal('0.00'),
+                'balance': None
+            }
+        grouped_payments[key]['payments'].append({
+            'id': payment.id,
+            'amount': str(payment.amount),
+            'payment_method': payment.get_payment_method_display(),
+            'transaction_reference': payment.transaction_reference,
+            'receipt_number': payment.receipt_number or 'N/A',
+            'payment_date': payment.payment_date.strftime('%Y-%m-%d %H:%M'),
+            'status': payment.get_status_display(),
+            'status_class': get_status_class(payment.status),
+        })
+        grouped_payments[key]['total_paid'] += payment.amount
+    
+    # Add balance information
+    for balance in fee_balances:
+        key = f"{balance.academic_year.id}_{balance.semester.id}"
+        if key in grouped_payments:
+            grouped_payments[key]['balance'] = {
+                'total_fees': str(balance.total_fees),
+                'amount_paid': str(balance.amount_paid),
+                'balance': str(balance.balance),
+                'is_cleared': balance.is_cleared,
+            }
+    
+    # Convert to list and format for response
+    result = []
+    for key, data in grouped_payments.items():
+        result.append({
+            'academic_year': {
+                'id': data['academic_year'].id,
+                'name': data['academic_year'].name,
+            },
+            'semester': {
+                'id': data['semester'].id,
+                'name': data['semester'].name,
+            },
+            'payments': data['payments'],
+            'total_paid': str(data['total_paid']),
+            'balance': data['balance'],
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'student': {
+            'registration_number': student.registration_number,
+            'name': student.user.get_full_name(),
+            'programme': f"{student.programme.code} - {student.programme.name}",
+            'current_year': student.current_year,
+            'current_semester': student.current_semester,
+        },
+        'payment_history': result
+    })
+
+
+@login_required
+def export_fee_payments(request):
+    """Export fee payments to CSV"""
+    # Get filter parameters (same as list view)
+    payments = FeePayment.objects.select_related(
+        'student__user',
+        'student__programme',
+        'semester',
+        'academic_year'
+    ).order_by('-payment_date')
+    
+    # Apply filters (reuse logic from list view)
+    search_query = request.GET.get('search', '')
+    programme_filter = request.GET.get('programme', '')
+    semester_filter = request.GET.get('semester', '')
+    academic_year_filter = request.GET.get('academic_year', '')
+    status_filter = request.GET.get('status', '')
+    
+    if search_query:
+        payments = payments.filter(
+            Q(student__registration_number__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query)
+        )
+    
+    if programme_filter:
+        payments = payments.filter(student__programme_id=programme_filter)
+    if semester_filter:
+        payments = payments.filter(semester_id=semester_filter)
+    if academic_year_filter:
+        payments = payments.filter(academic_year_id=academic_year_filter)
+    if status_filter:
+        payments = payments.filter(status=status_filter)
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="fee_payments_{timezone.now().strftime("%Y%m%d")}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Receipt Number',
+        'Registration Number',
+        'Student Name',
+        'Programme',
+        'Academic Year',
+        'Semester',
+        'Amount',
+        'Payment Method',
+        'Transaction Reference',
+        'Payment Date',
+        'Status',
+        'Processed By'
+    ])
+    
+    for payment in payments:
+        writer.writerow([
+            payment.receipt_number or 'N/A',
+            payment.student.registration_number,
+            payment.student.user.get_full_name(),
+            f"{payment.student.programme.code} - {payment.student.programme.name}",
+            payment.academic_year.name,
+            payment.semester.name,
+            payment.amount,
+            payment.get_payment_method_display(),
+            payment.transaction_reference,
+            payment.payment_date.strftime('%Y-%m-%d %H:%M'),
+            payment.get_status_display(),
+            payment.processed_by.get_full_name() if payment.processed_by else 'N/A'
+        ])
+    
+    return response
+
+
+# Helper functions
+def generate_receipt_number():
+    """Generate a unique receipt number"""
+    from django.db.models import Max
+    import random
+    
+    year = timezone.now().year
+    last_payment = FeePayment.objects.filter(
+        receipt_number__startswith=f'RCT/{year}/'
+    ).aggregate(Max('id'))
+    
+    next_id = (last_payment['id__max'] or 0) + 1
+    random_suffix = random.randint(1000, 9999)
+    
+    return f'RCT/{year}/{next_id:06d}/{random_suffix}'
+
+
+def update_fee_balance(student, semester):
+    """Update fee balance for a student in a semester"""
+    # Get or create fee balance
+    fee_balance, created = FeeBalance.objects.get_or_create(
+        student=student,
+        semester=semester,
+        academic_year=semester.academic_year,
+        defaults={
+            'total_fees': Decimal('0.00'),
+            'amount_paid': Decimal('0.00'),
+            'balance': Decimal('0.00')
+        }
+    )
+    
+    # Get fee structure
+    try:
+        fee_structure = FeeStructure.objects.get(
+            programme=student.programme,
+            academic_year=semester.academic_year,
+            year_of_study=student.current_year,
+            semester_number=semester.semester_number
+        )
+        fee_balance.total_fees = fee_structure.total_fee
+    except FeeStructure.DoesNotExist:
+        pass
+    
+    # Calculate total paid
+    total_paid = FeePayment.objects.filter(
+        student=student,
+        semester=semester,
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    fee_balance.amount_paid = total_paid
+    fee_balance.balance = fee_balance.total_fees - fee_balance.amount_paid
+    fee_balance.is_cleared = fee_balance.balance <= 0
+    
+    # Update last payment date
+    last_payment = FeePayment.objects.filter(
+        student=student,
+        semester=semester,
+        status='completed'
+    ).order_by('-payment_date').first()
+    
+    if last_payment:
+        fee_balance.last_payment_date = last_payment.payment_date
+    
+    if fee_balance.is_cleared:
+        fee_balance.clearance_date = timezone.now()
+    
+    fee_balance.save()
+    return fee_balance
+
+
+def get_status_class(status):
+    """Get CSS class for payment status"""
+    status_classes = {
+        'completed': 'status-completed',
+        'pending': 'status-pending',
+        'failed': 'status-failed',
+        'reversed': 'status-reversed',
+    }
+    return status_classes.get(status, 'status-other')

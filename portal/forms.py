@@ -488,3 +488,85 @@ class StudentContactUpdateForm(forms.ModelForm):
                 'placeholder': 'Sponsor email address'
             }),
         }
+        
+
+from django import forms
+from .models import FeePayment, Student, Semester, AcademicYear, FeeStructure
+
+class FeePaymentForm(forms.ModelForm):
+    class Meta:
+        model = FeePayment
+        fields = [
+            'student', 'semester', 'academic_year', 'fee_structure',
+            'amount', 'payment_method', 'transaction_reference',
+            'payment_date', 'status', 'receipt_number', 'remarks'
+        ]
+        widgets = {
+            'student': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'semester': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'academic_year': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'fee_structure': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'required': True
+            }),
+            'payment_method': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'transaction_reference': forms.TextInput(attrs={
+                'class': 'form-control',
+                'required': True
+            }),
+            'payment_date': forms.DateTimeInput(attrs={
+                'class': 'form-control',
+                'type': 'datetime-local',
+                'required': True
+            }),
+            'status': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'receipt_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'readonly': True
+            }),
+            'remarks': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Set queryset for related fields
+        self.fields['student'].queryset = Student.objects.select_related(
+            'user', 'programme'
+        ).filter(student_status='active').order_by('registration_number')
+        
+        self.fields['semester'].queryset = Semester.objects.filter(
+            is_active=True
+        ).order_by('-academic_year__start_date')
+        
+        self.fields['academic_year'].queryset = AcademicYear.objects.filter(
+            is_active=True
+        ).order_by('-start_date')
+        
+        self.fields['fee_structure'].queryset = FeeStructure.objects.select_related(
+            'programme', 'academic_year'
+        ).filter(is_active=True)
