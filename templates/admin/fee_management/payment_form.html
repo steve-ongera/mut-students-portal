@@ -1,0 +1,244 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}{% if action == 'add' %}Add Payment{% else %}Update Payment{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+{% endblock %}
+
+{% block page_title %}{% if action == 'add' %}Add Payment{% else %}Update Payment{% endif %}{% endblock %}
+{% block page_subtitle %}{% if action == 'add' %}Record a new fee payment{% else %}Update payment details{% endif %}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'fee_payment_list' %}">Fee Payments</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% if action == 'add' %}Add Payment{% else %}Update Payment{% endif %}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Information</h5>
+                    <div class="card-subtitle">Enter payment details below</div>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="paymentForm">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <div class="d-flex align-items-start">
+                                <i class="ri-error-warning-line fs-4 me-2"></i>
+                                <div>
+                                    <strong>Please correct the following errors:</strong>
+                                    <ul class="mb-0 mt-2">
+                                        {% for field in form %}
+                                            {% for error in field.errors %}
+                                                <li>{{ field.label }}: {{ error }}</li>
+                                            {% endfor %}
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="row g-4">
+                            <!-- Student Selection -->
+                            <div class="col-md-6">
+                                <label for="{{ form.student.id_for_label }}" class="form-label required">
+                                    Student
+                                </label>
+                                {{ form.student }}
+                                {% if form.student.help_text %}
+                                <small class="form-text text-muted">{{ form.student.help_text }}</small>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Academic Year -->
+                            <div class="col-md-6">
+                                <label for="{{ form.academic_year.id_for_label }}" class="form-label required">
+                                    Academic Year
+                                </label>
+                                {{ form.academic_year }}
+                            </div>
+                            
+                            <!-- Semester -->
+                            <div class="col-md-6">
+                                <label for="{{ form.semester.id_for_label }}" class="form-label required">
+                                    Semester
+                                </label>
+                                {{ form.semester }}
+                            </div>
+                            
+                            <!-- Fee Structure -->
+                            <div class="col-md-6">
+                                <label for="{{ form.fee_structure.id_for_label }}" class="form-label required">
+                                    Fee Structure
+                                </label>
+                                {{ form.fee_structure }}
+                            </div>
+                            
+                            <!-- Amount -->
+                            <div class="col-md-6">
+                                <label for="{{ form.amount.id_for_label }}" class="form-label required">
+                                    Amount (KES)
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KES</span>
+                                    {{ form.amount }}
+                                </div>
+                            </div>
+                            
+                            <!-- Payment Method -->
+                            <div class="col-md-6">
+                                <label for="{{ form.payment_method.id_for_label }}" class="form-label required">
+                                    Payment Method
+                                </label>
+                                {{ form.payment_method }}
+                            </div>
+                            
+                            <!-- Transaction Reference -->
+                            <div class="col-md-6">
+                                <label for="{{ form.transaction_reference.id_for_label }}" class="form-label required">
+                                    Transaction Reference
+                                </label>
+                                {{ form.transaction_reference }}
+                                <small class="form-text text-muted">
+                                    M-Pesa code, bank reference, or cheque number
+                                </small>
+                            </div>
+                            
+                            <!-- Payment Date -->
+                            <div class="col-md-6">
+                                <label for="{{ form.payment_date.id_for_label }}" class="form-label required">
+                                    Payment Date & Time
+                                </label>
+                                {{ form.payment_date }}
+                            </div>
+                            
+                            <!-- Status -->
+                            <div class="col-md-6">
+                                <label for="{{ form.status.id_for_label }}" class="form-label required">
+                                    Payment Status
+                                </label>
+                                {{ form.status }}
+                            </div>
+                            
+                            <!-- Receipt Number -->
+                            <div class="col-md-6">
+                                <label for="{{ form.receipt_number.id_for_label }}" class="form-label">
+                                    Receipt Number
+                                </label>
+                                {{ form.receipt_number }}
+                                <small class="form-text text-muted">
+                                    Auto-generated for completed payments
+                                </small>
+                            </div>
+                            
+                            <!-- Remarks -->
+                            <div class="col-12">
+                                <label for="{{ form.remarks.id_for_label }}" class="form-label">
+                                    Remarks
+                                </label>
+                                {{ form.remarks }}
+                            </div>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'fee_payment_list' %}" class="btn btn-outline-secondary">
+                                <i class="ri-arrow-left-line me-1"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="ri-save-line me-1"></i>
+                                {% if action == 'add' %}Save Payment{% else %}Update Payment{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-label.required::after {
+        content: '*';
+        color: var(--color-danger);
+        margin-left: 4px;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .input-group-text {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        font-weight: 500;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('paymentForm');
+    const studentSelect = document.getElementById('{{ form.student.id_for_label }}');
+    const academicYearSelect = document.getElementById('{{ form.academic_year.id_for_label }}');
+    const semesterSelect = document.getElementById('{{ form.semester.id_for_label }}');
+    const feeStructureSelect = document.getElementById('{{ form.fee_structure.id_for_label }}');
+    const amountInput = document.getElementById('{{ form.amount.id_for_label }}');
+    
+    // Filter fee structures based on student, academic year, and semester
+    function filterFeeStructures() {
+        const studentId = studentSelect.value;
+        const academicYearId = academicYearSelect.value;
+        const semesterId = semesterSelect.value;
+        
+        if (studentId && academicYearId && semesterId) {
+            // In a real application, you would fetch this via AJAX
+            // For now, this is a placeholder
+            console.log('Filter fee structures for:', { studentId, academicYearId, semesterId });
+        }
+    }
+    
+    // Add event listeners
+    if (studentSelect) studentSelect.addEventListener('change', filterFeeStructures);
+    if (academicYearSelect) academicYearSelect.addEventListener('change', filterFeeStructures);
+    if (semesterSelect) semesterSelect.addEventListener('change', filterFeeStructures);
+    
+    // Auto-fill amount when fee structure is selected
+    if (feeStructureSelect) {
+        feeStructureSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption && selectedOption.dataset.amount) {
+                amountInput.value = selectedOption.dataset.amount;
+            }
+        });
+    }
+    
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const amount = parseFloat(amountInput.value);
+        
+        if (amount <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid payment amount greater than 0');
+            amountInput.focus();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

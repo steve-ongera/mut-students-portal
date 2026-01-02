@@ -250,9 +250,7 @@ urlpatterns = [
     path('admin/fee-payments/export/', views.export_fee_payments, name='export_fee_payments'),
     
     # API endpoint for student payment history
-    path('api/student-payment-history/<str:registration_number>/', 
-         views.student_payment_history, 
-         name='student_payment_history'),
+    path('api/student-payment-history/<str:registration_number>/', views.student_payment_history, name='student_payment_history'),
 
     
 ]
