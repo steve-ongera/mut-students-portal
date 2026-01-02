@@ -10937,3 +10937,799 @@ def get_status_class(status):
         'reversed': 'status-reversed',
     }
     return status_classes.get(status, 'status-other')
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Sum
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from decimal import Decimal
+from .models import (
+    Hostel, HostelRoom, HostelBed, HostelAllocation, HostelApplication,
+    HostelFeeStructure, HostelImage, HostelRoomImage, BedReservation,
+    AcademicYear, Semester, Student, User
+)
+from .forms import HostelForm, HostelRoomForm, HostelBedForm
+
+# ============= HOSTEL MANAGEMENT VIEWS =============
+
+@login_required
+def admin_hostel_list(request):
+    """List all hostels with statistics"""
+    
+    # Get all hostels
+    hostels = Hostel.objects.prefetch_related('rooms', 'rooms__beds').annotate(
+        room_count=Count('rooms', distinct=True),
+        total_beds=Count('rooms__beds', distinct=True)
+    ).order_by('name')
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    gender_filter = request.GET.get('gender', '')
+    status_filter = request.GET.get('status', '')
+    
+    # Apply search
+    if search_query:
+        hostels = hostels.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(location__icontains=search_query)
+        )
+    
+    # Apply filters
+    if gender_filter:
+        hostels = hostels.filter(gender_type=gender_filter)
+    
+    if status_filter == 'active':
+        hostels = hostels.filter(is_active=True)
+    elif status_filter == 'inactive':
+        hostels = hostels.filter(is_active=False)
+    
+    # Get statistics
+    total_hostels = hostels.count()
+    total_capacity = sum(h.total_capacity for h in hostels)
+    total_rooms = sum(h.room_count for h in hostels)
+    total_beds_count = sum(h.total_beds for h in hostels)
+    
+    # Get current academic year for occupancy stats
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    occupied_beds = 0
+    available_beds = 0
+    
+    if current_year:
+        occupied_beds = HostelBed.objects.filter(
+            academic_year=current_year,
+            status='occupied'
+        ).count()
+        available_beds = HostelBed.objects.filter(
+            academic_year=current_year,
+            status='available'
+        ).count()
+    
+    # Pagination
+    paginator = Paginator(hostels, 12)  # Show 12 hostels per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'hostels': page_obj,
+        'total_hostels': total_hostels,
+        'total_capacity': total_capacity,
+        'total_rooms': total_rooms,
+        'total_beds': total_beds_count,
+        'occupied_beds': occupied_beds,
+        'available_beds': available_beds,
+        'search_query': search_query,
+        'gender_filter': gender_filter,
+        'status_filter': status_filter,
+        'gender_choices': Hostel.GENDER_TYPES,
+    }
+    
+    return render(request, 'admin/hostel/hostel_list.html', context)
+
+
+@login_required
+def admin_hostel_detail(request, hostel_code):
+    """View detailed information about a specific hostel"""
+    hostel = get_object_or_404(
+        Hostel.objects.prefetch_related(
+            'rooms', 'rooms__beds', 'images', 'fee_structures'
+        ).annotate(
+            room_count=Count('rooms', distinct=True),
+            total_beds=Count('rooms__beds', distinct=True)
+        ),
+        code=hostel_code
+    )
+    
+    # Get rooms grouped by floor
+    rooms = HostelRoom.objects.filter(hostel=hostel).prefetch_related('beds', 'images').order_by('floor', 'room_number')
+    
+    # Get current academic year
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get bed statistics for current year
+    bed_stats = {
+        'available': 0,
+        'occupied': 0,
+        'reserved': 0,
+        'maintenance': 0
+    }
+    
+    if current_year:
+        beds = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year
+        )
+        bed_stats = {
+            'available': beds.filter(status='available').count(),
+            'occupied': beds.filter(status='occupied').count(),
+            'reserved': beds.filter(status='reserved').count(),
+            'maintenance': beds.filter(status='maintenance').count(),
+        }
+    
+    # Get recent applications
+    recent_applications = HostelApplication.objects.filter(
+        hostel=hostel
+    ).select_related('student__user', 'academic_year', 'semester').order_by('-application_date')[:10]
+    
+    # Get current allocations
+    current_allocations = HostelAllocation.objects.filter(
+        bed__room__hostel=hostel,
+        is_active=True
+    ).select_related('student__user', 'bed__room').order_by('-allocation_date')[:20]
+    
+    # Get fee structures
+    fee_structures = HostelFeeStructure.objects.filter(
+        hostel=hostel,
+        is_active=True
+    ).select_related('academic_year', 'semester').order_by('-academic_year__start_date')
+    
+    context = {
+        'hostel': hostel,
+        'rooms': rooms,
+        'bed_stats': bed_stats,
+        'recent_applications': recent_applications,
+        'current_allocations': current_allocations,
+        'fee_structures': fee_structures,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'admin/hostel/hostel_detail.html', context)
+
+
+@login_required
+def admin_hostel_room_detail(request, room_id):
+    """View detailed information about a specific room"""
+    room = get_object_or_404(
+        HostelRoom.objects.prefetch_related('beds', 'images').select_related('hostel'),
+        id=room_id
+    )
+    
+    # Get current academic year
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get beds for current year
+    beds = HostelBed.objects.filter(
+        room=room,
+        academic_year=current_year
+    ).prefetch_related('allocations__student__user').order_by('bed_number')
+    
+    # Get bed statistics
+    bed_stats = {
+        'total': beds.count(),
+        'available': beds.filter(status='available').count(),
+        'occupied': beds.filter(status='occupied').count(),
+        'reserved': beds.filter(status='reserved').count(),
+        'maintenance': beds.filter(status='maintenance').count(),
+    }
+    
+    # Get current allocations for this room
+    current_allocations = HostelAllocation.objects.filter(
+        bed__room=room,
+        is_active=True
+    ).select_related('student__user', 'bed', 'academic_year', 'semester')
+    
+    # Get room images
+    images = HostelRoomImage.objects.filter(room=room).order_by('-is_primary', '-created_at')
+    
+    context = {
+        'room': room,
+        'beds': beds,
+        'bed_stats': bed_stats,
+        'current_allocations': current_allocations,
+        'images': images,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'admin/hostel/room_detail.html', context)
+
+
+@login_required
+def admin_hostel_bed_detail(request, bed_id):
+    """View detailed information about a specific bed"""
+    bed = get_object_or_404(
+        HostelBed.objects.select_related('room__hostel', 'academic_year'),
+        id=bed_id
+    )
+    
+    # Get allocation history
+    allocations = HostelAllocation.objects.filter(
+        bed=bed
+    ).select_related(
+        'student__user',
+        'student__programme',
+        'academic_year',
+        'semester',
+        'allocated_by'
+    ).order_by('-allocation_date')
+    
+    # Get current allocation
+    current_allocation = allocations.filter(is_active=True).first()
+    
+    # Get bed reservations
+    reservations = BedReservation.objects.filter(
+        bed=bed
+    ).select_related('student__user').order_by('-created_at')[:10]
+    
+    context = {
+        'bed': bed,
+        'allocations': allocations,
+        'current_allocation': current_allocation,
+        'reservations': reservations,
+    }
+    
+    return render(request, 'admin/hostel/bed_detail.html', context)
+
+
+@login_required
+def admin_add_hostel(request):
+    """Add a new hostel"""
+    if request.method == 'POST':
+        form = HostelForm(request.POST, request.FILES)
+        if form.is_valid():
+            hostel = form.save()
+            messages.success(request, f'Hostel "{hostel.name}" added successfully!')
+            return redirect('admin_hostel_detail', hostel_code=hostel.code)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = HostelForm()
+    
+    context = {
+        'form': form,
+        'action': 'add',
+    }
+    
+    return render(request, 'admin/hostel/hostel_form.html', context)
+
+
+@login_required
+def admin_update_hostel(request, hostel_code):
+    """Update an existing hostel"""
+    hostel = get_object_or_404(Hostel, code=hostel_code)
+    
+    if request.method == 'POST':
+        form = HostelForm(request.POST, request.FILES, instance=hostel)
+        if form.is_valid():
+            updated_hostel = form.save()
+            messages.success(request, f'Hostel "{updated_hostel.name}" updated successfully!')
+            return redirect('admin_hostel_detail', hostel_code=updated_hostel.code)
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = HostelForm(instance=hostel)
+    
+    context = {
+        'form': form,
+        'hostel': hostel,
+        'action': 'update',
+    }
+    
+    return render(request, 'admin/hostel/hostel_form.html', context)
+
+
+@login_required
+def admin_delete_hostel(request, hostel_code):
+    """Delete a hostel"""
+    hostel = get_object_or_404(Hostel, code=hostel_code)
+    
+    if request.method == 'POST':
+        hostel_name = hostel.name
+        hostel.delete()
+        messages.success(request, f'Hostel "{hostel_name}" deleted successfully!')
+        return redirect('admin_hostel_list')
+    
+    context = {
+        'hostel': hostel,
+    }
+    
+    return render(request, 'admin/hostel/hostel_confirm_delete.html', context)
+
+
+# ============= API ENDPOINTS =============
+
+@login_required
+@require_http_methods(["POST"])
+def api_bulk_create_hostels(request):
+    """
+    Bulk create hostels for a specific admission
+    Expected JSON format:
+    {
+        "academic_year_id": 1,
+        "hostels": [
+            {
+                "name": "Hostel A",
+                "code": "HST-A",
+                "gender_type": "M",
+                "total_capacity": 100,
+                "location": "Block A",
+                "floors": 4,
+                "rooms_per_floor": 10,
+                "room_type": "double",
+                "beds_per_room": 2
+            }
+        ]
+    }
+    """
+    import json
+    
+    try:
+        data = json.loads(request.body)
+        academic_year_id = data.get('academic_year_id')
+        hostels_data = data.get('hostels', [])
+        
+        if not academic_year_id or not hostels_data:
+            return JsonResponse({
+                'success': False,
+                'error': 'Academic year and hostels data are required'
+            }, status=400)
+        
+        # Get academic year
+        try:
+            academic_year = AcademicYear.objects.get(id=academic_year_id)
+        except AcademicYear.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Academic year not found'
+            }, status=404)
+        
+        # Get warden (optional)
+        warden = None
+        warden_id = data.get('warden_id')
+        if warden_id:
+            try:
+                warden = User.objects.get(id=warden_id, role='hostel_warden')
+            except User.DoesNotExist:
+                pass
+        
+        created_hostels = []
+        errors = []
+        
+        for hostel_data in hostels_data:
+            try:
+                # Create hostel
+                hostel = Hostel.objects.create(
+                    name=hostel_data['name'],
+                    code=hostel_data['code'],
+                    gender_type=hostel_data['gender_type'],
+                    total_capacity=hostel_data['total_capacity'],
+                    location=hostel_data.get('location', ''),
+                    description=hostel_data.get('description', ''),
+                    amenities=hostel_data.get('amenities', ''),
+                    warden=warden,
+                    is_active=True
+                )
+                
+                # Create rooms and beds
+                floors = hostel_data.get('floors', 1)
+                rooms_per_floor = hostel_data.get('rooms_per_floor', 10)
+                room_type = hostel_data.get('room_type', 'double')
+                beds_per_room = hostel_data.get('beds_per_room', 2)
+                
+                # Get capacity based on room type
+                room_capacity_map = {
+                    'single': 1,
+                    'double': 2,
+                    'triple': 3,
+                    'quad': 4
+                }
+                capacity = room_capacity_map.get(room_type, beds_per_room)
+                
+                room_number_counter = 1
+                
+                for floor in range(1, floors + 1):
+                    for room_num in range(1, rooms_per_floor + 1):
+                        # Create room
+                        room = HostelRoom.objects.create(
+                            hostel=hostel,
+                            room_number=f"{floor}{room_num:02d}",
+                            floor=floor,
+                            room_type=room_type,
+                            capacity=capacity,
+                            has_bathroom=hostel_data.get('has_bathroom', True),
+                            has_balcony=hostel_data.get('has_balcony', False),
+                            is_active=True
+                        )
+                        
+                        # Create beds for this room
+                        for bed_num in range(1, capacity + 1):
+                            HostelBed.objects.create(
+                                room=room,
+                                bed_number=str(bed_num),
+                                status='available',
+                                academic_year=academic_year,
+                                is_active=True
+                            )
+                        
+                        room_number_counter += 1
+                
+                created_hostels.append({
+                    'id': hostel.id,
+                    'name': hostel.name,
+                    'code': hostel.code,
+                    'rooms_created': floors * rooms_per_floor,
+                    'beds_created': floors * rooms_per_floor * capacity
+                })
+                
+            except Exception as e:
+                errors.append({
+                    'hostel': hostel_data.get('name', 'Unknown'),
+                    'error': str(e)
+                })
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully created {len(created_hostels)} hostel(s)',
+            'hostels': created_hostels,
+            'errors': errors
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_bulk_create_rooms(request, hostel_code):
+    """
+    Bulk create rooms for a specific hostel
+    Expected JSON format:
+    {
+        "academic_year_id": 1,
+        "floors": 4,
+        "rooms_per_floor": 10,
+        "room_type": "double",
+        "has_bathroom": true,
+        "has_balcony": false
+    }
+    """
+    import json
+    
+    try:
+        hostel = get_object_or_404(Hostel, code=hostel_code)
+        data = json.loads(request.body)
+        
+        academic_year_id = data.get('academic_year_id')
+        floors = data.get('floors', 1)
+        rooms_per_floor = data.get('rooms_per_floor', 10)
+        room_type = data.get('room_type', 'double')
+        has_bathroom = data.get('has_bathroom', True)
+        has_balcony = data.get('has_balcony', False)
+        
+        # Get academic year
+        try:
+            academic_year = AcademicYear.objects.get(id=academic_year_id)
+        except AcademicYear.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Academic year not found'
+            }, status=404)
+        
+        # Get capacity based on room type
+        room_capacity_map = {
+            'single': 1,
+            'double': 2,
+            'triple': 3,
+            'quad': 4
+        }
+        capacity = room_capacity_map.get(room_type, 2)
+        
+        created_rooms = []
+        created_beds_count = 0
+        
+        for floor in range(1, floors + 1):
+            for room_num in range(1, rooms_per_floor + 1):
+                # Check if room already exists
+                room_number = f"{floor}{room_num:02d}"
+                if HostelRoom.objects.filter(hostel=hostel, room_number=room_number).exists():
+                    continue
+                
+                # Create room
+                room = HostelRoom.objects.create(
+                    hostel=hostel,
+                    room_number=room_number,
+                    floor=floor,
+                    room_type=room_type,
+                    capacity=capacity,
+                    has_bathroom=has_bathroom,
+                    has_balcony=has_balcony,
+                    is_active=True
+                )
+                
+                # Create beds for this room
+                for bed_num in range(1, capacity + 1):
+                    HostelBed.objects.create(
+                        room=room,
+                        bed_number=str(bed_num),
+                        status='available',
+                        academic_year=academic_year,
+                        is_active=True
+                    )
+                    created_beds_count += 1
+                
+                created_rooms.append({
+                    'id': room.id,
+                    'room_number': room.room_number,
+                    'floor': room.floor,
+                    'beds': capacity
+                })
+        
+        # Update hostel total capacity
+        total_beds = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=academic_year
+        ).count()
+        hostel.total_capacity = total_beds
+        hostel.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully created {len(created_rooms)} room(s) with {created_beds_count} bed(s)',
+            'rooms': created_rooms,
+            'total_capacity': total_beds
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_bulk_create_beds(request, room_id):
+    """
+    Bulk create beds for a specific room
+    Expected JSON format:
+    {
+        "academic_year_id": 1,
+        "number_of_beds": 2
+    }
+    """
+    import json
+    
+    try:
+        room = get_object_or_404(HostelRoom, id=room_id)
+        data = json.loads(request.body)
+        
+        academic_year_id = data.get('academic_year_id')
+        number_of_beds = data.get('number_of_beds', room.capacity)
+        
+        # Get academic year
+        try:
+            academic_year = AcademicYear.objects.get(id=academic_year_id)
+        except AcademicYear.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Academic year not found'
+            }, status=404)
+        
+        # Check if beds already exist for this academic year
+        existing_beds = HostelBed.objects.filter(
+            room=room,
+            academic_year=academic_year
+        ).count()
+        
+        if existing_beds >= number_of_beds:
+            return JsonResponse({
+                'success': False,
+                'error': f'Room already has {existing_beds} bed(s) for this academic year'
+            }, status=400)
+        
+        created_beds = []
+        beds_to_create = number_of_beds - existing_beds
+        start_number = existing_beds + 1
+        
+        for bed_num in range(start_number, start_number + beds_to_create):
+            bed = HostelBed.objects.create(
+                room=room,
+                bed_number=str(bed_num),
+                status='available',
+                academic_year=academic_year,
+                is_active=True
+            )
+            created_beds.append({
+                'id': bed.id,
+                'bed_number': bed.bed_number,
+                'status': bed.status
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully created {len(created_beds)} bed(s)',
+            'beds': created_beds
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_hostel_stats(request, hostel_code):
+    """Get statistics for a specific hostel"""
+    hostel = get_object_or_404(Hostel, code=hostel_code)
+    
+    # Get current academic year
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    if not current_year:
+        return JsonResponse({
+            'success': False,
+            'error': 'No current academic year found'
+        }, status=404)
+    
+    # Get bed statistics
+    total_beds = HostelBed.objects.filter(
+        room__hostel=hostel,
+        academic_year=current_year
+    ).count()
+    
+    available_beds = HostelBed.objects.filter(
+        room__hostel=hostel,
+        academic_year=current_year,
+        status='available'
+    ).count()
+    
+    occupied_beds = HostelBed.objects.filter(
+        room__hostel=hostel,
+        academic_year=current_year,
+        status='occupied'
+    ).count()
+    
+    reserved_beds = HostelBed.objects.filter(
+        room__hostel=hostel,
+        academic_year=current_year,
+        status='reserved'
+    ).count()
+    
+    maintenance_beds = HostelBed.objects.filter(
+        room__hostel=hostel,
+        academic_year=current_year,
+        status='maintenance'
+    ).count()
+    
+    # Get room statistics
+    total_rooms = HostelRoom.objects.filter(hostel=hostel).count()
+    
+    # Get application statistics
+    pending_applications = HostelApplication.objects.filter(
+        hostel=hostel,
+        status='pending'
+    ).count()
+    
+    approved_applications = HostelApplication.objects.filter(
+        hostel=hostel,
+        status='approved'
+    ).count()
+    
+    # Calculate occupancy rate
+    occupancy_rate = (occupied_beds / total_beds * 100) if total_beds > 0 else 0
+    
+    return JsonResponse({
+        'success': True,
+        'hostel': {
+            'code': hostel.code,
+            'name': hostel.name,
+            'gender_type': hostel.gender_type,
+            'location': hostel.location,
+        },
+        'stats': {
+            'total_beds': total_beds,
+            'available_beds': available_beds,
+            'occupied_beds': occupied_beds,
+            'reserved_beds': reserved_beds,
+            'maintenance_beds': maintenance_beds,
+            'total_rooms': total_rooms,
+            'occupancy_rate': round(occupancy_rate, 2),
+            'pending_applications': pending_applications,
+            'approved_applications': approved_applications,
+        }
+    })
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_available_beds(request):
+    """Get available beds with filters"""
+    # Get filter parameters
+    hostel_id = request.GET.get('hostel_id')
+    gender_type = request.GET.get('gender_type')
+    room_type = request.GET.get('room_type')
+    academic_year_id = request.GET.get('academic_year_id')
+    
+    # Base query
+    beds = HostelBed.objects.filter(
+        status='available'
+    ).select_related('room__hostel', 'academic_year')
+    
+    # Apply filters
+    if hostel_id:
+        beds = beds.filter(room__hostel_id=hostel_id)
+    
+    if gender_type:
+        beds = beds.filter(room__hostel__gender_type=gender_type)
+    
+    if room_type:
+        beds = beds.filter(room__room_type=room_type)
+    
+    if academic_year_id:
+        beds = beds.filter(academic_year_id=academic_year_id)
+    else:
+        # Default to current academic year
+        current_year = AcademicYear.objects.filter(is_current=True).first()
+        if current_year:
+            beds = beds.filter(academic_year=current_year)
+    
+    # Prepare response
+    available_beds = []
+    for bed in beds[:50]:  # Limit to 50 beds
+        available_beds.append({
+            'id': bed.id,
+            'bed_number': bed.bed_number,
+            'room': {
+                'id': bed.room.id,
+                'room_number': bed.room.room_number,
+                'floor': bed.room.floor,
+                'room_type': bed.room.get_room_type_display(),
+                'capacity': bed.room.capacity,
+            },
+            'hostel': {
+                'id': bed.room.hostel.id,
+                'name': bed.room.hostel.name,
+                'code': bed.room.hostel.code,
+                'gender_type': bed.room.hostel.get_gender_type_display(),
+                'location': bed.room.hostel.location,
+            }
+        })
+    
+    return JsonResponse({
+        'success': True,
+        'count': len(available_beds),
+        'beds': available_beds
+    })
