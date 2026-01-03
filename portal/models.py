@@ -4,6 +4,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from datetime import timedelta
+from django.db.models import Max
+
 
 # ============= USER MANAGEMENT =============
 class User(AbstractUser):
