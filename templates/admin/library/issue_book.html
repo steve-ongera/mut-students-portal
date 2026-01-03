@@ -1,0 +1,192 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Issue Book - Library{% endblock %}
+
+{% block page_title %}Issue Book{% endblock %}
+{% block page_subtitle %}Issue "{{ book.title }}" to a student{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_library_book_list' %}">Library</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_library_book_detail' book.id %}">{{ book.title }}</a></li>
+        <li class="breadcrumb-item active">Issue Book</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Issue Book to Student</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Book Info -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading">Book Details</h6>
+                        <p class="mb-1"><strong>Title:</strong> {{ book.title }}</p>
+                        <p class="mb-1"><strong>Author:</strong> {{ book.author }}</p>
+                        <p class="mb-1"><strong>ISBN:</strong> {{ book.isbn }}</p>
+                        <p class="mb-0"><strong>Available Copies:</strong> {{ book.available_copies }}/{{ book.total_copies }}</p>
+                    </div>
+
+                    <!-- Issue Form -->
+                    <form method="post" id="issueForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Search Student</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="ri-search-line"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="studentSearch" 
+                                       placeholder="Search by registration number or name..."
+                                       autocomplete="off">
+                            </div>
+                            <div id="searchResults" class="search-results"></div>
+                        </div>
+
+                        <input type="hidden" name="student_id" id="studentId" required>
+
+                        <!-- Selected Student Display -->
+                        <div id="selectedStudent" class="alert alert-success d-none mb-4">
+                            <h6 class="alert-heading">Selected Student</h6>
+                            <p class="mb-1"><strong>Name:</strong> <span id="selectedName"></span></p>
+                            <p class="mb-1"><strong>Reg Number:</strong> <span id="selectedReg"></span></p>
+                            <p class="mb-0"><strong>Programme:</strong> <span id="selectedProgramme"></span></p>
+                            <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="clearSelection()">
+                                <i class="ri-close-line"></i> Clear
+                            </button>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="ri-information-line"></i> 
+                            Loan period is <strong>14 days</strong>. Late fee is <strong>KES 5 per day</strong> after due date.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success" id="submitBtn" disabled>
+                                <i class="ri-hand-heart-line"></i> Issue Book
+                            </button>
+                            <a href="{% url 'admin_library_book_detail' book.id %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .search-results {
+        position: relative;
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 0.5rem;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        display: none;
+    }
+    .search-results.show {
+        display: block;
+    }
+    .search-result-item {
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid #e9ecef;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+    .search-result-item:hover {
+        background: #f8f9fa;
+    }
+    .search-result-item strong {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    .search-result-item small {
+        color: #6c757d;
+    }
+</style>
+
+<script>
+let searchTimeout;
+const searchInput = document.getElementById('studentSearch');
+const searchResults = document.getElementById('searchResults');
+const studentIdInput = document.getElementById('studentId');
+const selectedStudent = document.getElementById('selectedStudent');
+const submitBtn = document.getElementById('submitBtn');
+
+searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    const query = this.value.trim();
+    
+    if (query.length < 2) {
+        searchResults.classList.remove('show');
+        return;
+    }
+    
+    searchTimeout = setTimeout(() => {
+        fetch(`/api/library/search-students/?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                displayResults(data.students);
+            })
+            .catch(error => console.error('Error:', error));
+    }, 300);
+});
+
+function displayResults(students) {
+    if (students.length === 0) {
+        searchResults.innerHTML = '<div class="search-result-item text-muted">No students found</div>';
+        searchResults.classList.add('show');
+        return;
+    }
+    
+    searchResults.innerHTML = students.map(student => `
+        <div class="search-result-item" onclick="selectStudent(${student.id}, '${student.name}', '${student.registration_number}', '${student.programme}')">
+            <strong>${student.name}</strong>
+            <small>${student.registration_number} - ${student.programme}</small>
+        </div>
+    `).join('');
+    
+    searchResults.classList.add('show');
+}
+
+function selectStudent(id, name, reg, programme) {
+    studentIdInput.value = id;
+    document.getElementById('selectedName').textContent = name;
+    document.getElementById('selectedReg').textContent = reg;
+    document.getElementById('selectedProgramme').textContent = programme;
+    
+    selectedStudent.classList.remove('d-none');
+    searchResults.classList.remove('show');
+    searchInput.value = '';
+    submitBtn.disabled = false;
+}
+
+function clearSelection() {
+    studentIdInput.value = '';
+    selectedStudent.classList.add('d-none');
+    submitBtn.disabled = true;
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.classList.remove('show');
+    }
+});
+</script>
+{% endblock %}

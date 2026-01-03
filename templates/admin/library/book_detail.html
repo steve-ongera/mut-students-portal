@@ -1,0 +1,307 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ book.title }} - Library{% endblock %}
+
+{% block page_title %}Book Details{% endblock %}
+{% block page_subtitle %}{{ book.title }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_library_book_list' %}">Library</a></li>
+        <li class="breadcrumb-item active">{{ book.title }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Book Info Card -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-8">
+            <div class="management-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title">Book Information</h5>
+                    {% if book.available_copies > 0 %}
+                    <a href="{% url 'admin_library_issue_book' book.id %}" class="btn btn-success btn-sm">
+                        <i class="ri-hand-heart-line"></i> Issue Book
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Title</label>
+                                <p class="fw-semibold">{{ book.title }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Author</label>
+                                <p>{{ book.author }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>ISBN</label>
+                                <p><code>{{ book.isbn }}</code></p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Category</label>
+                                <p><span class="badge bg-primary">{{ book.category.name }}</span></p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-group">
+                                <label>Publisher</label>
+                                <p>{{ book.publisher|default:"-" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-group">
+                                <label>Year</label>
+                                <p>{{ book.publication_year|default:"-" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="info-group">
+                                <label>Edition</label>
+                                <p>{{ book.edition|default:"-" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Shelf Location</label>
+                                <p>{{ book.shelf_location|default:"-" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Call Number</label>
+                                <p>{{ book.call_number|default:"-" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="info-group">
+                                <label>Description</label>
+                                <p>{{ book.description|default:"No description available" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <!-- Stats -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="stat-item">
+                        <span>Total Copies</span>
+                        <strong>{{ book.total_copies }}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Available</span>
+                        <strong class="text-success">{{ book.available_copies }}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Currently Borrowed</span>
+                        <strong class="text-warning">{{ book_stats.currently_borrowed }}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Total Borrowed</span>
+                        <strong>{{ book_stats.total_borrowed }}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Overdue</span>
+                        <strong class="text-danger">{{ book_stats.overdue }}</strong>
+                    </div>
+                    <div class="stat-item">
+                        <span>Total Fines</span>
+                        <strong>KES {{ book_stats.total_fines }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Status</h5>
+                </div>
+                <div class="card-body">
+                    {% if book.status == 'available' %}
+                    <div class="alert alert-success mb-0">
+                        <i class="ri-check-line"></i> Available
+                    </div>
+                    {% elif book.status == 'borrowed' %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="ri-book-open-line"></i> All Copies Borrowed
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary mb-0">
+                        <i class="ri-information-line"></i> {{ book.get_status_display }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Borrowings -->
+    {% if current_borrowings %}
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Current Borrowings ({{ current_borrowings.count }})</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Borrow Date</th>
+                            <th>Due Date</th>
+                            <th>Status</th>
+                            <th>Fine</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in current_borrowings %}
+                        <tr>
+                            <td>
+                                <strong>{{ borrowing.student.user.get_full_name }}</strong>
+                                <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                            </td>
+                            <td>{{ borrowing.borrow_date|date:"M d, Y" }}</td>
+                            <td>{{ borrowing.due_date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if borrowing.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                <span class="badge bg-warning">Active</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.fine_amount > 0 %}
+                                <span class="text-danger fw-semibold">KES {{ borrowing.fine_amount }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'admin_library_return_book' borrowing.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Return this book?')">
+                                        <i class="ri-arrow-go-back-line"></i> Return
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Borrowing History -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Recent Borrowing History</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Borrow Date</th>
+                            <th>Return Date</th>
+                            <th>Status</th>
+                            <th>Fine</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in borrowings %}
+                        <tr>
+                            <td>
+                                <strong>{{ borrowing.student.user.get_full_name }}</strong>
+                                <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                            </td>
+                            <td>{{ borrowing.borrow_date|date:"M d, Y" }}</td>
+                            <td>{{ borrowing.return_date|date:"M d, Y"|default:"-" }}</td>
+                            <td>
+                                {% if borrowing.status == 'returned' %}
+                                <span class="badge bg-success">Returned</span>
+                                {% elif borrowing.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                <span class="badge bg-warning">Active</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.fine_amount > 0 %}
+                                KES {{ borrowing.fine_amount }}
+                                {% if borrowing.fine_paid %}
+                                <span class="badge bg-success">Paid</span>
+                                {% endif %}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">
+                                <p class="text-muted mb-0">No borrowing history</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .info-group {
+        margin-bottom: 1rem;
+    }
+    .info-group label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        color: #6c757d;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    .info-group p {
+        margin: 0;
+        color: #343a40;
+    }
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+    .stat-item span {
+        color: #6c757d;
+    }
+    .stat-item strong {
+        color: #343a40;
+    }
+</style>
+{% endblock %}
+

@@ -1,0 +1,184 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Overdue Books - Library{% endblock %}
+
+{% block page_title %}Overdue Books{% endblock %}
+{% block page_subtitle %}Manage overdue books and send reminders{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_library_book_list' %}">Library</a></li>
+        <li class="breadcrumb-item active">Overdue Books</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-semibold mb-2">Overdue Books</h1>
+            <p class="text-muted mb-0">{{ overdue_borrowings.count }} overdue book(s)</p>
+        </div>
+        {% if overdue_borrowings %}
+        <form method="post" action="{% url 'admin_library_send_all_reminders' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Send reminder emails to all students with overdue books?')">
+                <i class="ri-mail-send-line"></i> Send All Reminders
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <!-- Overdue Books Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Overdue Books</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Book</th>
+                            <th>Due Date</th>
+                            <th>Days Overdue</th>
+                            <th>Fine Amount</th>
+                            <th>Contact</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in overdue_borrowings %}
+                        <tr>
+                            <td>
+                                <strong>{{ borrowing.student.user.get_full_name }}</strong>
+                                <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                            </td>
+                            <td>
+                                <strong>{{ borrowing.book.title }}</strong>
+                                <small class="d-block text-muted">{{ borrowing.book.author }}</small>
+                            </td>
+                            <td>
+                                <span class="text-danger">{{ borrowing.due_date|date:"M d, Y" }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-danger">{{ borrowing.days_overdue }} days</span>
+                            </td>
+                            <td>
+                                <strong class="text-danger">KES {{ borrowing.fine_amount }}</strong>
+                                {% if borrowing.fine_paid %}
+                                <span class="badge bg-success">Paid</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="d-block">{{ borrowing.student.user.email }}</small>
+                                <small class="text-muted">{{ borrowing.student.user.phone_number|default:"-" }}</small>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <form method="post" action="{% url 'admin_library_send_reminder' borrowing.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-warning" title="Send Reminder">
+                                            <i class="ri-mail-send-line"></i>
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'admin_library_return_book' borrowing.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-success" title="Return Book" onclick="return confirm('Return this book?')">
+                                            <i class="ri-arrow-go-back-line"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <i class="ri-check-double-line fs-1 text-success mb-3"></i>
+                                <h5 class="text-success">No Overdue Books!</h5>
+                                <p class="text-muted mb-0">All books are either returned or within the due date.</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    {% if overdue_borrowings %}
+    <div class="alert alert-info mt-4">
+        <h6 class="alert-heading"><i class="ri-information-line"></i> Quick Actions</h6>
+        <ul class="mb-0">
+            <li>Click <i class="ri-mail-send-line"></i> to send an individual reminder email</li>
+            <li>Click <i class="ri-arrow-go-back-line"></i> to mark the book as returned</li>
+            <li>Use "Send All Reminders" to send emails to all students with overdue books</li>
+            <li>Late fee is KES 5 per day after the due date</li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-lg: 12px;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .table thead th {
+        background: var(--color-gray-100);
+        border-bottom: 2px solid var(--color-gray-200);
+        font-weight: 600;
+        padding: 1rem 1.5rem;
+    }
+
+    .table tbody td {
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+
+    .table-hover tbody tr:hover {
+        background: var(--color-gray-100);
+    }
+</style>
+{% endblock %}
