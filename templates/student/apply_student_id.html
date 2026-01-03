@@ -1,0 +1,561 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Apply for Student ID{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_id_dashboard' %}">Student ID</a></li>
+        <li class="breadcrumb-item active">Apply</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-md-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Student ID Application Form</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Student Info -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading mb-3">Student Information</h6>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <small class="text-uppercase text-muted d-block mb-1">Name</small>
+                                <strong>{{ student.user.get_full_name }}</strong>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-uppercase text-muted d-block mb-1">Registration Number</small>
+                                <strong>{{ student.registration_number }}</strong>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-uppercase text-muted d-block mb-1">Programme</small>
+                                <strong>{{ student.programme.name }}</strong>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-uppercase text-muted d-block mb-1">Year</small>
+                                <strong>Year {{ student.current_year }}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- ID Type Selection -->
+                        <div class="mb-4">
+                            <label class="form-label">Select ID Type <span class="text-danger">*</span></label>
+                            <div class="row g-3" id="idTypeCards">
+                                {% for fee in current_fees %}
+                                <div class="col-md-4">
+                                    <div class="card border h-100 transition-card {% if forloop.first %}border-primary selected-card{% else %}border-gray-300{% endif %}">
+                                        <div class="card-body text-center">
+                                            <h5 class="card-title">{{ fee.id_type.name }}</h5>
+                                            <p class="text-muted small">{{ fee.id_type.description }}</p>
+                                            <h4 class="text-primary mb-3">KES {{ fee.base_fee }}</h4>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" 
+                                                       name="id_type" value="{{ fee.id_type.id }}" 
+                                                       id="id_type_{{ fee.id_type.id }}"
+                                                       {% if forloop.first %}checked{% endif %}>
+                                                <label class="form-check-label" for="id_type_{{ fee.id_type.id }}">
+                                                    Select
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="card-footer bg-transparent">
+                                            <small class="text-muted">
+                                                <i class="ri-time-line"></i> 
+                                                {{ fee.id_type.processing_days }} days processing
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Application Reason -->
+                        <div class="mb-4">
+                            <label class="form-label">Application Reason <span class="text-danger">*</span></label>
+                            <select name="application_reason" class="form-select" id="applicationReason">
+                                <option value="">Select reason...</option>
+                                <option value="new_student">New Student</option>
+                                <option value="lost">Lost ID Card</option>
+                                <option value="damaged">Damaged ID Card</option>
+                                <option value="expired">ID Card Expired</option>
+                                <option value="change_details">Change of Details</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <!-- Reason Details -->
+                        <div class="mb-4" id="reasonDetails" style="display: none;">
+                            <label class="form-label">Reason Details</label>
+                            <textarea name="reason_details" class="form-control" rows="3" 
+                                      placeholder="Please provide details..."></textarea>
+                        </div>
+
+                        <!-- Rush Processing -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_rush" id="is_rush">
+                                <label class="form-check-label" for="is_rush">
+                                    <strong>Rush Processing</strong> - Get your ID faster (additional charge applies)
+                                </label>
+                            </div>
+                            <small class="text-muted">
+                                Standard processing: 7-14 days. Rush processing: 3-5 days.
+                            </small>
+                        </div>
+
+                        <!-- Cost Summary -->
+                        <div class="alert alert-warning mb-4">
+                            <h6 class="alert-heading mb-3">Cost Summary</h6>
+                            <div class="row">
+                                <div class="col-6">
+                                    <small class="text-muted">Base Fee:</small>
+                                    <div id="baseFee">KES 0.00</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Rush Fee:</small>
+                                    <div id="rushFee">KES 0.00</div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Replacement Fee:</small>
+                                    <div id="replacementFee">KES 0.00</div>
+                                </div>
+                                <div class="col-6">
+                                    <strong>Total:</strong>
+                                    <div class="h5 text-primary" id="totalFee">KES 0.00</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Terms & Conditions -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="terms" id="terms" required>
+                                <label class="form-check-label" for="terms">
+                                    I agree to the <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">Terms and Conditions</a>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-check-line"></i> Submit Application
+                            </button>
+                            <a href="{% url 'student_id_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="ri-arrow-left-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Terms Modal -->
+<div class="modal fade" id="termsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Terms and Conditions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Student ID Card Application Terms</h6>
+                <ol>
+                    <li>All applications must be accompanied by a recent passport-size photo.</li>
+                    <li>Fees are non-refundable once payment is confirmed.</li>
+                    <li>Processing time starts from the date of payment confirmation.</li>
+                    <li>For lost ID cards, a police abstract may be required.</li>
+                    <li>Digital ID cards are sent via email/portal download.</li>
+                    <li>Physical ID cards must be collected within 30 days of notification.</li>
+                    <li>The university reserves the right to reject applications.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-400: #ced4da;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Alert Styles */
+    .alert {
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+        padding: 1rem 1.25rem;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: #0c5460;
+    }
+
+    .alert-warning {
+        background-color: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.2);
+        color: #856404;
+    }
+
+    .alert-heading {
+        color: inherit;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Form Styles */
+    .form-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-select,
+    .form-control {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-select:focus,
+    .form-control:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+        outline: none;
+    }
+
+    .form-check-input {
+        width: 1.125rem;
+        height: 1.125rem;
+        margin-top: 0.125rem;
+        border: 1px solid var(--color-gray-400);
+    }
+
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+    }
+
+    .form-check-label {
+        margin-left: 0.5rem;
+        color: var(--color-gray-800);
+    }
+
+    /* Card Selection Styles */
+    .transition-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .transition-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .selected-card {
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 1px var(--color-primary);
+        background-color: rgba(46, 125, 50, 0.03);
+    }
+
+    .border-gray-300 {
+        border-color: var(--color-gray-300) !important;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline-secondary {
+        color: var(--color-gray-600);
+        border-color: var(--color-gray-300);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+        color: var(--color-gray-800);
+    }
+
+    /* Text Styles */
+    .text-primary {
+        color: var(--color-primary) !important;
+    }
+
+    .text-muted {
+        color: var(--color-gray-600) !important;
+    }
+
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border-radius: var(--radius-lg);
+        border: none;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .modal-title {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        font-size: 1rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-body ol {
+        padding-left: 1.25rem;
+        margin-bottom: 0;
+    }
+
+    .modal-body li {
+        margin-bottom: 0.5rem;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .alert {
+            padding: 0.875rem 1rem;
+        }
+
+        #idTypeCards .col-md-4 {
+            margin-bottom: 1rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .management-card .card-header {
+            padding: 1rem;
+        }
+
+        .management-card .card-title {
+            font-size: 0.9375rem;
+        }
+
+        .form-select,
+        .form-control {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .alert-heading {
+            font-size: 0.8125rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const feeStructures = {
+        {% for fee in current_fees %}
+        "{{ fee.id_type.id }}": {
+            base_fee: {{ fee.base_fee }},
+            rush_fee: {{ fee.rush_processing_fee }},
+            replacement_fee: {{ fee.replacement_fee }},
+            processing_days: {{ fee.id_type.processing_days }},
+            rush_days: {{ fee.id_type.rush_processing_days }}
+        },
+        {% endfor %}
+    };
+
+    const applicationReason = document.getElementById('applicationReason');
+    const reasonDetails = document.getElementById('reasonDetails');
+    const isRush = document.getElementById('is_rush');
+    
+    // Card selection styling
+    document.querySelectorAll('input[name="id_type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Remove selected class from all cards
+            document.querySelectorAll('#idTypeCards .card').forEach(card => {
+                card.classList.remove('selected-card', 'border-primary');
+                card.classList.add('border-gray-300');
+            });
+            
+            // Add selected class to parent card
+            const selectedCard = this.closest('.card');
+            selectedCard.classList.add('selected-card', 'border-primary');
+            selectedCard.classList.remove('border-gray-300');
+            
+            updateCost();
+        });
+    });
+    
+    // Update cost when selection changes
+    function updateCost() {
+        const selectedIdType = document.querySelector('input[name="id_type"]:checked').value;
+        const fee = feeStructures[selectedIdType];
+        const isReplacement = ['lost', 'damaged', 'expired'].includes(applicationReason.value);
+        
+        if (fee) {
+            let total = parseFloat(fee.base_fee);
+            let rushFee = 0;
+            let replacementFee = 0;
+            
+            if (isRush.checked) {
+                rushFee = parseFloat(fee.rush_fee);
+                total += rushFee;
+            }
+            
+            if (isReplacement) {
+                replacementFee = parseFloat(fee.replacement_fee);
+                total += replacementFee;
+            }
+            
+            // Update display
+            document.getElementById('baseFee').textContent = `KES ${parseFloat(fee.base_fee).toFixed(2)}`;
+            document.getElementById('rushFee').textContent = `KES ${rushFee.toFixed(2)}`;
+            document.getElementById('replacementFee').textContent = `KES ${replacementFee.toFixed(2)}`;
+            document.getElementById('totalFee').textContent = `KES ${total.toFixed(2)}`;
+        }
+    }
+    
+    // Show/hide reason details
+    applicationReason.addEventListener('change', function() {
+        if (this.value === 'other') {
+            reasonDetails.style.display = 'block';
+        } else {
+            reasonDetails.style.display = 'none';
+        }
+        updateCost();
+    });
+    
+    // Update cost when rush processing is toggled
+    isRush.addEventListener('change', updateCost);
+    
+    // Initialize card styling and cost
+    const firstCard = document.querySelector('#idTypeCards .card');
+    firstCard.classList.add('selected-card', 'border-primary');
+    firstCard.classList.remove('border-gray-300');
+    updateCost();
+});
+</script>
+{% endblock %}

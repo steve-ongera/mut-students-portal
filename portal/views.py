@@ -12977,3 +12977,710 @@ def student_timetable(request):
     except Exception as e:
         messages.error(request, f"Error loading timetable: {str(e)}")
         return redirect('student_dashboard')
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse
+from django.conf import settings
+from django.utils import timezone
+from django.db.models import Q, Sum, Count
+from django.core.mail import send_mail
+from decimal import Decimal
+import json
+import requests
+from datetime import timedelta
+
+from .models import (
+    Student, StudentIDType, StudentIDFeeStructure, 
+    StudentIDApplication, StudentIDCard, StudentIDPayment,
+    IDCardNotification, AcademicYear, Semester
+)
+
+# ============= STUDENT VIEWS =============
+
+@login_required
+def student_id_dashboard(request):
+    """Student ID application dashboard"""
+    student = get_object_or_404(Student, user=request.user)
+    
+    # Get active fee structures
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    fee_structures = StudentIDFeeStructure.objects.filter(
+        academic_year=current_year,
+        is_active=True
+    ).select_related('id_type')
+    
+    # Get student's applications
+    applications = StudentIDApplication.objects.filter(
+        student=student
+    ).order_by('-application_date')
+    
+    # Get issued ID cards
+    issued_cards = StudentIDCard.objects.filter(
+        student=student
+    ).order_by('-issue_date')
+    
+    # Get notifications
+    notifications = IDCardNotification.objects.filter(
+        student=student,
+        is_read=False
+    ).order_by('-sent_at')[:10]
+    
+    context = {
+        'fee_structures': fee_structures,
+        'applications': applications,
+        'issued_cards': issued_cards,
+        'notifications': notifications,
+        'active_year': current_year,
+    }
+    
+    return render(request, 'student/student_id_dashboard.html', context)
+
+
+@login_required
+def apply_for_student_id(request):
+    """Apply for a new student ID card"""
+    student = get_object_or_404(Student, user=request.user)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    if not current_year:
+        messages.error(request, "No active academic year found.")
+        return redirect('student_id_dashboard')
+    
+    if request.method == 'POST':
+        id_type_id = request.POST.get('id_type')
+        is_rush = request.POST.get('is_rush') == 'on'
+        application_reason = request.POST.get('application_reason')
+        reason_details = request.POST.get('reason_details', '')
+        
+        try:
+            id_type = StudentIDType.objects.get(id=id_type_id, is_active=True)
+            fee_structure = StudentIDFeeStructure.objects.get(
+                id_type=id_type,
+                academic_year=current_year,
+                is_active=True
+            )
+            
+            # Check if student already has an active application
+            active_apps = StudentIDApplication.objects.filter(
+                student=student,
+                status__in=['draft', 'submitted', 'payment_pending', 'payment_confirmed', 'in_production']
+            )
+            
+            if active_apps.exists():
+                messages.warning(request, "You already have an active ID application. Please complete it first.")
+                return redirect('view_id_application', application_id=active_apps.first().id)
+            
+            # Create application
+            application = StudentIDApplication.objects.create(
+                student=student,
+                id_type=id_type,
+                fee_structure=fee_structure,
+                application_reason=application_reason,
+                reason_details=reason_details,
+                is_rush_processing=is_rush,
+                is_replacement=application_reason in ['lost', 'damaged', 'expired'],
+                amount_due=fee_structure.get_total_fee(
+                    is_rush=is_rush,
+                    is_replacement=application_reason in ['lost', 'damaged', 'expired']
+                ),
+                status='draft'
+            )
+            
+            # Send notification
+            IDCardNotification.objects.create(
+                student=student,
+                application=application,
+                notification_type='application_submitted',
+                title='Student ID Application Created',
+                message=f'Your student ID application #{application.application_number} has been created. Please upload your photo and proceed to payment.',
+                sent_via_portal=True
+            )
+            
+            messages.success(request, f"Application #{application.application_number} created successfully! Please upload your photo.")
+            return redirect('upload_id_photo', application_id=application.id)
+            
+        except StudentIDType.DoesNotExist:
+            messages.error(request, "Invalid ID type selected.")
+        except StudentIDFeeStructure.DoesNotExist:
+            messages.error(request, "No fee structure found for the selected ID type.")
+        except Exception as e:
+            messages.error(request, f"Error creating application: {str(e)}")
+    
+    # GET request - show application form
+    id_types = StudentIDType.objects.filter(is_active=True)
+    current_fees = StudentIDFeeStructure.objects.filter(
+        academic_year=current_year,
+        is_active=True
+    ).select_related('id_type')
+    
+    context = {
+        'id_types': id_types,
+        'current_fees': current_fees,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'student/apply_student_id.html', context)
+
+
+@login_required
+def upload_id_photo(request, application_id):
+    """Upload photo for ID application"""
+    student = get_object_or_404(Student, user=request.user)
+    application = get_object_or_404(StudentIDApplication, id=application_id, student=student)
+    
+    if application.status != 'draft':
+        messages.error(request, "Cannot upload photo. Application is not in draft status.")
+        return redirect('view_id_application', application_id=application.id)
+    
+    if request.method == 'POST':
+        if 'photo' in request.FILES:
+            application.photo = request.FILES['photo']
+            application.status = 'submitted'
+            application.submitted_date = timezone.now()
+            application.save()
+            
+            # Send notification
+            IDCardNotification.objects.create(
+                student=student,
+                application=application,
+                notification_type='application_submitted',
+                title='Photo Uploaded',
+                message=f'Photo uploaded for application #{application.application_number}. You can now proceed to payment.',
+                sent_via_portal=True
+            )
+            
+            messages.success(request, "Photo uploaded successfully! You can now proceed to payment.")
+            return redirect('view_id_application', application_id=application.id)
+        else:
+            messages.error(request, "Please select a photo to upload.")
+    
+    context = {
+        'application': application,
+    }
+    
+    return render(request, 'student/upload_id_photo.html', context)
+
+
+@login_required
+def view_application(request, application_id):
+    """View application details"""
+    student = get_object_or_404(Student, user=request.user)
+    application = get_object_or_404(StudentIDApplication, id=application_id, student=student)
+    
+    # Get payments for this application
+    payments = StudentIDPayment.objects.filter(application=application).order_by('-payment_date')
+    
+    context = {
+        'application': application,
+        'payments': payments,
+        'current_year': AcademicYear.objects.filter(is_current=True).first(),
+    }
+    
+    return render(request, 'student/view_id_application.html', context)
+
+
+@login_required
+def initiate_payment(request, application_id):
+    """Initiate payment for ID application"""
+    student = get_object_or_404(Student, user=request.user)
+    application = get_object_or_404(StudentIDApplication, id=application_id, student=student)
+    
+    if application.status not in ['submitted', 'payment_pending']:
+        messages.error(request, "Payment cannot be initiated for this application.")
+        return redirect('view_id_application', application_id=application.id)
+    
+    if request.method == 'POST':
+        payment_method = request.POST.get('payment_method')
+        phone_number = request.POST.get('phone_number', '')
+        
+        try:
+            # For M-Pesa payments
+            if payment_method == 'mpesa':
+                # Initialize M-Pesa payment
+                payment = process_mpesa_payment(application, phone_number)
+                
+                if payment:
+                    application.status = 'payment_pending'
+                    application.save()
+                    
+                    messages.success(request, f"Payment initiated. Please check your phone {phone_number} to complete the payment.")
+                    return redirect('view_id_application', application_id=application.id)
+                else:
+                    messages.error(request, "Failed to initiate M-Pesa payment. Please try again.")
+            
+            # For other payment methods
+            else:
+                payment = StudentIDPayment.objects.create(
+                    application=application,
+                    amount=application.amount_due,
+                    payment_method=payment_method,
+                    status='pending'
+                )
+                
+                application.status = 'payment_pending'
+                application.save()
+                
+                messages.info(request, f"Payment instruction for {payment_method} will be sent to your email.")
+                return redirect('view_id_application', application_id=application.id)
+                
+        except Exception as e:
+            messages.error(request, f"Error initiating payment: {str(e)}")
+    
+    context = {
+        'application': application,
+    }
+    
+    return render(request, 'student/initiate_id_payment.html', context)
+
+
+def process_mpesa_payment(application, phone_number):
+    """Process M-Pesa STK Push payment"""
+    # This is a simplified version - you need to integrate with your M-Pesa API
+    try:
+        # Remove leading 0 if present and add country code
+        if phone_number.startswith('0'):
+            phone_number = '254' + phone_number[1:]
+        
+        # Create payment record
+        payment = StudentIDPayment.objects.create(
+            application=application,
+            amount=application.amount_due,
+            payment_method='mpesa',
+            phone_number=phone_number,
+            status='pending'
+        )
+        
+        # Here you would call your M-Pesa API
+        # Example structure:
+        # response = mpesa_api.stk_push(
+        #     phone_number=phone_number,
+        #     amount=application.amount_due,
+        #     account_reference=payment.payment_reference,
+        #     transaction_desc=f"Student ID: {application.application_number}"
+        # )
+        
+        # For now, we'll simulate success
+        # In production, you would handle the API response
+        
+        # Simulate successful payment initiation
+        payment.merchant_request_id = f"SIM-{payment.id}"
+        payment.checkout_request_id = f"CHK-{payment.id}"
+        payment.save()
+        
+        # In a real implementation, you would wait for the callback
+        # For demo, we'll auto-confirm after 10 seconds
+        import threading
+        from django.utils import timezone
+        
+        def confirm_payment(payment_id):
+            from time import sleep
+            sleep(10)  # Wait 10 seconds for demo
+            
+            payment = StudentIDPayment.objects.get(id=payment_id)
+            payment.status = 'completed'
+            payment.mpesa_receipt_number = f"SIM{payment.id:08d}"
+            payment.result_code = '0'
+            payment.result_description = 'Success'
+            payment.confirmed_date = timezone.now()
+            payment.save()
+            
+            # Update application
+            application = payment.application
+            application.amount_paid = payment.amount
+            application.payment_reference = payment.payment_reference
+            application.payment_date = timezone.now()
+            application.status = 'payment_confirmed'
+            application.save()
+            
+            # Send notification
+            IDCardNotification.objects.create(
+                student=application.student,
+                application=application,
+                notification_type='payment_confirmed',
+                title='Payment Confirmed',
+                message=f'Payment of KES {payment.amount} for application #{application.application_number} has been confirmed.',
+                sent_via_portal=True,
+                sent_via_email=True
+            )
+        
+        # Start background thread for demo
+        thread = threading.Thread(target=confirm_payment, args=(payment.id,))
+        thread.daemon = True
+        thread.start()
+        
+        return payment
+        
+    except Exception as e:
+        print(f"M-Pesa payment error: {str(e)}")
+        return None
+
+
+@login_required
+def my_student_ids(request):
+    """View all issued student ID cards"""
+    student = get_object_or_404(Student, user=request.user)
+    
+    # Get all ID cards
+    id_cards = StudentIDCard.objects.filter(student=student).order_by('-issue_date')
+    
+    # Get current active card
+    active_card = id_cards.filter(status='active').first()
+    
+    context = {
+        'id_cards': id_cards,
+        'active_card': active_card,
+        'student': student,
+    }
+    
+    return render(request, 'student/my_student_ids.html', context)
+
+
+@login_required
+def verify_id_card(request, card_number):
+    """Verify an ID card (public endpoint)"""
+    try:
+        id_card = StudentIDCard.objects.get(
+            card_number=card_number,
+            status='active'
+        )
+        
+        # Update last verified timestamp
+        id_card.last_verified = timezone.now()
+        id_card.save()
+        
+        response_data = {
+            'valid': True,
+            'card_number': id_card.card_number,
+            'student_name': id_card.student.user.get_full_name(),
+            'registration_number': id_card.student.registration_number,
+            'programme': id_card.student.programme.name,
+            'issue_date': id_card.issue_date.strftime('%Y-%m-%d'),
+            'expiry_date': id_card.expiry_date.strftime('%Y-%m-%d'),
+            'is_expired': id_card.is_expired,
+        }
+        
+        return JsonResponse(response_data)
+        
+    except StudentIDCard.DoesNotExist:
+        return JsonResponse({'valid': False, 'error': 'ID card not found or inactive'}, status=404)
+
+
+def payment_callback(request):
+    """Handle payment callbacks from payment gateway"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # Extract payment details from callback
+            # This will vary based on your payment provider
+            merchant_request_id = data.get('MerchantRequestID')
+            checkout_request_id = data.get('CheckoutRequestID')
+            result_code = data.get('ResultCode')
+            mpesa_receipt = data.get('MpesaReceiptNumber')
+            
+            # Find payment record
+            payment = StudentIDPayment.objects.get(
+                merchant_request_id=merchant_request_id,
+                checkout_request_id=checkout_request_id
+            )
+            
+            if result_code == '0':  # Success
+                payment.status = 'completed'
+                payment.mpesa_receipt_number = mpesa_receipt
+                payment.result_code = result_code
+                payment.result_description = data.get('ResultDesc', 'Success')
+                payment.confirmed_date = timezone.now()
+                payment.save()
+                
+                # Update application
+                application = payment.application
+                application.amount_paid += payment.amount
+                application.payment_reference = payment.payment_reference
+                application.payment_date = timezone.now()
+                if application.amount_paid >= application.amount_due:
+                    application.status = 'payment_confirmed'
+                application.save()
+                
+                # Send notification
+                IDCardNotification.objects.create(
+                    student=application.student,
+                    application=application,
+                    notification_type='payment_confirmed',
+                    title='Payment Confirmed',
+                    message=f'Payment of KES {payment.amount} for application #{application.application_number} has been confirmed.',
+                    sent_via_portal=True,
+                    sent_via_email=True
+                )
+                
+                return JsonResponse({'status': 'success'})
+            else:
+                # Payment failed
+                payment.status = 'failed'
+                payment.result_code = result_code
+                payment.result_description = data.get('ResultDesc', 'Failed')
+                payment.save()
+                
+                return JsonResponse({'status': 'failed'})
+                
+        except Exception as e:
+            print(f"Payment callback error: {str(e)}")
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+    return JsonResponse({'status': 'invalid_method'}, status=405)
+
+
+# ============= ADMIN VIEWS =============
+
+@login_required
+def admin_id_applications(request):
+    """Admin view of all ID applications"""
+    if request.user.role not in ['admin', 'registrar', 'finance']:
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('admin_dashboard')
+    
+    status_filter = request.GET.get('status', '')
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    applications = StudentIDApplication.objects.all().select_related(
+        'student', 'id_type', 'fee_structure'
+    ).order_by('-application_date')
+    
+    if status_filter:
+        applications = applications.filter(status=status_filter)
+    
+    if date_from:
+        applications = applications.filter(application_date__date__gte=date_from)
+    
+    if date_to:
+        applications = applications.filter(application_date__date__lte=date_to)
+    
+    # Statistics
+    total_applications = applications.count()
+    pending_payment = applications.filter(status='payment_pending').count()
+    in_production = applications.filter(status='in_production').count()
+    ready_for_pickup = applications.filter(status='ready_for_pickup').count()
+    
+    context = {
+        'applications': applications,
+        'total_applications': total_applications,
+        'pending_payment': pending_payment,
+        'in_production': in_production,
+        'ready_for_pickup': ready_for_pickup,
+        'status_filter': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'admin/students/student_id_applications.html', context)
+
+
+@login_required
+def admin_view_application(request, application_id):
+    """Admin view of specific application"""
+    if request.user.role not in ['admin', 'registrar', 'finance']:
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('admin_dashboard')
+    
+    application = get_object_or_404(StudentIDApplication, id=application_id)
+    payments = StudentIDPayment.objects.filter(application=application).order_by('-payment_date')
+    
+    # Get any issued card
+    try:
+        issued_card = StudentIDCard.objects.get(application=application)
+    except StudentIDCard.DoesNotExist:
+        issued_card = None
+    
+    context = {
+        'application': application,
+        'payments': payments,
+        'issued_card': issued_card,
+    }
+    
+    return render(request, 'admin/students/view_id_application.html', context)
+
+
+@login_required
+def update_application_status(request, application_id):
+    """Update application status (admin only)"""
+    if request.user.role not in ['admin', 'registrar', 'finance']:
+        messages.error(request, "You don't have permission to perform this action.")
+        return redirect('admin_dashboard')
+    
+    application = get_object_or_404(StudentIDApplication, id=application_id)
+    
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        notes = request.POST.get('notes', '')
+        
+        if new_status in dict(StudentIDApplication.APPLICATION_STATUS).keys():
+            old_status = application.status
+            application.status = new_status
+            application.reviewed_by = request.user
+            application.review_date = timezone.now()
+            application.review_notes = notes
+            
+            # Set completion date if moving to completed
+            if new_status == 'completed':
+                application.actual_completion_date = timezone.now().date()
+            
+            application.save()
+            
+            # Send notification to student
+            IDCardNotification.objects.create(
+                student=application.student,
+                application=application,
+                notification_type='status_update',
+                title=f'Application Status Updated',
+                message=f'Your student ID application #{application.application_number} status has been updated from {old_status} to {new_status}. Notes: {notes}',
+                sent_via_portal=True,
+                sent_via_email=True
+            )
+            
+            messages.success(request, f"Application status updated to {new_status}.")
+        else:
+            messages.error(request, "Invalid status selected.")
+    
+    return redirect('admin_view_id_application', application_id=application.id)
+
+
+@login_required
+def issue_student_id(request, application_id):
+    """Issue student ID card (admin only)"""
+    if request.user.role not in ['admin', 'registrar']:
+        messages.error(request, "You don't have permission to perform this action.")
+        return redirect('admin_dashboard')
+    
+    application = get_object_or_404(StudentIDApplication, id=application_id)
+    
+    if application.status != 'payment_confirmed':
+        messages.error(request, "Cannot issue ID card. Payment not confirmed.")
+        return redirect('admin_view_id_application', application_id=application.id)
+    
+    if request.method == 'POST':
+        card_type = request.POST.get('card_type', 'physical')
+        pick_up_location = request.POST.get('pick_up_location', '')
+        pick_up_code = request.POST.get('pick_up_code', '')
+        
+        try:
+            # Check if card already issued
+            if StudentIDCard.objects.filter(application=application).exists():
+                messages.warning(request, "ID card already issued for this application.")
+                return redirect('admin_view_id_application', application_id=application.id)
+            
+            # Generate and issue card
+            id_card = StudentIDCard.objects.create(
+                student=application.student,
+                application=application,
+                card_type=card_type,
+                issue_date=timezone.now().date(),
+                expiry_date=timezone.now().date() + timedelta(days=application.id_type.validity_period_months * 30),
+                status='active',
+                pick_up_location=pick_up_location if card_type == 'physical' else '',
+                barcode=f"BAR{application.application_number}"
+            )
+            
+            # Update application status
+            if card_type == 'physical':
+                application.status = 'ready_for_pickup'
+                application.pick_up_location = pick_up_location
+                application.pick_up_code = pick_up_code
+            else:
+                application.status = 'delivered'
+                application.digital_id_url = f"/media/digital_ids/{id_card.id}.pdf"
+                application.digital_id_sent_date = timezone.now()
+            
+            application.save()
+            
+            # Send notification
+            if card_type == 'physical':
+                notification_type = 'ready_for_pickup'
+                title = 'ID Card Ready for Pickup'
+                message = f'Your physical student ID card for application #{application.application_number} is ready for pickup at {pick_up_location}. Pickup code: {pick_up_code}'
+            else:
+                notification_type = 'delivered'
+                title = 'Digital ID Card Delivered'
+                message = f'Your digital student ID card for application #{application.application_number} has been delivered. You can download it from your portal.'
+            
+            IDCardNotification.objects.create(
+                student=application.student,
+                application=application,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                sent_via_portal=True,
+                sent_via_email=True,
+                sent_via_sms=True
+            )
+            
+            messages.success(request, f"Student ID card issued successfully!")
+            
+        except Exception as e:
+            messages.error(request, f"Error issuing ID card: {str(e)}")
+    
+    context = {
+        'application': application,
+    }
+    
+    return render(request, 'admin/students/issue_student_id.html', context)
+
+
+@login_required
+def id_card_reports(request):
+    """Generate reports for ID cards"""
+    if request.user.role not in ['admin', 'registrar', 'finance']:
+        messages.error(request, "You don't have permission to access this page.")
+        return redirect('admin_dashboard')
+    
+    # Date range filter
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    
+    # Base queryset
+    applications = StudentIDApplication.objects.all()
+    cards = StudentIDCard.objects.all()
+    payments = StudentIDPayment.objects.filter(status='completed')
+    
+    if date_from:
+        applications = applications.filter(application_date__date__gte=date_from)
+        cards = cards.filter(issue_date__gte=date_from)
+        payments = payments.filter(payment_date__date__gte=date_from)
+    
+    if date_to:
+        applications = applications.filter(application_date__date__lte=date_to)
+        cards = cards.filter(issue_date__lte=date_to)
+        payments = payments.filter(payment_date__date__lte=date_to)
+    
+    # Statistics
+    total_revenue = payments.aggregate(total=Sum('amount'))['total'] or 0
+    total_applications = applications.count()
+    total_cards_issued = cards.count()
+    
+    # Status distribution
+    status_counts = applications.values('status').annotate(count=Count('id')).order_by('status')
+    
+    # Revenue by ID type
+    revenue_by_type = StudentIDPayment.objects.filter(
+        status='completed',
+        application__fee_structure__id_type__isnull=False
+    ).values(
+        'application__fee_structure__id_type__name'
+    ).annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    context = {
+        'total_revenue': total_revenue,
+        'total_applications': total_applications,
+        'total_cards_issued': total_cards_issued,
+        'status_counts': status_counts,
+        'revenue_by_type': revenue_by_type,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'admin/students/id_card_reports.html', context)

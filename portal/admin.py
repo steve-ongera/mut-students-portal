@@ -922,6 +922,8 @@ unpublish_materials.short_description = 'Unpublish selected materials'
 # Add actions to TeachingMaterialAdmin
 TeachingMaterialAdmin.actions = [publish_materials, unpublish_materials]
 
+
+
 # Customize admin site
 admin.site.site_header = "MUT University Management System"
 admin.site.site_title = "MUT Admin"

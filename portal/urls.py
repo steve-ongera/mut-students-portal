@@ -315,4 +315,23 @@ urlpatterns = [
     # Student Timetable
     path('student/timetable/', views.student_timetable, name='student_timetable'),
     
+    # Student ID Card URLs
+    path('student-id/', views.student_id_dashboard, name='student_id_dashboard'),
+    path('student-id/apply/', views.apply_for_student_id, name='apply_student_id'),
+    path('student-id/application/<int:application_id>/', views.view_application, name='view_id_application'),
+    path('student-id/application/<int:application_id>/pay/', views.initiate_payment, name='initiate_id_payment'),
+    path('student-id/application/<int:application_id>/upload-photo/', views.upload_id_photo, name='upload_id_photo'),
+    path('student-id/my-ids/', views.my_student_ids, name='my_student_ids'),
+    path('student-id/verify/<str:card_number>/', views.verify_id_card, name='verify_id_card'),
+    
+    # Payment Callbacks 
+    path('api/student-id/payment/callback/', views.payment_callback, name='id_payment_callback'),
+    
+    # Admin URLs
+    path('admin/student-id/applications/', views.admin_id_applications, name='admin_id_applications'),
+    path('admin/student-id/application/<int:application_id>/', views.admin_view_application, name='admin_view_id_application'),
+    path('admin/student-id/application/<int:application_id>/update-status/', views.update_application_status, name='update_id_status'),
+    path('admin/student-id/issue-card/<int:application_id>/', views.issue_student_id, name='issue_student_id'),
+    path('admin/student-id/reports/', views.id_card_reports, name='id_card_reports'),
+    
 ]

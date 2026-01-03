@@ -1,0 +1,382 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Application #{{ application.application_number }}{% endblock %}
+
+{% block page_title %}Application Details{% endblock %}
+{% block page_subtitle %}#{{ application.application_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_id_dashboard' %}">Student ID</a></li>
+        <li class="breadcrumb-item active">Application #{{ application.application_number }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Application Status Timeline -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Application Status</h5>
+                <span class="badge bg-{{ application.status|status_color }}">
+                    {{ application.get_status_display }}
+                </span>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="timeline">
+                {% include 'student/partials/id_application_timeline.html' %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Application Details -->
+        <div class="col-md-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Application Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Application Number</label>
+                                <p class="fw-semibold">{{ application.application_number }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Application Date</label>
+                                <p>{{ application.application_date|date:"F d, Y H:i" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>ID Type</label>
+                                <p>{{ application.id_type.name }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Application Reason</label>
+                                <p>{{ application.get_application_reason_display }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Processing Type</label>
+                                <p>
+                                    {% if application.is_rush_processing %}
+                                    <span class="badge bg-warning">Rush Processing</span>
+                                    {% else %}
+                                    <span class="badge bg-info">Standard Processing</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Estimated Completion</label>
+                                <p>
+                                    {% if application.estimated_completion_date %}
+                                    {{ application.estimated_completion_date|date:"F d, Y" }}
+                                    {% else %}
+                                    <span class="text-muted">Not available</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        {% if application.reason_details %}
+                        <div class="col-12">
+                            <div class="info-group">
+                                <label>Reason Details</label>
+                                <p>{{ application.reason_details }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Information -->
+            <div class="management-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Amount Due</label>
+                                <p class="fw-semibold">KES {{ application.amount_due }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Amount Paid</label>
+                                <p class="fw-semibold text-success">KES {{ application.amount_paid }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Balance</label>
+                                <p class="fw-semibold text-{{ application.balance|payment_balance_color }}">
+                                    KES {{ application.balance }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Payment Status</label>
+                                <p>
+                                    {% if application.is_paid %}
+                                    <span class="badge bg-success">Paid in Full</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Payment Required</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        {% if application.payment_reference %}
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Payment Reference</label>
+                                <p>{{ application.payment_reference }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if application.payment_date %}
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label>Payment Date</label>
+                                <p>{{ application.payment_date|date:"F d, Y H:i" }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Payment Actions -->
+                    {% if not application.is_paid and application.status in allowed_payment_statuses %}
+                    <div class="mt-4">
+                        <a href="{% url 'initiate_id_payment' application.id %}" 
+                           class="btn btn-success">
+                            <i class="ri-money-dollar-circle-line"></i> Make Payment
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Photo Preview -->
+            {% if application.photo %}
+            <div class="management-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">Uploaded Photo</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ application.photo.url }}" 
+                         alt="ID Photo" 
+                         class="img-fluid rounded"
+                         style="max-height: 300px;">
+                    <div class="mt-3">
+                        <a href="{{ application.photo.url }}" 
+                           class="btn btn-sm btn-outline-primary"
+                           download>
+                            <i class="ri-download-line"></i> Download Photo
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Sidebar - Actions & History -->
+        <div class="col-md-4">
+            <!-- Quick Actions -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        {% if application.status == 'draft' %}
+                        <a href="{% url 'upload_id_photo' application.id %}" 
+                           class="btn btn-primary">
+                            <i class="ri-upload-line"></i> Upload Photo
+                        </a>
+                        {% endif %}
+                        
+                        {% if application.status == 'submitted' and not application.is_paid %}
+                        <a href="{% url 'initiate_id_payment' application.id %}" 
+                           class="btn btn-success">
+                            <i class="ri-money-dollar-circle-line"></i> Make Payment
+                        </a>
+                        {% endif %}
+                        
+                        {% if application.status == 'ready_for_pickup' %}
+                        <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#pickupModal">
+                            <i class="ri-map-pin-line"></i> Pickup Instructions
+                        </button>
+                        {% endif %}
+                        
+                        <a href="{% url 'student_id_dashboard' %}" 
+                           class="btn btn-outline-secondary">
+                            <i class="ri-arrow-left-line"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment History -->
+            {% if payments %}
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Payment History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for payment in payments %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>KES {{ payment.amount }}</strong>
+                                    <div class="text-muted small">{{ payment.get_payment_method_display }}</div>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-{{ payment.status|status_color }}">
+                                        {{ payment.get_status_display }}
+                                    </span>
+                                    <div class="text-muted small">{{ payment.payment_date|date:"M d, Y" }}</div>
+                                </div>
+                            </div>
+                            {% if payment.transaction_id %}
+                            <small class="text-muted">Ref: {{ payment.transaction_id }}</small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Application Timeline -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline timeline-sm">
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-success"></div>
+                            <div class="timeline-content">
+                                <small class="text-muted">{{ application.application_date|date:"M d, H:i" }}</small>
+                                <p class="mb-0">Application created</p>
+                            </div>
+                        </div>
+                        
+                        {% if application.submitted_date %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <small class="text-muted">{{ application.submitted_date|date:"M d, H:i" }}</small>
+                                <p class="mb-0">Photo uploaded & submitted</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if application.payment_date %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-info"></div>
+                            <div class="timeline-content">
+                                <small class="text-muted">{{ application.payment_date|date:"M d, H:i" }}</small>
+                                <p class="mb-0">Payment confirmed</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if application.estimated_completion_date %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <small class="text-muted">Estimated</small>
+                                <p class="mb-0">Completion: {{ application.estimated_completion_date|date:"M d" }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pickup Instructions Modal -->
+{% if application.status == 'ready_for_pickup' %}
+<div class="modal fade" id="pickupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">ID Card Pickup Instructions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <h6>Your ID card is ready for pickup!</h6>
+                <p><strong>Location:</strong> {{ application.pick_up_location }}</p>
+                <p><strong>Pickup Code:</strong> {{ application.pick_up_code }}</p>
+                <p><strong>Hours:</strong> Monday-Friday, 8:00 AM - 5:00 PM</p>
+                <div class="alert alert-info mt-3">
+                    <i class="ri-information-line"></i>
+                    <strong>Required for pickup:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Your student ID/registration number</li>
+                        <li>This pickup code</li>
+                        <li>National ID/Passport for verification</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 20px;
+}
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+.timeline-marker {
+    position: absolute;
+    left: -26px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6c757d;
+}
+.timeline-content {
+    margin-left: 0;
+}
+.timeline-sm .timeline-marker {
+    width: 8px;
+    height: 8px;
+    left: -19px;
+}
+</style>
+{% endblock %}
