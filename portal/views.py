@@ -12426,3 +12426,431 @@ def api_search_students(request):
     } for s in students]
     
     return JsonResponse({'students': result})
+
+
+# ============================================
+# views.py - Timetable Management Views
+# ============================================
+
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.db.models import Q, Prefetch
+from django.utils import timezone
+from decimal import Decimal
+import json
+
+from portal.models import (
+    Programme, AcademicYear, Semester, Timetable, TimetableSlot,
+    ProgrammeUnit, UnitAllocation, Unit, User, Department, School
+)
+
+
+@login_required
+def admin_timetable_master(request):
+    """Master timetable management view"""
+    # Get all active programmes for dropdown
+    programmes = Programme.objects.select_related(
+        'department__school'
+    ).filter(is_active=True).order_by('department__school__name', 'name')
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all academic years for dropdown
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    context = {
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'admin/timetable/master_timetable.html', context)
+
+
+# ============================================
+# API Endpoints
+# ============================================
+
+@login_required
+@require_http_methods(["GET"])
+def api_get_programme_units(request):
+    """Get units for a specific programme, year, and semester"""
+    programme_id = request.GET.get('programme_id')
+    academic_year_id = request.GET.get('academic_year_id')
+    year_of_study = request.GET.get('year_of_study')
+    semester_number = request.GET.get('semester_number')
+    
+    if not all([programme_id, academic_year_id, year_of_study, semester_number]):
+        return JsonResponse({
+            'success': False,
+            'error': 'Missing required parameters'
+        }, status=400)
+    
+    try:
+        # Get programme units for the specified criteria
+        programme_units = ProgrammeUnit.objects.filter(
+            programme_id=programme_id,
+            academic_year_id=academic_year_id,
+            year_of_study=year_of_study,
+            semester_number=semester_number,
+            is_active=True
+        ).select_related(
+            'unit',
+            'unit__department'
+        ).order_by('unit__code')
+        
+        # Get current semester
+        semester = Semester.objects.filter(
+            academic_year_id=academic_year_id,
+            semester_number=semester_number
+        ).first()
+        
+        if not semester:
+            return JsonResponse({
+                'success': False,
+                'error': 'Semester not found'
+            }, status=404)
+        
+        # Get or create timetable
+        programme = Programme.objects.get(id=programme_id)
+        academic_year = AcademicYear.objects.get(id=academic_year_id)
+        
+        timetable, created = Timetable.objects.get_or_create(
+            programme=programme,
+            academic_year=academic_year,
+            semester=semester,
+            year_of_study=year_of_study,
+            defaults={
+                'name': f"{programme.code} - Year {year_of_study} Sem {semester_number} ({academic_year.name})",
+                'created_by': request.user
+            }
+        )
+        
+        # Get existing timetable slots
+        existing_slots = TimetableSlot.objects.filter(
+            timetable=timetable
+        ).select_related(
+            'unit_allocation__lecturer',
+            'unit_allocation__programme_unit__unit'
+        )
+        
+        # Build units data with allocation info
+        units_data = []
+        for pu in programme_units:
+            # Check for unit allocation
+            allocation = UnitAllocation.objects.filter(
+                programme_unit=pu,
+                semester=semester
+            ).select_related('lecturer').first()
+            
+            # Check for existing slot
+            slot = existing_slots.filter(
+                unit_allocation__programme_unit=pu
+            ).first() if allocation else None
+            
+            unit_info = {
+                'id': pu.id,
+                'unit_code': pu.unit.code,
+                'unit_name': pu.unit.name,
+                'credit_hours': pu.unit.credit_hours,
+                'unit_type': pu.get_unit_type_display(),
+                'allocation_id': allocation.id if allocation else None,
+                'lecturer_name': allocation.lecturer.get_full_name() if allocation else 'Not Allocated',
+                'lecturer_id': allocation.lecturer.id if allocation else None,
+                'is_allocated': bool(allocation),
+                'slot': {
+                    'id': slot.id,
+                    'day': slot.day_of_week,
+                    'start_time': slot.start_time.strftime('%H:%M'),
+                    'end_time': slot.end_time.strftime('%H:%M'),
+                    'venue': slot.venue,
+                    'slot_type': slot.get_slot_type_display(),
+                } if slot else None
+            }
+            
+            units_data.append(unit_info)
+        
+        return JsonResponse({
+            'success': True,
+            'timetable_id': timetable.id,
+            'units': units_data,
+            'message': f'Found {len(units_data)} units'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_get_lecturers(request):
+    """Get all lecturers for allocation"""
+    lecturers = User.objects.filter(
+        role='lecturer',
+        is_active_user=True
+    ).select_related('lecturer_profile__department').order_by('first_name', 'last_name')
+    
+    lecturers_data = [{
+        'id': lec.id,
+        'name': lec.get_full_name(),
+        'department': lec.lecturer_profile.department.name if hasattr(lec, 'lecturer_profile') else 'N/A',
+        'designation': lec.lecturer_profile.get_designation_display() if hasattr(lec, 'lecturer_profile') else 'N/A'
+    } for lec in lecturers]
+    
+    return JsonResponse({
+        'success': True,
+        'lecturers': lecturers_data
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_save_timetable_slot(request):
+    """Save or update a timetable slot"""
+    try:
+        data = json.loads(request.body)
+        
+        timetable_id = data.get('timetable_id')
+        programme_unit_id = data.get('programme_unit_id')
+        lecturer_id = data.get('lecturer_id')
+        day_of_week = data.get('day')
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+        venue = data.get('venue')
+        slot_type = data.get('slot_type', 'lecture')
+        slot_id = data.get('slot_id')  # For updates
+        
+        # Validate required fields
+        if not all([timetable_id, programme_unit_id, day_of_week, start_time, end_time, venue]):
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required fields'
+            }, status=400)
+        
+        # Get timetable
+        timetable = Timetable.objects.get(id=timetable_id)
+        
+        # Get or create unit allocation
+        programme_unit = ProgrammeUnit.objects.get(id=programme_unit_id)
+        
+        if lecturer_id:
+            # Create/get unit allocation
+            allocation, created = UnitAllocation.objects.get_or_create(
+                programme_unit=programme_unit,
+                semester=timetable.semester,
+                defaults={
+                    'lecturer_id': lecturer_id,
+                    'assigned_by': request.user,
+                    'status': 'pending'
+                }
+            )
+            
+            # Update lecturer if changed
+            if not created and allocation.lecturer_id != int(lecturer_id):
+                allocation.lecturer_id = lecturer_id
+                allocation.save()
+        else:
+            # Try to get existing allocation
+            allocation = UnitAllocation.objects.filter(
+                programme_unit=programme_unit,
+                semester=timetable.semester
+            ).first()
+            
+            if not allocation:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Please allocate a lecturer first'
+                }, status=400)
+        
+        # Check for conflicts (same time, same day)
+        conflicts = TimetableSlot.objects.filter(
+            timetable=timetable,
+            day_of_week=day_of_week,
+            start_time__lt=end_time,
+            end_time__gt=start_time
+        )
+        
+        if slot_id:
+            conflicts = conflicts.exclude(id=slot_id)
+        
+        if conflicts.exists():
+            conflict_slot = conflicts.first()
+            return JsonResponse({
+                'success': False,
+                'error': f'Time conflict with {conflict_slot.unit_allocation.programme_unit.unit.code}',
+                'conflict': True
+            }, status=400)
+        
+        # Create or update slot
+        if slot_id:
+            # Update existing slot
+            slot = TimetableSlot.objects.get(id=slot_id)
+            slot.day_of_week = day_of_week
+            slot.start_time = start_time
+            slot.end_time = end_time
+            slot.venue = venue
+            slot.slot_type = slot_type
+            slot.unit_allocation = allocation
+            slot.save()
+            message = 'Slot updated successfully'
+        else:
+            # Create new slot
+            slot = TimetableSlot.objects.create(
+                timetable=timetable,
+                unit_allocation=allocation,
+                day_of_week=day_of_week,
+                start_time=start_time,
+                end_time=end_time,
+                venue=venue,
+                slot_type=slot_type
+            )
+            message = 'Slot created successfully'
+        
+        return JsonResponse({
+            'success': True,
+            'message': message,
+            'slot': {
+                'id': slot.id,
+                'day': slot.day_of_week,
+                'start_time': slot.start_time.strftime('%H:%M'),
+                'end_time': slot.end_time.strftime('%H:%M'),
+                'venue': slot.venue,
+                'unit_code': allocation.programme_unit.unit.code,
+                'unit_name': allocation.programme_unit.unit.name,
+                'lecturer_name': allocation.lecturer.get_full_name()
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_delete_timetable_slot(request):
+    """Delete a timetable slot"""
+    try:
+        data = json.loads(request.body)
+        slot_id = data.get('slot_id')
+        
+        if not slot_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Slot ID required'
+            }, status=400)
+        
+        slot = TimetableSlot.objects.get(id=slot_id)
+        slot.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Slot deleted successfully'
+        })
+        
+    except TimetableSlot.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Slot not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def api_get_timetable_slots(request):
+    """Get all slots for a timetable"""
+    timetable_id = request.GET.get('timetable_id')
+    
+    if not timetable_id:
+        return JsonResponse({
+            'success': False,
+            'error': 'Timetable ID required'
+        }, status=400)
+    
+    try:
+        slots = TimetableSlot.objects.filter(
+            timetable_id=timetable_id
+        ).select_related(
+            'unit_allocation__lecturer',
+            'unit_allocation__programme_unit__unit'
+        ).order_by('day_of_week', 'start_time')
+        
+        slots_data = [{
+            'id': slot.id,
+            'day': slot.day_of_week,
+            'start_time': slot.start_time.strftime('%H:%M'),
+            'end_time': slot.end_time.strftime('%H:%M'),
+            'venue': slot.venue,
+            'slot_type': slot.get_slot_type_display(),
+            'unit_code': slot.unit_allocation.programme_unit.unit.code,
+            'unit_name': slot.unit_allocation.programme_unit.unit.name,
+            'lecturer_name': slot.unit_allocation.lecturer.get_full_name(),
+            'lecturer_id': slot.unit_allocation.lecturer.id,
+            'programme_unit_id': slot.unit_allocation.programme_unit.id,
+        } for slot in slots]
+        
+        return JsonResponse({
+            'success': True,
+            'slots': slots_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_publish_timetable(request):
+    """Publish timetable to make it visible to students"""
+    try:
+        data = json.loads(request.body)
+        timetable_id = data.get('timetable_id')
+        
+        if not timetable_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Timetable ID required'
+            }, status=400)
+        
+        timetable = Timetable.objects.get(id=timetable_id)
+        timetable.is_published = True
+        timetable.published_date = timezone.now()
+        timetable.approved_by = request.user
+        timetable.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Timetable published successfully'
+        })
+        
+    except Timetable.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Timetable not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+

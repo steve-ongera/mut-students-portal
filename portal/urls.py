@@ -301,4 +301,15 @@ urlpatterns = [
     path('api/library/borrowing/<int:borrowing_id>/calculate-fine/', views.api_calculate_fine, name='api_calculate_fine'),
     path('api/library/search-students/', views.api_search_students, name='api_search_students'),
     
+     # Master Timetable Management
+    path('admin-timetable/master/', views.admin_timetable_master, name='admin_timetable_master'),
+    
+    # API Endpoints
+    path('api/timetable/get-units/', views.api_get_programme_units, name='api_get_programme_units'),
+    path('api/timetable/get-lecturers/', views.api_get_lecturers, name='api_get_lecturers'),
+    path('api/timetable/save-slot/', views.api_save_timetable_slot, name='api_save_timetable_slot'),
+    path('api/timetable/delete-slot/', views.api_delete_timetable_slot, name='api_delete_timetable_slot'),
+    path('api/timetable/get-slots/', views.api_get_timetable_slots, name='api_get_timetable_slots'),
+    path('api/timetable/publish/', views.api_publish_timetable, name='api_publish_timetable'),
+    
 ]
