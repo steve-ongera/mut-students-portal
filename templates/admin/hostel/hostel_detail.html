@@ -1,0 +1,1353 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}{{ hostel.name }} - Hostel Details{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}{{ hostel.name }}{% endblock %}
+{% block page_subtitle %}{{ hostel.code }} - Detailed hostel information{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_list' %}">Hostels</a></li>
+        <li class="breadcrumb-item active">{{ hostel.code }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Header Actions -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 fw-semibold mb-1">{{ hostel.name }}</h2>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-dark">{{ hostel.code }}</span>
+                <span class="gender-badge gender-{{ hostel.gender_type|lower }}">
+                    {% if hostel.gender_type == 'M' %}
+                    <i class="ri-men-line"></i> Boys
+                    {% elif hostel.gender_type == 'F' %}
+                    <i class="ri-women-line"></i> Girls
+                    {% else %}
+                    <i class="ri-group-line"></i> Mixed
+                    {% endif %}
+                </span>
+                {% if hostel.is_active %}
+                <span class="status-badge status-active">
+                    <i class="ri-checkbox-circle-fill"></i> Active
+                </span>
+                {% else %}
+                <span class="status-badge status-inactive">
+                    <i class="ri-close-circle-fill"></i> Inactive
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'admin_update_hostel' hostel.code %}" class="btn btn-outline-primary btn-sm">
+                <i class="ri-edit-line"></i> Edit Hostel
+            </a>
+            <button class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#addRoomsModal">
+                <i class="ri-add-line"></i> Add Rooms
+            </button>
+            <a href="{% url 'api_hostel_stats' hostel.code %}" class="btn btn-outline-info btn-sm" target="_blank">
+                <i class="ri-bar-chart-line"></i> View Stats API
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="ri-door-open-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ hostel.room_count }}</div>
+                    <div class="stat-label">Total Rooms</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="ri-hotel-bed-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ hostel.total_beds }}</div>
+                    <div class="stat-label">Total Beds</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="ri-check-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ bed_stats.available }}</div>
+                    <div class="stat-label">Available</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-user-3-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ bed_stats.occupied }}</div>
+                    <div class="stat-label">Occupied</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="hostelTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info" type="button">
+                <i class="ri-information-line me-1"></i> Information
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button">
+                <i class="ri-door-open-line me-1"></i> Rooms ({{ hostel.room_count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="allocations-tab" data-bs-toggle="tab" data-bs-target="#allocations" type="button">
+                <i class="ri-user-line me-1"></i> Current Allocations ({{ current_allocations.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="applications-tab" data-bs-toggle="tab" data-bs-target="#applications" type="button">
+                <i class="ri-file-list-line me-1"></i> Applications ({{ recent_applications.count }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="fees-tab" data-bs-toggle="tab" data-bs-target="#fees" type="button">
+                <i class="ri-money-dollar-circle-line me-1"></i> Fee Structures
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="hostelTabContent">
+        <!-- Information Tab -->
+        <div class="tab-pane fade show active" id="info" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Hostel Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label class="info-label">Hostel Name</label>
+                                <div class="info-value">{{ hostel.name }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label class="info-label">Hostel Code</label>
+                                <div class="info-value">{{ hostel.code }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label class="info-label">Gender Type</label>
+                                <div class="info-value">{{ hostel.get_gender_type_display }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label class="info-label">Total Capacity</label>
+                                <div class="info-value">{{ hostel.total_capacity }} beds</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label class="info-label">Location</label>
+                                <div class="info-value">{{ hostel.location|default:"Not specified" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-group">
+                                <label class="info-label">Warden</label>
+                                <div class="info-value">
+                                    {% if hostel.warden %}
+                                    {{ hostel.warden.get_full_name }}
+                                    {% else %}
+                                    Not assigned
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% if hostel.description %}
+                        <div class="col-12">
+                            <div class="info-group">
+                                <label class="info-label">Description</label>
+                                <div class="info-value">{{ hostel.description }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if hostel.amenities %}
+                        <div class="col-12">
+                            <div class="info-group">
+                                <label class="info-label">Amenities</label>
+                                <div class="info-value">{{ hostel.amenities }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bed Status Breakdown -->
+            <div class="management-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">Bed Status Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <div class="status-card status-available">
+                                <div class="status-icon">
+                                    <i class="ri-check-line"></i>
+                                </div>
+                                <div class="status-number">{{ bed_stats.available }}</div>
+                                <div class="status-label">Available</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="status-card status-occupied">
+                                <div class="status-icon">
+                                    <i class="ri-user-3-line"></i>
+                                </div>
+                                <div class="status-number">{{ bed_stats.occupied }}</div>
+                                <div class="status-label">Occupied</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="status-card status-reserved">
+                                <div class="status-icon">
+                                    <i class="ri-bookmark-line"></i>
+                                </div>
+                                <div class="status-number">{{ bed_stats.reserved }}</div>
+                                <div class="status-label">Reserved</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="status-card status-maintenance">
+                                <div class="status-icon">
+                                    <i class="ri-tools-line"></i>
+                                </div>
+                                <div class="status-number">{{ bed_stats.maintenance }}</div>
+                                <div class="status-label">Maintenance</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rooms Tab -->
+        <div class="tab-pane fade" id="rooms" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title">Rooms ({{ rooms.count }})</h5>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addRoomsModal">
+                            <i class="ri-add-line"></i> Add Rooms
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Room No.</th>
+                                    <th>Floor</th>
+                                    <th>Type</th>
+                                    <th>Capacity</th>
+                                    <th>Features</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for room in rooms %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ room.room_number }}</strong>
+                                    </td>
+                                    <td>Floor {{ room.floor }}</td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info">
+                                            {{ room.get_room_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ room.capacity }} bed(s)</td>
+                                    <td>
+                                        {% if room.has_bathroom %}
+                                        <i class="ri-contrast-drop-line text-info" title="Bathroom"></i>
+                                        {% endif %}
+                                        {% if room.has_balcony %}
+                                        <i class="ri-window-line text-success" title="Balcony"></i>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if room.is_active %}
+                                        <span class="status-badge status-active">Active</span>
+                                        {% else %}
+                                        <span class="status-badge status-inactive">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'admin_hostel_room_detail' room.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="ri-door-open-line fs-3 mb-2"></i>
+                                            <p>No rooms added yet</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Allocations Tab -->
+        <div class="tab-pane fade" id="allocations" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Current Allocations</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Room</th>
+                                    <th>Bed</th>
+                                    <th>Allocation Date</th>
+                                    <th>Fee Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allocation in current_allocations %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ allocation.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ allocation.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>Room {{ allocation.bed.room.room_number }}</td>
+                                    <td>Bed {{ allocation.bed.bed_number }}</td>
+                                    <td>{{ allocation.allocation_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if allocation.fee_paid %}
+                                        <span class="badge bg-success">Paid</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="ri-user-line fs-3 mb-2"></i>
+                                            <p>No current allocations</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applications Tab -->
+        <div class="tab-pane fade" id="applications" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Applications</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Preferred Room</th>
+                                    <th>Application Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for application in recent_applications %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ application.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ application.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ application.get_preferred_room_type_display }}</td>
+                                    <td>{{ application.application_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if application.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% elif application.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                        {% elif application.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ application.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="ri-file-list-line fs-3 mb-2"></i>
+                                            <p>No applications yet</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fees Tab -->
+        <div class="tab-pane fade" id="fees" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Fee Structures</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Room Type</th>
+                                    <th>Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Fee Amount</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fee in fee_structures %}
+                                <tr>
+                                    <td>{{ fee.get_room_type_display }}</td>
+                                    <td>{{ fee.academic_year.name }}</td>
+                                    <td>{{ fee.semester.name }}</td>
+                                    <td><strong>KES {{ fee.fee_amount|floatformat:2 }}</strong></td>
+                                    <td>
+                                        {% if fee.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="ri-money-dollar-circle-line fs-3 mb-2"></i>
+                                            <p>No fee structures defined</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Rooms Modal -->
+<div class="modal fade" id="addRoomsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Add Rooms</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Use the API endpoint to bulk create rooms for this hostel.</p>
+                <div class="alert alert-info">
+                    <i class="ri-information-line me-2"></i>
+                    <small>API Endpoint: <code>/api/hostels/{{ hostel.code }}/rooms/bulk-create/</code></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    /* Gender & Status Badges */
+    .gender-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .gender-badge.gender-m {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+
+    .gender-badge.gender-f {
+        background: rgba(233, 30, 99, 0.1);
+        color: #E91E63;
+    }
+
+    .gender-badge.gender-mixed {
+        background: rgba(156, 39, 176, 0.1);
+        color: #9C27B0;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .status-badge.status-inactive {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    /* Statistics Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-icon.bg-primary { background: var(--color-primary); }
+    .stat-icon.bg-info { background: var(--color-info); }
+    .stat-icon.bg-success { background: var(--color-success); }
+    .stat-icon.bg-warning { background: var(--color-warning); }
+
+    .stat-details .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-details .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Tabs */
+    .nav-tabs {
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: var(--color-gray-600);
+        padding: 0.75rem 1.25rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        border: none;
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background: transparent;
+        border: none;
+        border-bottom: 2px solid var(--color-primary);
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Info Groups */
+    .info-group {
+        margin-bottom: 0;
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-value {
+        font-size: 1rem;
+        color: var(--color-gray-800);
+    }
+
+    /* Status Cards */
+    .status-card {
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+
+    .status-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .status-card.status-available {
+        background: rgba(76, 175, 80, 0.1);
+        border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+
+    .status-card.status-occupied {
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid rgba(255, 152, 0, 0.2);
+    }
+
+    .status-card.status-reserved {
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+    }
+
+    .status-card.status-maintenance {
+        background: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+    }
+
+    .status-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .status-occupied .status-icon { color: var(--color-warning); }
+    .status-reserved .status-icon { color: var(--color-info); }
+    .status-maintenance .status-icon { color: var(--color-danger); }
+
+    .status-number {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .status-available .status-number { color: var(--color-success); }
+    .status-occupied .status-number { color: var(--color-warning); }
+    .status-reserved .status-number { color: var(--color-info); }
+    .status-maintenance .status-number { color: var(--color-danger); }
+
+    .status-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+
+    /* Badges */
+    .badge {
+        font-weight: 600;
+        padding: 0.375rem 0.75rem;
+        border-radius: 20px;
+    }
+
+    .bg-info-subtle {
+        background-color: rgba(33, 150, 243, 0.1);
+    }
+
+    .text-info {
+        color: var(--color-info);
+    }
+
+    /* Buttons */
+    .btn-sm {
+        padding: 0.375rem 0.875rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+
+    .btn-outline-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .btn-outline-success:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .btn-outline-info:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+        background: var(--color-gray-100);
+    }
+
+    .modal-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        border: 1px solid rgba(33, 150, 243, 0.2);
+        color: var(--color-gray-800);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+    }
+
+    .alert-info code {
+        background: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: var(--color-primary);
+    }
+
+    /* Empty States */
+    .text-muted {
+        color: var(--color-gray-600) !important;
+    }
+
+    .text-muted i {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .text-muted p {
+        margin-bottom: 0;
+        font-size: 0.9375rem;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 992px) {
+        .d-flex.gap-2 {
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            padding: 1rem;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+
+        .stat-details .stat-value {
+            font-size: 1.5rem;
+        }
+
+        .nav-tabs .nav-link {
+            padding: 0.625rem 1rem;
+            font-size: 0.875rem;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0 0.25rem;
+        }
+
+        .d-flex.justify-content-between {
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .d-flex.gap-2 {
+            width: 100%;
+        }
+
+        .d-flex.gap-2 .btn {
+            flex: 1;
+        }
+
+        .stat-card {
+            margin-bottom: 0.75rem;
+        }
+
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+
+        .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tabs .nav-link {
+            white-space: nowrap;
+            padding: 0.5rem 0.875rem;
+        }
+
+        .status-card {
+            margin-bottom: 0.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        h2.h4 {
+            font-size: 1.25rem;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .stat-details .stat-value {
+            font-size: 1.25rem;
+        }
+
+        .stat-details .stat-label {
+            font-size: 0.75rem;
+        }
+
+        .status-number {
+            font-size: 1.5rem;
+        }
+
+        .status-label {
+            font-size: 0.75rem;
+        }
+    }
+
+    /* Print Styles */
+    @media print {
+        .breadcrumb,
+        .btn,
+        .nav-tabs,
+        .modal {
+            display: none !important;
+        }
+
+        .tab-pane {
+            display: block !important;
+            opacity: 1 !important;
+        }
+
+        .management-card {
+            page-break-inside: avoid;
+        }
+
+        .stat-card {
+            border: 1px solid var(--color-gray-200);
+        }
+    }
+
+    /* Custom Scrollbar */
+    .table-responsive::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: var(--color-gray-100);
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: var(--color-gray-600);
+        border-radius: 4px;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb:hover {
+        background: var(--color-primary);
+    }
+
+    /* Loading States */
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    /* Focus States */
+    .btn:focus,
+    .nav-link:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
+    }
+
+    /* Animation for Tab Content */
+    .tab-pane {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Hover Effects for Interactive Elements */
+    .table tbody tr {
+        cursor: pointer;
+    }
+
+    .status-card {
+        cursor: default;
+    }
+
+    /* Icon Colors */
+    .ri-contrast-drop-line {
+        font-size: 1.125rem;
+    }
+
+    .ri-window-line {
+        font-size: 1.125rem;
+    }
+
+    /* Additional Badge Styles */
+    .bg-success {
+        background-color: var(--color-success) !important;
+    }
+
+    .bg-danger {
+        background-color: var(--color-danger) !important;
+    }
+
+    .bg-warning {
+        background-color: var(--color-warning) !important;
+    }
+
+    .bg-secondary {
+        background-color: var(--color-gray-600) !important;
+    }
+
+    /* Utility Classes */
+    .text-dark {
+        color: var(--color-gray-800) !important;
+    }
+
+    .bg-light {
+        background-color: var(--color-gray-100) !important;
+    }
+
+    /* Gap Utilities Enhancement */
+    .gap-2 {
+        gap: 0.5rem !important;
+    }
+
+    .g-3 {
+        gap: 1rem !important;
+    }
+
+    .g-4 {
+        gap: 1.5rem !important;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        }
+    });
+
+    // Tab persistence - Remember active tab
+    const hostelTabs = document.getElementById('hostelTabs');
+    if (hostelTabs) {
+        const tabButtons = hostelTabs.querySelectorAll('button[data-bs-toggle="tab"]');
+        
+        // Load saved tab from localStorage
+        const savedTab = localStorage.getItem('hostelDetailActiveTab');
+        if (savedTab) {
+            const savedTabButton = document.querySelector(`button[data-bs-target="${savedTab}"]`);
+            if (savedTabButton) {
+                const tab = new bootstrap.Tab(savedTabButton);
+                tab.show();
+            }
+        }
+
+        // Save active tab to localStorage
+        tabButtons.forEach(button => {
+            button.addEventListener('shown.bs.tab', function (e) {
+                const target = e.target.getAttribute('data-bs-target');
+                localStorage.setItem('hostelDetailActiveTab', target);
+            });
+        });
+    }
+
+    // Table row click to view details
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        const link = row.querySelector('a.btn-outline-primary');
+        if (link) {
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', function(e) {
+                // Don't trigger if clicking on the button itself
+                if (!e.target.closest('a.btn-outline-primary')) {
+                    link.click();
+                }
+            });
+        }
+    });
+
+    // Animate statistics on load
+    const statValues = document.querySelectorAll('.stat-value, .status-number');
+    statValues.forEach(stat => {
+        const finalValue = parseInt(stat.textContent);
+        if (!isNaN(finalValue) && finalValue > 0) {
+            let currentValue = 0;
+            const increment = Math.ceil(finalValue / 20);
+            const duration = 1000;
+            const stepTime = duration / (finalValue / increment);
+
+            const counter = setInterval(() => {
+                currentValue += increment;
+                if (currentValue >= finalValue) {
+                    stat.textContent = finalValue;
+                    clearInterval(counter);
+                } else {
+                    stat.textContent = currentValue;
+                }
+            }, stepTime);
+        }
+    });
+
+    // Add loading state to buttons
+    const buttons = document.querySelectorAll('.btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            if (this.getAttribute('data-bs-toggle') === 'modal') {
+                return; // Don't add loading for modals
+            }
+            
+            if (!this.classList.contains('btn-outline-primary') || 
+                !this.querySelector('.ri-eye-line')) {
+                const originalContent = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+                
+                // Re-enable after navigation (this will be cancelled by page load)
+                setTimeout(() => {
+                    this.disabled = false;
+                    this.innerHTML = originalContent;
+                }, 3000);
+            }
+        });
+    });
+
+    // Smooth scroll for tabs
+    const tabPane = document.querySelector('.tab-content');
+    if (tabPane) {
+        const tabs = document.querySelectorAll('button[data-bs-toggle="tab"]');
+        tabs.forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function() {
+                tabPane.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
+    }
+
+    // Add search/filter functionality for tables
+    const addTableSearch = (tableId) => {
+        const table = document.querySelector(tableId);
+        if (!table) return;
+
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'form-control mb-3';
+        searchInput.placeholder = 'Search table...';
+        
+        const tbody = table.querySelector('tbody');
+        table.parentElement.insertBefore(searchInput, table);
+
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const rows = tbody.querySelectorAll('tr');
+
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        });
+    };
+
+    // Add refresh data functionality
+    const addRefreshButton = () => {
+        const headers = document.querySelectorAll('.management-card .card-header');
+        headers.forEach(header => {
+            const hasTable = header.parentElement.querySelector('table');
+            if (hasTable && !header.querySelector('.btn-refresh')) {
+                const refreshBtn = document.createElement('button');
+                refreshBtn.className = 'btn btn-sm btn-outline-secondary btn-refresh ms-2';
+                refreshBtn.innerHTML = '<i class="ri-refresh-line"></i>';
+                refreshBtn.title = 'Refresh data';
+                refreshBtn.onclick = function(e) {
+                    e.preventDefault();
+                    location.reload();
+                };
+                
+                const title = header.querySelector('.card-title');
+                if (title) {
+                    title.appendChild(refreshBtn);
+                }
+            }
+        });
+    };
+
+    // Initialize additional features
+    // addTableSearch('.table'); // Uncomment if needed
+    // addRefreshButton(); // Uncomment if needed
+
+    // Print functionality
+    const addPrintButton = () => {
+        const pageTitle = document.querySelector('.page-header');
+        if (pageTitle) {
+            const printBtn = document.createElement('button');
+            printBtn.className = 'btn btn-sm btn-outline-secondary';
+            printBtn.innerHTML = '<i class="ri-printer-line"></i> Print';
+            printBtn.onclick = function() {
+                window.print();
+            };
+            
+            const btnGroup = document.querySelector('.d-flex.gap-2');
+            if (btnGroup) {
+                btnGroup.appendChild(printBtn);
+            }
+        }
+    };
+
+    // Export functionality
+    const addExportButton = () => {
+        const exportData = () => {
+            const hostelName = document.querySelector('h2.h4').textContent;
+            const data = {
+                hostel: hostelName,
+                exported: new Date().toISOString(),
+                statistics: {
+                    rooms: document.querySelectorAll('.stat-value')[0]?.textContent || '0',
+                    beds: document.querySelectorAll('.stat-value')[1]?.textContent || '0',
+                    available: document.querySelectorAll('.stat-value')[2]?.textContent || '0',
+                    occupied: document.querySelectorAll('.stat-value')[3]?.textContent || '0'
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hostel-${hostelName.replace(/\s+/g, '-')}-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        // Add export button if needed
+        // exportData();
+    };
+
+    // Handle browser back button with tab state
+    window.addEventListener('popstate', function() {
+        const savedTab = localStorage.getItem('hostelDetailActiveTab');
+        if (savedTab) {
+            const savedTabButton = document.querySelector(`button[data-bs-target="${savedTab}"]`);
+            if (savedTabButton) {
+                const tab = new bootstrap.Tab(savedTabButton);
+                tab.show();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

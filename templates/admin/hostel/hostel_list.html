@@ -1,0 +1,684 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Hostel Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Hostel Management{% endblock %}
+{% block page_subtitle %}Manage hostels, rooms, and bed allocations{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Hostels</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Hostel Management</h1>
+                <p class="text-muted mb-0">Manage hostels, rooms, and bed allocations</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-hotel-line me-2"></i>
+                    {{ total_hostels }} hostel(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="ri-hotel-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ total_hostels }}</div>
+                    <div class="stat-label">Total Hostels</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="ri-door-open-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ total_rooms }}</div>
+                    <div class="stat-label">Total Rooms</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="ri-hotel-bed-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ available_beds }}</div>
+                    <div class="stat-label">Available Beds</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-user-3-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ occupied_beds }}</div>
+                    <div class="stat-label">Occupied Beds</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Actions</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by name, code, or location..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#filterModal">
+                        <i class="ri-filter-line fs-5"></i>
+                        <span>Filter</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1"
+                            data-bs-toggle="modal"
+                            data-bs-target="#bulkCreateModal">
+                        <i class="ri-add-box-line fs-5"></i>
+                        <span>Bulk Create</span>
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'admin_add_hostel' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                        <i class="ri-add-line fs-5"></i>
+                        <span>Add Hostel</span>
+                    </a>
+                    <button class="btn btn-sm btn-success d-flex align-items-center gap-1">
+                        <i class="ri-download-line fs-5"></i>
+                        <span>Export</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hostels Grid -->
+    <div class="row g-4">
+        {% for hostel in hostels %}
+        <div class="col-md-6 col-lg-4">
+            <div class="hostel-card">
+                <div class="hostel-header">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="hostel-name">{{ hostel.name }}</h5>
+                            <span class="hostel-code">{{ hostel.code }}</span>
+                        </div>
+                        <span class="gender-badge gender-{{ hostel.gender_type|lower }}">
+                            {% if hostel.gender_type == 'M' %}
+                            <i class="ri-men-line"></i> Boys
+                            {% elif hostel.gender_type == 'F' %}
+                            <i class="ri-women-line"></i> Girls
+                            {% else %}
+                            <i class="ri-group-line"></i> Mixed
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="hostel-body">
+                    <div class="hostel-info">
+                        <div class="info-item">
+                            <i class="ri-map-pin-line"></i>
+                            <span>{{ hostel.location|default:"No location" }}</span>
+                        </div>
+                        {% if hostel.warden %}
+                        <div class="info-item">
+                            <i class="ri-user-line"></i>
+                            <span>{{ hostel.warden.get_full_name }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="hostel-stats">
+                        <div class="stat-item">
+                            <div class="stat-number">{{ hostel.room_count }}</div>
+                            <div class="stat-text">Rooms</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ hostel.total_beds }}</div>
+                            <div class="stat-text">Total Beds</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">{{ hostel.total_capacity }}</div>
+                            <div class="stat-text">Capacity</div>
+                        </div>
+                    </div>
+
+                    <div class="hostel-actions">
+                        <a href="{% url 'admin_hostel_detail' hostel.code %}" 
+                           class="btn btn-outline-primary btn-sm flex-fill">
+                            <i class="ri-eye-line"></i> View Details
+                        </a>
+                        <a href="{% url 'admin_update_hostel' hostel.code %}" 
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="ri-edit-line"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="hostel-status">
+                    {% if hostel.is_active %}
+                    <span class="status-badge status-active">
+                        <i class="ri-checkbox-circle-fill"></i> Active
+                    </span>
+                    {% else %}
+                    <span class="status-badge status-inactive">
+                        <i class="ri-close-circle-fill"></i> Inactive
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="empty-state">
+                <i class="ri-hotel-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No hostels found</h5>
+                <p class="text-muted mb-3">Get started by adding your first hostel</p>
+                <a href="{% url 'admin_add_hostel' %}" class="btn btn-primary">
+                    <i class="ri-add-line"></i> Add Hostel
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if hostels.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if hostels.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ hostels.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in hostels.paginator.page_range %}
+                    {% if hostels.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > hostels.number|add:'-3' and i < hostels.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if hostels.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ hostels.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Hostels</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Gender Type</label>
+                            <select name="gender" class="form-select">
+                                <option value="">All Types</option>
+                                {% for code, name in gender_choices %}
+                                <option value="{{ code }}" {% if gender_filter == code %}selected{% endif %}>
+                                    {{ name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'admin_hostel_list' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Create Modal -->
+<div class="modal fade" id="bulkCreateModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Create Hostels</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Use the API endpoint to bulk create hostels with rooms and beds.</p>
+                <div class="alert alert-info">
+                    <i class="ri-information-line me-2"></i>
+                    <small>API Endpoint: <code>/api/hostels/bulk-create/</code></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Page Header */
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Statistics Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-icon.bg-primary { background: var(--color-primary); }
+    .stat-icon.bg-info { background: var(--color-info); }
+    .stat-icon.bg-success { background: var(--color-success); }
+    .stat-icon.bg-warning { background: var(--color-warning); }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+
+    /* Action Buttons */
+    .action-buttons .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+
+    .action-buttons .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Hostel Cards */
+    .hostel-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .hostel-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-4px);
+    }
+
+    .hostel-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .hostel-name {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .hostel-code {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    .gender-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .gender-badge.gender-m {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+
+    .gender-badge.gender-f {
+        background: rgba(233, 30, 99, 0.1);
+        color: #E91E63;
+    }
+
+    .gender-badge.gender-mixed {
+        background: rgba(156, 39, 176, 0.1);
+        color: #9C27B0;
+    }
+
+    .hostel-body {
+        padding: 1.25rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .hostel-info {
+        margin-bottom: 1rem;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+
+    .info-item i {
+        font-size: 1rem;
+        color: var(--color-gray-600);
+    }
+
+    .hostel-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        margin-bottom: 1rem;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        line-height: 1;
+    }
+
+    .stat-text {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    .hostel-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: auto;
+    }
+
+    .hostel-status {
+        padding: 0.75rem 1.25rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.status-active {
+        color: var(--color-success);
+    }
+
+    .status-badge.status-inactive {
+        color: var(--color-danger);
+    }
+
+    /* Empty State */
+    .empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+    }
+
+    /* Pagination */
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips if Bootstrap is loaded
+    if (typeof bootstrap !== 'undefined') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+</script>
+{% endblock %}

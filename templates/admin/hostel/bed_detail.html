@@ -1,0 +1,266 @@
+<!-- ===================== BED DETAIL TEMPLATE ===================== -->
+<!-- templates/admin/hostel/bed_detail.html -->
+
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Bed {{ bed.bed_number }} Details{% endblock %}
+
+{% block page_title %}Bed {{ bed.bed_number }}{% endblock %}
+{% block page_subtitle %}{{ bed.room.hostel.name }} - Room {{ bed.room.room_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_list' %}">Hostels</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_detail' bed.room.hostel.code %}">{{ bed.room.hostel.code }}</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_room_detail' bed.room.id %}">Room {{ bed.room.room_number }}</a></li>
+        <li class="breadcrumb-item active">Bed {{ bed.bed_number }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h4 fw-semibold mb-1">Bed {{ bed.bed_number }}</h2>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-light text-dark">Room {{ bed.room.room_number }}</span>
+                {% if bed.status == 'available' %}
+                <span class="badge bg-success">Available</span>
+                {% elif bed.status == 'occupied' %}
+                <span class="badge bg-warning">Occupied</span>
+                {% elif bed.status == 'reserved' %}
+                <span class="badge bg-info">Reserved</span>
+                {% else %}
+                <span class="badge bg-danger">Maintenance</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Bed Information -->
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Bed Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-group">
+                            <label class="info-label">Bed Number</label>
+                            <div class="info-value">{{ bed.bed_number }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Room</label>
+                            <div class="info-value">{{ bed.room.room_number }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Hostel</label>
+                            <div class="info-value">{{ bed.room.hostel.name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Academic Year</label>
+                            <div class="info-value">{{ bed.academic_year.name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Status</label>
+                            <div class="info-value">
+                                {% if bed.status == 'available' %}
+                                <span class="status-badge status-active">Available</span>
+                                {% elif bed.status == 'occupied' %}
+                                <span class="status-badge status-warning">Occupied</span>
+                                {% elif bed.status == 'reserved' %}
+                                <span class="status-badge status-info">Reserved</span>
+                                {% else %}
+                                <span class="status-badge status-danger">Maintenance</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Active</label>
+                            <div class="info-value">
+                                {% if bed.is_active %}
+                                <span class="status-badge status-active">Yes</span>
+                                {% else %}
+                                <span class="status-badge status-inactive">No</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Allocation -->
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Current Allocation</h5>
+                </div>
+                <div class="card-body">
+                    {% if current_allocation %}
+                    <div class="alert alert-info mb-3">
+                        <i class="ri-information-line me-2"></i>
+                        This bed is currently allocated
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-group">
+                            <label class="info-label">Student Name</label>
+                            <div class="info-value">{{ current_allocation.student.user.get_full_name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Registration No.</label>
+                            <div class="info-value">{{ current_allocation.student.registration_number }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Programme</label>
+                            <div class="info-value">{{ current_allocation.student.programme.code }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Allocation Date</label>
+                            <div class="info-value">{{ current_allocation.allocation_date|date:"M d, Y" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Fee Status</label>
+                            <div class="info-value">
+                                {% if current_allocation.fee_paid %}
+                                <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                <span class="badge bg-danger">Pending</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-user-unfollow-line fs-3 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No current allocation</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Allocation History -->
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Allocation History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Programme</th>
+                                    <th>Academic Year</th>
+                                    <th>Allocation Date</th>
+                                    <th>Check Out</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allocation in allocations %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ allocation.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ allocation.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ allocation.student.programme.code }}</td>
+                                    <td>{{ allocation.academic_year.name }}</td>
+                                    <td>{{ allocation.allocation_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if allocation.check_out_date %}
+                                        {{ allocation.check_out_date|date:"M d, Y" }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if allocation.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="ri-history-line fs-3 text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No allocation history</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reservations -->
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Reservations</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Reservation ID</th>
+                                    <th>Reserved At</th>
+                                    <th>Expires At</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reservation in reservations %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ reservation.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ reservation.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td><code>{{ reservation.reservation_id }}</code></td>
+                                    <td>{{ reservation.reserved_at|date:"M d, Y H:i" }}</td>
+                                    <td>{{ reservation.expires_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if reservation.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% elif reservation.status == 'confirmed' %}
+                                        <span class="badge bg-success">Confirmed</span>
+                                        {% elif reservation.status == 'expired' %}
+                                        <span class="badge bg-danger">Expired</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ reservation.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="ri-bookmark-line fs-3 text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No reservations</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

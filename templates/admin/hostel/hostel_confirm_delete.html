@@ -1,0 +1,423 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Delete Hostel - {{ hostel.name }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Delete Hostel{% endblock %}
+{% block page_subtitle %}Confirm hostel deletion{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_list' %}">Hostels</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_detail' hostel.code %}">{{ hostel.code }}</a></li>
+        <li class="breadcrumb-item active">Delete</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="delete-card">
+                <div class="delete-icon">
+                    <i class="ri-error-warning-line"></i>
+                </div>
+                
+                <h3 class="delete-title">Delete Hostel</h3>
+                <p class="delete-subtitle">Are you absolutely sure you want to delete this hostel?</p>
+                
+                <div class="hostel-info-box">
+                    <div class="info-row">
+                        <span class="info-label">Hostel Name:</span>
+                        <span class="info-value">{{ hostel.name }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Hostel Code:</span>
+                        <span class="info-value">{{ hostel.code }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Location:</span>
+                        <span class="info-value">{{ hostel.location|default:"Not specified" }}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Total Capacity:</span>
+                        <span class="info-value">{{ hostel.total_capacity }} beds</span>
+                    </div>
+                </div>
+                
+                <div class="warning-box">
+                    <div class="warning-icon">
+                        <i class="ri-alert-line"></i>
+                    </div>
+                    <div class="warning-content">
+                        <h6 class="warning-title">Warning</h6>
+                        <p class="warning-text">
+                            This action <strong>cannot be undone</strong>. Deleting this hostel will also:
+                        </p>
+                        <ul class="warning-list">
+                            <li>Delete all rooms associated with this hostel</li>
+                            <li>Delete all beds in those rooms</li>
+                            <li>Remove all allocation history</li>
+                            <li>Remove all application records</li>
+                            <li>Delete all fee structures for this hostel</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <form method="post" id="deleteForm">
+                    {% csrf_token %}
+                    
+                    <div class="confirmation-box mb-4">
+                        <label class="form-label fw-semibold">
+                            Type <code class="confirmation-code">{{ hostel.code }}</code> to confirm deletion:
+                        </label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="confirmationInput" 
+                               placeholder="Enter hostel code"
+                               autocomplete="off">
+                        <div class="invalid-feedback" id="confirmationError" style="display: none;">
+                            Hostel code does not match. Please type exactly: <strong>{{ hostel.code }}</strong>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <a href="{% url 'admin_hostel_detail' hostel.code %}" 
+                           class="btn btn-outline-secondary btn-lg">
+                            <i class="ri-close-line"></i> Cancel
+                        </a>
+                        <button type="submit" 
+                                class="btn btn-danger btn-lg" 
+                                id="deleteButton"
+                                disabled>
+                            <i class="ri-delete-bin-line"></i> Delete Hostel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --color-danger: #dc3545;
+        --color-danger-light: #f8d7da;
+        --color-warning-light: #fff3cd;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+        background: var(--color-gray-100);
+    }
+
+    .content-container {
+        padding: 2rem 0.5rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-danger);
+    }
+
+    /* Delete Card */
+    .delete-card {
+        background: white;
+        border: 2px solid var(--color-danger-light);
+        border-radius: var(--radius-lg);
+        padding: 3rem 2.5rem;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.1);
+    }
+
+    .delete-icon {
+        width: 80px;
+        height: 80px;
+        background: var(--color-danger-light);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+    }
+
+    .delete-icon i {
+        font-size: 2.5rem;
+        color: var(--color-danger);
+    }
+
+    .delete-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .delete-subtitle {
+        font-size: 1.125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 2rem;
+    }
+
+    /* Hostel Info Box */
+    .hostel-info-box {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        text-align: left;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        font-weight: 600;
+        color: var(--color-gray-600);
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Warning Box */
+    .warning-box {
+        background: var(--color-warning-light);
+        border: 1px solid #ffc107;
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        text-align: left;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .warning-icon {
+        width: 40px;
+        height: 40px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .warning-icon i {
+        font-size: 1.5rem;
+        color: #ffc107;
+    }
+
+    .warning-content {
+        flex: 1;
+    }
+
+    .warning-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .warning-text {
+        font-size: 0.9375rem;
+        color: var(--color-gray-800);
+        margin-bottom: 0.75rem;
+    }
+
+    .warning-list {
+        margin: 0;
+        padding-left: 1.5rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+    }
+
+    .warning-list li {
+        margin-bottom: 0.375rem;
+    }
+
+    /* Confirmation Box */
+    .confirmation-box {
+        text-align: left;
+    }
+
+    .confirmation-box .form-label {
+        margin-bottom: 0.75rem;
+        color: var(--color-gray-800);
+    }
+
+    .confirmation-code {
+        background: var(--color-danger-light);
+        color: var(--color-danger);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+
+    .form-control {
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        border-color: var(--color-danger);
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.1);
+    }
+
+    .form-control.is-invalid {
+        border-color: var(--color-danger);
+    }
+
+    .invalid-feedback {
+        font-size: 0.875rem;
+        color: var(--color-danger);
+        margin-top: 0.5rem;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .action-buttons .btn {
+        min-width: 160px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+
+    .btn-danger {
+        background: var(--color-danger);
+        border-color: var(--color-danger);
+    }
+
+    .btn-danger:hover:not(:disabled) {
+        background: #c82333;
+        border-color: #bd2130;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+    }
+
+    .btn-danger:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .btn-outline-secondary {
+        border: 2px solid var(--color-gray-200);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-200);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .delete-card {
+            padding: 2rem 1.5rem;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .action-buttons .btn {
+            width: 100%;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('deleteForm');
+    const confirmationInput = document.getElementById('confirmationInput');
+    const deleteButton = document.getElementById('deleteButton');
+    const confirmationError = document.getElementById('confirmationError');
+    const expectedCode = '{{ hostel.code }}';
+
+    // Enable/disable delete button based on input
+    confirmationInput.addEventListener('input', function() {
+        const inputValue = this.value.trim();
+        
+        if (inputValue === expectedCode) {
+            deleteButton.disabled = false;
+            this.classList.remove('is-invalid');
+            confirmationError.style.display = 'none';
+        } else {
+            deleteButton.disabled = true;
+            if (inputValue.length > 0) {
+                this.classList.add('is-invalid');
+                confirmationError.style.display = 'block';
+            } else {
+                this.classList.remove('is-invalid');
+                confirmationError.style.display = 'none';
+            }
+        }
+    });
+
+    // Form submission
+    form.addEventListener('submit', function(e) {
+        const inputValue = confirmationInput.value.trim();
+        
+        if (inputValue !== expectedCode) {
+            e.preventDefault();
+            confirmationInput.classList.add('is-invalid');
+            confirmationError.style.display = 'block';
+            return false;
+        }
+
+        // Final confirmation
+        if (!confirm('This action cannot be undone. Are you absolutely sure you want to delete this hostel?')) {
+            e.preventDefault();
+            return false;
+        }
+
+        // Show loading state
+        deleteButton.disabled = true;
+        deleteButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+    });
+});
+</script>
+{% endblock %}
