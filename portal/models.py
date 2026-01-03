@@ -2194,3 +2194,402 @@ class MaterialComment(models.Model):
     class Meta:
         db_table = 'material_comments'
         ordering = ['-created_at']
+        
+        
+        
+
+# ============= STUDENT ID CARD SYSTEM =============
+class StudentIDType(models.Model):
+    """Types of student ID cards available"""
+    ID_TYPES = (
+        ('physical', 'Physical ID Card'),
+        ('digital', 'Digital ID Card'),
+        ('both', 'Both Physical & Digital'),
+    )
+    
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, unique=True)
+    id_type = models.CharField(max_length=20, choices=ID_TYPES, default='physical')
+    description = models.TextField(blank=True)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2)
+    validity_period_months = models.IntegerField(default=24)  # How long the ID is valid
+    processing_days = models.IntegerField(default=7)  # Standard processing time
+    rush_processing_days = models.IntegerField(default=3)  # Rush processing time
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    class Meta:
+        db_table = 'student_id_types'
+        ordering = ['name']
+
+
+class StudentIDFeeStructure(models.Model):
+    """Fee structure for student ID cards including rush fees"""
+    id_type = models.ForeignKey(StudentIDType, on_delete=models.CASCADE, 
+                               related_name='fee_structures')
+    academic_year = models.ForeignKey(AcademicYear, on_delete=models.CASCADE, 
+                                     related_name='id_fee_structures')
+    base_fee = models.DecimalField(max_digits=10, decimal_places=2)
+    rush_processing_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    replacement_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    digital_only_fee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_total_fee(self, is_rush=False, is_replacement=False):
+        """Calculate total fee based on options"""
+        total = self.base_fee
+        if is_rush:
+            total += self.rush_processing_fee
+        if is_replacement:
+            total += self.replacement_fee
+        return total
+
+    def __str__(self):
+        return f"{self.id_type.name} - {self.academic_year.name}"
+
+    class Meta:
+        db_table = 'student_id_fee_structures'
+        ordering = ['-effective_from']
+        unique_together = ('id_type', 'academic_year')
+
+
+class StudentIDApplication(models.Model):
+    """Student ID card applications"""
+    APPLICATION_STATUS = (
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('under_review', 'Under Review'),
+        ('payment_pending', 'Payment Pending'),
+        ('payment_confirmed', 'Payment Confirmed'),
+        ('in_production', 'In Production'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('delivered', 'Delivered (Digital)'),
+        ('completed', 'Completed'),
+        ('rejected', 'Rejected'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    APPLICATION_REASON = (
+        ('new_student', 'New Student'),
+        ('lost', 'Lost ID Card'),
+        ('damaged', 'Damaged ID Card'),
+        ('expired', 'ID Card Expired'),
+        ('change_details', 'Change of Details'),
+        ('other', 'Other'),
+    )
+    
+    # Application Details
+    application_number = models.CharField(max_length=50, unique=True)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, 
+                               related_name='id_applications')
+    id_type = models.ForeignKey(StudentIDType, on_delete=models.PROTECT, 
+                               related_name='applications')
+    fee_structure = models.ForeignKey(StudentIDFeeStructure, on_delete=models.PROTECT, 
+                                     related_name='applications')
+    
+    # Reason and Details
+    application_reason = models.CharField(max_length=20, choices=APPLICATION_REASON)
+    reason_details = models.TextField(blank=True)
+    
+    # Options
+    is_rush_processing = models.BooleanField(default=False)
+    is_replacement = models.BooleanField(default=False)
+    
+    # Photo Requirements
+    photo = models.ImageField(upload_to='student_id_photos/%Y/%m/', 
+                             help_text="Passport-size photo (2x2 inches)")
+    photo_back = models.ImageField(upload_to='student_id_photos_back/%Y/%m/', 
+                                  null=True, blank=True,
+                                  help_text="Optional: Photo for back of ID")
+    
+    # Status Tracking
+    status = models.CharField(max_length=20, choices=APPLICATION_STATUS, default='draft')
+    application_date = models.DateTimeField(auto_now_add=True)
+    submitted_date = models.DateTimeField(null=True, blank=True)
+    
+    # Payment Details
+    amount_due = models.DecimalField(max_digits=10, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    payment_reference = models.CharField(max_length=100, blank=True)
+    payment_date = models.DateTimeField(null=True, blank=True)
+    
+    # Processing
+    estimated_completion_date = models.DateField(null=True, blank=True)
+    actual_completion_date = models.DateField(null=True, blank=True)
+    pick_up_location = models.CharField(max_length=200, blank=True)
+    pick_up_code = models.CharField(max_length=20, blank=True)
+    
+    # Delivery (for digital IDs)
+    digital_id_url = models.URLField(blank=True)
+    digital_id_sent_date = models.DateTimeField(null=True, blank=True)
+    
+    # Approval
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='id_applications_reviewed')
+    review_date = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.application_number:
+            # Generate application number: ID-YYYY-NNNN
+            year = timezone.now().year
+            last_app = StudentIDApplication.objects.filter(
+                application_number__startswith=f'ID-{year}-'
+            ).aggregate(Max('id'))
+            next_id = (last_app['id__max'] or 0) + 1
+            self.application_number = f'ID-{year}-{next_id:04d}'
+        
+        # Calculate amount due
+        if self.fee_structure:
+            self.amount_due = self.fee_structure.get_total_fee(
+                is_rush=self.is_rush_processing,
+                is_replacement=self.is_replacement
+            )
+        
+        # Set estimated completion date
+        if self.status == 'payment_confirmed':
+            processing_days = self.id_type.rush_processing_days if self.is_rush_processing else self.id_type.processing_days
+            self.estimated_completion_date = timezone.now().date() + timedelta(days=processing_days)
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def balance(self):
+        return self.amount_due - self.amount_paid
+
+    @property
+    def is_paid(self):
+        return self.amount_paid >= self.amount_due
+
+    def __str__(self):
+        return f"{self.application_number} - {self.student.registration_number}"
+
+    class Meta:
+        db_table = 'student_id_applications'
+        ordering = ['-application_date']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['application_number']),
+            models.Index(fields=['status', 'estimated_completion_date']),
+        ]
+
+
+class StudentIDCard(models.Model):
+    """Issued student ID cards"""
+    CARD_STATUS = (
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('lost', 'Lost'),
+        ('damaged', 'Damaged'),
+        ('expired', 'Expired'),
+        ('replaced', 'Replaced'),
+    )
+    
+    # Card Details
+    card_number = models.CharField(max_length=50, unique=True)
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, 
+                               related_name='id_cards')
+    application = models.OneToOneField(StudentIDApplication, on_delete=models.CASCADE,
+                                      related_name='issued_card')
+    
+    # Validity
+    issue_date = models.DateField()
+    expiry_date = models.DateField()
+    status = models.CharField(max_length=20, choices=CARD_STATUS, default='active')
+    
+    # Physical/Digital
+    card_type = models.CharField(max_length=20, choices=StudentIDType.ID_TYPES)
+    qr_code = models.ImageField(upload_to='id_qr_codes/', null=True, blank=True)
+    barcode = models.CharField(max_length=100, blank=True)
+    
+    # Digital ID Specific
+    digital_id_file = models.FileField(upload_to='digital_ids/', null=True, blank=True)
+    digital_id_hash = models.CharField(max_length=64, blank=True)  # For verification
+    
+    # Pickup/Delivery
+    picked_up_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='id_cards_collected')
+    pick_up_date = models.DateTimeField(null=True, blank=True)
+    received_signature = models.ImageField(upload_to='id_signatures/', null=True, blank=True)
+    
+    # Security
+    security_features = models.TextField(blank=True)  # JSON string of security features
+    last_verified = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.card_number:
+            # Generate card number: CARD-YYYY-PROGRAM-NNN
+            year = timezone.now().year
+            program_code = self.student.programme.code.replace(' ', '').upper()[:6]
+            last_card = StudentIDCard.objects.filter(
+                card_number__startswith=f'CARD-{year}-{program_code}-'
+            ).aggregate(Max('id'))
+            next_id = (last_card['id__max'] or 0) + 1
+            self.card_number = f'CARD-{year}-{program_code}-{next_id:03d}'
+        
+        # Set expiry date based on ID type validity period
+        if self.issue_date and not self.expiry_date:
+            id_type = self.application.id_type
+            self.expiry_date = self.issue_date + timedelta(days=id_type.validity_period_months * 30)
+        
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return timezone.now().date() > self.expiry_date
+
+    def __str__(self):
+        return f"{self.card_number} - {self.student.registration_number}"
+
+    class Meta:
+        db_table = 'student_id_cards'
+        ordering = ['-issue_date']
+        indexes = [
+            models.Index(fields=['student', 'status']),
+            models.Index(fields=['card_number']),
+            models.Index(fields=['expiry_date']),
+        ]
+
+
+class StudentIDPayment(models.Model):
+    """Payments for student ID applications"""
+    PAYMENT_METHODS = (
+        ('mpesa', 'M-Pesa'),
+        ('bank', 'Bank Transfer'),
+        ('cash', 'Cash'),
+        ('card', 'Card Payment'),
+    )
+    
+    PAYMENT_STATUS = (
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('reversed', 'Reversed'),
+    )
+    
+    # Payment Details
+    payment_reference = models.CharField(max_length=100, unique=True)
+    application = models.ForeignKey(StudentIDApplication, on_delete=models.CASCADE,
+                                  related_name='payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    
+    # Transaction Details
+    transaction_id = models.CharField(max_length=100, blank=True)
+    merchant_request_id = models.CharField(max_length=100, blank=True)  # For M-Pesa
+    checkout_request_id = models.CharField(max_length=100, blank=True)  # For M-Pesa
+    
+    # M-Pesa Specific
+    mpesa_receipt_number = models.CharField(max_length=100, blank=True)
+    phone_number = models.CharField(max_length=15, blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    payment_date = models.DateTimeField(auto_now_add=True)
+    confirmed_date = models.DateTimeField(null=True, blank=True)
+    
+    # Response
+    result_code = models.CharField(max_length=10, blank=True)
+    result_description = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.payment_reference:
+            # Generate payment reference: PAY-ID-YYYYMMDD-HHMMSS-RANDOM
+            import random
+            import string
+            timestamp = timezone.now().strftime('%Y%m%d-%H%M%S')
+            random_str = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+            self.payment_reference = f'PAY-ID-{timestamp}-{random_str}'
+        
+        super().save(*args, **kwargs)
+        
+        # Update application payment status
+        if self.status == 'completed':
+            self.application.amount_paid += self.amount
+            self.application.payment_reference = self.payment_reference
+            self.application.payment_date = timezone.now()
+            if self.application.amount_paid >= self.application.amount_due:
+                self.application.status = 'payment_confirmed'
+            self.application.save()
+
+    def __str__(self):
+        return f"{self.payment_reference} - {self.amount}"
+
+    class Meta:
+        db_table = 'student_id_payments'
+        ordering = ['-payment_date']
+        indexes = [
+            models.Index(fields=['application', 'status']),
+            models.Index(fields=['payment_reference']),
+            models.Index(fields=['status', 'payment_date']),
+        ]
+
+
+class IDCardNotification(models.Model):
+    """Notifications for ID card applications"""
+    NOTIFICATION_TYPES = (
+        ('application_submitted', 'Application Submitted'),
+        ('payment_request', 'Payment Request'),
+        ('payment_confirmed', 'Payment Confirmed'),
+        ('in_production', 'ID Card in Production'),
+        ('ready_for_pickup', 'Ready for Pickup'),
+        ('delivered', 'Digital ID Delivered'),
+        ('status_update', 'Status Update'),
+        ('reminder', 'Reminder'),
+    )
+    
+    # Notification Details
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, 
+                               related_name='id_notifications')
+    application = models.ForeignKey(StudentIDApplication, on_delete=models.CASCADE,
+                                  related_name='notifications', null=True, blank=True)
+    
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    
+    # Delivery
+    sent_via_email = models.BooleanField(default=False)
+    sent_via_sms = models.BooleanField(default=False)
+    sent_via_portal = models.BooleanField(default=True)
+    
+    # Status
+    is_read = models.BooleanField(default=False)
+    read_date = models.DateTimeField(null=True, blank=True)
+    
+    # Email/SMS tracking
+    email_message_id = models.CharField(max_length=200, blank=True)
+    sms_message_id = models.CharField(max_length=200, blank=True)
+    
+    sent_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.notification_type}"
+
+    class Meta:
+        db_table = 'id_card_notifications'
+        ordering = ['-sent_at']
+        indexes = [
+            models.Index(fields=['student', 'is_read']),
+            models.Index(fields=['notification_type', 'sent_at']),
+        ]        
+        
