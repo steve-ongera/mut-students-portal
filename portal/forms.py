@@ -570,3 +570,238 @@ class FeePaymentForm(forms.ModelForm):
         self.fields['fee_structure'].queryset = FeeStructure.objects.select_related(
             'programme', 'academic_year'
         ).filter(is_active=True)
+        
+        
+from django import forms
+from .models import Hostel, HostelRoom, HostelBed, AcademicYear, User
+
+
+class HostelForm(forms.ModelForm):
+    """Form for creating and updating hostels"""
+    
+    class Meta:
+        model = Hostel
+        fields = [
+            'name', 'code', 'gender_type', 'warden', 
+            'total_capacity', 'location', 'description', 
+            'amenities', 'is_active'
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Enter hostel name'
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., HST-A'
+            }),
+            'gender_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'warden': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'total_capacity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Total bed capacity',
+                'min': '1'
+            }),
+            'location': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Block A, Main Campus'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Brief description of the hostel'
+            }),
+            'amenities': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'List amenities (WiFi, Kitchen, Laundry, etc.)'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter wardens
+        self.fields['warden'].queryset = User.objects.filter(
+            role='hostel_warden',
+            is_active_user=True
+        )
+        self.fields['warden'].required = False
+
+
+class HostelRoomForm(forms.ModelForm):
+    """Form for creating and updating hostel rooms"""
+    
+    class Meta:
+        model = HostelRoom
+        fields = [
+            'hostel', 'room_number', 'floor', 'room_type',
+            'capacity', 'has_bathroom', 'has_balcony', 'is_active'
+        ]
+        widgets = {
+            'hostel': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'room_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 101, 201A'
+            }),
+            'floor': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'placeholder': 'Floor number'
+            }),
+            'room_type': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'capacity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'max': '4',
+                'placeholder': 'Number of beds'
+            }),
+            'has_bathroom': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'has_balcony': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['hostel'].queryset = Hostel.objects.filter(is_active=True)
+
+
+class HostelBedForm(forms.ModelForm):
+    """Form for creating and updating hostel beds"""
+    
+    class Meta:
+        model = HostelBed
+        fields = [
+            'room', 'bed_number', 'status', 
+            'academic_year', 'is_active'
+        ]
+        widgets = {
+            'room': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'bed_number': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., 1, 2, A, B'
+            }),
+            'status': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'academic_year': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['academic_year'].queryset = AcademicYear.objects.filter(
+            is_active=True
+        ).order_by('-start_date')
+        self.fields['room'].queryset = HostelRoom.objects.filter(
+            is_active=True
+        ).select_related('hostel')
+
+
+class BulkHostelCreationForm(forms.Form):
+    """Form for bulk hostel creation"""
+    
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.filter(is_active=True),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Academic Year'
+    )
+    
+    warden = forms.ModelChoiceField(
+        queryset=User.objects.filter(role='hostel_warden', is_active_user=True),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        required=False,
+        label='Default Warden (Optional)'
+    )
+
+
+class BulkRoomCreationForm(forms.Form):
+    """Form for bulk room creation"""
+    
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.filter(is_active=True),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Academic Year'
+    )
+    
+    floors = forms.IntegerField(
+        min_value=1,
+        max_value=20,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Number of floors'
+        }),
+        label='Number of Floors'
+    )
+    
+    rooms_per_floor = forms.IntegerField(
+        min_value=1,
+        max_value=50,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Rooms per floor'
+        }),
+        label='Rooms Per Floor'
+    )
+    
+    room_type = forms.ChoiceField(
+        choices=HostelRoom.ROOM_TYPES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Room Type'
+    )
+    
+    has_bathroom = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Has Bathroom'
+    )
+    
+    has_balcony = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label='Has Balcony'
+    )
+
+
+class BulkBedCreationForm(forms.Form):
+    """Form for bulk bed creation"""
+    
+    academic_year = forms.ModelChoiceField(
+        queryset=AcademicYear.objects.filter(is_active=True),
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label='Academic Year'
+    )
+    
+    number_of_beds = forms.IntegerField(
+        min_value=1,
+        max_value=4,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Number of beds'
+        }),
+        label='Number of Beds'
+    )
