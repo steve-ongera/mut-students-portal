@@ -1,0 +1,802 @@
+<!-- ============================================ -->
+<!-- master_timetable.html -->
+<!-- admin/timetable/master_timetable.html -->
+<!-- ============================================ -->
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Master Timetable - Admin{% endblock %}
+
+{% block page_title %}Master Timetable Management{% endblock %}
+{% block page_subtitle %}Create and manage timetables with drag & drop{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Master Timetable</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Filter Section -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Timetable Filters</h5>
+        </div>
+        <div class="card-body">
+            <form id="filterForm" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Programme <span class="text-danger">*</span></label>
+                    <select id="programme" class="form-select" required>
+                        <option value="">Select Programme</option>
+                        {% for programme in programmes %}
+                        <option value="{{ programme.id }}">{{ programme.code }} - {{ programme.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Academic Year <span class="text-danger">*</span></label>
+                    <select id="academicYear" class="form-select" required>
+                        {% for year in academic_years %}
+                        <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                            {{ year.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Year of Study <span class="text-danger">*</span></label>
+                    <select id="yearOfStudy" class="form-select" required>
+                        <option value="">Select Year</option>
+                        <option value="1">Year 1</option>
+                        <option value="2">Year 2</option>
+                        <option value="3">Year 3</option>
+                        <option value="4">Year 4</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Semester <span class="text-danger">*</span></label>
+                    <select id="semester" class="form-select" required>
+                        <option value="">Select Semester</option>
+                        <option value="1" {% if current_semester and current_semester.semester_number == '1' %}selected{% endif %}>Semester 1</option>
+                        <option value="2" {% if current_semester and current_semester.semester_number == '2' %}selected{% endif %}>Semester 2</option>
+                        <option value="3">Semester 3</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="ri-search-line"></i> Load Timetable
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Timetable Section -->
+    <div id="timetableSection" style="display: none;">
+        <!-- Units Sidebar & Timetable Grid -->
+        <div class="row g-4">
+            <!-- Units Sidebar -->
+            <div class="col-md-3">
+                <div class="management-card" style="position: sticky; top: 20px;">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Units</h5>
+                        <span id="unitsCount" class="badge bg-primary">0</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="units-list" id="unitsList">
+                            <div class="text-center py-4">
+                                <i class="ri-book-line fs-3 text-muted"></i>
+                                <p class="text-muted mb-0">No units loaded</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Publish Button -->
+                <div class="mt-3" id="publishSection" style="display: none;">
+                    <button type="button" class="btn btn-success w-100" id="publishBtn">
+                        <i class="ri-check-line"></i> Publish Timetable
+                    </button>
+                </div>
+            </div>
+
+            <!-- Timetable Grid -->
+            <div class="col-md-9">
+                <div class="management-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Weekly Timetable</h5>
+                        <div>
+                            <span class="text-muted me-3" id="timetableInfo"></span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshBtn">
+                                <i class="ri-refresh-line"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="timetable-grid" id="timetableGrid">
+                                <thead>
+                                    <tr>
+                                        <th class="time-column">Time</th>
+                                        <th>Monday</th>
+                                        <th>Tuesday</th>
+                                        <th>Wednesday</th>
+                                        <th>Thursday</th>
+                                        <th>Friday</th>
+                                        <th>Saturday</th>
+                                        <th>Sunday</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="timetableBody">
+                                    <!-- Time slots will be generated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for Slot Details -->
+<div class="modal fade" id="slotModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Schedule Unit</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="modalSlotId">
+                <input type="hidden" id="modalProgrammeUnitId">
+                <input type="hidden" id="modalDay">
+                <input type="hidden" id="modalTimeSlot">
+                
+                <div class="mb-3">
+                    <label class="form-label">Unit</label>
+                    <input type="text" class="form-control" id="modalUnitInfo" readonly>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Lecturer <span class="text-danger">*</span></label>
+                    <select class="form-select" id="modalLecturer" required>
+                        <option value="">Select Lecturer</option>
+                    </select>
+                </div>
+                
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="form-label">Start Time <span class="text-danger">*</span></label>
+                        <input type="time" class="form-control" id="modalStartTime" required>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="form-label">End Time <span class="text-danger">*</span></label>
+                        <input type="time" class="form-control" id="modalEndTime" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Venue <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="modalVenue" 
+                           placeholder="e.g., Room A101, Lab B203" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" id="modalSlotType">
+                        <option value="lecture">Lecture</option>
+                        <option value="practical">Practical</option>
+                        <option value="tutorial">Tutorial</option>
+                        <option value="lab">Lab</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger" id="deleteSlotBtn" style="display: none;">
+                    <i class="ri-delete-bin-line"></i> Delete
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveSlotBtn">
+                    <i class="ri-save-line"></i> Save Slot
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-lg: 12px;
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Units List */
+    .units-list {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+
+    .unit-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        cursor: move;
+        transition: all 0.2s ease;
+        background: white;
+    }
+
+    .unit-item:hover {
+        background: var(--color-gray-100);
+    }
+
+    .unit-item:last-child {
+        border-bottom: none;
+    }
+
+    .unit-item.dragging {
+        opacity: 0.5;
+    }
+
+    .unit-item.allocated {
+        background: #e8f5e9;
+        border-left: 3px solid var(--color-primary);
+    }
+
+    .unit-code {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        font-size: 0.875rem;
+    }
+
+    .unit-name {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin: 0.25rem 0;
+    }
+
+    .unit-lecturer {
+        font-size: 0.75rem;
+        color: var(--color-primary);
+    }
+
+    /* Timetable Grid */
+    .timetable-grid {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8125rem;
+    }
+
+    .timetable-grid th {
+        background: var(--color-gray-100);
+        padding: 1rem 0.5rem;
+        text-align: center;
+        font-weight: 600;
+        border: 1px solid var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .timetable-grid .time-column {
+        width: 100px;
+        font-weight: 600;
+    }
+
+    .timetable-grid td {
+        border: 1px solid var(--color-gray-300);
+        padding: 0.5rem;
+        min-height: 80px;
+        height: 80px;
+        vertical-align: top;
+        position: relative;
+        background: white;
+    }
+
+    .timetable-grid td.droppable {
+        background: #f0f9ff;
+    }
+
+    .timetable-grid td.drag-over {
+        background: #dbeafe;
+        border: 2px dashed var(--color-primary);
+    }
+
+    .slot-card {
+        background: var(--color-primary);
+        color: white;
+        padding: 0.5rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .slot-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .slot-card.dragging {
+        opacity: 0.5;
+    }
+
+    .slot-unit {
+        font-weight: 700;
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .slot-time {
+        font-size: 0.7rem;
+        opacity: 0.9;
+        margin-bottom: 0.25rem;
+    }
+
+    .slot-lecturer {
+        font-size: 0.7rem;
+        opacity: 0.9;
+        margin-bottom: 0.25rem;
+    }
+
+    .slot-venue {
+        font-size: 0.7rem;
+        opacity: 0.8;
+        margin-top: auto;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+</style>
+
+<script>
+let currentTimetableId = null;
+let currentUnits = [];
+let currentSlots = [];
+let lecturers = [];
+let slotModal = null;
+
+// Time slots (8 slots from 8 AM to 5 PM)
+const timeSlots = [
+    { start: '08:00', end: '09:00' },
+    { start: '09:00', end: '10:00' },
+    { start: '10:00', end: '11:00' },
+    { start: '11:00', end: '12:00' },
+    { start: '12:00', end: '13:00' },
+    { start: '13:00', end: '14:00' },
+    { start: '14:00', end: '15:00' },
+    { start: '15:00', end: '16:00' },
+    { start: '16:00', end: '17:00' }
+];
+
+const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modal
+    slotModal = new bootstrap.Modal(document.getElementById('slotModal'));
+    
+    // Load lecturers
+    loadLecturers();
+    
+    // Form submission
+    document.getElementById('filterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        loadTimetable();
+    });
+    
+    // Save slot button
+    document.getElementById('saveSlotBtn').addEventListener('click', saveSlot);
+    
+    // Delete slot button
+    document.getElementById('deleteSlotBtn').addEventListener('click', deleteSlot);
+    
+    // Publish button
+    document.getElementById('publishBtn').addEventListener('click', publishTimetable);
+    
+    // Refresh button
+    document.getElementById('refreshBtn').addEventListener('click', refreshTimetable);
+    
+    // Generate timetable grid
+    generateTimetableGrid();
+});
+
+function loadLecturers() {
+    fetch('/api/timetable/get-lecturers/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                lecturers = data.lecturers;
+                const select = document.getElementById('modalLecturer');
+                select.innerHTML = '<option value="">Select Lecturer</option>';
+                lecturers.forEach(lec => {
+                    select.innerHTML += `<option value="${lec.id}">${lec.name} - ${lec.department}</option>`;
+                });
+            }
+        })
+        .catch(error => console.error('Error loading lecturers:', error));
+}
+
+function loadTimetable() {
+    const programme = document.getElementById('programme').value;
+    const academicYear = document.getElementById('academicYear').value;
+    const yearOfStudy = document.getElementById('yearOfStudy').value;
+    const semester = document.getElementById('semester').value;
+    
+    if (!programme || !academicYear || !yearOfStudy || !semester) {
+        showAlert('Please fill all required fields', 'warning');
+        return;
+    }
+    
+    showLoading(true);
+    
+    fetch(`/api/timetable/get-units/?programme_id=${programme}&academic_year_id=${academicYear}&year_of_study=${yearOfStudy}&semester_number=${semester}`)
+        .then(response => response.json())
+        .then(data => {
+            showLoading(false);
+            if (data.success) {
+                currentTimetableId = data.timetable_id;
+                currentUnits = data.units;
+                
+                displayUnits(data.units);
+                loadExistingSlots();
+                
+                document.getElementById('timetableSection').style.display = 'block';
+                document.getElementById('publishSection').style.display = 'block';
+                
+                const programmeName = document.querySelector('#programme option:checked').textContent;
+                const yearText = `Year ${yearOfStudy} Semester ${semester}`;
+                document.getElementById('timetableInfo').textContent = `${programmeName} - ${yearText}`;
+                
+                showAlert(data.message, 'success');
+            } else {
+                showAlert(data.error, 'danger');
+            }
+        })
+        .catch(error => {
+            showLoading(false);
+            showAlert('Error loading timetable', 'danger');
+            console.error('Error:', error);
+        });
+}
+
+function displayUnits(units) {
+    const container = document.getElementById('unitsList');
+    document.getElementById('unitsCount').textContent = units.length;
+    
+    if (units.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <i class="ri-book-line fs-3 text-muted"></i>
+                <p class="text-muted mb-0">No units found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = units.map(unit => `
+        <div class="unit-item ${unit.slot ? 'allocated' : ''}" 
+             draggable="true" 
+             data-unit-id="${unit.id}"
+             data-unit-code="${unit.unit_code}"
+             data-unit-name="${unit.unit_name}"
+             data-lecturer-id="${unit.lecturer_id || ''}"
+             data-allocation-id="${unit.allocation_id || ''}">
+            <div class="unit-code">${unit.unit_code}</div>
+            <div class="unit-name">${unit.unit_name}</div>
+            <div class="unit-lecturer">
+                <i class="ri-user-line"></i> ${unit.lecturer_name}
+            </div>
+            ${unit.slot ? `<small class="text-success"><i class="ri-calendar-check-line"></i> Scheduled</small>` : ''}
+        </div>
+    `).join('');
+    
+    // Add drag events to units
+    document.querySelectorAll('.unit-item').forEach(item => {
+        item.addEventListener('dragstart', handleUnitDragStart);
+        item.addEventListener('dragend', handleUnitDragEnd);
+    });
+}
+
+function generateTimetableGrid() {
+    const tbody = document.getElementById('timetableBody');
+    
+    tbody.innerHTML = timeSlots.map((slot, index) => `
+        <tr>
+            <td class="time-column">${slot.start} - ${slot.end}</td>
+            ${days.map(day => `
+                <td class="droppable" 
+                    data-day="${day}" 
+                    data-time-index="${index}"
+                    data-start-time="${slot.start}"
+                    data-end-time="${slot.end}">
+                </td>
+            `).join('')}
+        </tr>
+    `).join('');
+    
+    // Add drop events to cells
+    document.querySelectorAll('.droppable').forEach(cell => {
+        cell.addEventListener('dragover', handleDragOver);
+        cell.addEventListener('drop', handleDrop);
+        cell.addEventListener('dragleave', handleDragLeave);
+    });
+}
+
+function loadExistingSlots() {
+    if (!currentTimetableId) return;
+    
+    fetch(`/api/timetable/get-slots/?timetable_id=${currentTimetableId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                currentSlots = data.slots;
+                renderSlots(data.slots);
+            }
+        })
+        .catch(error => console.error('Error loading slots:', error));
+}
+
+function renderSlots(slots) {
+    // Clear existing slots
+    document.querySelectorAll('.slot-card').forEach(card => card.remove());
+    
+    slots.forEach(slot => {
+        const cell = document.querySelector(
+            `td[data-day="${slot.day}"][data-start-time="${slot.start_time}"]`
+        );
+        
+        if (cell) {
+            const slotCard = createSlotCard(slot);
+            cell.appendChild(slotCard);
+        }
+    });
+}
+
+function createSlotCard(slot) {
+    const div = document.createElement('div');
+    div.className = 'slot-card';
+    div.draggable = true;
+    div.dataset.slotId = slot.id;
+    div.dataset.programmeUnitId = slot.programme_unit_id;
+    div.innerHTML = `
+        <div class="slot-unit">${slot.unit_code}</div>
+        <div class="slot-time">${slot.start_time} - ${slot.end_time}</div>
+        <div class="slot-lecturer">${slot.lecturer_name}</div>
+        <div class="slot-venue"><i class="ri-map-pin-line"></i> ${slot.venue}</div>
+    `;
+    
+    div.addEventListener('click', () => openSlotModal(slot));
+    div.addEventListener('dragstart', handleSlotDragStart);
+    div.addEventListener('dragend', handleSlotDragEnd);
+    
+    return div;
+}
+
+// Drag and Drop Handlers
+let draggedElement = null;
+let draggedData = null;
+
+function handleUnitDragStart(e) {
+    draggedElement = e.target;
+    draggedElement.classList.add('dragging');
+    
+    draggedData = {
+        type: 'unit',
+        unitId: e.target.dataset.unitId,
+        unitCode: e.target.dataset.unitCode,
+        unitName: e.target.dataset.unitName,
+        lecturerId: e.target.dataset.lecturerId,
+        allocationId: e.target.dataset.allocationId
+    };
+    
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleUnitDragEnd(e) {
+    e.target.classList.remove('dragging');
+}
+
+function handleSlotDragStart(e) {
+    draggedElement = e.target;
+    draggedElement.classList.add('dragging');
+    
+    draggedData = {
+        type: 'slot',
+        slotId: e.target.dataset.slotId,
+        programmeUnitId: e.target.dataset.programmeUnitId
+    };
+    
+    e.dataTransfer.effectAllowed = 'move';
+    e.stopPropagation();
+}
+
+function handleSlotDragEnd(e) {
+    e.target.classList.remove('dragging');
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drag-over');
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+    
+    const cell = e.currentTarget;
+    const day = cell.dataset.day;
+    const startTime = cell.dataset.startTime;
+    const endTime = cell.dataset.endTime;
+    
+    if (draggedData) {
+        openScheduleModal(draggedData, day, startTime, endTime);
+    }
+}
+
+function openScheduleModal(data, day, startTime, endTime) {
+    // Populate modal
+    document.getElementById('modalDay').value = day;
+    document.getElementById('modalTimeSlot').value = `${startTime}-${endTime}`;
+    document.getElementById('modalStartTime').value = startTime;
+    document.getElementById('modalEndTime').value = endTime;
+    
+    if (data.type === 'unit') {
+        document.getElementById('modalSlotId').value = '';
+        document.getElementById('modalProgrammeUnitId').value = data.unitId;
+        document.getElementById('modalUnitInfo').value = `${data.unitCode} - ${data.unitName}`;
+        document.getElementById('modalLecturer').value = data.lecturerId || '';
+        document.getElementById('modalVenue').value = '';
+        document.getElementById('modalSlotType').value = 'lecture';
+        document.getElementById('deleteSlotBtn').style.display = 'none';
+    } else if (data.type === 'slot') {
+        // Load existing slot data
+        const slot = currentSlots.find(s => s.id == data.slotId);
+        if (slot) {
+            document.getElementById('modalSlotId').value = slot.id;
+            document.getElementById('modalProgrammeUnitId').value = slot.programme_unit_id;
+            document.getElementById('modalUnitInfo').value = `${slot.unit_code} - ${slot.unit_name}`;
+            document.getElementById('modalLecturer').value = slot.lecturer_id;
+            document.getElementById('modalStartTime').value = startTime;
+            document.getElementById('modalEndTime').value = endTime;
+            document.getElementById('modalVenue').value = '';
+            document.getElementById('modalSlotType').value = 'lecture';
+            document.getElementById('deleteSlotBtn').style.display = 'inline-block';
+        }
+    }
+    
+    slotModal.show();
+}
+
+function openSlotModal(slot) {
+    document.getElementById('modalSlotId').value = slot.id;
+    document.getElementById('modalProgrammeUnitId').value = slot.programme_unit_id;
+    document.getElementById('modalDay').value = slot.day;
+    document.getElementById('modalUnitInfo').value = `${slot.unit_code} - ${slot.unit_name}`;
+    document.getElementById('modalLecturer').value = slot.lecturer_id;
+    document.getElementById('modalStartTime').value = slot.start_time;
+    document.getElementById('modalEndTime').value = slot.end_time;
+    document.getElementById('modalVenue').value = slot.venue;
+    document.getElementById('modalSlotType').value = slot.slot_type || 'lecture';
+    document.getElementById('deleteSlotBtn').style.display = 'inline-block';
+    
+    slotModal.show();
+}
+
+function saveSlot() {
+    const slotId = document.getElementById('modalSlotId').value;
+    const programmeUnitId = document.getElementById('modalProgrammeUnitId').value;
+    const lecturerId = document.getElementById('modalLecturer').value;
+    const day = document.getElementById('modalDay').value;
+    const startTime = document.getElementById('modalStartTime').value;
+    const endTime = document.getElementById('modalEndTime').value;
+    const venue = document.getElementById('modalVenue').value;
+    const slotType = document.getElementById('modalSlotType').value;
+    
+    if (!lecturerId || !venue) {
+        showAlert('Please fill all required fields', 'warning');
+        return;
+    }
+    
+    const data = {
+        timetable_id: currentTimetableId,
+        programme_unit_id: programmeUnitId,
+        lecturer_id: lecturerId,
+        day: day,
+        start_time: startTime,
+        end_time: endTime,
+        venue: venue,
+        slot_type: slotType
+    };
+    
+    if (slotId) {
+        data.slot_id = slotId;
+    }
+    
+    fetch('/api/timetable/save-slot/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            slotModal.hide();
+            refreshTimetable();
+        } else {
+            showAlert(data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Error saving slot', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+function deleteSlot() {
+    const slotId = document.getElementById('modalSlotId').value;
+    
+    if (!slotId) return;
+    
+    if (!confirm('Are you sure you want to delete this slot?')) return;
+    
+    fetch('/api/timetable/delete-slot/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ slot_id: slotId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, '
