@@ -208,6 +208,13 @@
     </div>
 </div>
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" style="display: none;">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+</div>
+
 <style>
     :root {
         --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -387,6 +394,20 @@
         margin-bottom: 1rem;
         border-bottom: 1px solid var(--color-gray-200);
     }
+
+    /* Loading Overlay */
+    #loadingOverlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
 </style>
 
 <script>
@@ -396,7 +417,7 @@ let currentSlots = [];
 let lecturers = [];
 let slotModal = null;
 
-// Time slots (8 slots from 8 AM to 5 PM)
+// Time slots (9 slots from 8 AM to 5 PM)
 const timeSlots = [
     { start: '08:00', end: '09:00' },
     { start: '09:00', end: '10:00' },
@@ -449,7 +470,7 @@ function loadLecturers() {
                 const select = document.getElementById('modalLecturer');
                 select.innerHTML = '<option value="">Select Lecturer</option>';
                 lecturers.forEach(lec => {
-                    select.innerHTML += `<option value="${lec.id}">${lec.name} - ${lec.department}</option>`;
+                    select.innerHTML += '<option value="' + lec.id + '">' + lec.name + ' - ' + lec.department + '</option>';
                 });
             }
         })
@@ -469,7 +490,12 @@ function loadTimetable() {
     
     showLoading(true);
     
-    fetch(`/api/timetable/get-units/?programme_id=${programme}&academic_year_id=${academicYear}&year_of_study=${yearOfStudy}&semester_number=${semester}`)
+    const url = '/api/timetable/get-units/?programme_id=' + programme + 
+                '&academic_year_id=' + academicYear + 
+                '&year_of_study=' + yearOfStudy + 
+                '&semester_number=' + semester;
+    
+    fetch(url)
         .then(response => response.json())
         .then(data => {
             showLoading(false);
@@ -484,8 +510,8 @@ function loadTimetable() {
                 document.getElementById('publishSection').style.display = 'block';
                 
                 const programmeName = document.querySelector('#programme option:checked').textContent;
-                const yearText = `Year ${yearOfStudy} Semester ${semester}`;
-                document.getElementById('timetableInfo').textContent = `${programmeName} - ${yearText}`;
+                const yearText = 'Year ' + yearOfStudy + ' Semester ' + semester;
+                document.getElementById('timetableInfo').textContent = programmeName + ' - ' + yearText;
                 
                 showAlert(data.message, 'success');
             } else {
@@ -504,31 +530,35 @@ function displayUnits(units) {
     document.getElementById('unitsCount').textContent = units.length;
     
     if (units.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-4">
-                <i class="ri-book-line fs-3 text-muted"></i>
-                <p class="text-muted mb-0">No units found</p>
-            </div>
-        `;
+        container.innerHTML = '<div class="text-center py-4">' +
+            '<i class="ri-book-line fs-3 text-muted"></i>' +
+            '<p class="text-muted mb-0">No units found</p>' +
+            '</div>';
         return;
     }
     
-    container.innerHTML = units.map(unit => `
-        <div class="unit-item ${unit.slot ? 'allocated' : ''}" 
-             draggable="true" 
-             data-unit-id="${unit.id}"
-             data-unit-code="${unit.unit_code}"
-             data-unit-name="${unit.unit_name}"
-             data-lecturer-id="${unit.lecturer_id || ''}"
-             data-allocation-id="${unit.allocation_id || ''}">
-            <div class="unit-code">${unit.unit_code}</div>
-            <div class="unit-name">${unit.unit_name}</div>
-            <div class="unit-lecturer">
-                <i class="ri-user-line"></i> ${unit.lecturer_name}
-            </div>
-            ${unit.slot ? `<small class="text-success"><i class="ri-calendar-check-line"></i> Scheduled</small>` : ''}
-        </div>
-    `).join('');
+    let html = '';
+    units.forEach(unit => {
+        const allocated = unit.slot ? 'allocated' : '';
+        const scheduledBadge = unit.slot ? '<small class="text-success"><i class="ri-calendar-check-line"></i> Scheduled</small>' : '';
+        
+        html += '<div class="unit-item ' + allocated + '" ' +
+                'draggable="true" ' +
+                'data-unit-id="' + unit.id + '" ' +
+                'data-unit-code="' + unit.unit_code + '" ' +
+                'data-unit-name="' + unit.unit_name + '" ' +
+                'data-lecturer-id="' + (unit.lecturer_id || '') + '" ' +
+                'data-allocation-id="' + (unit.allocation_id || '') + '">' +
+                '<div class="unit-code">' + unit.unit_code + '</div>' +
+                '<div class="unit-name">' + unit.unit_name + '</div>' +
+                '<div class="unit-lecturer">' +
+                '<i class="ri-user-line"></i> ' + unit.lecturer_name +
+                '</div>' +
+                scheduledBadge +
+                '</div>';
+    });
+    
+    container.innerHTML = html;
     
     // Add drag events to units
     document.querySelectorAll('.unit-item').forEach(item => {
@@ -539,20 +569,25 @@ function displayUnits(units) {
 
 function generateTimetableGrid() {
     const tbody = document.getElementById('timetableBody');
+    let html = '';
     
-    tbody.innerHTML = timeSlots.map((slot, index) => `
-        <tr>
-            <td class="time-column">${slot.start} - ${slot.end}</td>
-            ${days.map(day => `
-                <td class="droppable" 
-                    data-day="${day}" 
-                    data-time-index="${index}"
-                    data-start-time="${slot.start}"
-                    data-end-time="${slot.end}">
-                </td>
-            `).join('')}
-        </tr>
-    `).join('');
+    timeSlots.forEach((slot, index) => {
+        html += '<tr>';
+        html += '<td class="time-column">' + slot.start + ' - ' + slot.end + '</td>';
+        
+        days.forEach(day => {
+            html += '<td class="droppable" ' +
+                    'data-day="' + day + '" ' +
+                    'data-time-index="' + index + '" ' +
+                    'data-start-time="' + slot.start + '" ' +
+                    'data-end-time="' + slot.end + '">' +
+                    '</td>';
+        });
+        
+        html += '</tr>';
+    });
+    
+    tbody.innerHTML = html;
     
     // Add drop events to cells
     document.querySelectorAll('.droppable').forEach(cell => {
@@ -565,7 +600,7 @@ function generateTimetableGrid() {
 function loadExistingSlots() {
     if (!currentTimetableId) return;
     
-    fetch(`/api/timetable/get-slots/?timetable_id=${currentTimetableId}`)
+    fetch('/api/timetable/get-slots/?timetable_id=' + currentTimetableId)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -582,7 +617,7 @@ function renderSlots(slots) {
     
     slots.forEach(slot => {
         const cell = document.querySelector(
-            `td[data-day="${slot.day}"][data-start-time="${slot.start_time}"]`
+            'td[data-day="' + slot.day + '"][data-start-time="' + slot.start_time + '"]'
         );
         
         if (cell) {
@@ -598,14 +633,14 @@ function createSlotCard(slot) {
     div.draggable = true;
     div.dataset.slotId = slot.id;
     div.dataset.programmeUnitId = slot.programme_unit_id;
-    div.innerHTML = `
-        <div class="slot-unit">${slot.unit_code}</div>
-        <div class="slot-time">${slot.start_time} - ${slot.end_time}</div>
-        <div class="slot-lecturer">${slot.lecturer_name}</div>
-        <div class="slot-venue"><i class="ri-map-pin-line"></i> ${slot.venue}</div>
-    `;
+    div.innerHTML = '<div class="slot-unit">' + slot.unit_code + '</div>' +
+        '<div class="slot-time">' + slot.start_time + ' - ' + slot.end_time + '</div>' +
+        '<div class="slot-lecturer">' + slot.lecturer_name + '</div>' +
+        '<div class="slot-venue"><i class="ri-map-pin-line"></i> ' + slot.venue + '</div>';
     
-    div.addEventListener('click', () => openSlotModal(slot));
+    div.addEventListener('click', function() {
+        openSlotModal(slot);
+    });
     div.addEventListener('dragstart', handleSlotDragStart);
     div.addEventListener('dragend', handleSlotDragEnd);
     
@@ -681,14 +716,14 @@ function handleDrop(e) {
 function openScheduleModal(data, day, startTime, endTime) {
     // Populate modal
     document.getElementById('modalDay').value = day;
-    document.getElementById('modalTimeSlot').value = `${startTime}-${endTime}`;
+    document.getElementById('modalTimeSlot').value = startTime + '-' + endTime;
     document.getElementById('modalStartTime').value = startTime;
     document.getElementById('modalEndTime').value = endTime;
     
     if (data.type === 'unit') {
         document.getElementById('modalSlotId').value = '';
         document.getElementById('modalProgrammeUnitId').value = data.unitId;
-        document.getElementById('modalUnitInfo').value = `${data.unitCode} - ${data.unitName}`;
+        document.getElementById('modalUnitInfo').value = data.unitCode + ' - ' + data.unitName;
         document.getElementById('modalLecturer').value = data.lecturerId || '';
         document.getElementById('modalVenue').value = '';
         document.getElementById('modalSlotType').value = 'lecture';
@@ -699,12 +734,12 @@ function openScheduleModal(data, day, startTime, endTime) {
         if (slot) {
             document.getElementById('modalSlotId').value = slot.id;
             document.getElementById('modalProgrammeUnitId').value = slot.programme_unit_id;
-            document.getElementById('modalUnitInfo').value = `${slot.unit_code} - ${slot.unit_name}`;
+            document.getElementById('modalUnitInfo').value = slot.unit_code + ' - ' + slot.unit_name;
             document.getElementById('modalLecturer').value = slot.lecturer_id;
             document.getElementById('modalStartTime').value = startTime;
             document.getElementById('modalEndTime').value = endTime;
-            document.getElementById('modalVenue').value = '';
-            document.getElementById('modalSlotType').value = 'lecture';
+            document.getElementById('modalVenue').value = slot.venue;
+            document.getElementById('modalSlotType').value = slot.slot_type || 'lecture';
             document.getElementById('deleteSlotBtn').style.display = 'inline-block';
         }
     }
@@ -716,7 +751,7 @@ function openSlotModal(slot) {
     document.getElementById('modalSlotId').value = slot.id;
     document.getElementById('modalProgrammeUnitId').value = slot.programme_unit_id;
     document.getElementById('modalDay').value = slot.day;
-    document.getElementById('modalUnitInfo').value = `${slot.unit_code} - ${slot.unit_name}`;
+    document.getElementById('modalUnitInfo').value = slot.unit_code + ' - ' + slot.unit_name;
     document.getElementById('modalLecturer').value = slot.lecturer_id;
     document.getElementById('modalStartTime').value = slot.start_time;
     document.getElementById('modalEndTime').value = slot.end_time;
@@ -799,4 +834,92 @@ function deleteSlot() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert(data.message, '
+            showAlert(data.message, 'success');
+            slotModal.hide();
+            refreshTimetable();
+        } else {
+            showAlert(data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Error deleting slot', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+function publishTimetable() {
+    if (!currentTimetableId) return;
+    
+    if (!confirm('Are you sure you want to publish this timetable? Students will be able to view it.')) return;
+    
+    fetch('/api/timetable/publish/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ timetable_id: currentTimetableId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+        } else {
+            showAlert(data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Error publishing timetable', 'danger');
+        console.error('Error:', error);
+    });
+}
+
+function refreshTimetable() {
+    loadExistingSlots();
+    loadTimetable();
+}
+
+// Utility Functions
+function showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
+    }
+}
+
+function showAlert(message, type) {
+    // Create alert element
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '10000';
+    alertDiv.style.minWidth = '300px';
+    alertDiv.innerHTML = message + 
+        '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto dismiss after 5 seconds
+    setTimeout(function() {
+        alertDiv.remove();
+    }, 5000);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}
