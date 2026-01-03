@@ -11905,3 +11905,524 @@ def admin_reject_application(request, pk):
     return redirect('admin_hostel_application_list')
 
 
+# views.py - Library Management Views
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Case, When, IntegerField, F, Sum
+from django.core.paginator import Paginator
+from django.utils import timezone
+from django.http import JsonResponse
+from decimal import Decimal
+from datetime import timedelta, date
+from django.core.mail import send_mail
+from django.conf import settings
+
+from .models import (
+    Book, BookCategory, BookBorrowing, Student, 
+    AcademicYear, Semester, User
+)
+
+# ============= ADMIN VIEWS =============
+
+@login_required
+def admin_library_book_list(request):
+    """List all books with filters and search"""
+    books = Book.objects.select_related('category').annotate(
+        borrowed_count=Count(
+            'borrowings',
+            filter=Q(borrowings__status='active')
+        )
+    ).order_by('title')
+    
+    # Filters
+    category_filter = request.GET.get('category')
+    status_filter = request.GET.get('status')
+    search_query = request.GET.get('search')
+    
+    if category_filter:
+        books = books.filter(category_id=category_filter)
+    if status_filter:
+        books = books.filter(status=status_filter)
+    if search_query:
+        books = books.filter(
+            Q(title__icontains=search_query) |
+            Q(author__icontains=search_query) |
+            Q(isbn__icontains=search_query)
+        )
+    
+    # Statistics
+    stats = {
+        'total_books': Book.objects.count(),
+        'available': Book.objects.filter(status='available').count(),
+        'borrowed': Book.objects.filter(status='borrowed').count(),
+        'total_copies': Book.objects.aggregate(total=Sum('total_copies'))['total'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(books, 20)
+    page_number = request.GET.get('page')
+    books_page = paginator.get_page(page_number)
+    
+    context = {
+        'books': books_page,
+        'stats': stats,
+        'categories': BookCategory.objects.all().order_by('name'),
+        'category_filter': category_filter,
+        'status_filter': status_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'admin/library/book_list.html', context)
+
+
+@login_required
+def admin_library_book_detail(request, pk):
+    """View detailed book information"""
+    book = get_object_or_404(
+        Book.objects.select_related('category'),
+        pk=pk
+    )
+    
+    # Get borrowing history
+    borrowings = BookBorrowing.objects.filter(
+        book=book
+    ).select_related(
+        'student__user', 'student__programme',
+        'issued_by', 'returned_to'
+    ).order_by('-borrow_date')
+    
+    # Current borrowings (active)
+    current_borrowings = borrowings.filter(status__in=['active', 'overdue'])
+    
+    # Calculate overdue fines for active borrowings
+    for borrowing in current_borrowings:
+        borrowing.calculate_fine()
+    
+    # Statistics for this book
+    book_stats = {
+        'total_borrowed': borrowings.count(),
+        'currently_borrowed': current_borrowings.count(),
+        'overdue': borrowings.filter(status='overdue').count(),
+        'total_fines': borrowings.aggregate(
+            total=Sum('fine_amount')
+        )['total'] or Decimal('0.00'),
+    }
+    
+    context = {
+        'book': book,
+        'borrowings': borrowings[:10],  # Last 10 borrowings
+        'current_borrowings': current_borrowings,
+        'book_stats': book_stats,
+    }
+    
+    return render(request, 'admin/library/book_detail.html', context)
+
+
+@login_required
+def admin_library_issue_book(request, book_id):
+    """Issue a book to a student"""
+    book = get_object_or_404(Book, pk=book_id)
+    
+    if request.method == 'POST':
+        student_id = request.POST.get('student_id')
+        
+        # Validate book availability
+        if book.available_copies <= 0:
+            messages.error(request, f'{book.title} is currently not available.')
+            return redirect('admin_library_book_detail', pk=book_id)
+        
+        # Get student
+        try:
+            student = Student.objects.get(pk=student_id)
+        except Student.DoesNotExist:
+            messages.error(request, 'Student not found.')
+            return redirect('admin_library_book_detail', pk=book_id)
+        
+        # Check if student already has this book
+        existing = BookBorrowing.objects.filter(
+            student=student,
+            book=book,
+            status__in=['active', 'overdue']
+        ).exists()
+        
+        if existing:
+            messages.error(request, f'{student.user.get_full_name()} already has this book.')
+            return redirect('admin_library_book_detail', pk=book_id)
+        
+        # Check student's borrowing limit (max 3 books)
+        active_borrowings = BookBorrowing.objects.filter(
+            student=student,
+            status__in=['active', 'overdue']
+        ).count()
+        
+        if active_borrowings >= 3:
+            messages.error(request, f'{student.user.get_full_name()} has reached the maximum borrowing limit (3 books).')
+            return redirect('admin_library_book_detail', pk=book_id)
+        
+        # Get current academic year and semester
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_academic_year or not current_semester:
+            messages.error(request, 'No active academic year or semester.')
+            return redirect('admin_library_book_detail', pk=book_id)
+        
+        # Create borrowing record (2 weeks loan period)
+        due_date = date.today() + timedelta(days=14)
+        
+        borrowing = BookBorrowing.objects.create(
+            student=student,
+            book=book,
+            academic_year=current_academic_year,
+            semester=current_semester,
+            due_date=due_date,
+            issued_by=request.user,
+            status='active'
+        )
+        
+        # Update book availability
+        book.available_copies -= 1
+        if book.available_copies == 0:
+            book.status = 'borrowed'
+        book.save()
+        
+        # Send email notification
+        send_book_issue_email(borrowing)
+        
+        messages.success(
+            request, 
+            f'Book "{book.title}" issued to {student.user.get_full_name()} successfully. Due date: {due_date}'
+        )
+        return redirect('admin_library_book_detail', pk=book_id)
+    
+    # GET request - show issue form
+    # Get available students
+    students = Student.objects.select_related(
+        'user', 'programme'
+    ).filter(
+        student_status='active'
+    ).order_by('user__first_name')
+    
+    context = {
+        'book': book,
+        'students': students,
+    }
+    
+    return render(request, 'admin/library/issue_book.html', context)
+
+
+@login_required
+def admin_library_return_book(request, borrowing_id):
+    """Return a borrowed book"""
+    borrowing = get_object_or_404(
+        BookBorrowing.objects.select_related('book', 'student__user'),
+        pk=borrowing_id
+    )
+    
+    if request.method == 'POST':
+        if borrowing.status == 'returned':
+            messages.warning(request, 'This book has already been returned.')
+            return redirect('admin_library_borrowings')
+        
+        # Calculate final fine
+        borrowing.calculate_fine()
+        
+        # Mark as returned
+        borrowing.status = 'returned'
+        borrowing.return_date = timezone.now()
+        borrowing.returned_to = request.user
+        borrowing.save()
+        
+        # Update book availability
+        book = borrowing.book
+        book.available_copies += 1
+        if book.available_copies > 0:
+            book.status = 'available'
+        book.save()
+        
+        # Send return confirmation email
+        send_book_return_email(borrowing)
+        
+        if borrowing.fine_amount > 0:
+            messages.success(
+                request,
+                f'Book returned successfully. Fine: KES {borrowing.fine_amount}. '
+                f'Student: {borrowing.student.user.get_full_name()}'
+            )
+        else:
+            messages.success(
+                request,
+                f'Book returned successfully by {borrowing.student.user.get_full_name()}.'
+            )
+        
+        return redirect('admin_library_borrowings')
+    
+    return redirect('admin_library_borrowings')
+
+
+@login_required
+def admin_library_borrowings(request):
+    """List all borrowings with filters"""
+    borrowings = BookBorrowing.objects.select_related(
+        'student__user', 'book', 'issued_by'
+    ).order_by('-borrow_date')
+    
+    # Filters
+    status_filter = request.GET.get('status')
+    overdue_only = request.GET.get('overdue')
+    search_query = request.GET.get('search')
+    
+    if status_filter:
+        borrowings = borrowings.filter(status=status_filter)
+    if overdue_only:
+        borrowings = borrowings.filter(status='overdue')
+    if search_query:
+        borrowings = borrowings.filter(
+            Q(student__registration_number__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(book__title__icontains=search_query)
+        )
+    
+    # Calculate fines for active borrowings
+    active_borrowings = borrowings.filter(status__in=['active', 'overdue'])
+    for borrowing in active_borrowings:
+        borrowing.calculate_fine()
+    
+    # Statistics
+    stats = {
+        'total': borrowings.count(),
+        'active': borrowings.filter(status='active').count(),
+        'overdue': borrowings.filter(status='overdue').count(),
+        'returned': borrowings.filter(status='returned').count(),
+        'total_fines': borrowings.aggregate(
+            total=Sum('fine_amount')
+        )['total'] or Decimal('0.00'),
+    }
+    
+    # Pagination
+    paginator = Paginator(borrowings, 20)
+    page_number = request.GET.get('page')
+    borrowings_page = paginator.get_page(page_number)
+    
+    context = {
+        'borrowings': borrowings_page,
+        'stats': stats,
+        'status_filter': status_filter,
+        'overdue_only': overdue_only,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'admin/library/borrowings_list.html', context)
+
+
+@login_required
+def admin_library_overdue_books(request):
+    """List overdue books and send reminders"""
+    # Get overdue borrowings
+    overdue_borrowings = BookBorrowing.objects.filter(
+        status__in=['active', 'overdue'],
+        due_date__lt=date.today()
+    ).select_related(
+        'student__user', 'book'
+    ).order_by('due_date')
+    
+    # Calculate fines
+    for borrowing in overdue_borrowings:
+        borrowing.calculate_fine()
+    
+    # Calculate days overdue
+    for borrowing in overdue_borrowings:
+        borrowing.days_overdue = (date.today() - borrowing.due_date).days
+    
+    context = {
+        'overdue_borrowings': overdue_borrowings,
+    }
+    
+    return render(request, 'admin/library/overdue_books.html', context)
+
+
+@login_required
+def admin_library_send_reminder(request, borrowing_id):
+    """Send email reminder to student"""
+    borrowing = get_object_or_404(
+        BookBorrowing.objects.select_related('student__user', 'book'),
+        pk=borrowing_id
+    )
+    
+    # Send reminder email
+    send_overdue_reminder_email(borrowing)
+    
+    messages.success(
+        request,
+        f'Reminder sent to {borrowing.student.user.get_full_name()} ({borrowing.student.user.email})'
+    )
+    
+    return redirect('admin_library_overdue_books')
+
+
+@login_required
+def admin_library_send_all_reminders(request):
+    """Send reminders to all students with overdue books"""
+    overdue_borrowings = BookBorrowing.objects.filter(
+        status__in=['active', 'overdue'],
+        due_date__lt=date.today()
+    ).select_related('student__user', 'book')
+    
+    count = 0
+    for borrowing in overdue_borrowings:
+        send_overdue_reminder_email(borrowing)
+        count += 1
+    
+    messages.success(request, f'Sent {count} reminder email(s) successfully.')
+    return redirect('admin_library_overdue_books')
+
+
+# ============= HELPER FUNCTIONS =============
+
+def send_book_issue_email(borrowing):
+    """Send email when book is issued"""
+    subject = f'Book Issued: {borrowing.book.title}'
+    message = f"""
+Dear {borrowing.student.user.get_full_name()},
+
+You have been issued the following book:
+
+Title: {borrowing.book.title}
+Author: {borrowing.book.author}
+ISBN: {borrowing.book.isbn}
+
+Borrow Date: {borrowing.borrow_date.strftime('%B %d, %Y')}
+Due Date: {borrowing.due_date.strftime('%B %d, %Y')}
+
+Please return the book by the due date to avoid late fees (KES 5 per day).
+
+Best regards,
+Library Management
+"""
+    
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [borrowing.student.user.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+
+def send_book_return_email(borrowing):
+    """Send email when book is returned"""
+    subject = f'Book Returned: {borrowing.book.title}'
+    message = f"""
+Dear {borrowing.student.user.get_full_name()},
+
+You have returned the following book:
+
+Title: {borrowing.book.title}
+Return Date: {borrowing.return_date.strftime('%B %d, %Y')}
+
+"""
+    
+    if borrowing.fine_amount > 0:
+        message += f"\nLate Fee: KES {borrowing.fine_amount}\n"
+        if not borrowing.fine_paid:
+            message += "Please pay the late fee at the library counter.\n"
+    else:
+        message += "No late fees. Thank you for returning on time!\n"
+    
+    message += "\nBest regards,\nLibrary Management"
+    
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [borrowing.student.user.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+
+def send_overdue_reminder_email(borrowing):
+    """Send reminder email for overdue books"""
+    days_overdue = (date.today() - borrowing.due_date).days
+    borrowing.calculate_fine()
+    
+    subject = f'OVERDUE: {borrowing.book.title} - Action Required'
+    message = f"""
+Dear {borrowing.student.user.get_full_name()},
+
+This is a reminder that the following book is OVERDUE:
+
+Title: {borrowing.book.title}
+Author: {borrowing.book.author}
+Due Date: {borrowing.due_date.strftime('%B %d, %Y')}
+Days Overdue: {days_overdue} days
+
+Current Late Fee: KES {borrowing.fine_amount}
+(KES 5 per day)
+
+Please return the book as soon as possible to avoid additional charges.
+
+Best regards,
+Library Management
+"""
+    
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [borrowing.student.user.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+
+# ============= API ENDPOINTS =============
+
+@login_required
+def api_calculate_fine(request, borrowing_id):
+    """API endpoint to calculate current fine"""
+    borrowing = get_object_or_404(BookBorrowing, pk=borrowing_id)
+    borrowing.calculate_fine()
+    
+    return JsonResponse({
+        'success': True,
+        'borrowing_id': borrowing.id,
+        'fine_amount': float(borrowing.fine_amount),
+        'days_overdue': max(0, (date.today() - borrowing.due_date).days),
+        'status': borrowing.status
+    })
+
+
+@login_required
+def api_search_students(request):
+    """API endpoint to search students"""
+    query = request.GET.get('q', '')
+    
+    if len(query) < 2:
+        return JsonResponse({'students': []})
+    
+    students = Student.objects.filter(
+        Q(registration_number__icontains=query) |
+        Q(user__first_name__icontains=query) |
+        Q(user__last_name__icontains=query),
+        student_status='active'
+    ).select_related('user', 'programme')[:10]
+    
+    result = [{
+        'id': s.id,
+        'registration_number': s.registration_number,
+        'name': s.user.get_full_name(),
+        'programme': s.programme.code
+    } for s in students]
+    
+    return JsonResponse({'students': result})
