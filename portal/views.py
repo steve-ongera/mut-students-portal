@@ -12639,25 +12639,39 @@ def api_save_timetable_slot(request):
         # Get timetable
         timetable = Timetable.objects.get(id=timetable_id)
         
-        # Get or create unit allocation
+        # Get programme unit
         programme_unit = ProgrammeUnit.objects.get(id=programme_unit_id)
         
+        # Handle unit allocation
         if lecturer_id:
-            # Create/get unit allocation
-            allocation, created = UnitAllocation.objects.get_or_create(
+            # Try to get existing allocation first
+            allocation = UnitAllocation.objects.filter(
                 programme_unit=programme_unit,
                 semester=timetable.semester,
-                defaults={
-                    'lecturer_id': lecturer_id,
-                    'assigned_by': request.user,
-                    'status': 'pending'
-                }
-            )
+                lecturer_id=lecturer_id
+            ).first()
             
-            # Update lecturer if changed
-            if not created and allocation.lecturer_id != int(lecturer_id):
-                allocation.lecturer_id = lecturer_id
-                allocation.save()
+            if not allocation:
+                # Check if there's an allocation with a different lecturer
+                existing_allocation = UnitAllocation.objects.filter(
+                    programme_unit=programme_unit,
+                    semester=timetable.semester
+                ).first()
+                
+                if existing_allocation:
+                    # Update the existing allocation with the new lecturer
+                    existing_allocation.lecturer_id = lecturer_id
+                    existing_allocation.save()
+                    allocation = existing_allocation
+                else:
+                    # Create new allocation
+                    allocation = UnitAllocation.objects.create(
+                        programme_unit=programme_unit,
+                        semester=timetable.semester,
+                        lecturer_id=lecturer_id,
+                        assigned_by=request.user,
+                        status='pending'
+                    )
         else:
             # Try to get existing allocation
             allocation = UnitAllocation.objects.filter(
@@ -12671,7 +12685,7 @@ def api_save_timetable_slot(request):
                     'error': 'Please allocate a lecturer first'
                 }, status=400)
         
-        # Check for conflicts (same time, same day)
+        # Check for conflicts (same time, same day, same timetable)
         conflicts = TimetableSlot.objects.filter(
             timetable=timetable,
             day_of_week=day_of_week,
@@ -12756,6 +12770,8 @@ def api_save_timetable_slot(request):
             'error': 'Timetable slot not found'
         }, status=404)
     except Exception as e:
+        import traceback
+        print(traceback.format_exc())  # For debugging
         return JsonResponse({
             'success': False,
             'error': str(e)
