@@ -1,0 +1,380 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Make Payment - Student ID{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_id_dashboard' %}">Student ID</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'view_id_application' application.id %}">Application #{{ application.application_number }}</a></li>
+        <li class="breadcrumb-item active">Make Payment</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Make Payment</h5>
+                    <p class="text-muted mb-0 mt-1">Application #{{ application.application_number }}</p>
+                </div>
+                <div class="card-body">
+                    <!-- Payment Summary -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading mb-3">Payment Summary</h6>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <small class="text-muted">Total Amount:</small>
+                                <div><strong>KES {{ application.amount_due|floatformat:2 }}</strong></div>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Amount Paid:</small>
+                                <div class="text-success"><strong>KES {{ application.amount_paid|floatformat:2 }}</strong></div>
+                            </div>
+                            <div class="col-12">
+                                <hr class="my-2">
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted">Balance Due:</small>
+                                <div class="h4 text-danger mb-0"><strong>KES {{ application.balance|floatformat:2 }}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Methods -->
+                    <h6 class="mb-3">Select Payment Method</h6>
+                    
+                    <form method="post" id="paymentForm">
+                        {% csrf_token %}
+                        
+                        <!-- Payment Method Selection -->
+                        <div class="row g-3 mb-4">
+                            <!-- M-Pesa -->
+                            <div class="col-md-6">
+                                <div class="payment-card" data-method="mpesa">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method" 
+                                               value="mpesa" id="mpesa" checked>
+                                        <label class="form-check-label w-100" for="mpesa">
+                                            <div class="payment-method-content">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="ri-phone-line text-success me-2" style="font-size: 1.5rem;"></i>
+                                                    <strong>M-Pesa</strong>
+                                                </div>
+                                                <small class="text-muted">Pay using M-Pesa STK Push</small>
+                                                <div class="badge bg-success mt-2">Instant</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bank Transfer -->
+                            <div class="col-md-6">
+                                <div class="payment-card" data-method="bank">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method" 
+                                               value="bank" id="bank">
+                                        <label class="form-check-label w-100" for="bank">
+                                            <div class="payment-method-content">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="ri-bank-line text-primary me-2" style="font-size: 1.5rem;"></i>
+                                                    <strong>Bank Transfer</strong>
+                                                </div>
+                                                <small class="text-muted">Direct bank deposit</small>
+                                                <div class="badge bg-warning text-dark mt-2">1-2 Days</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cash Payment -->
+                            <div class="col-md-6">
+                                <div class="payment-card" data-method="cash">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method" 
+                                               value="cash" id="cash">
+                                        <label class="form-check-label w-100" for="cash">
+                                            <div class="payment-method-content">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="ri-money-dollar-circle-line text-success me-2" style="font-size: 1.5rem;"></i>
+                                                    <strong>Cash Payment</strong>
+                                                </div>
+                                                <small class="text-muted">Pay at Finance Office</small>
+                                                <div class="badge bg-info mt-2">Walk-in</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Card Payment -->
+                            <div class="col-md-6">
+                                <div class="payment-card" data-method="card">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="payment_method" 
+                                               value="card" id="card">
+                                        <label class="form-check-label w-100" for="card">
+                                            <div class="payment-method-content">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="ri-bank-card-line text-info me-2" style="font-size: 1.5rem;"></i>
+                                                    <strong>Card Payment</strong>
+                                                </div>
+                                                <small class="text-muted">Credit/Debit card</small>
+                                                <div class="badge bg-primary mt-2">Secure</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- M-Pesa Phone Number -->
+                        <div id="mpesaDetails" class="mb-4">
+                            <label class="form-label">
+                                M-Pesa Phone Number <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="ri-phone-line"></i>
+                                </span>
+                                <input type="tel" name="phone_number" class="form-control" 
+                                       placeholder="0712345678" pattern="[0-9]{10}" 
+                                       value="{{ student.user.phone_number }}" required>
+                            </div>
+                            <small class="text-muted">
+                                Enter the M-Pesa registered phone number. You'll receive an STK push prompt.
+                            </small>
+                        </div>
+
+                        <!-- Bank Transfer Details -->
+                        <div id="bankDetails" class="mb-4" style="display: none;">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading mb-3">Bank Account Details</h6>
+                                <p class="mb-2"><strong>Bank:</strong> Your Bank Name</p>
+                                <p class="mb-2"><strong>Account Name:</strong> University Name</p>
+                                <p class="mb-2"><strong>Account Number:</strong> 1234567890</p>
+                                <p class="mb-2"><strong>Reference:</strong> {{ application.application_number }}</p>
+                                <hr>
+                                <small class="mb-0">
+                                    <i class="ri-information-line"></i> 
+                                    Please use the application number as payment reference and email 
+                                    the deposit slip to finance@university.ac.ke
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Cash Payment Details -->
+                        <div id="cashDetails" class="mb-4" style="display: none;">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading mb-3">Cash Payment Instructions</h6>
+                                <p class="mb-2">
+                                    <i class="ri-map-pin-line"></i> 
+                                    <strong>Location:</strong> Finance Office, Administration Block, Ground Floor
+                                </p>
+                                <p class="mb-2">
+                                    <i class="ri-time-line"></i> 
+                                    <strong>Office Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Reference Number:</strong> {{ application.application_number }}
+                                </p>
+                                <hr>
+                                <small class="mb-0">
+                                    <i class="ri-information-line"></i> 
+                                    Please bring your student ID and quote the reference number above
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Terms & Conditions -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="paymentTerms" required>
+                                <label class="form-check-label" for="paymentTerms">
+                                    I confirm the payment details and understand that fees are non-refundable
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success" id="submitBtn">
+                                <i class="ri-secure-payment-line"></i> <span id="btnText">Initiate M-Pesa Payment</span>
+                            </button>
+                            <a href="{% url 'view_id_application' application.id %}" class="btn btn-outline-secondary">
+                                <i class="ri-arrow-left-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Processing Modal -->
+<div class="modal fade" id="processingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body text-center py-4">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <h5>Processing Payment...</h5>
+                <p class="text-muted mb-0">Please wait while we process your payment request</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+    }
+
+    .payment-card {
+        border: 2px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        height: 100%;
+    }
+
+    .payment-card:hover {
+        border-color: var(--color-primary);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .payment-card.selected {
+        border-color: var(--color-primary);
+        background-color: rgba(46, 125, 50, 0.05);
+    }
+
+    .payment-method-content {
+        padding: 0.5rem 0;
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: 0.125rem;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .input-group-text {
+        background-color: var(--color-gray-100);
+        border: 1px solid var(--color-gray-300);
+    }
+
+    .alert {
+        border-radius: var(--radius-md);
+    }
+
+    @media (max-width: 768px) {
+        .payment-card {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentForm = document.getElementById('paymentForm');
+    const mpesaDetails = document.getElementById('mpesaDetails');
+    const bankDetails = document.getElementById('bankDetails');
+    const cashDetails = document.getElementById('cashDetails');
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const processingModal = new bootstrap.Modal(document.getElementById('processingModal'));
+    
+    // Handle payment method selection
+    document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Update card styling
+            document.querySelectorAll('.payment-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            this.closest('.payment-card').classList.add('selected');
+            
+            // Show/hide relevant details
+            mpesaDetails.style.display = 'none';
+            bankDetails.style.display = 'none';
+            cashDetails.style.display = 'none';
+            
+            const phoneInput = mpesaDetails.querySelector('input[name="phone_number"]');
+            phoneInput.required = false;
+            
+            switch(this.value) {
+                case 'mpesa':
+                    mpesaDetails.style.display = 'block';
+                    phoneInput.required = true;
+                    btnText.textContent = 'Initiate M-Pesa Payment';
+                    break;
+                case 'bank':
+                    bankDetails.style.display = 'block';
+                    btnText.textContent = 'Get Bank Details';
+                    break;
+                case 'cash':
+                    cashDetails.style.display = 'block';
+                    btnText.textContent = 'Get Cash Payment Instructions';
+                    break;
+                case 'card':
+                    btnText.textContent = 'Proceed to Card Payment';
+                    break;
+            }
+        });
+    });
+    
+    // Set initial state
+    document.querySelector('.payment-card[data-method="mpesa"]').classList.add('selected');
+    
+    // Handle form submission
+    paymentForm.addEventListener('submit', function(e) {
+        const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+        
+        if (paymentMethod === 'mpesa') {
+            e.preventDefault();
+            processingModal.show();
+            
+            // Submit form via fetch
+            const formData = new FormData(paymentForm);
+            
+            fetch(paymentForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                processingModal.hide();
+                // Redirect will happen via messages
+                window.location.href = "{% url 'view_id_application' application.id %}";
+            })
+            .catch(error => {
+                processingModal.hide();
+                alert('Error processing payment. Please try again.');
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

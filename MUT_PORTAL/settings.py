@@ -28,12 +28,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'portal',
+    'django.contrib.humanize',
 ]
 
 AUTH_USER_MODEL = 'portal.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -163,3 +165,35 @@ PAYMENT_CHECK_INTERVAL = 4
 
 # Maximum payment verification attempts
 MAX_PAYMENT_ATTEMPTS = 30  # 30 attempts * 4 seconds = 2 minutes
+
+
+# Student ID M-Pesa Configuration
+STUDENT_ID_MPESA_CONSUMER_KEY = 'your_consumer_key'
+STUDENT_ID_MPESA_CONSUMER_SECRET = 'your_consumer_secret'
+STUDENT_ID_MPESA_SHORTCODE = 'your_shortcode'
+STUDENT_ID_MPESA_PASSKEY = 'your_passkey'
+STUDENT_ID_MPESA_CALLBACK_URL = 'https://yourdomain.com/student/id-payment-callback/'
+
+# ============= EMAIL SETTINGS (if not already configured) =============
+# Configure your email backend for notifications
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # or your email provider
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'your-email@example.com'
+EMAIL_HOST_PASSWORD = 'your-email-password'
+DEFAULT_FROM_EMAIL = 'University <noreply@university.ac.ke>'
+
+
+# ============= SMS SETTINGS (Optional) =============
+# If you want to send SMS notifications
+SMS_API_KEY = 'your_sms_api_key'
+SMS_USERNAME = 'your_sms_username'
+SMS_SENDER_ID = 'UNIVERSITY'
+
+# ============= FILE UPLOAD SETTINGS =============
+# Maximum file size for ID photos (2MB)
+MAX_ID_PHOTO_SIZE = 2 * 1024 * 1024  # 2MB in bytes
+
+# Allowed image formats
+ALLOWED_ID_PHOTO_FORMATS = ['jpg', 'jpeg', 'png']

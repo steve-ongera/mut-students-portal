@@ -1,0 +1,283 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Upload Photo - Student ID{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_id_dashboard' %}">Student ID</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'view_id_application' application.id %}">Application #{{ application.application_number }}</a></li>
+        <li class="breadcrumb-item active">Upload Photo</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Upload ID Photo</h5>
+                    <p class="text-muted mb-0 mt-2">Application #{{ application.application_number }}</p>
+                </div>
+                <div class="card-body">
+                    <!-- Photo Requirements -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading mb-3"><i class="ri-information-line"></i> Photo Requirements</h6>
+                        <ul class="mb-0">
+                            <li>Passport-size photo (2x2 inches)</li>
+                            <li>Plain white or light background</li>
+                            <li>Face clearly visible, no sunglasses or hats</li>
+                            <li>Recent photo (taken within last 6 months)</li>
+                            <li>File formats: JPG, JPEG, PNG</li>
+                            <li>Maximum file size: 2MB</li>
+                        </ul>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Front Photo -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                Upload Photo (Front) <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" name="photo" class="form-control" accept="image/*" 
+                                   id="photoInput" required>
+                            <small class="text-muted">This photo will appear on your Student ID card</small>
+                            
+                            <!-- Photo Preview -->
+                            <div class="mt-3" id="photoPreview" style="display: none;">
+                                <p class="mb-2"><strong>Preview:</strong></p>
+                                <img id="previewImage" src="" alt="Photo preview" 
+                                     style="max-width: 200px; max-height: 200px; border: 2px solid #ddd; border-radius: 8px;">
+                            </div>
+                        </div>
+
+                        <!-- Back Photo (Optional) -->
+                        <div class="mb-4">
+                            <label class="form-label">
+                                Upload Photo (Back) <span class="text-muted">(Optional)</span>
+                            </label>
+                            <input type="file" name="photo_back" class="form-control" accept="image/*" 
+                                   id="photoBackInput">
+                            <small class="text-muted">Optional: Photo for the back of your ID card</small>
+                            
+                            <!-- Back Photo Preview -->
+                            <div class="mt-3" id="photoBackPreview" style="display: none;">
+                                <p class="mb-2"><strong>Preview:</strong></p>
+                                <img id="previewBackImage" src="" alt="Back photo preview" 
+                                     style="max-width: 200px; max-height: 200px; border: 2px solid #ddd; border-radius: 8px;">
+                            </div>
+                        </div>
+
+                        <!-- Terms Confirmation -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="photoConfirm" required>
+                                <label class="form-check-label" for="photoConfirm">
+                                    I confirm that this photo meets all the requirements and is a recent photo of myself
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-upload-line"></i> Upload & Continue
+                            </button>
+                            <a href="{% url 'view_id_application' application.id %}" class="btn btn-outline-secondary">
+                                <i class="ri-arrow-left-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+    }
+
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .alert {
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+        padding: 1rem 1.25rem;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: #0c5460;
+    }
+
+    .alert ul {
+        padding-left: 1.25rem;
+        margin-bottom: 0;
+    }
+
+    .alert li {
+        margin-bottom: 0.25rem;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.25);
+        outline: none;
+    }
+
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline-secondary {
+        color: var(--color-gray-600);
+        border-color: var(--color-gray-300);
+    }
+
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Front photo preview
+    const photoInput = document.getElementById('photoInput');
+    const photoPreview = document.getElementById('photoPreview');
+    const previewImage = document.getElementById('previewImage');
+    
+    photoInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file size (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File size must be less than 2MB');
+                photoInput.value = '';
+                photoPreview.style.display = 'none';
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImage.src = e.target.result;
+                photoPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Back photo preview
+    const photoBackInput = document.getElementById('photoBackInput');
+    const photoBackPreview = document.getElementById('photoBackPreview');
+    const previewBackImage = document.getElementById('previewBackImage');
+    
+    photoBackInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file size (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File size must be less than 2MB');
+                photoBackInput.value = '';
+                photoBackPreview.style.display = 'none';
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewBackImage.src = e.target.result;
+                photoBackPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+});
+</script>
+{% endblock %}

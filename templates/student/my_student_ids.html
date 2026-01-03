@@ -1,0 +1,380 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}My Student ID Cards{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_id_dashboard' %}">Student ID</a></li>
+        <li class="breadcrumb-item active">My ID Cards</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    {% if active_card %}
+    <!-- Active ID Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="management-card id-card-showcase">
+                <div class="card-header">
+                    <h5 class="card-title">Active Student ID Card</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="id-card-preview">
+                                <div class="id-card">
+                                    <div class="id-card-header">
+                                        <h6 class="mb-0">UNIVERSITY NAME</h6>
+                                        <small>Student Identification Card</small>
+                                    </div>
+                                    <div class="id-card-body">
+                                        <div class="row">
+                                            <div class="col-4">
+                                                {% if active_card.application.photo %}
+                                                <img src="{{ active_card.application.photo.url }}" 
+                                                     alt="Student Photo" class="student-photo">
+                                                {% else %}
+                                                <div class="student-photo-placeholder">
+                                                    <i class="ri-user-line"></i>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-8">
+                                                <div class="id-details">
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Name</small>
+                                                        <div><strong>{{ student.user.get_full_name }}</strong></div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Reg. No.</small>
+                                                        <div><strong>{{ student.registration_number }}</strong></div>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Programme</small>
+                                                        <div>{{ student.programme.code }}</div>
+                                                    </div>
+                                                    <div>
+                                                        <small class="text-muted">Card No.</small>
+                                                        <div><strong>{{ active_card.card_number }}</strong></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="id-card-footer">
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <small>Valid Until</small>
+                                                <div><strong>{{ active_card.expiry_date|date:"M Y" }}</strong></div>
+                                            </div>
+                                            <div class="col-6 text-end">
+                                                {% if active_card.qr_code %}
+                                                <img src="{{ active_card.qr_code.url }}" alt="QR Code" 
+                                                     style="width: 60px; height: 60px;">
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="id-card-info">
+                                <h6 class="mb-3">Card Information</h6>
+                                <div class="mb-3">
+                                    <small class="text-muted">Status</small>
+                                    <div>
+                                        <span class="badge bg-success">Active</span>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <small class="text-muted">Issue Date</small>
+                                    <div><strong>{{ active_card.issue_date|date:"M d, Y" }}</strong></div>
+                                </div>
+                                <div class="mb-3">
+                                    <small class="text-muted">Expiry Date</small>
+                                    <div><strong>{{ active_card.expiry_date|date:"M d, Y" }}</strong></div>
+                                </div>
+                                <div class="mb-4">
+                                    <small class="text-muted">Card Type</small>
+                                    <div><strong>{{ active_card.get_card_type_display }}</strong></div>
+                                </div>
+                                
+                                {% if active_card.digital_id_file %}
+                                <a href="{% url 'download_digital_id' active_card.id %}" 
+                                   class="btn btn-primary btn-sm w-100 mb-2">
+                                    <i class="ri-download-line"></i> Download Digital ID
+                                </a>
+                                {% endif %}
+                                
+                                <button class="btn btn-outline-secondary btn-sm w-100" 
+                                        onclick="window.print()">
+                                    <i class="ri-printer-line"></i> Print Card Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- All ID Cards History -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">ID Cards History</h5>
+        </div>
+        <div class="card-body">
+            {% if id_cards %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Card Number</th>
+                            <th>Type</th>
+                            <th>Issue Date</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for card in id_cards %}
+                        <tr>
+                            <td><strong>{{ card.card_number }}</strong></td>
+                            <td>
+                                <span class="badge bg-info">{{ card.get_card_type_display }}</span>
+                            </td>
+                            <td>{{ card.issue_date|date:"M d, Y" }}</td>
+                            <td>
+                                {{ card.expiry_date|date:"M d, Y" }}
+                                {% if card.is_expired %}
+                                <span class="badge bg-danger ms-2">Expired</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if card.status == 'active' %}
+                                    <span class="badge bg-success">Active</span>
+                                {% elif card.status == 'expired' %}
+                                    <span class="badge bg-danger">Expired</span>
+                                {% elif card.status == 'lost' %}
+                                    <span class="badge bg-warning text-dark">Lost</span>
+                                {% elif card.status == 'replaced' %}
+                                    <span class="badge bg-secondary">Replaced</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ card.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if card.digital_id_file %}
+                                <a href="{% url 'download_digital_id' card.id %}" 
+                                   class="btn btn-sm btn-outline-primary" title="Download">
+                                    <i class="ri-download-line"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if card.status == 'active' %}
+                                <button class="btn btn-sm btn-outline-secondary" 
+                                        onclick="verifyCard('{{ card.card_number }}')" title="Verify">
+                                    <i class="ri-shield-check-line"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="ri-id-card-line" style="font-size: 4rem; color: #ccc;"></i>
+                <p class="text-muted mt-3">No ID cards issued yet</p>
+                <a href="{% url 'apply_for_student_id' %}" class="btn btn-primary">
+                    <i class="ri-add-line"></i> Apply for Student ID
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Verification Modal -->
+<div class="modal fade" id="verificationModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Card Verification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="verificationResult">
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-3 mb-0">Verifying card...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+    }
+
+    .id-card-showcase {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+    }
+
+    .id-card-showcase .card-header {
+        background: rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .id-card-showcase .card-title {
+        color: white;
+    }
+
+    .id-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .id-card-header {
+        background: var(--color-primary);
+        color: white;
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .id-card-body {
+        padding: 1.5rem;
+    }
+
+    .student-photo {
+        width: 100%;
+        aspect-ratio: 3/4;
+        object-fit: cover;
+        border-radius: var(--radius-md);
+        border: 2px solid var(--color-gray-300);
+    }
+
+    .student-photo-placeholder {
+        width: 100%;
+        aspect-ratio: 3/4;
+        background: var(--color-gray-200);
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3rem;
+        color: var(--color-gray-400);
+    }
+
+    .id-details small {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .id-card-footer {
+        background: var(--color-gray-100);
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--color-gray-300);
+    }
+
+    .id-card-info {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        color: var(--color-gray-800);
+    }
+
+    @media print {
+        body * {
+            visibility: hidden;
+        }
+        .id-card-showcase, .id-card-showcase * {
+            visibility: visible;
+        }
+        .id-card-showcase {
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .id-card-body {
+            padding: 1rem;
+        }
+        
+        .id-card-info {
+            margin-top: 1rem;
+        }
+    }
+</style>
+
+<script>
+function verifyCard(cardNumber) {
+    const modal = new bootstrap.Modal(document.getElementById('verificationModal'));
+    const resultDiv = document.getElementById('verificationResult');
+    
+    modal.show();
+    
+    fetch(`/student/verify-id-card/${cardNumber}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.valid) {
+                resultDiv.innerHTML = `
+                    <div class="text-center">
+                        <i class="ri-checkbox-circle-line text-success" style="font-size: 4rem;"></i>
+                        <h5 class="mt-3 mb-4">Card Verified ✓</h5>
+                        <div class="text-start">
+                            <p class="mb-2"><strong>Card Number:</strong> ${data.card_number}</p>
+                            <p class="mb-2"><strong>Student:</strong> ${data.student_name}</p>
+                            <p class="mb-2"><strong>Reg. No:</strong> ${data.registration_number}</p>
+                            <p class="mb-2"><strong>Programme:</strong> ${data.programme}</p>
+                            <p class="mb-2"><strong>Valid Until:</strong> ${data.expiry_date}</p>
+                            ${data.is_expired ? '<span class="badge bg-danger">Expired</span>' : '<span class="badge bg-success">Valid</span>'}
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultDiv.innerHTML = `
+                    <div class="text-center">
+                        <i class="ri-close-circle-line text-danger" style="font-size: 4rem;"></i>
+                        <h5 class="mt-3">Verification Failed</h5>
+                        <p class="text-muted">${data.error}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            resultDiv.innerHTML = `
+                <div class="text-center">
+                    <i class="ri-error-warning-line text-warning" style="font-size: 4rem;"></i>
+                    <h5 class="mt-3">Error</h5>
+                    <p class="text-muted">Failed to verify card. Please try again.</p>
+                </div>
+            `;
+        });
+}
+</script>
+{% endblock %}

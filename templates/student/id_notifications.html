@@ -1,0 +1,150 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}ID Notifications{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_id_dashboard' %}">Student ID</a></li>
+        <li class="breadcrumb-item active">Notifications</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">All Notifications</h5>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        {% for notif in notifications %}
+                        <div class="notification-card {% if not notif.is_read %}unread{% endif %}">
+                            <div class="d-flex align-items-start">
+                                <div class="notification-icon">
+                                    {% if notif.notification_type == 'application_submitted' %}
+                                        <i class="ri-file-list-line text-primary"></i>
+                                    {% elif notif.notification_type == 'payment_request' %}
+                                        <i class="ri-money-dollar-circle-line text-warning"></i>
+                                    {% elif notif.notification_type == 'payment_confirmed' %}
+                                        <i class="ri-checkbox-circle-line text-success"></i>
+                                    {% elif notif.notification_type == 'in_production' %}
+                                        <i class="ri-tools-line text-info"></i>
+                                    {% elif notif.notification_type == 'ready_for_pickup' %}
+                                        <i class="ri-map-pin-line text-success"></i>
+                                    {% elif notif.notification_type == 'delivered' %}
+                                        <i class="ri-gift-line text-success"></i>
+                                    {% else %}
+                                        <i class="ri-notification-3-line text-primary"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h6 class="mb-0">{{ notif.title }}</h6>
+                                        <small class="text-muted">{{ notif.sent_at|timesince }} ago</small>
+                                    </div>
+                                    <p class="text-muted mb-2">{{ notif.message }}</p>
+                                    
+                                    {% if notif.application %}
+                                    <a href="{% url 'view_id_application' notif.application.id %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="ri-arrow-right-line"></i> View Application
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <div class="mt-2">
+                                        <small class="text-muted">
+                                            Sent via: 
+                                            {% if notif.sent_via_email %}
+                                                <span class="badge bg-info">Email</span>
+                                            {% endif %}
+                                            {% if notif.sent_via_sms %}
+                                                <span class="badge bg-success">SMS</span>
+                                            {% endif %}
+                                            {% if notif.sent_via_portal %}
+                                                <span class="badge bg-primary">Portal</span>
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="ri-notification-off-line" style="font-size: 4rem; color: #ccc;"></i>
+                            <p class="text-muted mt-3">No notifications yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+        --radius-md: 8px;
+    }
+
+    .notification-card {
+        padding: 1.5rem;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+
+    .notification-card.unread {
+        background-color: rgba(46, 125, 50, 0.05);
+        border-left: 3px solid var(--color-primary);
+    }
+
+    .notification-card:hover {
+        background-color: var(--color-gray-100);
+    }
+
+    .notification-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .notification-card h6 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .notification-card p {
+        font-size: 0.9375rem;
+        line-height: 1.6;
+    }
+
+    @media (max-width: 768px) {
+        .notification-card {
+            padding: 1rem;
+        }
+        
+        .notification-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+    }
+</style>
+{% endblock %}

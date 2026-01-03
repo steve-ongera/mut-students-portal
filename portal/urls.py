@@ -315,17 +315,22 @@ urlpatterns = [
     # Student Timetable
     path('student/timetable/', views.student_timetable, name='student_timetable'),
     
-    # Student ID Card URLs
+    # Student ID Management
     path('student-id/', views.student_id_dashboard, name='student_id_dashboard'),
-    path('student-id/apply/', views.apply_for_student_id, name='apply_student_id'),
-    path('student-id/application/<int:application_id>/', views.view_application, name='view_id_application'),
-    path('student-id/application/<int:application_id>/pay/', views.initiate_payment, name='initiate_id_payment'),
-    path('student-id/application/<int:application_id>/upload-photo/', views.upload_id_photo, name='upload_id_photo'),
-    path('student-id/my-ids/', views.my_student_ids, name='my_student_ids'),
-    path('student-id/verify/<str:card_number>/', views.verify_id_card, name='verify_id_card'),
+    path('student-id/apply/', views.apply_for_student_id, name='apply_for_student_id'),
+    path('student-id/upload-photo/<int:application_id>/', views.upload_id_photo, name='upload_id_photo'),
+    path('student-id/application/<int:application_id>/', views.view_id_application, name='view_id_application'),
+    path('student-id/payment/<int:application_id>/', views.initiate_id_payment, name='initiate_id_payment'),
+    path('student-id/my-cards/', views.my_student_ids, name='my_student_ids'),
+    path('student-id/download/<int:card_id>/', views.download_digital_id, name='download_digital_id'),
+    path('student-id/notifications/', views.id_notifications, name='id_notifications'),
+    path('student-id/check-payment/<int:application_id>/', views.check_payment_status, name='check_payment_status'),
     
-    # Payment Callbacks 
-    path('api/student-id/payment/callback/', views.payment_callback, name='id_payment_callback'),
+    # Public endpoint for ID verification
+    path('verify-id-card/<str:card_number>/', views.verify_student_id, name='verify_student_id'),
+    
+    # M-Pesa Callback (CSRF exempt)
+    path('id-payment-callback/', views.student_id_payment_callback, name='student_id_payment_callback'),
     
     # Admin URLs
     path('admin/student-id/applications/', views.admin_id_applications, name='admin_id_applications'),

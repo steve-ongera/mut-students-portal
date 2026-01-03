@@ -12979,61 +12979,60 @@ def student_timetable(request):
         return redirect('student_dashboard')
 
 
+# views.py - Updated Student ID Views with M-Pesa Integration
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
-from django.conf import settings
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from django.db.models import Q, Sum, Count
-from django.core.mail import send_mail
-from decimal import Decimal
+from django.db.models import Q
 import json
-import requests
-from datetime import timedelta
 
 from .models import (
-    Student, StudentIDType, StudentIDFeeStructure, 
-    StudentIDApplication, StudentIDCard, StudentIDPayment,
-    IDCardNotification, AcademicYear, Semester
+    Student, StudentIDType, StudentIDFeeStructure, StudentIDApplication,
+    StudentIDCard, StudentIDPayment, IDCardNotification, AcademicYear
+)
+from .student_mpesa_integration import (
+    StudentIDMpesaIntegration, process_student_id_mpesa_callback
 )
 
-# ============= STUDENT VIEWS =============
 
 @login_required
 def student_id_dashboard(request):
-    """Student ID application dashboard"""
+    """Student ID dashboard - view applications and cards"""
     student = get_object_or_404(Student, user=request.user)
     
-    # Get active fee structures
-    current_year = AcademicYear.objects.filter(is_current=True).first()
-    fee_structures = StudentIDFeeStructure.objects.filter(
-        academic_year=current_year,
-        is_active=True
-    ).select_related('id_type')
-    
-    # Get student's applications
+    # Get all applications
     applications = StudentIDApplication.objects.filter(
         student=student
     ).order_by('-application_date')
     
-    # Get issued ID cards
-    issued_cards = StudentIDCard.objects.filter(
-        student=student
-    ).order_by('-issue_date')
+    # Get active application
+    active_application = applications.filter(
+        status__in=['draft', 'submitted', 'under_review', 'payment_pending', 
+                   'payment_confirmed', 'in_production']
+    ).first()
     
-    # Get notifications
+    # Get all ID cards
+    id_cards = StudentIDCard.objects.filter(student=student).order_by('-issue_date')
+    
+    # Get active card
+    active_card = id_cards.filter(status='active').first()
+    
+    # Get recent notifications
     notifications = IDCardNotification.objects.filter(
-        student=student,
-        is_read=False
-    ).order_by('-sent_at')[:10]
+        student=student
+    ).order_by('-sent_at')[:5]
     
     context = {
-        'fee_structures': fee_structures,
+        'student': student,
         'applications': applications,
-        'issued_cards': issued_cards,
+        'active_application': active_application,
+        'id_cards': id_cards,
+        'active_card': active_card,
         'notifications': notifications,
-        'active_year': current_year,
     }
     
     return render(request, 'student/student_id_dashboard.html', context)
@@ -13066,7 +13065,8 @@ def apply_for_student_id(request):
             # Check if student already has an active application
             active_apps = StudentIDApplication.objects.filter(
                 student=student,
-                status__in=['draft', 'submitted', 'payment_pending', 'payment_confirmed', 'in_production']
+                status__in=['draft', 'submitted', 'under_review', 'payment_pending', 
+                           'payment_confirmed', 'in_production']
             )
             
             if active_apps.exists():
@@ -13074,6 +13074,7 @@ def apply_for_student_id(request):
                 return redirect('view_id_application', application_id=active_apps.first().id)
             
             # Create application
+            is_replacement = application_reason in ['lost', 'damaged', 'expired']
             application = StudentIDApplication.objects.create(
                 student=student,
                 id_type=id_type,
@@ -13081,10 +13082,10 @@ def apply_for_student_id(request):
                 application_reason=application_reason,
                 reason_details=reason_details,
                 is_rush_processing=is_rush,
-                is_replacement=application_reason in ['lost', 'damaged', 'expired'],
+                is_replacement=is_replacement,
                 amount_due=fee_structure.get_total_fee(
                     is_rush=is_rush,
-                    is_replacement=application_reason in ['lost', 'damaged', 'expired']
+                    is_replacement=is_replacement
                 ),
                 status='draft'
             )
@@ -13117,6 +13118,7 @@ def apply_for_student_id(request):
     ).select_related('id_type')
     
     context = {
+        'student': student,
         'id_types': id_types,
         'current_fees': current_fees,
         'current_year': current_year,
@@ -13129,15 +13131,24 @@ def apply_for_student_id(request):
 def upload_id_photo(request, application_id):
     """Upload photo for ID application"""
     student = get_object_or_404(Student, user=request.user)
-    application = get_object_or_404(StudentIDApplication, id=application_id, student=student)
+    application = get_object_or_404(
+        StudentIDApplication, 
+        id=application_id, 
+        student=student
+    )
     
-    if application.status != 'draft':
+    if application.status not in ['draft', 'submitted']:
         messages.error(request, "Cannot upload photo. Application is not in draft status.")
         return redirect('view_id_application', application_id=application.id)
     
     if request.method == 'POST':
         if 'photo' in request.FILES:
             application.photo = request.FILES['photo']
+            
+            # Optional back photo
+            if 'photo_back' in request.FILES:
+                application.photo_back = request.FILES['photo_back']
+            
             application.status = 'submitted'
             application.submitted_date = timezone.now()
             application.save()
@@ -13147,7 +13158,7 @@ def upload_id_photo(request, application_id):
                 student=student,
                 application=application,
                 notification_type='application_submitted',
-                title='Photo Uploaded',
+                title='Photo Uploaded Successfully',
                 message=f'Photo uploaded for application #{application.application_number}. You can now proceed to payment.',
                 sent_via_portal=True
             )
@@ -13158,6 +13169,7 @@ def upload_id_photo(request, application_id):
             messages.error(request, "Please select a photo to upload.")
     
     context = {
+        'student': student,
         'application': application,
     }
     
@@ -13165,31 +13177,51 @@ def upload_id_photo(request, application_id):
 
 
 @login_required
-def view_application(request, application_id):
+def view_id_application(request, application_id):
     """View application details"""
     student = get_object_or_404(Student, user=request.user)
-    application = get_object_or_404(StudentIDApplication, id=application_id, student=student)
+    application = get_object_or_404(
+        StudentIDApplication, 
+        id=application_id, 
+        student=student
+    )
     
     # Get payments for this application
-    payments = StudentIDPayment.objects.filter(application=application).order_by('-payment_date')
+    payments = StudentIDPayment.objects.filter(
+        application=application
+    ).order_by('-payment_date')
+    
+    # Get notifications
+    notifications = IDCardNotification.objects.filter(
+        application=application
+    ).order_by('-sent_at')
     
     context = {
+        'student': student,
         'application': application,
         'payments': payments,
-        'current_year': AcademicYear.objects.filter(is_current=True).first(),
+        'notifications': notifications,
     }
     
     return render(request, 'student/view_id_application.html', context)
 
 
 @login_required
-def initiate_payment(request, application_id):
+def initiate_id_payment(request, application_id):
     """Initiate payment for ID application"""
     student = get_object_or_404(Student, user=request.user)
-    application = get_object_or_404(StudentIDApplication, id=application_id, student=student)
+    application = get_object_or_404(
+        StudentIDApplication, 
+        id=application_id, 
+        student=student
+    )
     
     if application.status not in ['submitted', 'payment_pending']:
         messages.error(request, "Payment cannot be initiated for this application.")
+        return redirect('view_id_application', application_id=application.id)
+    
+    if application.balance <= 0:
+        messages.info(request, "This application has been fully paid.")
         return redirect('view_id_application', application_id=application.id)
     
     if request.method == 'POST':
@@ -13197,25 +13229,62 @@ def initiate_payment(request, application_id):
         phone_number = request.POST.get('phone_number', '')
         
         try:
-            # For M-Pesa payments
             if payment_method == 'mpesa':
-                # Initialize M-Pesa payment
-                payment = process_mpesa_payment(application, phone_number)
+                # Validate phone number
+                if not phone_number:
+                    messages.error(request, "Please provide a phone number for M-Pesa payment.")
+                    return redirect('initiate_id_payment', application_id=application.id)
                 
-                if payment:
+                # Create payment record first
+                payment = StudentIDPayment.objects.create(
+                    application=application,
+                    amount=application.balance,
+                    payment_method='mpesa',
+                    phone_number=phone_number,
+                    status='pending'
+                )
+                
+                # Initialize M-Pesa
+                mpesa = StudentIDMpesaIntegration()
+                response = mpesa.initiate_stk_push(
+                    phone_number=phone_number,
+                    amount=application.balance,
+                    account_reference=payment.payment_reference,
+                    transaction_desc=f"Student ID: {application.application_number}"
+                )
+                
+                if response.get('success'):
+                    # Update payment with M-Pesa details
+                    payment.merchant_request_id = response.get('merchant_request_id')
+                    payment.checkout_request_id = response.get('checkout_request_id')
+                    payment.save()
+                    
+                    # Update application status
                     application.status = 'payment_pending'
                     application.save()
                     
-                    messages.success(request, f"Payment initiated. Please check your phone {phone_number} to complete the payment.")
+                    messages.success(
+                        request, 
+                        f"Payment request sent! Please check your phone ({phone_number}) "
+                        f"and enter your M-Pesa PIN to complete the payment."
+                    )
                     return redirect('view_id_application', application_id=application.id)
                 else:
-                    messages.error(request, "Failed to initiate M-Pesa payment. Please try again.")
+                    # Failed to initiate
+                    payment.status = 'failed'
+                    payment.result_description = response.get('error', 'Failed to initiate payment')
+                    payment.save()
+                    
+                    messages.error(
+                        request, 
+                        f"Failed to initiate M-Pesa payment: {response.get('error')}"
+                    )
             
-            # For other payment methods
-            else:
+            elif payment_method in ['bank', 'cash', 'card']:
+                # Create payment record for other methods
                 payment = StudentIDPayment.objects.create(
                     application=application,
-                    amount=application.amount_due,
+                    amount=application.balance,
                     payment_method=payment_method,
                     status='pending'
                 )
@@ -13223,99 +13292,37 @@ def initiate_payment(request, application_id):
                 application.status = 'payment_pending'
                 application.save()
                 
-                messages.info(request, f"Payment instruction for {payment_method} will be sent to your email.")
+                # Send notification with payment instructions
+                IDCardNotification.objects.create(
+                    student=student,
+                    application=application,
+                    notification_type='payment_request',
+                    title='Payment Instructions',
+                    message=f'Payment instructions for {payment_method} will be sent to your email. '
+                           f'Reference: {payment.payment_reference}',
+                    sent_via_portal=True,
+                    sent_via_email=True
+                )
+                
+                messages.info(
+                    request, 
+                    f"Payment instructions for {payment_method} have been sent to your email. "
+                    f"Payment reference: {payment.payment_reference}"
+                )
                 return redirect('view_id_application', application_id=application.id)
+            
+            else:
+                messages.error(request, "Invalid payment method selected.")
                 
         except Exception as e:
             messages.error(request, f"Error initiating payment: {str(e)}")
     
     context = {
+        'student': student,
         'application': application,
     }
     
     return render(request, 'student/initiate_id_payment.html', context)
-
-
-def process_mpesa_payment(application, phone_number):
-    """Process M-Pesa STK Push payment"""
-    # This is a simplified version - you need to integrate with your M-Pesa API
-    try:
-        # Remove leading 0 if present and add country code
-        if phone_number.startswith('0'):
-            phone_number = '254' + phone_number[1:]
-        
-        # Create payment record
-        payment = StudentIDPayment.objects.create(
-            application=application,
-            amount=application.amount_due,
-            payment_method='mpesa',
-            phone_number=phone_number,
-            status='pending'
-        )
-        
-        # Here you would call your M-Pesa API
-        # Example structure:
-        # response = mpesa_api.stk_push(
-        #     phone_number=phone_number,
-        #     amount=application.amount_due,
-        #     account_reference=payment.payment_reference,
-        #     transaction_desc=f"Student ID: {application.application_number}"
-        # )
-        
-        # For now, we'll simulate success
-        # In production, you would handle the API response
-        
-        # Simulate successful payment initiation
-        payment.merchant_request_id = f"SIM-{payment.id}"
-        payment.checkout_request_id = f"CHK-{payment.id}"
-        payment.save()
-        
-        # In a real implementation, you would wait for the callback
-        # For demo, we'll auto-confirm after 10 seconds
-        import threading
-        from django.utils import timezone
-        
-        def confirm_payment(payment_id):
-            from time import sleep
-            sleep(10)  # Wait 10 seconds for demo
-            
-            payment = StudentIDPayment.objects.get(id=payment_id)
-            payment.status = 'completed'
-            payment.mpesa_receipt_number = f"SIM{payment.id:08d}"
-            payment.result_code = '0'
-            payment.result_description = 'Success'
-            payment.confirmed_date = timezone.now()
-            payment.save()
-            
-            # Update application
-            application = payment.application
-            application.amount_paid = payment.amount
-            application.payment_reference = payment.payment_reference
-            application.payment_date = timezone.now()
-            application.status = 'payment_confirmed'
-            application.save()
-            
-            # Send notification
-            IDCardNotification.objects.create(
-                student=application.student,
-                application=application,
-                notification_type='payment_confirmed',
-                title='Payment Confirmed',
-                message=f'Payment of KES {payment.amount} for application #{application.application_number} has been confirmed.',
-                sent_via_portal=True,
-                sent_via_email=True
-            )
-        
-        # Start background thread for demo
-        thread = threading.Thread(target=confirm_payment, args=(payment.id,))
-        thread.daemon = True
-        thread.start()
-        
-        return payment
-        
-    except Exception as e:
-        print(f"M-Pesa payment error: {str(e)}")
-        return None
 
 
 @login_required
@@ -13324,25 +13331,125 @@ def my_student_ids(request):
     student = get_object_or_404(Student, user=request.user)
     
     # Get all ID cards
-    id_cards = StudentIDCard.objects.filter(student=student).order_by('-issue_date')
+    id_cards = StudentIDCard.objects.filter(
+        student=student
+    ).select_related('application').order_by('-issue_date')
     
     # Get current active card
     active_card = id_cards.filter(status='active').first()
     
     context = {
+        'student': student,
         'id_cards': id_cards,
         'active_card': active_card,
-        'student': student,
     }
     
     return render(request, 'student/my_student_ids.html', context)
 
 
 @login_required
-def verify_id_card(request, card_number):
-    """Verify an ID card (public endpoint)"""
+def download_digital_id(request, card_id):
+    """Download digital ID card"""
+    student = get_object_or_404(Student, user=request.user)
+    card = get_object_or_404(
+        StudentIDCard, 
+        id=card_id, 
+        student=student
+    )
+    
+    if not card.digital_id_file:
+        messages.error(request, "Digital ID file not available.")
+        return redirect('my_student_ids')
+    
+    # Update last verified
+    card.last_verified = timezone.now()
+    card.save()
+    
+    # Serve file
+    response = HttpResponse(card.digital_id_file, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="student_id_{card.card_number}.pdf"'
+    return response
+
+
+@csrf_exempt
+def student_id_payment_callback(request):
+    """Handle M-Pesa payment callbacks for student ID"""
+    if request.method == 'POST':
+        try:
+            # Parse callback data
+            callback_data = json.loads(request.body.decode('utf-8'))
+            
+            # Process callback
+            result = process_student_id_mpesa_callback(callback_data)
+            
+            if result.get('success'):
+                return JsonResponse({
+                    'ResultCode': 0,
+                    'ResultDesc': 'Success'
+                })
+            else:
+                return JsonResponse({
+                    'ResultCode': 1,
+                    'ResultDesc': result.get('error', 'Processing failed')
+                })
+                
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'ResultCode': 1,
+                'ResultDesc': 'Invalid JSON'
+            }, status=400)
+        except Exception as e:
+            print(f"Callback error: {str(e)}")
+            return JsonResponse({
+                'ResultCode': 1,
+                'ResultDesc': str(e)
+            }, status=500)
+    
+    return JsonResponse({
+        'ResultCode': 1,
+        'ResultDesc': 'Invalid request method'
+    }, status=405)
+
+
+@login_required
+def check_payment_status(request, application_id):
+    """AJAX endpoint to check payment status"""
+    student = get_object_or_404(Student, user=request.user)
+    application = get_object_or_404(
+        StudentIDApplication, 
+        id=application_id, 
+        student=student
+    )
+    
+    # Get latest payment
+    latest_payment = StudentIDPayment.objects.filter(
+        application=application
+    ).order_by('-payment_date').first()
+    
+    if latest_payment:
+        return JsonResponse({
+            'status': latest_payment.status,
+            'application_status': application.status,
+            'amount_paid': float(application.amount_paid),
+            'balance': float(application.balance),
+            'is_paid': application.is_paid,
+            'payment_reference': latest_payment.payment_reference,
+            'mpesa_receipt': latest_payment.mpesa_receipt_number or '',
+        })
+    
+    return JsonResponse({
+        'status': 'no_payment',
+        'application_status': application.status,
+    })
+
+
+# Public endpoint for ID verification (no login required)
+def verify_student_id(request, card_number):
+    """Verify a student ID card (public endpoint)"""
     try:
-        id_card = StudentIDCard.objects.get(
+        id_card = StudentIDCard.objects.select_related(
+            'student__user', 'student__programme'
+        ).get(
             card_number=card_number,
             status='active'
         )
@@ -13360,76 +13467,39 @@ def verify_id_card(request, card_number):
             'issue_date': id_card.issue_date.strftime('%Y-%m-%d'),
             'expiry_date': id_card.expiry_date.strftime('%Y-%m-%d'),
             'is_expired': id_card.is_expired,
+            'status': id_card.status,
         }
         
         return JsonResponse(response_data)
         
     except StudentIDCard.DoesNotExist:
-        return JsonResponse({'valid': False, 'error': 'ID card not found or inactive'}, status=404)
+        return JsonResponse({
+            'valid': False, 
+            'error': 'ID card not found or inactive'
+        }, status=404)
 
 
-def payment_callback(request):
-    """Handle payment callbacks from payment gateway"""
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            
-            # Extract payment details from callback
-            # This will vary based on your payment provider
-            merchant_request_id = data.get('MerchantRequestID')
-            checkout_request_id = data.get('CheckoutRequestID')
-            result_code = data.get('ResultCode')
-            mpesa_receipt = data.get('MpesaReceiptNumber')
-            
-            # Find payment record
-            payment = StudentIDPayment.objects.get(
-                merchant_request_id=merchant_request_id,
-                checkout_request_id=checkout_request_id
-            )
-            
-            if result_code == '0':  # Success
-                payment.status = 'completed'
-                payment.mpesa_receipt_number = mpesa_receipt
-                payment.result_code = result_code
-                payment.result_description = data.get('ResultDesc', 'Success')
-                payment.confirmed_date = timezone.now()
-                payment.save()
-                
-                # Update application
-                application = payment.application
-                application.amount_paid += payment.amount
-                application.payment_reference = payment.payment_reference
-                application.payment_date = timezone.now()
-                if application.amount_paid >= application.amount_due:
-                    application.status = 'payment_confirmed'
-                application.save()
-                
-                # Send notification
-                IDCardNotification.objects.create(
-                    student=application.student,
-                    application=application,
-                    notification_type='payment_confirmed',
-                    title='Payment Confirmed',
-                    message=f'Payment of KES {payment.amount} for application #{application.application_number} has been confirmed.',
-                    sent_via_portal=True,
-                    sent_via_email=True
-                )
-                
-                return JsonResponse({'status': 'success'})
-            else:
-                # Payment failed
-                payment.status = 'failed'
-                payment.result_code = result_code
-                payment.result_description = data.get('ResultDesc', 'Failed')
-                payment.save()
-                
-                return JsonResponse({'status': 'failed'})
-                
-        except Exception as e:
-            print(f"Payment callback error: {str(e)}")
-            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+@login_required
+def id_notifications(request):
+    """View all ID-related notifications"""
+    student = get_object_or_404(Student, user=request.user)
     
-    return JsonResponse({'status': 'invalid_method'}, status=405)
+    notifications = IDCardNotification.objects.filter(
+        student=student
+    ).order_by('-sent_at')
+    
+    # Mark as read
+    notifications.filter(is_read=False).update(
+        is_read=True, 
+        read_date=timezone.now()
+    )
+    
+    context = {
+        'student': student,
+        'notifications': notifications,
+    }
+    
+    return render(request, 'student/id_notifications.html', context)
 
 
 # ============= ADMIN VIEWS =============
