@@ -3,6 +3,10 @@
 
 {% block title %}Room {{ room.room_number }} Details{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Room {{ room.room_number }}{% endblock %}
 {% block page_subtitle %}{{ room.hostel.name }} - Room Details{% endblock %}
 
@@ -17,23 +21,26 @@
 </nav>
 
 <div class="content-container">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="h4 fw-semibold mb-1">Room {{ room.room_number }}</h2>
-            <div class="d-flex align-items-center gap-2">
-                <span class="badge bg-light text-dark">Floor {{ room.floor }}</span>
-                <span class="badge bg-info-subtle text-info">{{ room.get_room_type_display }}</span>
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Room {{ room.room_number }}</h1>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-light text-dark">Floor {{ room.floor }}</span>
+                    <span class="badge bg-info-subtle text-info">{{ room.get_room_type_display }}</span>
+                </div>
             </div>
-        </div>
-        <div class="d-flex gap-2">
-            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#addBedsModal">
-                <i class="ri-add-line"></i> Add Beds
-            </button>
+            <div class="text-end">
+                <button class="btn btn-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#addBedsModal">
+                    <i class="ri-add-line fs-5"></i>
+                    <span>Add Beds</span>
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Statistics -->
+    <!-- Statistics Cards -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="stat-card">
@@ -125,9 +132,13 @@
                             <label class="info-label">Status</label>
                             <div class="info-value">
                                 {% if room.is_active %}
-                                <span class="status-badge status-active">Active</span>
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill"></i> Active
+                                </span>
                                 {% else %}
-                                <span class="status-badge status-inactive">Inactive</span>
+                                <span class="status-badge status-inactive">
+                                    <i class="ri-close-circle-fill"></i> Inactive
+                                </span>
                                 {% endif %}
                             </div>
                         </div>
@@ -250,4 +261,239 @@
         </div>
     </div>
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Page Header */
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Statistics Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-icon.bg-primary { background: var(--color-primary); }
+    .stat-icon.bg-info { background: var(--color-info); }
+    .stat-icon.bg-success { background: var(--color-success); }
+    .stat-icon.bg-warning { background: var(--color-warning); }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Info Grid */
+    .info-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .info-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+
+    .info-value {
+        font-size: 1rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.status-active {
+        color: var(--color-success);
+    }
+
+    .status-badge.status-inactive {
+        color: var(--color-danger);
+    }
+
+    /* List Group */
+    .list-group-item {
+        padding: 1rem 1.5rem;
+        border-color: var(--color-gray-200);
+        transition: background-color 0.2s ease;
+    }
+
+    .list-group-item:hover {
+        background: var(--color-gray-100);
+    }
+
+    /* Table */
+    .table {
+        font-size: 0.875rem;
+    }
+
+    .table thead th {
+        background: var(--color-gray-100);
+        border-bottom: 2px solid var(--color-gray-200);
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding: 1rem 1.5rem;
+    }
+
+    .table tbody td {
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+
+    .table-hover tbody tr:hover {
+        background: var(--color-gray-100);
+    }
+
+    /* Buttons */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips if Bootstrap is loaded
+    if (typeof bootstrap !== 'undefined') {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    }
+});
+</script>
 {% endblock %}
