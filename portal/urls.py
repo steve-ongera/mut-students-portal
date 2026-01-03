@@ -277,6 +277,13 @@ urlpatterns = [
     # Statistics APIs
     path('api/hostels/<str:hostel_code>/stats/', views.api_hostel_stats, name='api_hostel_stats'),
     path('api/beds/available/', views.api_available_beds, name='api_available_beds'),
+    
+    # Application Management
+    path('admin-hostel/applications/', views.admin_hostel_application_list, name='admin_hostel_application_list'),
+    path('admin-hostel/applications/<int:pk>/', views.admin_hostel_application_detail, name='admin_hostel_application_detail'),
+    path('admin-hostel/applications/<int:pk>/approve/', views.admin_approve_application, name='admin_approve_application'),
+    path('admin-hostel/applications/<int:pk>/reject/', views.admin_reject_application, name='admin_reject_application'),
+    
 
     
 ]

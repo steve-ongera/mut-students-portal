@@ -11733,3 +11733,175 @@ def api_available_beds(request):
         'count': len(available_beds),
         'beds': available_beds
     })
+    
+    
+# views.py - Hostel Application Management Views
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Case, When, IntegerField
+from django.core.paginator import Paginator
+from django.utils import timezone
+from django.http import JsonResponse
+from decimal import Decimal
+
+from .models import (
+    HostelApplication, Hostel, HostelBed, HostelFeeStructure,
+    Student, AcademicYear, Semester, HostelRoom, BedReservation
+)
+
+# ============= ADMIN VIEWS =============
+
+@login_required
+def admin_hostel_application_list(request):
+    """List all hostel applications with filters"""
+    applications = HostelApplication.objects.select_related(
+        'student__user', 'hostel', 'academic_year', 'semester'
+    ).order_by('-application_date')
+    
+    # Filters
+    status_filter = request.GET.get('status')
+    hostel_filter = request.GET.get('hostel')
+    academic_year_filter = request.GET.get('academic_year')
+    semester_filter = request.GET.get('semester')
+    search_query = request.GET.get('search')
+    
+    if status_filter:
+        applications = applications.filter(status=status_filter)
+    if hostel_filter:
+        applications = applications.filter(hostel_id=hostel_filter)
+    if academic_year_filter:
+        applications = applications.filter(academic_year_id=academic_year_filter)
+    if semester_filter:
+        applications = applications.filter(semester_id=semester_filter)
+    if search_query:
+        applications = applications.filter(
+            Q(student__registration_number__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query)
+        )
+    
+    # Statistics
+    stats = HostelApplication.objects.aggregate(
+        total=Count('id'),
+        pending=Count(Case(When(status='pending', then=1), output_field=IntegerField())),
+        approved=Count(Case(When(status='approved', then=1), output_field=IntegerField())),
+        rejected=Count(Case(When(status='rejected', then=1), output_field=IntegerField())),
+    )
+    
+    # Pagination
+    paginator = Paginator(applications, 20)
+    page_number = request.GET.get('page')
+    applications_page = paginator.get_page(page_number)
+    
+    context = {
+        'applications': applications_page,
+        'stats': stats,
+        'hostels': Hostel.objects.filter(is_active=True),
+        'academic_years': AcademicYear.objects.filter(is_active=True),
+        'semesters': Semester.objects.filter(is_active=True),
+        'status_filter': status_filter,
+        'hostel_filter': hostel_filter,
+        'academic_year_filter': academic_year_filter,
+        'semester_filter': semester_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'admin/hostel/application_list.html', context)
+
+
+@login_required
+def admin_hostel_application_detail(request, pk):
+    """View detailed hostel application"""
+    application = get_object_or_404(
+        HostelApplication.objects.select_related(
+            'student__user', 'student__programme', 'hostel',
+            'academic_year', 'semester', 'approved_by'
+        ),
+        pk=pk
+    )
+    
+    # Get available beds in the hostel
+    available_beds = HostelBed.objects.filter(
+        room__hostel=application.hostel,
+        room__room_type=application.preferred_room_type,
+        status='available',
+        academic_year=application.academic_year,
+        is_active=True
+    ).select_related('room').order_by('room__room_number', 'bed_number')
+    
+    # Get fee structure
+    fee_structure = HostelFeeStructure.objects.filter(
+        hostel=application.hostel,
+        room_type=application.preferred_room_type,
+        academic_year=application.academic_year,
+        semester=application.semester
+    ).first()
+    
+    # Check for existing reservations
+    existing_reservation = BedReservation.objects.filter(
+        student=application.student,
+        application=application,
+        status__in=['pending', 'confirmed']
+    ).first()
+    
+    context = {
+        'application': application,
+        'available_beds': available_beds,
+        'fee_structure': fee_structure,
+        'existing_reservation': existing_reservation,
+    }
+    
+    return render(request, 'admin/hostel/application_detail.html', context)
+
+
+@login_required
+def admin_approve_application(request, pk):
+    """Approve hostel application"""
+    if request.method == 'POST':
+        application = get_object_or_404(HostelApplication, pk=pk)
+        
+        if application.status == 'approved':
+            messages.warning(request, 'Application is already approved.')
+            return redirect('admin_hostel_application_detail', pk=pk)
+        
+        # Check if booking fee is paid
+        if not application.booking_fee_paid:
+            messages.error(request, 'Cannot approve application. Booking fee not paid.')
+            return redirect('admin_hostel_application_detail', pk=pk)
+        
+        # Update application
+        application.status = 'approved'
+        application.approved_by = request.user
+        application.approved_date = timezone.now()
+        application.save()
+        
+        messages.success(request, f'Application for {application.student.user.get_full_name()} approved successfully.')
+        return redirect('admin_hostel_application_detail', pk=pk)
+    
+    return redirect('admin_hostel_application_list')
+
+
+@login_required
+def admin_reject_application(request, pk):
+    """Reject hostel application"""
+    if request.method == 'POST':
+        application = get_object_or_404(HostelApplication, pk=pk)
+        remarks = request.POST.get('remarks', '')
+        
+        if application.status == 'rejected':
+            messages.warning(request, 'Application is already rejected.')
+            return redirect('admin_hostel_application_detail', pk=pk)
+        
+        # Update application
+        application.status = 'rejected'
+        application.remarks = remarks
+        application.save()
+        
+        messages.success(request, f'Application for {application.student.user.get_full_name()} rejected.')
+        return redirect('admin_hostel_application_detail', pk=pk)
+    
+    return redirect('admin_hostel_application_list')
+
+

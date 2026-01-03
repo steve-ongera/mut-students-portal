@@ -1,0 +1,626 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Application Details - {{ application.student.registration_number }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Application Details{% endblock %}
+{% block page_subtitle %}{{ application.student.user.get_full_name }} - {{ application.hostel.name }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_list' %}">Hostels</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_application_list' %}">Applications</a></li>
+        <li class="breadcrumb-item active">{{ application.student.registration_number }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Application #{{ application.id }}</h1>
+                <div class="d-flex align-items-center gap-2">
+                    {% if application.status == 'pending' %}
+                    <span class="badge bg-warning">Pending</span>
+                    {% elif application.status == 'approved' %}
+                    <span class="badge bg-success">Approved</span>
+                    {% elif application.status == 'rejected' %}
+                    <span class="badge bg-danger">Rejected</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Cancelled</span>
+                    {% endif %}
+                    
+                    {% if application.booking_fee_paid %}
+                    <span class="badge bg-success">
+                        <i class="ri-money-dollar-circle-line"></i> Booking Fee Paid
+                    </span>
+                    {% else %}
+                    <span class="badge bg-danger">
+                        <i class="ri-money-dollar-circle-line"></i> Booking Fee Unpaid
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                {% if application.status == 'pending' and application.booking_fee_paid %}
+                <button class="btn btn-success d-flex align-items-center gap-1" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#approveModal">
+                    <i class="ri-check-line fs-5"></i>
+                    <span>Approve</span>
+                </button>
+                {% endif %}
+                
+                {% if application.status == 'pending' %}
+                <button class="btn btn-danger d-flex align-items-center gap-1" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#rejectModal">
+                    <i class="ri-close-line fs-5"></i>
+                    <span>Reject</span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Student Information -->
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-group">
+                            <label class="info-label">Full Name</label>
+                            <div class="info-value">{{ application.student.user.get_full_name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Registration Number</label>
+                            <div class="info-value">{{ application.student.registration_number }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Programme</label>
+                            <div class="info-value">{{ application.student.programme.name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Year of Study</label>
+                            <div class="info-value">Year {{ application.student.current_year }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Gender</label>
+                            <div class="info-value">{{ application.student.get_gender_display }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Phone Number</label>
+                            <div class="info-value">{{ application.student.user.phone_number|default:"N/A" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Email</label>
+                            <div class="info-value">{{ application.student.user.email }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Application Details -->
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Application Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-group">
+                            <label class="info-label">Hostel</label>
+                            <div class="info-value">{{ application.hostel.name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Preferred Room Type</label>
+                            <div class="info-value">
+                                <span class="badge bg-info-subtle text-info">
+                                    {{ application.get_preferred_room_type_display }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Academic Year</label>
+                            <div class="info-value">{{ application.academic_year.name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Semester</label>
+                            <div class="info-value">{{ application.semester.name }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Application Date</label>
+                            <div class="info-value">{{ application.application_date|date:"F d, Y - h:i A" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Status</label>
+                            <div class="info-value">
+                                {% if application.status == 'pending' %}
+                                <span class="status-badge status-warning">
+                                    <i class="ri-time-line"></i> Pending
+                                </span>
+                                {% elif application.status == 'approved' %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill"></i> Approved
+                                </span>
+                                {% elif application.status == 'rejected' %}
+                                <span class="status-badge status-danger">
+                                    <i class="ri-close-circle-fill"></i> Rejected
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-inactive">
+                                    <i class="ri-close-circle-fill"></i> Cancelled
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if application.approved_by %}
+                        <div class="info-group">
+                            <label class="info-label">Approved By</label>
+                            <div class="info-value">
+                                {{ application.approved_by.get_full_name }}
+                                <small class="d-block text-muted">{{ application.approved_date|date:"F d, Y - h:i A" }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Information -->
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if fee_structure %}
+                    <div class="info-grid">
+                        <div class="info-group">
+                            <label class="info-label">Room Fee</label>
+                            <div class="info-value">KES {{ fee_structure.fee_amount|floatformat:2 }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Booking Fee</label>
+                            <div class="info-value">KES {{ fee_structure.booking_fee|floatformat:2 }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Security Deposit</label>
+                            <div class="info-value">KES {{ fee_structure.security_deposit|floatformat:2 }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Total Amount</label>
+                            <div class="info-value fw-bold text-primary">
+                                KES {% widthratio fee_structure.fee_amount 1 1 %}{{ fee_structure.fee_amount|add:fee_structure.booking_fee|add:fee_structure.security_deposit|floatformat:2 }}
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Booking Fee Status</label>
+                            <div class="info-value">
+                                {% if application.booking_fee_paid %}
+                                <span class="badge bg-success">
+                                    <i class="ri-check-line"></i> Paid
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="ri-close-line"></i> Unpaid
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if application.payment_reference %}
+                        <div class="info-group">
+                            <label class="info-label">Payment Reference</label>
+                            <div class="info-value">
+                                <code>{{ application.payment_reference }}</code>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-information-line fs-3 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No fee structure found</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Bed Reservation -->
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Bed Reservation</h5>
+                </div>
+                <div class="card-body">
+                    {% if existing_reservation %}
+                    <div class="alert alert-info mb-3">
+                        <i class="ri-information-line me-2"></i>
+                        Student has an existing bed reservation
+                    </div>
+                    <div class="info-grid">
+                        <div class="info-group">
+                            <label class="info-label">Reservation ID</label>
+                            <div class="info-value">
+                                <code>{{ existing_reservation.reservation_id }}</code>
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Bed</label>
+                            <div class="info-value">
+                                Room {{ existing_reservation.bed.room.room_number }} - Bed {{ existing_reservation.bed.bed_number }}
+                            </div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Reserved At</label>
+                            <div class="info-value">{{ existing_reservation.reserved_at|date:"F d, Y - h:i A" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Expires At</label>
+                            <div class="info-value">{{ existing_reservation.expires_at|date:"F d, Y - h:i A" }}</div>
+                        </div>
+                        <div class="info-group">
+                            <label class="info-label">Status</label>
+                            <div class="info-value">
+                                {% if existing_reservation.status == 'pending' %}
+                                <span class="badge bg-warning">Pending Payment</span>
+                                {% elif existing_reservation.status == 'confirmed' %}
+                                <span class="badge bg-success">Confirmed</span>
+                                {% elif existing_reservation.status == 'expired' %}
+                                <span class="badge bg-danger">Expired</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Cancelled</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-hotel-bed-line fs-3 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No bed reservation yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Beds -->
+        {% if application.status == 'approved' and not existing_reservation %}
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Available Beds ({{ available_beds.count }})</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Room Number</th>
+                                    <th>Floor</th>
+                                    <th>Bed Number</th>
+                                    <th>Room Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for bed in available_beds %}
+                                <tr>
+                                    <td>{{ bed.room.room_number }}</td>
+                                    <td>Floor {{ bed.room.floor }}</td>
+                                    <td>Bed {{ bed.bed_number }}</td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info">
+                                            {{ bed.room.get_room_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success">Available</span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'admin_hostel_bed_detail' bed.id %}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            <i class="ri-eye-line"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="ri-hotel-bed-line fs-3 text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No available beds</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Remarks -->
+        {% if application.remarks %}
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Remarks</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ application.remarks }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'admin_approve_application' application.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Approve Application</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to approve this hostel application?</p>
+                    <div class="alert alert-info">
+                        <i class="ri-information-line me-2"></i>
+                        <small>
+                            <strong>Student:</strong> {{ application.student.user.get_full_name }}<br>
+                            <strong>Hostel:</strong> {{ application.hostel.name }}<br>
+                            <strong>Room Type:</strong> {{ application.get_preferred_room_type_display }}
+                        </small>
+                    </div>
+                    {% if not application.booking_fee_paid %}
+                    <div class="alert alert-warning">
+                        <i class="ri-alert-line me-2"></i>
+                        <small>Warning: Booking fee has not been paid yet.</small>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="ri-check-line"></i> Approve Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'admin_reject_application' application.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Reject Application</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to reject this hostel application?</p>
+                    <div class="alert alert-warning">
+                        <i class="ri-alert-line me-2"></i>
+                        <small>
+                            <strong>Student:</strong> {{ application.student.user.get_full_name }}<br>
+                            <strong>Hostel:</strong> {{ application.hostel.name }}
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="remarks" class="form-label">Rejection Reason</label>
+                        <textarea class="form-control" 
+                                  id="remarks" 
+                                  name="remarks" 
+                                  rows="4" 
+                                  placeholder="Enter reason for rejection..."
+                                  required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="ri-close-line"></i> Reject Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    .info-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .info-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .info-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+
+    .info-value {
+        font-size: 1rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-badge.status-active { color: var(--color-success); }
+    .status-badge.status-inactive { color: var(--color-danger); }
+    .status-badge.status-warning { color: var(--color-warning); }
+    .status-badge.status-danger { color: var(--color-danger); }
+
+    .alert {
+        border-radius: var(--radius-md);
+        border: none;
+        padding: 1rem;
+    }
+
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .table {
+        font-size: 0.875rem;
+    }
+
+    .table thead th {
+        background: var(--color-gray-100);
+        border-bottom: 2px solid var(--color-gray-200);
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding: 1rem 1.5rem;
+    }
+
+    .table tbody td {
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+
+    .table-hover tbody tr:hover {
+        background: var(--color-gray-100);
+    }
+
+    code {
+        background: var(--color-gray-100);
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--radius-sm);
+        font-size: 0.8125rem;
+        color: var(--color-primary);
+    }
+
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+</style>
+{% endblock %}

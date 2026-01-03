@@ -1,0 +1,487 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Hostel Applications{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Hostel Applications{% endblock %}
+{% block page_subtitle %}Manage student hostel applications{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'admin_hostel_list' %}">Hostels</a></li>
+        <li class="breadcrumb-item active">Applications</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Hostel Applications</h1>
+                <p class="text-muted mb-0">Review and manage student hostel applications</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="ri-file-list-3-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ stats.total }}</div>
+                    <div class="stat-label">Total Applications</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ stats.pending }}</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="ri-check-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ stats.approved }}</div>
+                    <div class="stat-label">Approved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="ri-close-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ stats.rejected }}</div>
+                    <div class="stat-label">Rejected</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number or student name..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Filter Form -->
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                        <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hostel</label>
+                    <select name="hostel" class="form-select">
+                        <option value="">All Hostels</option>
+                        {% for hostel in hostels %}
+                        <option value="{{ hostel.id }}" {% if hostel_filter == hostel.id|stringformat:"s" %}selected{% endif %}>
+                            {{ hostel.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Academic Year</label>
+                    <select name="academic_year" class="form-select">
+                        <option value="">All Years</option>
+                        {% for year in academic_years %}
+                        <option value="{{ year.id }}" {% if academic_year_filter == year.id|stringformat:"s" %}selected{% endif %}>
+                            {{ year.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Semester</label>
+                    <select name="semester" class="form-select">
+                        <option value="">All Semesters</option>
+                        {% for semester in semesters %}
+                        <option value="{{ semester.id }}" {% if semester_filter == semester.id|stringformat:"s" %}selected{% endif %}>
+                            {{ semester.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-filter-line"></i> Apply Filters
+                    </button>
+                    <a href="{% url 'admin_hostel_application_list' %}" class="btn btn-outline-secondary">
+                        <i class="ri-refresh-line"></i> Clear Filters
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Applications Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Applications ({{ applications.paginator.count }})</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Hostel</th>
+                            <th>Room Type</th>
+                            <th>Academic Year</th>
+                            <th>Application Date</th>
+                            <th>Booking Fee</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for application in applications %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong>{{ application.student.user.get_full_name }}</strong>
+                                    <small class="d-block text-muted">{{ application.student.registration_number }}</small>
+                                </div>
+                            </td>
+                            <td>{{ application.hostel.name }}</td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">
+                                    {{ application.get_preferred_room_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div>
+                                    {{ application.academic_year.name }}
+                                    <small class="d-block text-muted">{{ application.semester.name }}</small>
+                                </div>
+                            </td>
+                            <td>{{ application.application_date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if application.booking_fee_paid %}
+                                <span class="badge bg-success">
+                                    <i class="ri-check-line"></i> Paid
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="ri-close-line"></i> Unpaid
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if application.status == 'pending' %}
+                                <span class="badge bg-warning">Pending</span>
+                                {% elif application.status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                                {% elif application.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Cancelled</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'admin_hostel_application_detail' application.id %}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <i class="ri-file-list-3-line fs-3 text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No applications found</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if applications.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if applications.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ applications.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if hostel_filter %}&hostel={{ hostel_filter }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in applications.paginator.page_range %}
+                    {% if applications.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > applications.number|add:'-3' and i < applications.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if hostel_filter %}&hostel={{ hostel_filter }}{% endif %}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if applications.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ applications.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if hostel_filter %}&hostel={{ hostel_filter }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Page Header */
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Statistics Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .stat-icon.bg-primary { background: var(--color-primary); }
+    .stat-icon.bg-info { background: var(--color-info); }
+    .stat-icon.bg-success { background: var(--color-success); }
+    .stat-icon.bg-warning { background: var(--color-warning); }
+    .stat-icon.bg-danger { background: var(--color-danger); }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+
+    /* Table */
+    .table {
+        font-size: 0.875rem;
+    }
+
+    .table thead th {
+        background: var(--color-gray-100);
+        border-bottom: 2px solid var(--color-gray-200);
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding: 1rem 1.5rem;
+    }
+
+    .table tbody td {
+        padding: 1rem 1.5rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+
+    .table-hover tbody tr:hover {
+        background: var(--color-gray-100);
+    }
+
+    /* Pagination */
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+</style>
+{% endblock %}
