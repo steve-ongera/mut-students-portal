@@ -312,4 +312,7 @@ urlpatterns = [
     path('api/timetable/get-slots/', views.api_get_timetable_slots, name='api_get_timetable_slots'),
     path('api/timetable/publish/', views.api_publish_timetable, name='api_publish_timetable'),
     
+    # Student Timetable
+    path('student/timetable/', views.student_timetable, name='student_timetable'),
+    
 ]

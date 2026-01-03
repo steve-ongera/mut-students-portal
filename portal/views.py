@@ -12894,3 +12894,86 @@ def api_publish_timetable(request):
             'error': str(e)
         }, status=500)
 
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+
+from .models import (
+    Student,
+    AcademicYear,
+    Semester,
+    Timetable,
+    TimetableSlot
+)
+
+
+@login_required
+def student_timetable(request):
+    """
+    Student personal timetable view
+    Shows timetable only if it is published
+    """
+    try:
+        # ===============================
+        # Get student profile
+        # ===============================
+        student = request.user.student_profile
+
+        # ===============================
+        # Get current academic year & semester
+        # ===============================
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        current_semester = Semester.objects.filter(is_current=True).first()
+
+        timetable = None
+        slots = []
+        organized_slots = {}
+
+        # ===============================
+        # Fetch timetable ONLY if published
+        # ===============================
+        if current_academic_year and current_semester:
+            timetable = Timetable.objects.filter(
+                programme=student.programme,
+                academic_year=current_academic_year,
+                semester=current_semester,
+                year_of_study=student.current_year,
+                is_published=True
+            ).first()
+
+            if timetable:
+                slots = TimetableSlot.objects.filter(
+                    timetable=timetable
+                ).select_related(
+                    'unit_allocation__lecturer',
+                    'unit_allocation__programme_unit__unit'
+                ).order_by('day_of_week', 'start_time')
+
+        # ===============================
+        # Organize slots by day + time
+        # ===============================
+        for slot in slots:
+            key = f"{slot.day_of_week}_{slot.start_time}"
+            organized_slots[key] = slot
+
+        # ===============================
+        # Context
+        # ===============================
+        context = {
+            'student': student,
+            'current_academic_year': current_academic_year,
+            'current_semester': current_semester,
+            'timetable': timetable,
+            'organized_slots': organized_slots,
+            'has_timetable': timetable is not None,
+        }
+
+        return render(request, 'student/timetable.html', context)
+
+    except Student.DoesNotExist:
+        messages.error(request, "Student profile not found.")
+        return redirect('student_dashboard')
+
+    except Exception as e:
+        messages.error(request, f"Error loading timetable: {str(e)}")
+        return redirect('student_dashboard')
