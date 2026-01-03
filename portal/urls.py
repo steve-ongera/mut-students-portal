@@ -285,17 +285,17 @@ urlpatterns = [
     path('admin-hostel/applications/<int:pk>/reject/', views.admin_reject_application, name='admin_reject_application'),
     
      # Book Management
-    path('admin/library/books/', views.admin_library_book_list, name='admin_library_book_list'),
-    path('admin/library/books/<int:pk>/', views.admin_library_book_detail, name='admin_library_book_detail'),
-    path('admin/library/books/<int:book_id>/issue/', views.admin_library_issue_book, name='admin_library_issue_book'),
+    path('admin-library/books/', views.admin_library_book_list, name='admin_library_book_list'),
+    path('admin-library/books/<int:pk>/', views.admin_library_book_detail, name='admin_library_book_detail'),
+    path('admin-library/books/<int:book_id>/issue/', views.admin_library_issue_book, name='admin_library_issue_book'),
     # Borrowing Management
-    path('admin/library/borrowings/', views.admin_library_borrowings, name='admin_library_borrowings'),
-    path('admin/library/borrowings/<int:borrowing_id>/return/', views.admin_library_return_book, name='admin_library_return_book'),
+    path('admin-library/borrowings/', views.admin_library_borrowings, name='admin_library_borrowings'),
+    path('admin-library/borrowings/<int:borrowing_id>/return/', views.admin_library_return_book, name='admin_library_return_book'),
     
     # Overdue Management
-    path('admin/library/overdue/', views.admin_library_overdue_books, name='admin_library_overdue_books'),
-    path('admin/library/borrowings/<int:borrowing_id>/reminder/', views.admin_library_send_reminder, name='admin_library_send_reminder'),
-    path('admin/library/overdue/send-all-reminders/', views.admin_library_send_all_reminders,  name='admin_library_send_all_reminders'),
+    path('admin-library/overdue/', views.admin_library_overdue_books, name='admin_library_overdue_books'),
+    path('admin-library/borrowings/<int:borrowing_id>/reminder/', views.admin_library_send_reminder, name='admin_library_send_reminder'),
+    path('admin-library/overdue/send-all-reminders/', views.admin_library_send_all_reminders,  name='admin_library_send_all_reminders'),
     
     # ============= API ENDPOINTS =============
     path('api/library/borrowing/<int:borrowing_id>/calculate-fine/', views.api_calculate_fine, name='api_calculate_fine'),
