@@ -922,7 +922,580 @@ unpublish_materials.short_description = 'Unpublish selected materials'
 # Add actions to TeachingMaterialAdmin
 TeachingMaterialAdmin.actions = [publish_materials, unpublish_materials]
 
+from django.contrib import admin
+from django.utils.html import format_html
+from django.urls import reverse
+from django.utils import timezone
+from .models import (
+    StudentIDType, StudentIDFeeStructure, StudentIDApplication,
+    StudentIDCard, StudentIDPayment, IDCardNotification
+)
 
+
+# ============= STUDENT ID TYPE ADMIN =============
+@admin.register(StudentIDType)
+class StudentIDTypeAdmin(admin.ModelAdmin):
+    list_display = [
+        'code', 'name', 'id_type', 'base_price', 'validity_period_months',
+        'processing_days', 'rush_processing_days', 'is_active_badge', 'created_at'
+    ]
+    list_filter = ['id_type', 'is_active', 'created_at']
+    search_fields = ['name', 'code', 'description']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('name', 'code', 'id_type', 'description')
+        }),
+        ('Pricing & Validity', {
+            'fields': ('base_price', 'validity_period_months')
+        }),
+        ('Processing Times', {
+            'fields': ('processing_days', 'rush_processing_days')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def is_active_badge(self, obj):
+        if obj.is_active:
+            return format_html(
+                '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 11px;">Active</span>'
+            )
+        return format_html(
+            '<span style="background-color: #dc3545; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">Inactive</span>'
+        )
+    is_active_badge.short_description = 'Status'
+
+
+# ============= STUDENT ID FEE STRUCTURE ADMIN =============
+@admin.register(StudentIDFeeStructure)
+class StudentIDFeeStructureAdmin(admin.ModelAdmin):
+    list_display = [
+        'id_type', 'academic_year', 'base_fee', 'rush_processing_fee',
+        'replacement_fee', 'digital_only_fee', 'effective_from',
+        'effective_to', 'is_active_badge'
+    ]
+    list_filter = ['is_active', 'academic_year', 'id_type', 'effective_from']
+    search_fields = ['id_type__name', 'id_type__code', 'academic_year__name']
+    readonly_fields = ['created_at', 'updated_at']
+    date_hierarchy = 'effective_from'
+    
+    fieldsets = (
+        ('ID Type & Academic Year', {
+            'fields': ('id_type', 'academic_year')
+        }),
+        ('Fee Structure', {
+            'fields': (
+                'base_fee', 'rush_processing_fee', 
+                'replacement_fee', 'digital_only_fee'
+            )
+        }),
+        ('Effective Period', {
+            'fields': ('effective_from', 'effective_to')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def is_active_badge(self, obj):
+        if obj.is_active:
+            return format_html(
+                '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 11px;">Active</span>'
+            )
+        return format_html(
+            '<span style="background-color: #dc3545; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">Inactive</span>'
+        )
+    is_active_badge.short_description = 'Status'
+
+
+# ============= STUDENT ID APPLICATION ADMIN =============
+class StudentIDPaymentInline(admin.TabularInline):
+    model = StudentIDPayment
+    extra = 0
+    readonly_fields = [
+        'payment_reference', 'amount', 'payment_method', 'status',
+        'transaction_id', 'mpesa_receipt_number', 'payment_date'
+    ]
+    can_delete = False
+    fields = [
+        'payment_reference', 'amount', 'payment_method', 'status',
+        'mpesa_receipt_number', 'payment_date'
+    ]
+
+
+class IDCardNotificationInline(admin.TabularInline):
+    model = IDCardNotification
+    extra = 0
+    readonly_fields = ['notification_type', 'title', 'is_read', 'sent_at']
+    can_delete = False
+    fields = ['notification_type', 'title', 'sent_via_email', 'sent_via_sms', 'is_read', 'sent_at']
+
+
+@admin.register(StudentIDApplication)
+class StudentIDApplicationAdmin(admin.ModelAdmin):
+    list_display = [
+        'application_number', 'student_link', 'id_type', 'application_reason',
+        'status_badge', 'is_rush_badge', 'amount_due', 'amount_paid',
+        'balance_display', 'payment_status_badge', 'application_date'
+    ]
+    list_filter = [
+        'status', 'application_reason', 'is_rush_processing',
+        'is_replacement', 'application_date', 'id_type'
+    ]
+    search_fields = [
+        'application_number', 'student__registration_number',
+        'student__user__first_name', 'student__user__last_name',
+        'payment_reference'
+    ]
+    readonly_fields = [
+        'application_number', 'application_date', 'submitted_date',
+        'amount_due', 'amount_paid', 'balance', 'is_paid',
+        'created_at', 'updated_at', 'photo_preview', 'photo_back_preview'
+    ]
+    date_hierarchy = 'application_date'
+    inlines = [StudentIDPaymentInline, IDCardNotificationInline]
+    
+    fieldsets = (
+        ('Application Information', {
+            'fields': (
+                'application_number', 'student', 'id_type', 'fee_structure'
+            )
+        }),
+        ('Reason & Details', {
+            'fields': (
+                'application_reason', 'reason_details',
+                'is_rush_processing', 'is_replacement'
+            )
+        }),
+        ('Photos', {
+            'fields': ('photo', 'photo_preview', 'photo_back', 'photo_back_preview')
+        }),
+        ('Status & Dates', {
+            'fields': (
+                'status', 'application_date', 'submitted_date',
+                'estimated_completion_date', 'actual_completion_date'
+            )
+        }),
+        ('Payment Information', {
+            'fields': (
+                'amount_due', 'amount_paid', 'balance', 'is_paid',
+                'payment_reference', 'payment_date'
+            )
+        }),
+        ('Pickup/Delivery', {
+            'fields': (
+                'pick_up_location', 'pick_up_code',
+                'digital_id_url', 'digital_id_sent_date'
+            )
+        }),
+        ('Review', {
+            'fields': (
+                'reviewed_by', 'review_date', 'review_notes'
+            )
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['mark_as_under_review', 'mark_as_payment_pending', 'mark_as_in_production']
+    
+    def student_link(self, obj):
+        url = reverse('admin:your_app_student_change', args=[obj.student.id])
+        return format_html('<a href="{}">{}</a>', url, obj.student.registration_number)
+    student_link.short_description = 'Student'
+    
+    def status_badge(self, obj):
+        colors = {
+            'draft': '#6c757d',
+            'submitted': '#007bff',
+            'under_review': '#17a2b8',
+            'payment_pending': '#ffc107',
+            'payment_confirmed': '#28a745',
+            'in_production': '#fd7e14',
+            'ready_for_pickup': '#20c997',
+            'delivered': '#28a745',
+            'completed': '#28a745',
+            'rejected': '#dc3545',
+            'cancelled': '#6c757d',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">{}</span>',
+            color, obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    
+    def is_rush_badge(self, obj):
+        if obj.is_rush_processing:
+            return format_html(
+                '<span style="background-color: #dc3545; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 11px;">RUSH</span>'
+            )
+        return format_html(
+            '<span style="background-color: #6c757d; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">Normal</span>'
+        )
+    is_rush_badge.short_description = 'Processing'
+    
+    def balance_display(self, obj):
+        balance = obj.balance
+        if balance > 0:
+            return format_html(
+                '<span style="color: #dc3545; font-weight: bold;">{:,.2f}</span>',
+                balance
+            )
+        return format_html(
+            '<span style="color: #28a745; font-weight: bold;">0.00</span>'
+        )
+    balance_display.short_description = 'Balance'
+    
+    def payment_status_badge(self, obj):
+        if obj.is_paid:
+            return format_html(
+                '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 11px;">Paid</span>'
+            )
+        return format_html(
+            '<span style="background-color: #dc3545; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">Unpaid</span>'
+        )
+    payment_status_badge.short_description = 'Payment'
+    
+    def photo_preview(self, obj):
+        if obj.photo:
+            return format_html(
+                '<img src="{}" style="max-width: 150px; max-height: 150px;" />',
+                obj.photo.url
+            )
+        return "No photo"
+    photo_preview.short_description = 'Photo Preview'
+    
+    def photo_back_preview(self, obj):
+        if obj.photo_back:
+            return format_html(
+                '<img src="{}" style="max-width: 150px; max-height: 150px;" />',
+                obj.photo_back.url
+            )
+        return "No back photo"
+    photo_back_preview.short_description = 'Back Photo Preview'
+    
+    def mark_as_under_review(self, request, queryset):
+        updated = queryset.update(status='under_review', review_date=timezone.now())
+        self.message_user(request, f'{updated} application(s) marked as under review.')
+    mark_as_under_review.short_description = 'Mark selected as Under Review'
+    
+    def mark_as_payment_pending(self, request, queryset):
+        updated = queryset.update(status='payment_pending')
+        self.message_user(request, f'{updated} application(s) marked as payment pending.')
+    mark_as_payment_pending.short_description = 'Mark selected as Payment Pending'
+    
+    def mark_as_in_production(self, request, queryset):
+        updated = queryset.filter(status='payment_confirmed').update(status='in_production')
+        self.message_user(request, f'{updated} application(s) moved to production.')
+    mark_as_in_production.short_description = 'Move to Production'
+
+
+# ============= STUDENT ID CARD ADMIN =============
+@admin.register(StudentIDCard)
+class StudentIDCardAdmin(admin.ModelAdmin):
+    list_display = [
+        'card_number', 'student_link', 'application_link', 'card_type',
+        'issue_date', 'expiry_date', 'status_badge', 'expired_badge',
+        'pick_up_date'
+    ]
+    list_filter = ['status', 'card_type', 'issue_date', 'expiry_date']
+    search_fields = [
+        'card_number', 'student__registration_number',
+        'student__user__first_name', 'student__user__last_name',
+        'barcode'
+    ]
+    readonly_fields = [
+        'card_number', 'is_expired', 'created_at', 'updated_at',
+        'qr_code_preview', 'digital_id_preview'
+    ]
+    date_hierarchy = 'issue_date'
+    
+    fieldsets = (
+        ('Card Information', {
+            'fields': ('card_number', 'student', 'application', 'card_type')
+        }),
+        ('Validity', {
+            'fields': ('issue_date', 'expiry_date', 'status', 'is_expired')
+        }),
+        ('Security Features', {
+            'fields': ('qr_code', 'qr_code_preview', 'barcode', 'security_features')
+        }),
+        ('Digital ID', {
+            'fields': ('digital_id_file', 'digital_id_preview', 'digital_id_hash')
+        }),
+        ('Pickup Information', {
+            'fields': (
+                'picked_up_by', 'pick_up_date',
+                'received_signature', 'last_verified'
+            )
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['mark_as_active', 'mark_as_inactive', 'mark_as_expired']
+    
+    def student_link(self, obj):
+        url = reverse('admin:your_app_student_change', args=[obj.student.id])
+        return format_html('<a href="{}">{}</a>', url, obj.student.registration_number)
+    student_link.short_description = 'Student'
+    
+    def application_link(self, obj):
+        url = reverse('admin:your_app_studentidapplication_change', args=[obj.application.id])
+        return format_html('<a href="{}">{}</a>', url, obj.application.application_number)
+    application_link.short_description = 'Application'
+    
+    def status_badge(self, obj):
+        colors = {
+            'active': '#28a745',
+            'inactive': '#6c757d',
+            'lost': '#dc3545',
+            'damaged': '#ffc107',
+            'expired': '#dc3545',
+            'replaced': '#17a2b8',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">{}</span>',
+            color, obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    
+    def expired_badge(self, obj):
+        if obj.is_expired:
+            return format_html(
+                '<span style="background-color: #dc3545; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 11px;">Expired</span>'
+            )
+        return format_html(
+            '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">Valid</span>'
+        )
+    expired_badge.short_description = 'Validity'
+    
+    def qr_code_preview(self, obj):
+        if obj.qr_code:
+            return format_html(
+                '<img src="{}" style="max-width: 200px; max-height: 200px;" />',
+                obj.qr_code.url
+            )
+        return "No QR code"
+    qr_code_preview.short_description = 'QR Code Preview'
+    
+    def digital_id_preview(self, obj):
+        if obj.digital_id_file:
+            return format_html(
+                '<a href="{}" target="_blank">View Digital ID</a>',
+                obj.digital_id_file.url
+            )
+        return "No digital ID file"
+    digital_id_preview.short_description = 'Digital ID'
+    
+    def mark_as_active(self, request, queryset):
+        updated = queryset.update(status='active')
+        self.message_user(request, f'{updated} card(s) marked as active.')
+    mark_as_active.short_description = 'Mark selected as Active'
+    
+    def mark_as_inactive(self, request, queryset):
+        updated = queryset.update(status='inactive')
+        self.message_user(request, f'{updated} card(s) marked as inactive.')
+    mark_as_inactive.short_description = 'Mark selected as Inactive'
+    
+    def mark_as_expired(self, request, queryset):
+        updated = queryset.update(status='expired')
+        self.message_user(request, f'{updated} card(s) marked as expired.')
+    mark_as_expired.short_description = 'Mark selected as Expired'
+
+
+# ============= STUDENT ID PAYMENT ADMIN =============
+@admin.register(StudentIDPayment)
+class StudentIDPaymentAdmin(admin.ModelAdmin):
+    list_display = [
+        'payment_reference', 'application_link', 'amount',
+        'payment_method', 'status_badge', 'payment_date',
+        'mpesa_receipt_number', 'confirmed_date'
+    ]
+    list_filter = ['status', 'payment_method', 'payment_date']
+    search_fields = [
+        'payment_reference', 'transaction_id', 'mpesa_receipt_number',
+        'phone_number', 'application__application_number',
+        'application__student__registration_number'
+    ]
+    readonly_fields = [
+        'payment_reference', 'payment_date', 'created_at', 'updated_at'
+    ]
+    date_hierarchy = 'payment_date'
+    
+    fieldsets = (
+        ('Payment Information', {
+            'fields': (
+                'payment_reference', 'application', 'amount',
+                'payment_method', 'status'
+            )
+        }),
+        ('Transaction Details', {
+            'fields': (
+                'transaction_id', 'merchant_request_id',
+                'checkout_request_id'
+            )
+        }),
+        ('M-Pesa Details', {
+            'fields': ('mpesa_receipt_number', 'phone_number')
+        }),
+        ('Dates', {
+            'fields': ('payment_date', 'confirmed_date')
+        }),
+        ('Response', {
+            'fields': ('result_code', 'result_description')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['mark_as_completed', 'mark_as_failed']
+    
+    def application_link(self, obj):
+        url = reverse('admin:your_app_studentidapplication_change', args=[obj.application.id])
+        return format_html('<a href="{}">{}</a>', url, obj.application.application_number)
+    application_link.short_description = 'Application'
+    
+    def status_badge(self, obj):
+        colors = {
+            'pending': '#ffc107',
+            'completed': '#28a745',
+            'failed': '#dc3545',
+            'reversed': '#6c757d',
+        }
+        color = colors.get(obj.status, '#6c757d')
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">{}</span>',
+            color, obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    
+    def mark_as_completed(self, request, queryset):
+        updated = queryset.update(status='completed', confirmed_date=timezone.now())
+        self.message_user(request, f'{updated} payment(s) marked as completed.')
+    mark_as_completed.short_description = 'Mark selected as Completed'
+    
+    def mark_as_failed(self, request, queryset):
+        updated = queryset.update(status='failed')
+        self.message_user(request, f'{updated} payment(s) marked as failed.')
+    mark_as_failed.short_description = 'Mark selected as Failed'
+
+
+# ============= ID CARD NOTIFICATION ADMIN =============
+@admin.register(IDCardNotification)
+class IDCardNotificationAdmin(admin.ModelAdmin):
+    list_display = [
+        'student_link', 'notification_type', 'title',
+        'delivery_methods', 'is_read_badge', 'sent_at'
+    ]
+    list_filter = [
+        'notification_type', 'is_read', 'sent_via_email',
+        'sent_via_sms', 'sent_via_portal', 'sent_at'
+    ]
+    search_fields = [
+        'student__registration_number', 'student__user__first_name',
+        'student__user__last_name', 'title', 'message',
+        'application__application_number'
+    ]
+    readonly_fields = ['sent_at', 'created_at', 'read_date']
+    date_hierarchy = 'sent_at'
+    
+    fieldsets = (
+        ('Notification Details', {
+            'fields': (
+                'student', 'application', 'notification_type',
+                'title', 'message'
+            )
+        }),
+        ('Delivery Methods', {
+            'fields': ('sent_via_email', 'sent_via_sms', 'sent_via_portal')
+        }),
+        ('Status', {
+            'fields': ('is_read', 'read_date')
+        }),
+        ('Tracking', {
+            'fields': ('email_message_id', 'sms_message_id')
+        }),
+        ('Timestamps', {
+            'fields': ('sent_at', 'created_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['mark_as_read', 'mark_as_unread']
+    
+    def student_link(self, obj):
+        url = reverse('admin:your_app_student_change', args=[obj.student.id])
+        return format_html('<a href="{}">{}</a>', url, obj.student.registration_number)
+    student_link.short_description = 'Student'
+    
+    def delivery_methods(self, obj):
+        methods = []
+        if obj.sent_via_email:
+            methods.append('<span style="background-color: #007bff; color: white; '
+                         'padding: 2px 6px; border-radius: 3px; font-size: 10px;">Email</span>')
+        if obj.sent_via_sms:
+            methods.append('<span style="background-color: #28a745; color: white; '
+                         'padding: 2px 6px; border-radius: 3px; font-size: 10px;">SMS</span>')
+        if obj.sent_via_portal:
+            methods.append('<span style="background-color: #17a2b8; color: white; '
+                         'padding: 2px 6px; border-radius: 3px; font-size: 10px;">Portal</span>')
+        return format_html(' '.join(methods) if methods else 'None')
+    delivery_methods.short_description = 'Sent Via'
+    
+    def is_read_badge(self, obj):
+        if obj.is_read:
+            return format_html(
+                '<span style="background-color: #28a745; color: white; padding: 3px 10px; '
+                'border-radius: 3px; font-size: 11px;">Read</span>'
+            )
+        return format_html(
+            '<span style="background-color: #ffc107; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">Unread</span>'
+        )
+    is_read_badge.short_description = 'Read Status'
+    
+    def mark_as_read(self, request, queryset):
+        updated = queryset.update(is_read=True, read_date=timezone.now())
+        self.message_user(request, f'{updated} notification(s) marked as read.')
+    mark_as_read.short_description = 'Mark selected as Read'
+    
+    def mark_as_unread(self, request, queryset):
+        updated = queryset.update(is_read=False, read_date=None)
+        self.message_user(request, f'{updated} notification(s) marked as unread.')
+    mark_as_unread.short_description = 'Mark selected as Unread'
 
 # Customize admin site
 admin.site.site_header = "MUT University Management System"
