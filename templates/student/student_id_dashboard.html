@@ -3,6 +3,10 @@
 
 {% block title %}Student ID Management{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -19,9 +23,9 @@
                 <div class="stat-icon bg-primary">
                     <i class="ri-id-card-line"></i>
                 </div>
-                <div class="stat-content">
-                    <h3>{{ applications.count }}</h3>
-                    <p class="mb-0">Total Applications</p>
+                <div class="stat-details">
+                    <div class="stat-value">{{ applications.count }}</div>
+                    <div class="stat-label">Total Applications</div>
                 </div>
             </div>
         </div>
@@ -30,9 +34,9 @@
                 <div class="stat-icon bg-success">
                     <i class="ri-checkbox-circle-line"></i>
                 </div>
-                <div class="stat-content">
-                    <h3>{{ id_cards.count }}</h3>
-                    <p class="mb-0">Issued Cards</p>
+                <div class="stat-details">
+                    <div class="stat-value">{{ id_cards.count }}</div>
+                    <div class="stat-label">Issued Cards</div>
                 </div>
             </div>
         </div>
@@ -41,9 +45,9 @@
                 <div class="stat-icon {% if active_application %}bg-warning{% else %}bg-secondary{% endif %}">
                     <i class="ri-time-line"></i>
                 </div>
-                <div class="stat-content">
-                    <h3>{% if active_application %}1{% else %}0{% endif %}</h3>
-                    <p class="mb-0">Active Application</p>
+                <div class="stat-details">
+                    <div class="stat-value">{% if active_application %}1{% else %}0{% endif %}</div>
+                    <div class="stat-label">Active Application</div>
                 </div>
             </div>
         </div>
@@ -52,9 +56,9 @@
                 <div class="stat-icon {% if active_card %}bg-success{% else %}bg-danger{% endif %}">
                     <i class="ri-shield-check-line"></i>
                 </div>
-                <div class="stat-content">
-                    <h3>{% if active_card %}Active{% else %}None{% endif %}</h3>
-                    <p class="mb-0">Current Status</p>
+                <div class="stat-details">
+                    <div class="stat-value">{% if active_card %}Active{% else %}None{% endif %}</div>
+                    <div class="stat-label">Current Status</div>
                 </div>
             </div>
         </div>
@@ -190,9 +194,9 @@
                 <div class="card-header">
                     <h5 class="card-title">Application History</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
                                     <th>Application #</th>
@@ -255,7 +259,7 @@
                             </div>
                         </div>
                     </div>
-                    {% if not forloop.last %}<hr>{% endif %}
+                    {% if not forloop.last %}<hr class="my-3">{% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -284,20 +288,56 @@
 
 <style>
     :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
         --color-primary: #2E7D32;
         --color-success: #4CAF50;
         --color-warning: #FF9800;
         --color-info: #2196F3;
         --color-danger: #F44336;
+        --color-secondary: #6c757d;
         --color-gray-100: #f8f9fa;
         --color-gray-200: #e9ecef;
         --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
-        --radius-md: 8px;
-        --radius-lg: 12px;
     }
 
+    body {
+        font-family: var(--font-family);
+    }
+
+    .content-container {
+        padding: 0 0.5rem;
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Stat Cards */
     .stat-card {
         background: white;
         border: 1px solid var(--color-gray-200);
@@ -310,40 +350,78 @@
     }
 
     .stat-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-md);
         transform: translateY(-2px);
     }
 
     .stat-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 12px;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.75rem;
+        font-size: 1.5rem;
         color: white;
     }
 
-    .stat-content h3 {
+    .stat-icon.bg-primary { background: var(--color-primary); }
+    .stat-icon.bg-success { background: var(--color-success); }
+    .stat-icon.bg-warning { background: var(--color-warning); }
+    .stat-icon.bg-info { background: var(--color-info); }
+    .stat-icon.bg-danger { background: var(--color-danger); }
+    .stat-icon.bg-secondary { background: var(--color-secondary); }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-value {
         font-size: 1.75rem;
         font-weight: 700;
-        margin-bottom: 0.25rem;
         color: var(--color-gray-800);
+        line-height: 1;
     }
 
-    .stat-content p {
-        color: var(--color-gray-600);
+    .stat-label {
         font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
     }
 
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Action Cards */
     .action-card {
         display: flex;
         align-items: center;
         gap: 1rem;
         padding: 1.5rem;
         background: white;
-        border: 2px solid var(--color-gray-200);
+        border: 1px solid var(--color-gray-200);
         border-radius: var(--radius-lg);
         text-decoration: none;
         transition: all 0.3s ease;
@@ -351,14 +429,14 @@
 
     .action-card:hover {
         border-color: var(--color-primary);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: var(--shadow-md);
         transform: translateY(-2px);
     }
 
     .action-icon {
-        width: 50px;
-        height: 50px;
-        border-radius: 10px;
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -367,47 +445,237 @@
         flex-shrink: 0;
     }
 
+    .action-icon.bg-primary { background: var(--color-primary); }
+    .action-icon.bg-success { background: var(--color-success); }
+    .action-icon.bg-warning { background: var(--color-warning); }
+    .action-icon.bg-info { background: var(--color-info); }
+
     .action-content h6 {
+        font-size: 1rem;
+        font-weight: 600;
         color: var(--color-gray-800);
         margin-bottom: 0.25rem;
-        font-weight: 600;
     }
 
-    .notification-item {
-        padding: 1rem 0;
+    .action-content p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        line-height: 1.4;
     }
 
-    .notification-item:first-child {
-        padding-top: 0;
+    /* Status Badges */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
     }
 
-    .notification-item:last-child {
-        padding-bottom: 0;
-    }
-
-    /* Status badges */
-    .status-draft { background-color: #6c757d !important; }
-    .status-submitted { background-color: #007bff !important; }
+    .status-draft { background-color: var(--color-secondary) !important; }
+    .status-submitted { background-color: var(--color-info) !important; }
     .status-under_review { background-color: #17a2b8 !important; }
-    .status-payment_pending { background-color: #ffc107 !important; color: #000 !important; }
+    .status-payment_pending { 
+        background-color: var(--color-warning) !important; 
+        color: var(--color-gray-800) !important; 
+    }
     .status-payment_confirmed { background-color: #28a745 !important; }
     .status-in_production { background-color: #fd7e14 !important; }
     .status-ready_for_pickup { background-color: #20c997 !important; }
-    .status-delivered, .status-completed { background-color: #28a745 !important; }
+    .status-delivered, .status-completed { background-color: var(--color-success) !important; }
 
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-300);
+        padding: 1rem;
+    }
+
+    .table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.05);
+    }
+
+    /* Notification Items */
+    .notification-item {
+        padding: 0.5rem 0;
+    }
+
+    .notification-item h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .notification-item p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        line-height: 1.4;
+        margin-bottom: 0.25rem;
+    }
+
+    .notification-item small {
+        font-size: 0.75rem;
+    }
+
+    hr {
+        border-top: 1px solid var(--color-gray-200);
+        opacity: 1;
+        margin: 0;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-success {
+        background: var(--color-success);
+        border-color: var(--color-success);
+    }
+
+    .btn-success:hover {
+        background: #388E3C;
+        border-color: #388E3C;
+    }
+
+    .btn-outline-primary {
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    /* Text Styles */
+    .text-primary {
+        color: var(--color-primary) !important;
+    }
+
+    .text-success {
+        color: var(--color-success) !important;
+    }
+
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    .text-warning {
+        color: var(--color-warning) !important;
+    }
+
+    .text-muted {
+        color: var(--color-gray-600) !important;
+    }
+
+    /* Empty State */
+    .text-center h4 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Responsive Styles */
     @media (max-width: 768px) {
         .stat-card {
             padding: 1rem;
         }
-        
+
         .stat-icon {
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+
+        .stat-value {
             font-size: 1.5rem;
         }
-        
-        .stat-content h3 {
-            font-size: 1.5rem;
+
+        .action-card {
+            padding: 1rem;
+        }
+
+        .action-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .stat-value {
+            font-size: 1.25rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+        }
+
+        .action-content h6 {
+            font-size: 0.875rem;
+        }
+
+        .action-content p {
+            font-size: 0.75rem;
+        }
+
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .text-center h4 {
+            font-size: 1.25rem;
         }
     }
 </style>
