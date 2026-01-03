@@ -12612,7 +12612,6 @@ def api_get_lecturers(request):
         'lecturers': lecturers_data
     })
 
-
 @login_required
 @require_http_methods(["POST"])
 def api_save_timetable_slot(request):
@@ -12716,14 +12715,24 @@ def api_save_timetable_slot(request):
             )
             message = 'Slot created successfully'
         
+        # Helper function to format time
+        def format_time(time_value):
+            """Convert time to string format HH:MM"""
+            if isinstance(time_value, str):
+                # Already a string, just ensure it's in HH:MM format
+                return time_value[:5] if len(time_value) > 5 else time_value
+            else:
+                # It's a time object, format it
+                return time_value.strftime('%H:%M')
+        
         return JsonResponse({
             'success': True,
             'message': message,
             'slot': {
                 'id': slot.id,
                 'day': slot.day_of_week,
-                'start_time': slot.start_time.strftime('%H:%M'),
-                'end_time': slot.end_time.strftime('%H:%M'),
+                'start_time': format_time(slot.start_time),
+                'end_time': format_time(slot.end_time),
                 'venue': slot.venue,
                 'unit_code': allocation.programme_unit.unit.code,
                 'unit_name': allocation.programme_unit.unit.name,
@@ -12731,13 +12740,28 @@ def api_save_timetable_slot(request):
             }
         })
         
+    except Timetable.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Timetable not found'
+        }, status=404)
+    except ProgrammeUnit.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Programme unit not found'
+        }, status=404)
+    except TimetableSlot.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Timetable slot not found'
+        }, status=404)
     except Exception as e:
         return JsonResponse({
             'success': False,
             'error': str(e)
         }, status=500)
-
-
+        
+        
 @login_required
 @require_http_methods(["POST"])
 def api_delete_timetable_slot(request):
