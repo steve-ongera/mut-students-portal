@@ -2595,3 +2595,606 @@ class IDCardNotification(models.Model):
             models.Index(fields=['notification_type', 'sent_at']),
         ]        
         
+        
+# ============= AI CHATBOT SYSTEM =============
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.postgres.fields import JSONField  # For PostgreSQL
+from django.db.models import JSONField  # For Django 3.1+
+from django.utils import timezone
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+import uuid
+
+
+class AIKnowledgeBase(models.Model):
+    """Central knowledge base for AI training data"""
+    KNOWLEDGE_TYPES = (
+        ('academic', 'Academic Information'),
+        ('fees', 'Fee Structure & Payments'),
+        ('hostel', 'Hostel & Accommodation'),
+        ('library', 'Library Services'),
+        ('registration', 'Registration & Enrollment'),
+        ('timetable', 'Timetables & Schedules'),
+        ('results', 'Results & Grades'),
+        ('events', 'Events & Announcements'),
+        ('mental_health', 'Mental Health & Wellness'),
+        ('career', 'Career & Guidance'),
+        ('technical', 'Technical Support'),
+        ('policies', 'University Policies'),
+        ('general', 'General Information'),
+    )
+    
+    CONTENT_STATUS = (
+        ('draft', 'Draft'),
+        ('active', 'Active'),
+        ('archived', 'Archived'),
+        ('needs_review', 'Needs Review'),
+    )
+    
+    # Knowledge Details
+    knowledge_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    category = models.CharField(max_length=20, choices=KNOWLEDGE_TYPES)
+    subcategory = models.CharField(max_length=100, blank=True)
+    
+    # Content
+    question = models.TextField(help_text="Common question or query pattern")
+    answer = models.TextField(help_text="Detailed answer")
+    keywords = models.JSONField(default=list, help_text="List of keywords for matching")
+    alternative_questions = models.JSONField(default=list, 
+                                            help_text="Alternative ways to ask the same question")
+    
+    # Context and Conditions
+    requires_authentication = models.BooleanField(default=False)
+    applicable_roles = models.JSONField(default=list, 
+                                       help_text="User roles this applies to (empty = all)")
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.SET_NULL, 
+                                     null=True, blank=True,
+                                     related_name='ai_knowledge')
+    
+    # Rich Content
+    has_links = models.BooleanField(default=False)
+    links = models.JSONField(default=list, help_text="Related links or resources")
+    has_attachments = models.BooleanField(default=False)
+    attachments = models.JSONField(default=list, help_text="File paths or URLs")
+    
+    # Training & Quality
+    confidence_score = models.DecimalField(max_digits=5, decimal_places=2, default=100.00,
+                                          validators=[MinValueValidator(0), MaxValueValidator(100)])
+    usage_count = models.IntegerField(default=0)
+    helpful_count = models.IntegerField(default=0)
+    not_helpful_count = models.IntegerField(default=0)
+    last_used = models.DateTimeField(null=True, blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=CONTENT_STATUS, default='active')
+    is_verified = models.BooleanField(default=False)
+    verified_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='verified_knowledge')
+    
+    # Metadata
+    created_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                  related_name='created_knowledge')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    version = models.IntegerField(default=1)
+
+    def calculate_helpfulness_ratio(self):
+        """Calculate helpfulness percentage"""
+        total = self.helpful_count + self.not_helpful_count
+        if total == 0:
+            return 0
+        return (self.helpful_count / total) * 100
+
+    def __str__(self):
+        return f"{self.category} - {self.question[:50]}"
+
+    class Meta:
+        db_table = 'ai_knowledge_base'
+        ordering = ['-usage_count', '-helpful_count']
+        indexes = [
+            models.Index(fields=['category', 'status']),
+            models.Index(fields=['requires_authentication']),
+            models.Index(fields=['-usage_count']),
+        ]
+
+
+class ChatSession(models.Model):
+    """Individual chat sessions"""
+    SESSION_STATUS = (
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('abandoned', 'Abandoned'),
+    )
+    
+    # Session Details
+    session_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    user = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                            related_name='chat_sessions')
+    student = models.ForeignKey('Student', on_delete=models.SET_NULL, null=True, blank=True,
+                               related_name='chat_sessions')
+    
+    # Session Context
+    is_authenticated = models.BooleanField(default=False)
+    user_role = models.CharField(max_length=20, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    device_type = models.CharField(max_length=20, blank=True)  # mobile, tablet, desktop
+    
+    # Session Data
+    context_data = models.JSONField(default=dict, 
+                                   help_text="User-specific context (programme, year, etc.)")
+    conversation_topics = models.JSONField(default=list, 
+                                          help_text="Topics discussed in this session")
+    
+    # Session Metrics
+    message_count = models.IntegerField(default=0)
+    avg_response_time = models.DecimalField(max_digits=6, decimal_places=2, 
+                                           default=0.00, help_text="Average in seconds")
+    satisfaction_rating = models.IntegerField(null=True, blank=True,
+                                             validators=[MinValueValidator(1), MaxValueValidator(5)])
+    feedback_text = models.TextField(blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=SESSION_STATUS, default='active')
+    started_at = models.DateTimeField(auto_now_add=True)
+    last_activity = models.DateTimeField(auto_now=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    duration_seconds = models.IntegerField(default=0)
+
+    def update_duration(self):
+        """Calculate session duration"""
+        if self.ended_at:
+            delta = self.ended_at - self.started_at
+            self.duration_seconds = int(delta.total_seconds())
+            self.save()
+
+    def __str__(self):
+        user_id = self.user.username if self.user else f"Anonymous-{self.session_id}"
+        return f"{user_id} - {self.started_at}"
+
+    class Meta:
+        db_table = 'chat_sessions'
+        ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['session_id']),
+            models.Index(fields=['-started_at']),
+        ]
+
+
+class ChatMessage(models.Model):
+    """Individual messages in chat sessions"""
+    MESSAGE_TYPES = (
+        ('user', 'User Message'),
+        ('ai', 'AI Response'),
+        ('system', 'System Message'),
+    )
+    
+    INTENT_CATEGORIES = (
+        ('question', 'Question'),
+        ('complaint', 'Complaint'),
+        ('request', 'Request'),
+        ('feedback', 'Feedback'),
+        ('clarification', 'Clarification'),
+        ('greeting', 'Greeting'),
+        ('farewell', 'Farewell'),
+        ('other', 'Other'),
+    )
+    
+    # Message Details
+    message_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, 
+                               related_name='messages')
+    message_type = models.CharField(max_length=10, choices=MESSAGE_TYPES)
+    
+    # Content
+    message_text = models.TextField()
+    message_html = models.TextField(blank=True, help_text="Formatted HTML version")
+    
+    # AI Processing
+    detected_intent = models.CharField(max_length=20, choices=INTENT_CATEGORIES, blank=True)
+    detected_entities = models.JSONField(default=dict, 
+                                        help_text="Extracted entities (dates, numbers, names, etc.)")
+    matched_knowledge = models.ForeignKey(AIKnowledgeBase, on_delete=models.SET_NULL, 
+                                         null=True, blank=True,
+                                         related_name='messages')
+    confidence_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # Response Quality (for AI messages)
+    was_helpful = models.BooleanField(null=True, blank=True)
+    required_human_intervention = models.BooleanField(default=False)
+    escalated_to_staff = models.BooleanField(default=False)
+    escalated_to = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='escalated_messages')
+    
+    # User Feedback
+    user_rating = models.IntegerField(null=True, blank=True,
+                                     validators=[MinValueValidator(1), MaxValueValidator(5)])
+    user_feedback = models.TextField(blank=True)
+    
+    # Timing
+    response_time = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True,
+                                       help_text="Response time in seconds")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # Related Content
+    suggested_actions = models.JSONField(default=list, 
+                                        help_text="Quick action buttons shown to user")
+    attached_files = models.JSONField(default=list)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.message_type} - {self.message_text[:50]}"
+
+    class Meta:
+        db_table = 'chat_messages'
+        ordering = ['timestamp']
+        indexes = [
+            models.Index(fields=['session', 'timestamp']),
+            models.Index(fields=['message_type', 'detected_intent']),
+        ]
+
+
+class AIPersonalization(models.Model):
+    """Store user-specific AI personalization data"""
+    user = models.OneToOneField('User', on_delete=models.CASCADE, 
+                                related_name='ai_personalization')
+    student = models.OneToOneField('Student', on_delete=models.CASCADE, null=True, blank=True,
+                                  related_name='ai_personalization')
+    
+    # Learning Preferences
+    preferred_response_style = models.CharField(max_length=20, 
+                                               choices=(
+                                                   ('concise', 'Concise'),
+                                                   ('detailed', 'Detailed'),
+                                                   ('balanced', 'Balanced'),
+                                               ), default='balanced')
+    preferred_language = models.CharField(max_length=10, default='en')
+    
+    # Interaction Patterns
+    common_queries = models.JSONField(default=list, 
+                                     help_text="Frequently asked questions by this user")
+    interaction_history = models.JSONField(default=dict, 
+                                          help_text="Topic frequency and patterns")
+    time_preferences = models.JSONField(default=dict, 
+                                       help_text="When user typically asks questions")
+    
+    # Context Memory
+    remembered_context = models.JSONField(default=dict, 
+                                         help_text="User's ongoing situations/interests")
+    follow_up_reminders = models.JSONField(default=list, 
+                                          help_text="Things AI should follow up on")
+    
+    # Performance Tracking
+    academic_alerts = models.JSONField(default=list, 
+                                      help_text="Proactive alerts about academic performance")
+    financial_alerts = models.JSONField(default=list, 
+                                       help_text="Fee payment reminders")
+    
+    # Privacy Settings
+    allow_proactive_messages = models.BooleanField(default=True)
+    allow_performance_tracking = models.BooleanField(default=True)
+    allow_personalization = models.BooleanField(default=True)
+    
+    # Usage Statistics
+    total_sessions = models.IntegerField(default=0)
+    total_messages = models.IntegerField(default=0)
+    avg_satisfaction = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
+    last_interaction = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Personalization - {self.user.username}"
+
+    class Meta:
+        db_table = 'ai_personalization'
+
+
+class AITrainingData(models.Model):
+    """Collect data for continuous AI improvement"""
+    TRAINING_STATUS = (
+        ('pending', 'Pending Review'),
+        ('approved', 'Approved for Training'),
+        ('rejected', 'Rejected'),
+        ('trained', 'Used in Training'),
+    )
+    
+    # Source Information
+    session = models.ForeignKey(ChatSession, on_delete=models.CASCADE, 
+                               related_name='training_data')
+    message = models.ForeignKey(ChatMessage, on_delete=models.CASCADE, 
+                               related_name='training_data')
+    
+    # Training Content
+    original_query = models.TextField()
+    ai_response = models.TextField()
+    corrected_response = models.TextField(blank=True, 
+                                         help_text="Human-corrected version if needed")
+    
+    # Quality Metrics
+    was_correct = models.BooleanField(null=True, blank=True)
+    user_satisfaction = models.IntegerField(null=True, blank=True,
+                                           validators=[MinValueValidator(1), MaxValueValidator(5)])
+    
+    # Training Metadata
+    category = models.CharField(max_length=20, 
+                               choices=AIKnowledgeBase.KNOWLEDGE_TYPES)
+    detected_issues = models.JSONField(default=list, 
+                                      help_text="Issues detected (wrong info, unclear, etc.)")
+    
+    # Review Process
+    status = models.CharField(max_length=20, choices=TRAINING_STATUS, default='pending')
+    reviewed_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='training_data_reviewed')
+    review_date = models.DateTimeField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+    
+    # Training Integration
+    added_to_knowledge_base = models.BooleanField(default=False)
+    knowledge_entry = models.ForeignKey(AIKnowledgeBase, on_delete=models.SET_NULL, 
+                                       null=True, blank=True,
+                                       related_name='training_sources')
+    training_date = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Training Data - {self.category} - {self.status}"
+
+    class Meta:
+        db_table = 'ai_training_data'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', 'category']),
+            models.Index(fields=['was_correct']),
+        ]
+
+
+class AIAnalytics(models.Model):
+    """Daily analytics and metrics for AI performance"""
+    # Time Period
+    date = models.DateField(unique=True)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE,
+                                     related_name='ai_analytics')
+    
+    # Usage Metrics
+    total_sessions = models.IntegerField(default=0)
+    authenticated_sessions = models.IntegerField(default=0)
+    anonymous_sessions = models.IntegerField(default=0)
+    total_messages = models.IntegerField(default=0)
+    avg_messages_per_session = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    
+    # Performance Metrics
+    avg_response_time = models.DecimalField(max_digits=6, decimal_places=2, default=0.00)
+    avg_confidence_score = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    successful_resolutions = models.IntegerField(default=0)
+    escalated_to_human = models.IntegerField(default=0)
+    
+    # Quality Metrics
+    avg_user_rating = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
+    helpful_responses = models.IntegerField(default=0)
+    not_helpful_responses = models.IntegerField(default=0)
+    
+    # Topic Distribution
+    topic_breakdown = models.JSONField(default=dict, 
+                                      help_text="Count of questions per category")
+    peak_hours = models.JSONField(default=list, 
+                                 help_text="Hours with most activity")
+    
+    # User Engagement
+    new_users = models.IntegerField(default=0)
+    returning_users = models.IntegerField(default=0)
+    avg_session_duration = models.IntegerField(default=0, help_text="In seconds")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"AI Analytics - {self.date}"
+
+    class Meta:
+        db_table = 'ai_analytics'
+        ordering = ['-date']
+
+
+class ProactiveAIAlert(models.Model):
+    """AI-generated proactive alerts for students"""
+    ALERT_TYPES = (
+        ('academic_risk', 'Academic Performance Risk'),
+        ('fee_reminder', 'Fee Payment Reminder'),
+        ('deadline_approaching', 'Deadline Approaching'),
+        ('low_attendance', 'Low Attendance Alert'),
+        ('registration_open', 'Registration Period Open'),
+        ('results_available', 'Results Available'),
+        ('event_reminder', 'Event Reminder'),
+        ('mental_health', 'Mental Health Check-in'),
+        ('career_opportunity', 'Career Opportunity'),
+        ('library_overdue', 'Library Book Overdue'),
+        ('hostel_payment', 'Hostel Payment Due'),
+        ('id_card_ready', 'ID Card Ready for Pickup'),
+    )
+    
+    PRIORITY_LEVELS = (
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    )
+    
+    # Alert Details
+    alert_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='ai_alerts')
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, null=True, blank=True,
+                               related_name='ai_alerts')
+    
+    alert_type = models.CharField(max_length=30, choices=ALERT_TYPES)
+    priority = models.CharField(max_length=10, choices=PRIORITY_LEVELS, default='medium')
+    
+    # Content
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    action_required = models.TextField(blank=True, help_text="What the student should do")
+    action_links = models.JSONField(default=list, help_text="Links to relevant pages")
+    
+    # AI Context
+    trigger_data = models.JSONField(default=dict, 
+                                   help_text="Data that triggered this alert")
+    ai_reasoning = models.TextField(blank=True, 
+                                   help_text="Why AI generated this alert")
+    
+    # Related Objects (Generic relation)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, 
+                                    null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    related_object = GenericForeignKey('content_type', 'object_id')
+    
+    # Delivery
+    sent_via_chat = models.BooleanField(default=True)
+    sent_via_email = models.BooleanField(default=False)
+    sent_via_sms = models.BooleanField(default=False)
+    sent_via_push = models.BooleanField(default=False)
+    
+    # Status
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    is_dismissed = models.BooleanField(default=False)
+    dismissed_at = models.DateTimeField(null=True, blank=True)
+    action_taken = models.BooleanField(default=False)
+    action_taken_at = models.DateTimeField(null=True, blank=True)
+    
+    # Feedback
+    was_helpful = models.BooleanField(null=True, blank=True)
+    feedback = models.TextField(blank=True)
+    
+    # Scheduling
+    scheduled_for = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.alert_type} - {self.user.username} - {self.priority}"
+
+    class Meta:
+        db_table = 'proactive_ai_alerts'
+        ordering = ['-priority', '-sent_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read']),
+            models.Index(fields=['alert_type', 'priority']),
+            models.Index(fields=['-sent_at']),
+        ]
+
+
+class AIModelVersion(models.Model):
+    """Track different versions of AI models and their performance"""
+    MODEL_TYPES = (
+        ('intent_classification', 'Intent Classification'),
+        ('entity_extraction', 'Entity Extraction'),
+        ('response_generation', 'Response Generation'),
+        ('sentiment_analysis', 'Sentiment Analysis'),
+        ('recommendation', 'Recommendation Engine'),
+    )
+    
+    # Version Details
+    model_type = models.CharField(max_length=30, choices=MODEL_TYPES)
+    version_number = models.CharField(max_length=20)
+    version_name = models.CharField(max_length=100)
+    
+    # Model Information
+    training_data_size = models.IntegerField(help_text="Number of training examples")
+    training_date = models.DateTimeField()
+    training_duration_hours = models.DecimalField(max_digits=8, decimal_places=2)
+    
+    # Model Architecture
+    architecture_details = models.JSONField(default=dict)
+    hyperparameters = models.JSONField(default=dict)
+    
+    # Performance Metrics
+    accuracy = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    precision = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    recall = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    f1_score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # Deployment
+    is_active = models.BooleanField(default=False)
+    deployed_at = models.DateTimeField(null=True, blank=True)
+    deployment_environment = models.CharField(max_length=20, default='production')
+    
+    # Monitoring
+    total_predictions = models.IntegerField(default=0)
+    successful_predictions = models.IntegerField(default=0)
+    avg_inference_time = models.DecimalField(max_digits=8, decimal_places=2, default=0.00,
+                                            help_text="In milliseconds")
+    
+    # Notes
+    release_notes = models.TextField(blank=True)
+    known_issues = models.TextField(blank=True)
+    improvements = models.TextField(blank=True)
+    
+    created_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                  related_name='ai_model_versions')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.model_type} - v{self.version_number}"
+
+    class Meta:
+        db_table = 'ai_model_versions'
+        unique_together = ('model_type', 'version_number')
+        ordering = ['-created_at']
+
+
+class QuickAction(models.Model):
+    """Predefined quick actions for common tasks"""
+    ACTION_TYPES = (
+        ('navigation', 'Navigate to Page'),
+        ('form', 'Fill Form'),
+        ('download', 'Download Document'),
+        ('payment', 'Make Payment'),
+        ('booking', 'Make Booking'),
+        ('external_link', 'External Link'),
+    )
+    
+    # Action Details
+    name = models.CharField(max_length=100)
+    description = models.TextField()
+    action_type = models.CharField(max_length=20, choices=ACTION_TYPES)
+    icon = models.CharField(max_length=50, blank=True)
+    
+    # Action Configuration
+    target_url = models.CharField(max_length=500, blank=True)
+    requires_authentication = models.BooleanField(default=False)
+    applicable_roles = models.JSONField(default=list)
+    
+    # Pre-fill Data
+    prefill_fields = models.JSONField(default=dict, 
+                                     help_text="Fields to auto-fill when action is triggered")
+    
+    # Visibility
+    is_active = models.BooleanField(default=True)
+    display_order = models.IntegerField(default=0)
+    
+    # Context
+    related_categories = models.JSONField(default=list, 
+                                         help_text="AI categories this action relates to")
+    trigger_keywords = models.JSONField(default=list)
+    
+    # Usage Stats
+    usage_count = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        db_table = 'quick_actions'
+        ordering = ['display_order', 'name']
