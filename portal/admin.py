@@ -1117,7 +1117,7 @@ class StudentIDApplicationAdmin(admin.ModelAdmin):
     actions = ['mark_as_under_review', 'mark_as_payment_pending', 'mark_as_in_production']
     
     def student_link(self, obj):
-        url = reverse('admin:your_app_student_change', args=[obj.student.id])
+        url = reverse('admin:portal_student_change', args=[obj.student.id])
         return format_html('<a href="{}">{}</a>', url, obj.student.registration_number)
     student_link.short_description = 'Student'
     
@@ -1261,7 +1261,7 @@ class StudentIDCardAdmin(admin.ModelAdmin):
     actions = ['mark_as_active', 'mark_as_inactive', 'mark_as_expired']
     
     def student_link(self, obj):
-        url = reverse('admin:your_app_student_change', args=[obj.student.id])
+        url = reverse('admin:portal_student_change', args=[obj.student.id])
         return format_html('<a href="{}">{}</a>', url, obj.student.registration_number)
     student_link.short_description = 'Student'
     
@@ -1457,7 +1457,7 @@ class IDCardNotificationAdmin(admin.ModelAdmin):
     actions = ['mark_as_read', 'mark_as_unread']
     
     def student_link(self, obj):
-        url = reverse('admin:your_app_student_change', args=[obj.student.id])
+        url = reverse('admin:portal_student_change', args=[obj.student.id])
         return format_html('<a href="{}">{}</a>', url, obj.student.registration_number)
     student_link.short_description = 'Student'
     
