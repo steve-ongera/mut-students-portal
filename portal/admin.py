@@ -1497,6 +1497,45 @@ class IDCardNotificationAdmin(admin.ModelAdmin):
         self.message_user(request, f'{updated} notification(s) marked as unread.')
     mark_as_unread.short_description = 'Mark selected as Unread'
 
+
+from django.contrib import admin
+from .models import (
+    AIKnowledgeBase, ChatSession, ChatMessage,
+    AIPersonalization, ProactiveAIAlert, AITrainingData,
+    AIAnalytics, AIModelVersion, QuickAction
+)
+
+@admin.register(AIKnowledgeBase)
+class AIKnowledgeBaseAdmin(admin.ModelAdmin):
+    list_display = ['question', 'category', 'status', 'confidence_score', 'usage_count']
+    list_filter = ['category', 'status', 'requires_authentication']
+    search_fields = ['question', 'answer', 'keywords']
+    ordering = ['-usage_count']
+
+@admin.register(ChatSession)
+class ChatSessionAdmin(admin.ModelAdmin):
+    list_display = ['session_id', 'user', 'is_authenticated', 'message_count', 'started_at', 'status']
+    list_filter = ['status', 'is_authenticated', 'started_at']
+    search_fields = ['user__username', 'session_id']
+
+@admin.register(ChatMessage)
+class ChatMessageAdmin(admin.ModelAdmin):
+    list_display = ['message_id', 'session', 'message_type', 'detected_intent', 'timestamp']
+    list_filter = ['message_type', 'detected_intent', 'was_helpful']
+    search_fields = ['message_text']
+
+@admin.register(ProactiveAIAlert)
+class ProactiveAIAlertAdmin(admin.ModelAdmin):
+    list_display = ['alert_type', 'user', 'priority', 'is_read', 'sent_at']
+    list_filter = ['alert_type', 'priority', 'is_read']
+    search_fields = ['title', 'message']
+
+@admin.register(QuickAction)
+class QuickActionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'action_type', 'is_active', 'display_order', 'usage_count']
+    list_filter = ['action_type', 'is_active']
+    ordering = ['display_order']
+    
 # Customize admin site
 admin.site.site_header = "MUT University Management System"
 admin.site.site_title = "MUT Admin"

@@ -59,10 +59,35 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'portal.context_processors.ai_chatbot_context',  # ← Add this line
             ],
         },
     },
 ]
+
+# AI Chatbot Settings (Optional - add these for customization)
+AI_CHATBOT_SETTINGS = {
+    'ENABLED': True,
+    'SESSION_TIMEOUT_HOURS': 24,
+    'MAX_MESSAGE_LENGTH': 1000,
+    'TYPING_DELAY_SECONDS': 1,
+    'SUGGESTIONS_COUNT': 5,
+    'ALERTS_CHECK_INTERVAL': 60,  # seconds
+    'CONFIDENCE_THRESHOLD': 70,  # percentage
+}
+
+# If using Celery for background tasks
+CELERY_BEAT_SCHEDULE = {
+    'check-proactive-alerts': {
+        'task': 'portal.tasks.check_proactive_alerts',
+        'schedule': 3600.0,  # Run every hour
+    },
+    'clean-old-sessions': {
+        'task': 'portal.tasks.clean_old_sessions',
+        'schedule': 86400.0,  # Run daily
+    },
+}
+
 
 WSGI_APPLICATION = 'MUT_PORTAL.wsgi.application'
 

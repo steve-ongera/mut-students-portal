@@ -339,4 +339,11 @@ urlpatterns = [
     path('admin/student-id/issue-card/<int:application_id>/', views.issue_student_id, name='issue_student_id'),
     path('admin/student-id/reports/', views.id_card_reports, name='id_card_reports'),
     
+    # AI Chat endpoints
+    path('api/chat/send/', views.chat_send_message, name='chat_send_message'),
+    path('api/chat/mark-alerts-read/', views.mark_alerts_read, name='mark_alerts_read'),
+    path('api/chat/check-alerts/', views.check_new_alerts, name='check_alerts'),
+    path('api/chat/rate-message/', views.rate_message, name='rate_message'),
+    path('api/chat/end-session/', views.end_session, name='end_session'),
+    
 ]

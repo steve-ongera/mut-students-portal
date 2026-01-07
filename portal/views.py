@@ -13754,3 +13754,414 @@ def id_card_reports(request):
     }
     
     return render(request, 'admin/students/id_card_reports.html', context)
+
+# views.py - Add these views to handle chat API endpoints
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+import json
+from datetime import timedelta
+
+from .models import (
+    ChatSession, ChatMessage, AIKnowledgeBase, 
+    AIPersonalization, ProactiveAIAlert, AITrainingData,
+    Student, SemesterResults, FeeBalance
+)
+
+
+@require_http_methods(["POST"])
+def chat_send_message(request):
+    """Handle incoming chat messages"""
+    try:
+        data = json.loads(request.body)
+        message_text = data.get('message', '').strip()
+        session_id = data.get('session_id')
+        
+        if not message_text:
+            return JsonResponse({'success': False, 'error': 'Empty message'})
+        
+        # Get or create session
+        try:
+            session = ChatSession.objects.get(session_id=session_id)
+        except ChatSession.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Invalid session'})
+        
+        # Create user message
+        user_message = ChatMessage.objects.create(
+            session=session,
+            message_type='user',
+            message_text=message_text
+        )
+        
+        # Update session
+        session.message_count += 1
+        session.last_activity = timezone.now()
+        session.save()
+        
+        # Process message and get AI response
+        ai_response, actions = process_ai_message(message_text, session, request.user)
+        
+        # Create AI response message
+        ai_message = ChatMessage.objects.create(
+            session=session,
+            message_type='ai',
+            message_text=ai_response,
+            detected_intent=detect_intent(message_text)
+        )
+        
+        session.message_count += 1
+        session.save()
+        
+        return JsonResponse({
+            'success': True,
+            'response': ai_response,
+            'actions': actions,
+            'message_id': str(ai_message.message_id)
+        })
+        
+    except Exception as e:
+        print(f"Chat error: {e}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'error': 'An error occurred processing your message'
+        })
+
+
+def process_ai_message(message, session, user):
+    """Process message and generate AI response"""
+    message_lower = message.lower()
+    
+    # Check for greeting
+    if any(word in message_lower for word in ['hello', 'hi', 'hey', 'greetings']):
+        name = user.first_name if user.is_authenticated else 'there'
+        return (
+            f"Hello {name}! 👋 I'm your MUT AI Assistant. "
+            f"I can help you with academic information, fees, timetables, "
+            f"results, and much more. What would you like to know?",
+            []
+        )
+    
+    # Search knowledge base
+    knowledge_matches = AIKnowledgeBase.objects.filter(
+        Q(question__icontains=message) |
+        Q(keywords__icontains=message),
+        status='active',
+        is_verified=True
+    ).order_by('-confidence_score', '-usage_count')
+    
+    # Check authentication requirement
+    if user.is_authenticated:
+        knowledge_matches = knowledge_matches.filter(
+            Q(requires_authentication=False) |
+            Q(requires_authentication=True)
+        )
+    else:
+        knowledge_matches = knowledge_matches.filter(requires_authentication=False)
+    
+    if knowledge_matches.exists():
+        knowledge = knowledge_matches.first()
+        
+        # Update usage stats
+        knowledge.usage_count += 1
+        knowledge.last_used = timezone.now()
+        knowledge.save()
+        
+        # Personalize response if authenticated
+        response = personalize_response(knowledge.answer, user)
+        
+        # Generate action buttons
+        actions = generate_actions(knowledge, user)
+        
+        return response, actions
+    
+    # Handle specific queries for authenticated users
+    if user.is_authenticated and hasattr(user, 'student_profile'):
+        student = user.student_profile
+        
+        # GPA query
+        if 'gpa' in message_lower or 'grade' in message_lower:
+            return handle_gpa_query(student)
+        
+        # Fee query
+        if 'fee' in message_lower or 'balance' in message_lower or 'payment' in message_lower:
+            return handle_fee_query(student)
+        
+        # Timetable query
+        if 'timetable' in message_lower or 'schedule' in message_lower or 'class' in message_lower:
+            return handle_timetable_query(student)
+        
+        # Results query
+        if 'result' in message_lower or 'exam' in message_lower or 'marks' in message_lower:
+            return handle_results_query(student)
+        
+        # Registration query
+        if 'register' in message_lower or 'enroll' in message_lower or 'unit' in message_lower:
+            return handle_registration_query(student)
+    
+    # Default response with suggestions
+    suggestions = get_popular_questions(user)
+    actions = [
+        {'type': 'message', 'value': q, 'label': q[:30] + '...', 'icon': 'ri-question-line'}
+        for q in suggestions[:3]
+    ]
+    
+    return (
+        "I'm not sure I understand that question. Here are some things I can help you with:",
+        actions
+    )
+
+
+def handle_gpa_query(student):
+    """Handle GPA-related queries"""
+    gpa = float(student.cumulative_gpa)
+    
+    response = f"Your current cumulative GPA is {gpa:.2f}."
+    
+    if gpa >= 3.5:
+        response += " Excellent work! Keep up the great performance! 🌟"
+    elif gpa >= 3.0:
+        response += " You're doing well! Keep pushing for excellence! 💪"
+    elif gpa >= 2.5:
+        response += " You're on track. Consider seeking academic support to improve further."
+    else:
+        response += " Your GPA needs attention. I recommend speaking with your academic advisor for support."
+    
+    actions = [
+        {'type': 'link', 'value': '/student/transcript/', 'label': 'View Full Results', 'icon': 'ri-file-list-line'},
+        {'type': 'message', 'value': 'How can I improve my GPA?', 'label': 'Improvement Tips', 'icon': 'ri-lightbulb-line'}
+    ]
+    
+    return response, actions
+
+
+def handle_fee_query(student):
+    """Handle fee-related queries"""
+    try:
+        # Get latest fee balance
+        from django.db.models import Max
+        current_semester = student.current_semester
+        
+        fee_balance = FeeBalance.objects.filter(
+            student=student
+        ).order_by('-academic_year__start_date', '-semester__start_date').first()
+        
+        if fee_balance:
+            balance = float(fee_balance.balance)
+            total = float(fee_balance.total_fees)
+            paid = float(fee_balance.amount_paid)
+            
+            if balance <= 0:
+                response = "✅ Great news! Your fees are fully paid."
+            else:
+                response = f"Your current fee balance is KES {balance:,.2f}.\n"
+                response += f"Total fees: KES {total:,.2f}\n"
+                response += f"Amount paid: KES {paid:,.2f}"
+        else:
+            response = "I couldn't find your fee balance information. Please contact the finance office."
+        
+        actions = [
+            {'type': 'link', 'value': '/student/fees/statement/', 'label': 'Fee Statement', 'icon': 'ri-file-text-line'},
+            {'type': 'link', 'value': '/student/fees/payment/', 'label': 'Make Payment', 'icon': 'ri-money-dollar-circle-line'}
+        ]
+        
+        return response, actions
+        
+    except Exception as e:
+        return "I encountered an error fetching your fee information. Please try again later.", []
+
+
+def handle_timetable_query(student):
+    """Handle timetable queries"""
+    response = f"I can help you with your timetable for Year {student.current_year}, "
+    response += f"Semester {student.current_semester}."
+    
+    actions = [
+        {'type': 'link', 'value': '/student/timetable/', 'label': 'View Timetable', 'icon': 'ri-calendar-line'},
+        {'type': 'link', 'value': '/student/units/', 'label': 'My Units', 'icon': 'ri-book-open-line'}
+    ]
+    
+    return response, actions
+
+
+def handle_results_query(student):
+    """Handle results queries"""
+    # Get latest results
+    latest_results = SemesterResults.objects.filter(
+        student=student,
+        is_published=True
+    ).order_by('-semester__start_date')[:5]
+    
+    if latest_results.exists():
+        response = f"Your latest results are available. You have {latest_results.count()} "
+        response += "published results."
+    else:
+        response = "No results are currently published for you."
+    
+    actions = [
+        {'type': 'link', 'value': '/student/results/', 'label': 'View Results', 'icon': 'ri-file-list-line'},
+        {'type': 'link', 'value': '/student/transcript/', 'label': 'Transcript', 'icon': 'ri-file-download-line'}
+    ]
+    
+    return response, actions
+
+
+def handle_registration_query(student):
+    """Handle unit registration queries"""
+    response = "I can help you with unit registration. "
+    response += "Make sure you've reported for the semester before enrolling in units."
+    
+    actions = [
+        {'type': 'link', 'value': '/student/semester-report/', 'label': 'Semester Report', 'icon': 'ri-file-chart-line'},
+        {'type': 'link', 'value': '/student/unit-enrollment/', 'label': 'Enroll Units', 'icon': 'ri-book-mark-line'}
+    ]
+    
+    return response, actions
+
+
+def personalize_response(response, user):
+    """Personalize response with user data"""
+    if not user.is_authenticated:
+        return response
+    
+    # Replace placeholders
+    response = response.replace('{user_name}', user.first_name or user.username)
+    
+    if hasattr(user, 'student_profile'):
+        student = user.student_profile
+        response = response.replace('{registration_number}', student.registration_number)
+        response = response.replace('{programme}', student.programme.name)
+        response = response.replace('{year}', str(student.current_year))
+        response = response.replace('{semester}', str(student.current_semester))
+    
+    return response
+
+
+def generate_actions(knowledge, user):
+    """Generate action buttons from knowledge entry"""
+    actions = []
+    
+    if knowledge.has_links and knowledge.links:
+        for link in knowledge.links[:3]:
+            actions.append({
+                'type': 'link',
+                'value': link.get('url', '#'),
+                'label': link.get('label', 'More Info'),
+                'icon': link.get('icon', 'ri-external-link-line')
+            })
+    
+    return actions
+
+
+def detect_intent(message):
+    """Detect user intent from message"""
+    message_lower = message.lower()
+    
+    if any(word in message_lower for word in ['hello', 'hi', 'hey']):
+        return 'greeting'
+    elif '?' in message:
+        return 'question'
+    elif any(word in message_lower for word in ['help', 'assist', 'support']):
+        return 'request'
+    elif any(word in message_lower for word in ['complaint', 'problem', 'issue']):
+        return 'complaint'
+    else:
+        return 'other'
+
+
+def get_popular_questions(user):
+    """Get popular questions from knowledge base"""
+    questions = AIKnowledgeBase.objects.filter(
+        status='active',
+        is_verified=True
+    ).order_by('-usage_count')[:10]
+    
+    return [q.question for q in questions]
+
+
+@login_required
+@require_http_methods(["POST"])
+def mark_alerts_read(request):
+    """Mark AI alerts as read"""
+    try:
+        ProactiveAIAlert.objects.filter(
+            user=request.user,
+            is_read=False
+        ).update(is_read=True, read_at=timezone.now())
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_http_methods(["GET"])
+def check_new_alerts(request):
+    """Check for new alerts"""
+    try:
+        new_alerts = ProactiveAIAlert.objects.filter(
+            user=request.user,
+            is_read=False,
+            sent_at__gte=timezone.now() - timedelta(hours=24)
+        ).count()
+        
+        latest = ProactiveAIAlert.objects.filter(
+            user=request.user,
+            is_read=False
+        ).order_by('-sent_at').first()
+        
+        return JsonResponse({
+            'new_alerts': new_alerts,
+            'latest_alert': latest.title if latest else ''
+        })
+    except Exception as e:
+        return JsonResponse({'new_alerts': 0, 'latest_alert': ''})
+
+
+@require_http_methods(["POST"])
+def rate_message(request):
+    """Rate AI message"""
+    try:
+        data = json.loads(request.body)
+        message_id = data.get('message_id')
+        rating = data.get('rating')
+        
+        message = ChatMessage.objects.get(message_id=message_id)
+        message.user_rating = rating
+        message.was_helpful = rating >= 4
+        message.save()
+        
+        # Update knowledge base if linked
+        if message.matched_knowledge:
+            knowledge = message.matched_knowledge
+            if rating >= 4:
+                knowledge.helpful_count += 1
+            else:
+                knowledge.not_helpful_count += 1
+            knowledge.save()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@require_http_methods(["POST"])
+def end_session(request):
+    """End chat session"""
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+        
+        session = ChatSession.objects.get(session_id=session_id)
+        session.status = 'completed'
+        session.ended_at = timezone.now()
+        session.update_duration()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
