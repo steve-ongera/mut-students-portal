@@ -1,0 +1,102 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Book Reservations{% endblock %}
+
+{% block page_title %}Book Reservations{% endblock %}
+{% block page_subtitle %}Books waiting for pickup{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Library</a></li>
+        <li class="breadcrumb-item active">Reservations</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    {% if expired_count > 0 %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="ri-time-line"></i>
+        <strong>Notice:</strong> {{ expired_count }} reservation(s) were automatically cancelled due to timeout.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Active Reservations</h5>
+            <small class="text-muted">Pick up within 30 minutes to avoid cancellation</small>
+        </div>
+        <div class="card-body">
+            {% if reservations %}
+            <div class="row g-4">
+                {% for reservation in reservations %}
+                <div class="col-md-6">
+                    <div class="card border-{% if reservation.minutes_remaining <= 10 %}danger{% elif reservation.minutes_remaining <= 20 %}warning{% else %}success{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex">
+                                <div class="flex-shrink-0">
+                                    {% if reservation.book.cover_image %}
+                                    <img src="{{ reservation.book.cover_image.url }}" 
+                                         alt="{{ reservation.book.title }}"
+                                         style="width: 80px; height: 120px; object-fit: cover;">
+                                    {% else %}
+                                    <div class="bg-light d-flex align-items-center justify-content-center" 
+                                         style="width: 80px; height: 120px;">
+                                        <i class="ri-book-2-line fs-2"></i>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6>{{ reservation.book.title }}</h6>
+                                    <p class="text-muted mb-2">{{ reservation.book.author }}</p>
+                                    
+                                    <div class="mb-2">
+                                        <small><strong>ISBN:</strong> {{ reservation.book.isbn }}</small><br>
+                                        <small><strong>Location:</strong> {{ reservation.book.shelf_location|default:"Main Library" }}</small>
+                                    </div>
+
+                                    <div class="alert alert-{% if reservation.minutes_remaining <= 10 %}danger{% elif reservation.minutes_remaining <= 20 %}warning{% else %}info{% endif %} mb-2">
+                                        <i class="ri-timer-line"></i>
+                                        <strong>{{ reservation.minutes_remaining }} minutes remaining</strong><br>
+                                        <small>Pickup by: {{ reservation.pickup_deadline|date:"h:i A" }}</small>
+                                    </div>
+
+                                    <div class="mb-2">
+                                        <small class="text-muted">
+                                            <i class="ri-calendar-line"></i> Reserved: {{ reservation.borrow_date|date:"h:i A" }}
+                                        </small><br>
+                                        <small class="text-muted">
+                                            <i class="ri-calendar-check-line"></i> Due Date: {{ reservation.due_date|date:"M d, Y" }}
+                                        </small>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'cancel_reservation' reservation.id %}" 
+                                           class="btn btn-sm btn-outline-danger">
+                                            <i class="ri-close-line"></i> Cancel Reservation
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="ri-bookmark-line fs-2 text-muted"></i>
+                <h5 class="text-muted mt-3">No Active Reservations</h5>
+                <p class="text-muted">You don't have any books waiting for pickup</p>
+                <a href="{% url 'library_search_books' %}" class="btn btn-primary mt-2">
+                    <i class="ri-search-line"></i> Browse Books
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

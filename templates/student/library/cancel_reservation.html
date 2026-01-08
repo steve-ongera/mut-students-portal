@@ -1,0 +1,69 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Cancel Reservation{% endblock %}
+
+{% block page_title %}Cancel Reservation{% endblock %}
+{% block page_subtitle %}Confirm cancellation{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'library_reservations' %}">Reservations</a></li>
+        <li class="breadcrumb-item active">Cancel</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row">
+        <div class="col-lg-6 mx-auto">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Cancel Reservation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="ri-alert-line"></i>
+                        <strong>Warning:</strong> Are you sure you want to cancel this reservation?
+                    </div>
+
+                    <div class="mb-4">
+                        <h6>Book Details:</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th width="100">Title:</th>
+                                <td>{{ borrowing.book.title }}</td>
+                            </tr>
+                            <tr>
+                                <th>Author:</th>
+                                <td>{{ borrowing.book.author }}</td>
+                            </tr>
+                            <tr>
+                                <th>ISBN:</th>
+                                <td>{{ borrowing.book.isbn }}</td>
+                            </tr>
+                            <tr>
+                                <th>Reserved:</th>
+                                <td>{{ borrowing.borrow_date|date:"M d, Y h:i A" }}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <form method="post" action="{% url 'cancel_reservation' borrowing.id %}">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'library_reservations' %}" class="btn btn-secondary">
+                                <i class="ri-arrow-left-line"></i> Go Back
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="ri-close-circle-line"></i> Confirm Cancellation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

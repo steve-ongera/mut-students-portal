@@ -1,0 +1,170 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Reserve Book{% endblock %}
+
+{% block page_title %}Reserve Book{% endblock %}
+{% block page_subtitle %}Confirm your book reservation{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'library_search_books' %}">Library</a></li>
+        <li class="breadcrumb-item active">Reserve Book</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Book Details Card -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Book Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            {% if book.cover_image %}
+                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" class="img-fluid rounded">
+                            {% else %}
+                            <div class="text-center p-5 bg-light rounded">
+                                <i class="ri-book-2-line fs-1"></i>
+                                <p class="text-muted mt-2">No cover</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            <h4>{{ book.title }}</h4>
+                            <p class="text-muted"><i class="ri-user-line"></i> {{ book.author }}</p>
+                            
+                            <table class="table table-sm">
+                                <tr>
+                                    <th width="150">ISBN:</th>
+                                    <td>{{ book.isbn }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Category:</th>
+                                    <td>{{ book.category.name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Publisher:</th>
+                                    <td>{{ book.publisher|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Edition:</th>
+                                    <td>{{ book.edition|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Available Copies:</th>
+                                    <td>{{ book.available_copies }} of {{ book.total_copies }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Location:</th>
+                                    <td>{{ book.shelf_location|default:"N/A" }}</td>
+                                </tr>
+                            </table>
+
+                            {% if book.description %}
+                            <div class="mt-3">
+                                <h6>Description</h6>
+                                <p>{{ book.description }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reservation Terms Card -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Reservation Terms</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="ri-information-line"></i>
+                        <strong>Important Information:</strong>
+                    </div>
+
+                    <ul class="list-unstyled">
+                        <li class="mb-2">
+                            <i class="ri-time-line text-warning"></i>
+                            You must pick up the book within <strong>30 minutes</strong> from reservation time
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-calendar-line text-primary"></i>
+                            Loan period: <strong>14 days</strong> from pickup date
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-money-dollar-circle-line text-danger"></i>
+                            Late return fine: <strong>KES 5 per day</strong>
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-close-circle-line text-danger"></i>
+                            Reservation will be automatically cancelled if not picked up within 30 minutes
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-map-pin-line text-success"></i>
+                            Pickup location: <strong>Main Library Counter</strong>
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-id-card-line text-info"></i>
+                            Please bring your <strong>Student ID</strong> for verification
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Current Status Card -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Your Borrowing Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Currently Borrowed:</strong> {{ current_borrowings_count }} books</p>
+                            <p><strong>Available Slots:</strong> {{ max_books_allowed|add:"-"|add:current_borrowings_count }} books</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Unpaid Fines:</strong> KES {{ unpaid_fines }}</p>
+                            {% if unpaid_fines > 0 %}
+                            <div class="alert alert-warning">
+                                You have unpaid fines. Please clear them before borrowing.
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confirmation Form -->
+            <div class="management-card">
+                <div class="card-body">
+                    <form method="post" action="{% url 'reserve_book' book.id %}">
+                        {% csrf_token %}
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                            <label class="form-check-label" for="agreeTerms">
+                                I agree to pick up this book within 30 minutes and return it within 14 days
+                            </label>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'library_search_books' %}" class="btn btn-secondary">
+                                <i class="ri-close-line"></i> Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-bookmark-line"></i> Confirm Reservation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

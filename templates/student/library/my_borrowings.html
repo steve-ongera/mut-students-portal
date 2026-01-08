@@ -1,0 +1,228 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}My Borrowings{% endblock %}
+
+{% block page_title %}My Borrowings{% endblock %}
+{% block page_subtitle %}View your borrowed books{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Library</a></li>
+        <li class="breadcrumb-item active">My Borrowings</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="ri-book-line fs-2 text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0">{{ total_borrowed }}</h6>
+                            <small class="text-muted">Total Borrowed</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="ri-book-open-line fs-2 text-success"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0">{{ active_count }}</h6>
+                            <small class="text-muted">Currently Active</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="ri-alert-line fs-2 text-danger"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0">{{ overdue_count }}</h6>
+                            <small class="text-muted">Overdue</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="ri-money-dollar-circle-line fs-2 text-warning"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="mb-0">KES {{ total_fines }}</h6>
+                            <small class="text-muted">Total Fines</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <ul class="nav nav-pills">
+                <li class="nav-item">
+                    <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+                       href="?status=all">
+                        All Borrowings
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if status_filter == 'active' %}active{% endif %}" 
+                       href="?status=active">
+                        Active
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if status_filter == 'overdue' %}active{% endif %}" 
+                       href="?status=overdue">
+                        Overdue
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if status_filter == 'returned' %}active{% endif %}" 
+                       href="?status=returned">
+                        Returned
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Borrowings List -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Borrowing History</h5>
+        </div>
+        <div class="card-body">
+            {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Book</th>
+                            <th>Author</th>
+                            <th>Borrow Date</th>
+                            <th>Due Date</th>
+                            <th>Return Date</th>
+                            <th>Status</th>
+                            <th>Fine</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if borrowing.book.cover_image %}
+                                    <img src="{{ borrowing.book.cover_image.url }}" 
+                                         alt="{{ borrowing.book.title }}" 
+                                         style="width: 40px; height: 60px; object-fit: cover;" 
+                                         class="me-2">
+                                    {% else %}
+                                    <div class="bg-light p-2 me-2">
+                                        <i class="ri-book-line"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <strong>{{ borrowing.book.title|truncatewords:5 }}</strong><br>
+                                        <small class="text-muted">{{ borrowing.book.isbn }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ borrowing.book.author }}</td>
+                            <td>{{ borrowing.borrow_date|date:"M d, Y" }}</td>
+                            <td>{{ borrowing.due_date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if borrowing.return_date %}
+                                {{ borrowing.return_date|date:"M d, Y" }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% elif borrowing.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
+                                {% elif borrowing.status == 'returned' %}
+                                <span class="badge bg-secondary">Returned</span>
+                                {% elif borrowing.status == 'lost' %}
+                                <span class="badge bg-dark">Lost</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.fine_amount > 0 %}
+                                <span class="text-danger">KES {{ borrowing.fine_amount }}</span>
+                                {% if borrowing.fine_paid %}
+                                <br><small class="text-success">Paid</small>
+                                {% else %}
+                                <br><small class="text-danger">Unpaid</small>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex justify-content-center mt-3">
+                <nav>
+                    <ul class="pagination">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                        </li>
+                        {% endif %}
+
+                        <li class="page-item active">
+                            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="ri-book-line fs-2 text-muted"></i>
+                <p class="text-muted mt-3">No borrowing records found</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Library Fines{% endblock %}
+
+{% block page_title %}Library Fines{% endblock %}
+{% block page_subtitle %}View and manage your fines{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Library</a></li>
+        <li class="breadcrumb-item active">Fines</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="ri-money-dollar-circle-line fs-2 text-danger"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">KES {{ unpaid_fines }}</h4>
+                            <small class="text-muted">Unpaid Fines</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="ri-check-line fs-2 text-success"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">KES {{ paid_fines }}</h4>
+                            <small class="text-muted">Paid Fines</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <i class="ri-file-list-line fs-2 text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h4 class="mb-0">KES {{ total_fines }}</h4>
+                            <small class="text-muted">Total Fines</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if unpaid_fines > 0 %}
+    <div class="alert alert-danger">
+        <i class="ri-alert-line"></i>
+        <strong>Outstanding Fines:</strong> You have unpaid fines totaling KES {{ unpaid_fines }}. 
+        Please clear your fines to continue borrowing books.
+    </div>
+    {% endif %}
+
+    <!-- Fines List -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Fine Details</h5>
+        </div>
+        <div class="card-body">
+            {% if borrowings_with_fines %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Book</th>
+                            <th>Borrow Date</th>
+                            <th>Due Date</th>
+                            <th>Return Date</th>
+                            <th>Days Overdue</th>
+                            <th>Fine Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in borrowings_with_fines %}
+                        <tr>
+                            <td>
+                                <strong>{{ borrowing.book.title|truncatewords:5 }}</strong><br>
+                                <small class="text-muted">{{ borrowing.book.author }}</small>
+                            </td>
+                            <td>{{ borrowing.borrow_date|date:"M d, Y" }}</td>
+                            <td>{{ borrowing.due_date|date:"M d, Y" }}</td>
+                            <td>
+                                {% if borrowing.return_date %}
+                                {{ borrowing.return_date|date:"M d, Y" }}
+                                {% else %}
+                                <span class="badge bg-warning">Not Returned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.return_date %}
+                                    {% widthratio borrowing.fine_amount 5 1 as days %}
+                                    {{ days }} days
+                                {% else %}
+                                    <span class="text-danger">Ongoing</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong class="text-danger">KES {{ borrowing.fine_amount }}</strong>
+                            </td>
+                            <td>
+                                {% if borrowing.fine_paid %}
+                                <span class="badge bg-success">
+                                    <i class="ri-check-line"></i> Paid
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="ri-close-line"></i> Unpaid
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="5" class="text-end">Total:</th>
+                            <th>KES {{ total_fines }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            {% if unpaid_fines > 0 %}
+            <div class="text-center mt-4">
+                <a href="#" class="btn btn-primary">
+                    <i class="ri-money-dollar-circle-line"></i> Pay Fines
+                </a>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="ri-check-double-line fs-2 text-success"></i>
+                <h5 class="text-success mt-3">No Fines</h5>
+                <p class="text-muted">You have no library fines. Keep it up!</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

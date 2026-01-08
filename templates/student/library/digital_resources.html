@@ -1,0 +1,131 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Digital Resources{% endblock %}
+
+{% block page_title %}Digital Resources{% endblock %}
+{% block page_subtitle %}Access online library resources{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Library</a></li>
+        <li class="breadcrumb-item active">Digital Resources</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="ri-information-line"></i>
+                <strong>Access Information:</strong> Use your student credentials to access these resources. 
+                Some platforms may require VPN access when off-campus.
+            </div>
+        </div>
+    </div>
+
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Available Digital Platforms</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                {% for platform in digital_platforms %}
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="flex-shrink-0">
+                                    <div class="bg-primary text-white p-3 rounded">
+                                        <i class="{{ platform.icon }} fs-3"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h5 class="card-title mb-1">{{ platform.name }}</h5>
+                                    <span class="badge bg-secondary">{{ platform.category }}</span>
+                                </div>
+                            </div>
+                            
+                            <p class="card-text">{{ platform.description }}</p>
+                            
+                            <div class="d-grid">
+                                <a href="{{ platform.url }}" target="_blank" class="btn btn-primary">
+                                    <i class="ri-external-link-line"></i> Access Resource
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- E-Books Section -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">E-Book Collections</h5>
+        </div>
+        <div class="card-body">
+            <div class="list-group">
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">
+                                <i class="ri-book-open-line text-primary"></i> Project Gutenberg
+                            </h6>
+                            <p class="mb-1">Over 60,000 free eBooks</p>
+                        </div>
+                        <a href="https://www.gutenberg.org/" target="_blank" class="btn btn-sm btn-outline-primary">
+                            Access
+                        </a>
+                    </div>
+                </div>
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">
+                                <i class="ri-book-line text-success"></i> Open Library
+                            </h6>
+                            <p class="mb-1">Millions of free books available</p>
+                        </div>
+                        <a href="https://openlibrary.org/" target="_blank" class="btn btn-sm btn-outline-primary">
+                            Access
+                        </a>
+                    </div>
+                </div>
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">
+                                <i class="ri-graduation-cap-line text-info"></i> Google Scholar
+                            </h6>
+                            <p class="mb-1">Scholarly articles and research papers</p>
+                        </div>
+                        <a href="https://scholar.google.com/" target="_blank" class="btn btn-sm btn-outline-primary">
+                            Access
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Need Help?</h5>
+        </div>
+        <div class="card-body">
+            <p>If you're having trouble accessing any digital resource, please contact:</p>
+            <ul>
+                <li>Library Help Desk: library@university.edu</li>
+                <li>Phone: +254 XXX XXX XXX</li>
+                <li>Office Hours: Monday - Friday, 8:00 AM - 5:00 PM</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
