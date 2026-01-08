@@ -14710,13 +14710,20 @@ def student_payment_receipt(request, payment_id):
         return redirect('student_payment_history')
 
 
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Sum
+
+from .models import FeePayment
+
+
 @login_required
 def student_all_receipts(request):
-    """View all receipts"""
+    """View all receipts grouped by semester with totals"""
     try:
         student = request.user.student_profile
-        
-        # Get all completed payments with receipts
+
         payments = FeePayment.objects.filter(
             student=student,
             status='completed',
@@ -14725,26 +14732,40 @@ def student_all_receipts(request):
             'semester',
             'academic_year'
         ).order_by('-payment_date')
-        
-        # Group by semester
+
+        # Group payments by semester WITH totals
         receipts_by_semester = {}
+
         for payment in payments:
             semester_key = payment.semester.name
+
             if semester_key not in receipts_by_semester:
-                receipts_by_semester[semester_key] = []
-            receipts_by_semester[semester_key].append(payment)
-        
+                receipts_by_semester[semester_key] = {
+                    'payments': [],
+                    'total': 0
+                }
+
+            receipts_by_semester[semester_key]['payments'].append(payment)
+            receipts_by_semester[semester_key]['total'] += payment.amount
+
+        # Grand total
+        grand_total = payments.aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+
         context = {
             'student': student,
             'payments': payments,
             'receipts_by_semester': receipts_by_semester,
+            'grand_total': grand_total,
         }
-        
+
         return render(request, 'student/finance/all_receipts.html', context)
-        
+
     except Exception as e:
         messages.error(request, f'Error: {str(e)}')
         return redirect('student_fee_statement')
+
 
 
 @login_required
