@@ -3198,3 +3198,186 @@ class QuickAction(models.Model):
     class Meta:
         db_table = 'quick_actions'
         ordering = ['display_order', 'name']
+        
+        
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+
+
+class FAQ(models.Model):
+    """Frequently Asked Questions"""
+    CATEGORIES = (
+        ('academic', 'Academic'),
+        ('finance', 'Finance'),
+        ('hostel', 'Hostel'),
+        ('library', 'Library'),
+        ('technical', 'Technical'),
+        ('general', 'General'),
+    )
+    
+    category = models.CharField(max_length=20, choices=CATEGORIES)
+    question = models.TextField()
+    answer = models.TextField()
+    display_order = models.IntegerField(default=0)
+    views_count = models.IntegerField(default=0)
+    is_helpful_count = models.IntegerField(default=0)
+    is_not_helpful_count = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'faqs'
+        ordering = ['category', 'display_order', '-views_count']
+        verbose_name = 'FAQ'
+        verbose_name_plural = 'FAQs'
+
+    def __str__(self):
+        return f"{self.category} - {self.question[:50]}"
+
+
+class SupportTicket(models.Model):
+    """Student support tickets/issues"""
+    PRIORITY_LEVELS = (
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    )
+    
+    TICKET_STATUS = (
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('waiting_response', 'Waiting for Response'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    )
+    
+    CATEGORIES = (
+        ('academic', 'Academic Issue'),
+        ('finance', 'Finance/Fees'),
+        ('hostel', 'Hostel/Accommodation'),
+        ('library', 'Library Services'),
+        ('technical', 'Technical/Portal'),
+        ('id_card', 'Student ID Card'),
+        ('results', 'Results/Grades'),
+        ('registration', 'Registration'),
+        ('other', 'Other'),
+    )
+    
+    ticket_number = models.CharField(max_length=50, unique=True)
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, 
+                                related_name='support_tickets')
+    category = models.CharField(max_length=20, choices=CATEGORIES)
+    priority = models.CharField(max_length=10, choices=PRIORITY_LEVELS, default='medium')
+    subject = models.CharField(max_length=300)
+    description = models.TextField()
+    attachment = models.FileField(upload_to='support_tickets/', null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=TICKET_STATUS, default='open')
+    assigned_to = models.ForeignKey('User', on_delete=models.SET_NULL, 
+                                    null=True, blank=True,
+                                    related_name='assigned_tickets')
+    
+    resolution_notes = models.TextField(blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey('User', on_delete=models.SET_NULL,
+                                    null=True, blank=True,
+                                    related_name='resolved_tickets')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'support_tickets'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.ticket_number} - {self.subject}"
+
+    def save(self, *args, **kwargs):
+        if not self.ticket_number:
+            # Generate ticket number: TICK-YYYY-NNNN
+            from django.db.models import Max
+            year = timezone.now().year
+            last_ticket = SupportTicket.objects.filter(
+                ticket_number__startswith=f'TICK-{year}-'
+            ).aggregate(Max('id'))
+            
+            next_id = (last_ticket['id__max'] or 0) + 1
+            self.ticket_number = f'TICK-{year}-{next_id:04d}'
+        
+        super().save(*args, **kwargs)
+
+
+class TicketReply(models.Model):
+    """Replies to support tickets"""
+    ticket = models.ForeignKey(SupportTicket, on_delete=models.CASCADE,
+                               related_name='replies')
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    message = models.TextField()
+    attachment = models.FileField(upload_to='ticket_replies/', null=True, blank=True)
+    is_staff_reply = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'ticket_replies'
+        ordering = ['created_at']
+        verbose_name_plural = 'Ticket Replies'
+
+    def __str__(self):
+        return f"Reply to {self.ticket.ticket_number}"
+
+
+class SystemGuide(models.Model):
+    """System guides and tutorials"""
+    GUIDE_TYPES = (
+        ('getting_started', 'Getting Started'),
+        ('academic', 'Academic'),
+        ('finance', 'Finance'),
+        ('hostel', 'Hostel'),
+        ('library', 'Library'),
+        ('profile', 'Profile Management'),
+        ('troubleshooting', 'Troubleshooting'),
+    )
+    
+    title = models.CharField(max_length=200)
+    guide_type = models.CharField(max_length=20, choices=GUIDE_TYPES)
+    description = models.TextField()
+    content = models.TextField()
+    video_url = models.URLField(blank=True, help_text="YouTube or video link")
+    pdf_file = models.FileField(upload_to='system_guides/', null=True, blank=True)
+    display_order = models.IntegerField(default=0)
+    views_count = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'system_guides'
+        ordering = ['guide_type', 'display_order']
+
+    def __str__(self):
+        return self.title
+
+
+class ContactInfo(models.Model):
+    """Contact information for different departments"""
+    department = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone_primary = models.CharField(max_length=15)
+    phone_secondary = models.CharField(max_length=15, blank=True)
+    office_location = models.CharField(max_length=200, blank=True)
+    office_hours = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+    display_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'contact_info'
+        ordering = ['display_order', 'department']
+        verbose_name = 'Contact Information'
+        verbose_name_plural = 'Contact Information'
+
+    def __str__(self):
+        return self.department
