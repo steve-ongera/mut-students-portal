@@ -14768,49 +14768,73 @@ def student_all_receipts(request):
 
 
 
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Sum
+
+from .models import FeeStructure, AcademicYear
+
+
 @login_required
 def student_fee_structure(request):
     """View fee structure for student's programme"""
     try:
         student = request.user.student_profile
-        
-        # Get current academic year
-        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
-        
-        # Get fee structures for student's programme
+
+        # Current academic year
+        current_academic_year = AcademicYear.objects.filter(
+            is_current=True
+        ).first()
+
+        # Fee structures
         fee_structures = FeeStructure.objects.filter(
             programme=student.programme,
             academic_year=current_academic_year,
             is_active=True
         ).order_by('year_of_study', 'semester_number')
-        
-        # Get student's current fee structure
+
+        # Current semester structure
         current_fee_structure = fee_structures.filter(
             year_of_study=student.current_year,
             semester_number=student.current_semester
         ).first()
-        
-        # Group by year of study
+
+        # Group by year WITH totals
         structures_by_year = {}
+
         for structure in fee_structures:
             year = structure.year_of_study
+
             if year not in structures_by_year:
-                structures_by_year[year] = []
-            structures_by_year[year].append(structure)
-        
+                structures_by_year[year] = {
+                    'structures': [],
+                    'year_total': 0
+                }
+
+            structures_by_year[year]['structures'].append(structure)
+            structures_by_year[year]['year_total'] += structure.total_fee
+
+        # Programme total
+        programme_total = fee_structures.aggregate(
+            total=Sum('total_fee')
+        )['total'] or 0
+
         context = {
             'student': student,
             'current_academic_year': current_academic_year,
-            'fee_structures': fee_structures,
             'current_fee_structure': current_fee_structure,
             'structures_by_year': structures_by_year,
+            'programme_total': programme_total,
+            'total_semesters': fee_structures.count(),
         }
-        
+
         return render(request, 'student/finance/fee_structure.html', context)
-        
+
     except Exception as e:
         messages.error(request, f'Error: {str(e)}')
         return redirect('student_fee_statement')
+
 
 
 @login_required
