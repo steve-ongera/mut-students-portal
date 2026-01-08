@@ -372,4 +372,16 @@ urlpatterns = [
     # AJAX endpoints
     path('api/verify-payment/', views.verify_payment, name='verify_payment'),
     
+    # Students Library URLs
+    path('library/search/', views.library_search_books, name='library_search_books'),
+    path('library/reserve/<int:book_id>/', views.reserve_book, name='reserve_book'),
+    path('library/borrowings/', views.my_borrowings, name='my_borrowings'),
+    path('library/reservations/', views.book_reservations, name='library_reservations'),
+    path('library/reservations/cancel/<int:borrowing_id>/', views.cancel_reservation, name='cancel_reservation'),
+    path('library/fines/', views.library_fines, name='library_fines'),
+    path('library/digital-resources/', views.digital_resources, name='digital_resources'),
+    
+    # AJAX endpoints
+    path('api/book/<int:book_id>/availability/', views.check_book_availability, name='check_book_availability'),
+    
 ]
