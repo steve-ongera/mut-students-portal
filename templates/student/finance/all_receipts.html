@@ -5,6 +5,10 @@
 {% block page_title %}All Receipts{% endblock %}
 {% block page_subtitle %}View and download all your payment receipts{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -15,124 +19,429 @@
 </nav>
 
 <!-- Summary Card -->
-<div class="content-card mb-4">
-    <div class="card-body d-flex justify-content-between align-items-center">
-        <div>
-            <h5 class="mb-1">
-                <i class="ri-file-list-line text-primary"></i> Receipt Summary
-            </h5>
-            <p class="text-muted mb-0">
-                You have <strong>{{ payments.count }}</strong> receipt(s)
-            </p>
+<div class="management-card mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h5><i class="ri-file-list-line"></i> Receipt Summary</h5>
+                <p class="text-muted mb-0">
+                    You have <strong>{{ payments.count }}</strong> receipt(s)
+                </p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'student_payment_history' %}" class="btn btn-outline">
+                    <i class="ri-arrow-left-line"></i> Back to History
+                </a>
+            </div>
         </div>
-        <a href="{% url 'student_payment_history' %}" class="btn btn-outline-secondary">
-            <i class="ri-arrow-left-line"></i> Back
-        </a>
     </div>
 </div>
 
 {% if receipts_by_semester %}
     {% for semester_name, data in receipts_by_semester.items %}
-    <div class="content-card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="ri-calendar-line"></i> {{ semester_name }}
-            </h5>
-            <span class="badge bg-primary">
-                {{ data.payments|length }} Receipt(s)
-            </span>
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="ri-calendar-line"></i> {{ semester_name }}
+                </h5>
+                <span class="badge">
+                    {{ data.payments|length }} Receipt(s)
+                </span>
+            </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Receipt No</th>
-                        <th>Transaction Ref</th>
-                        <th>Method</th>
-                        <th>Amount</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for payment in data.payments %}
-                    <tr>
-                        <td>
-                            <strong>{{ payment.payment_date|date:"M d, Y" }}</strong><br>
-                            <small class="text-muted">
-                                {{ payment.payment_date|date:"h:i A" }}
-                            </small>
-                        </td>
-                        <td>{{ payment.receipt_number }}</td>
-                        <td><code>{{ payment.transaction_reference }}</code></td>
-                        <td>
-                            <span class="badge bg-secondary">
-                                {{ payment.get_payment_method_display }}
-                            </span>
-                        </td>
-                        <td class="text-success fw-bold">
-                            KES {{ payment.amount|floatformat:2 }}
-                        </td>
-                        <td>
-                            <a href="{% url 'student_payment_receipt' payment.id %}"
-                               class="btn btn-sm btn-outline-primary">
-                                View
-                            </a>
-                            <a href="{% url 'student_payment_receipt' payment.id %}?download=true"
-                               class="btn btn-sm btn-outline-success">
-                                Download
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Receipt No</th>
+                            <th>Transaction Ref</th>
+                            <th>Method</th>
+                            <th>Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in data.payments %}
+                        <tr>
+                            <td>
+                                <strong>{{ payment.payment_date|date:"M d, Y" }}</strong><br>
+                                <small class="text-muted">
+                                    {{ payment.payment_date|date:"h:i A" }}
+                                </small>
+                            </td>
+                            <td>{{ payment.receipt_number }}</td>
+                            <td>
+                                <code>{{ payment.transaction_reference }}</code>
+                            </td>
+                            <td>
+                                <span class="badge">
+                                    {{ payment.get_payment_method_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>KES {{ payment.amount|floatformat:2 }}</strong>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'student_payment_receipt' payment.id %}"
+                                       class="btn btn-sm btn-outline">
+                                        <i class="ri-eye-line"></i> View
+                                    </a>
+                                    <a href="{% url 'student_payment_receipt' payment.id %}?download=true"
+                                       class="btn btn-sm btn-outline">
+                                        <i class="ri-download-line"></i> Download
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
 
-                <tfoot>
-                    <tr class="table-light">
-                        <td colspan="4" class="text-end fw-bold">
-                            Semester Total:
-                        </td>
-                        <td colspan="2" class="fw-bold text-success">
-                            KES {{ data.total|floatformat:2 }}
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
+                    <tfoot>
+                        <tr class="table-footer">
+                            <td colspan="4" class="text-end">
+                                <strong>Semester Total:</strong>
+                            </td>
+                            <td colspan="2">
+                                <strong>KES {{ data.total|floatformat:2 }}</strong>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
         </div>
     </div>
     {% endfor %}
 
     <!-- Grand Total -->
-    <div class="content-card">
-        <div class="card-body d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="mb-0">
-                    <i class="ri-money-dollar-circle-line text-success"></i>
-                    Grand Total
-                </h5>
-                <small class="text-muted">
-                    Total paid across all semesters
-                </small>
+    <div class="management-card">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="mb-2">
+                        <i class="ri-money-dollar-circle-line"></i> Grand Total
+                    </h5>
+                    <p class="text-muted mb-0">
+                        Total paid across all semesters
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <h3 class="mb-0">KES {{ grand_total|floatformat:2 }}</h3>
+                </div>
             </div>
-            <h3 class="mb-0 text-success">
-                KES {{ grand_total|floatformat:2 }}
-            </h3>
         </div>
     </div>
 
 {% else %}
-    <div class="content-card">
+    <div class="management-card">
         <div class="card-body text-center py-5">
-            <i class="ri-file-list-line" style="font-size: 4rem; color: #ccc;"></i>
+            <i class="ri-file-list-line empty-state-icon"></i>
             <h5 class="mt-3 text-muted">No Receipts Available</h5>
-            <p class="text-muted">
+            <p class="text-muted mb-4">
                 You do not have any completed payments yet.
             </p>
             <a href="{% url 'student_make_payment' %}" class="btn btn-primary">
-                Make Payment
+                <i class="ri-add-line"></i> Make Payment
             </a>
         </div>
     </div>
 {% endif %}
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Card Header Styling */
+    .management-card h5 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .management-card h5 i {
+        color: var(--color-primary);
+        margin-right: 0.5rem;
+    }
+
+    .management-card h3 {
+        font-weight: 700;
+        color: var(--color-gray-800);
+    }
+
+    /* Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-300);
+        padding: 1rem;
+        white-space: nowrap;
+    }
+
+    .table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.05);
+    }
+
+    .table-footer {
+        background-color: var(--color-gray-100) !important;
+    }
+
+    .table-footer td {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        border-top: 2px solid var(--color-gray-300);
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Code Styles */
+    code {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 0.8125rem;
+        padding: 0.25rem 0.5rem;
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        color: var(--color-gray-800);
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .d-flex.gap-2 {
+        gap: 0.5rem;
+    }
+
+    /* Empty State */
+    .empty-state-icon {
+        font-size: 4rem;
+        color: var(--color-gray-300);
+    }
+
+    .text-center h5 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Text Colors */
+    .text-muted {
+        color: var(--color-gray-600) !important;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .management-card .card-header {
+            padding: 1rem;
+        }
+
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+        }
+
+        .d-flex.gap-2 {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .table-responsive {
+            font-size: 0.8125rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.5rem;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        code {
+            font-size: 0.75rem;
+            padding: 0.125rem 0.375rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .management-card h3 {
+            font-size: 1.5rem;
+        }
+
+        .empty-state-icon {
+            font-size: 2.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .management-card .row {
+            flex-direction: column;
+        }
+        
+        .col-md-4.text-md-end {
+            text-align: left !important;
+            margin-top: 1rem;
+        }
+        
+        .table-responsive {
+            font-size: 0.75rem;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.375rem;
+        }
+        
+        .btn-sm {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
 {% endblock %}
