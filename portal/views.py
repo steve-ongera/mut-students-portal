@@ -14952,3 +14952,520 @@ def verify_payment(request):
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
 
+# student/views.py
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Q, Count, Case, When, IntegerField
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from datetime import timedelta
+from decimal import Decimal
+from .models import (
+    Student, Book, BookCategory, BookBorrowing, 
+    User, AcademicYear, Semester
+)
+
+
+# ============= BOOK SEARCH & BROWSE =============
+@login_required
+def library_search_books(request):
+    """Search and browse available books"""
+    try:
+        student = Student.objects.get(user=request.user)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    # Get search parameters
+    search_query = request.GET.get('q', '')
+    category_id = request.GET.get('category', '')
+    status_filter = request.GET.get('status', 'available')
+    sort_by = request.GET.get('sort', 'title')
+    
+    # Base queryset with availability annotation
+    books = Book.objects.annotate(
+        currently_available=Case(
+            When(status='available', available_copies__gt=0, then=1),
+            default=0,
+            output_field=IntegerField()
+        )
+    )
+    
+    # Apply filters
+    if search_query:
+        books = books.filter(
+            Q(title__icontains=search_query) |
+            Q(author__icontains=search_query) |
+            Q(isbn__icontains=search_query) |
+            Q(call_number__icontains=search_query)
+        )
+    
+    if category_id:
+        books = books.filter(category_id=category_id)
+    
+    if status_filter == 'available':
+        books = books.filter(status='available', available_copies__gt=0)
+    elif status_filter == 'borrowed':
+        books = books.filter(status='borrowed')
+    
+    # Sorting
+    sort_options = {
+        'title': 'title',
+        'author': 'author',
+        'recent': '-acquisition_date',
+        'popular': '-id'  # Could be replaced with a popularity score
+    }
+    books = books.order_by(sort_options.get(sort_by, 'title'))
+    
+    # Pagination
+    paginator = Paginator(books, 12)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get categories for filter
+    categories = BookCategory.objects.all().order_by('name')
+    
+    # Get student's current borrowings
+    current_borrowings = BookBorrowing.objects.filter(
+        student=student,
+        status__in=['active', 'overdue']
+    ).select_related('book')
+    
+    borrowed_book_ids = [b.book.id for b in current_borrowings]
+    
+    # Get current semester for new borrowings
+    try:
+        current_semester = Semester.objects.get(is_current=True)
+        current_academic_year = AcademicYear.objects.get(is_current=True)
+    except (Semester.DoesNotExist, AcademicYear.DoesNotExist):
+        current_semester = None
+        current_academic_year = None
+    
+    context = {
+        'student': student,
+        'page_obj': page_obj,
+        'categories': categories,
+        'search_query': search_query,
+        'category_id': category_id,
+        'status_filter': status_filter,
+        'sort_by': sort_by,
+        'borrowed_book_ids': borrowed_book_ids,
+        'current_borrowings_count': current_borrowings.count(),
+        'max_books_allowed': 3,  # Maximum books a student can borrow
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+    }
+    
+    return render(request, 'student/library/search_books.html', context)
+
+
+# ============= BOOK RESERVATION =============
+@login_required
+def reserve_book(request, book_id):
+    """Reserve a book for pickup"""
+    try:
+        student = Student.objects.get(user=request.user)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('library_search_books')
+    
+    book = get_object_or_404(Book, id=book_id)
+    
+    # Check if book is available
+    if book.status != 'available' or book.available_copies <= 0:
+        messages.error(request, f'The book "{book.title}" is currently not available.')
+        return redirect('library_search_books')
+    
+    # Check if student has reached borrowing limit
+    active_borrowings = BookBorrowing.objects.filter(
+        student=student,
+        status__in=['active', 'overdue']
+    ).count()
+    
+    if active_borrowings >= 3:  # Maximum 3 books
+        messages.error(request, 'You have reached the maximum borrowing limit of 3 books.')
+        return redirect('library_search_books')
+    
+    # Check if student already has this book
+    existing_borrowing = BookBorrowing.objects.filter(
+        student=student,
+        book=book,
+        status__in=['active', 'overdue']
+    ).exists()
+    
+    if existing_borrowing:
+        messages.error(request, f'You have already borrowed "{book.title}".')
+        return redirect('library_search_books')
+    
+    # Check if student has unpaid fines
+    unpaid_fines = BookBorrowing.objects.filter(
+        student=student,
+        fine_amount__gt=0,
+        fine_paid=False
+    ).aggregate(total=Sum('fine_amount'))['total'] or 0
+    
+    if unpaid_fines > 0:
+        messages.error(request, f'You have unpaid library fines of KES {unpaid_fines}. Please clear your fines before borrowing.')
+        return redirect('library_fines')
+    
+    # Get current semester and academic year
+    try:
+        current_semester = Semester.objects.get(is_current=True)
+        current_academic_year = AcademicYear.objects.get(is_current=True)
+    except (Semester.DoesNotExist, AcademicYear.DoesNotExist):
+        messages.error(request, 'No active academic period found.')
+        return redirect('library_search_books')
+    
+    if request.method == 'POST':
+        # Create reservation (borrowing with 30-minute pickup window)
+        now = timezone.now()
+        pickup_deadline = now + timedelta(minutes=30)
+        due_date = (now + timedelta(days=14)).date()  # 2 weeks from now
+        
+        borrowing = BookBorrowing.objects.create(
+            student=student,
+            book=book,
+            academic_year=current_academic_year,
+            semester=current_semester,
+            borrow_date=now,
+            due_date=due_date,
+            status='active',  # We'll use a custom field to track reservation
+            remarks=f'Reserved online. Must be picked up by {pickup_deadline.strftime("%I:%M %p")}'
+        )
+        
+        # Update book availability
+        book.available_copies -= 1
+        if book.available_copies == 0:
+            book.status = 'borrowed'
+        book.save()
+        
+        messages.success(
+            request,
+            f'Book reserved successfully! Please pick it up from the library within 30 minutes '
+            f'(by {pickup_deadline.strftime("%I:%M %p")}). Your reservation will be cancelled if not picked up.'
+        )
+        return redirect('library_reservations')
+    
+    context = {
+        'student': student,
+        'book': book,
+        'current_borrowings_count': active_borrowings,
+        'unpaid_fines': unpaid_fines,
+    }
+    
+    return render(request, 'student/library/reserve_book.html', context)
+
+
+# ============= MY BORROWINGS =============
+@login_required
+def my_borrowings(request):
+    """View all current and past borrowings"""
+    try:
+        student = Student.objects.get(user=request.user)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    # Get filter parameters
+    status_filter = request.GET.get('status', 'all')
+    
+    # Base queryset
+    borrowings = BookBorrowing.objects.filter(
+        student=student
+    ).select_related('book', 'book__category', 'issued_by', 'returned_to')
+    
+    # Apply status filter
+    if status_filter == 'active':
+        borrowings = borrowings.filter(status='active')
+    elif status_filter == 'overdue':
+        borrowings = borrowings.filter(status='overdue')
+    elif status_filter == 'returned':
+        borrowings = borrowings.filter(status='returned')
+    
+    borrowings = borrowings.order_by('-borrow_date')
+    
+    # Calculate fines for overdue books
+    for borrowing in borrowings:
+        if borrowing.status in ['active', 'overdue']:
+            borrowing.calculate_fine()
+    
+    # Pagination
+    paginator = Paginator(borrowings, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Summary statistics
+    total_borrowed = borrowings.count()
+    active_count = borrowings.filter(status='active').count()
+    overdue_count = borrowings.filter(status='overdue').count()
+    returned_count = borrowings.filter(status='returned').count()
+    total_fines = borrowings.filter(fine_paid=False).aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    context = {
+        'student': student,
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'total_borrowed': total_borrowed,
+        'active_count': active_count,
+        'overdue_count': overdue_count,
+        'returned_count': returned_count,
+        'total_fines': total_fines,
+    }
+    
+    return render(request, 'student/library/my_borrowings.html', context)
+
+
+# ============= BOOK RESERVATIONS =============
+@login_required
+def book_reservations(request):
+    """View and manage active reservations (books waiting for pickup)"""
+    try:
+        student = Student.objects.get(user=request.user)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    now = timezone.now()
+    
+    # Get reservations (borrowings made within last 30 minutes with specific status)
+    thirty_minutes_ago = now - timedelta(minutes=30)
+    
+    reservations = BookBorrowing.objects.filter(
+        student=student,
+        status='active',
+        borrow_date__gte=thirty_minutes_ago,
+        return_date__isnull=True  # Not yet picked up/returned
+    ).select_related('book', 'book__category')
+    
+    # Calculate remaining time for each reservation
+    for reservation in reservations:
+        pickup_deadline = reservation.borrow_date + timedelta(minutes=30)
+        time_remaining = pickup_deadline - now
+        
+        if time_remaining.total_seconds() > 0:
+            reservation.minutes_remaining = int(time_remaining.total_seconds() / 60)
+            reservation.pickup_deadline = pickup_deadline
+            reservation.is_expired = False
+        else:
+            reservation.minutes_remaining = 0
+            reservation.is_expired = True
+    
+    # Get expired reservations (for cancellation)
+    expired_reservations = [r for r in reservations if r.is_expired]
+    
+    # Auto-cancel expired reservations
+    for reservation in expired_reservations:
+        # Return the book copy
+        reservation.book.available_copies += 1
+        if reservation.book.available_copies > 0:
+            reservation.book.status = 'available'
+        reservation.book.save()
+        
+        # Cancel the borrowing
+        reservation.delete()
+    
+    # Refresh reservations after cancellation
+    active_reservations = [r for r in reservations if not r.is_expired]
+    
+    context = {
+        'student': student,
+        'reservations': active_reservations,
+        'expired_count': len(expired_reservations),
+    }
+    
+    return render(request, 'student/library/reservations.html', context)
+
+
+@login_required
+def cancel_reservation(request, borrowing_id):
+    """Cancel a book reservation"""
+    try:
+        student = Student.objects.get(user=request.user)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    borrowing = get_object_or_404(
+        BookBorrowing,
+        id=borrowing_id,
+        student=student,
+        status='active',
+        return_date__isnull=True
+    )
+    
+    # Check if it's within 30 minutes (still a reservation)
+    thirty_minutes_ago = timezone.now() - timedelta(minutes=30)
+    if borrowing.borrow_date < thirty_minutes_ago:
+        messages.error(request, 'This reservation has already been processed.')
+        return redirect('library_reservations')
+    
+    if request.method == 'POST':
+        # Return the book copy
+        borrowing.book.available_copies += 1
+        if borrowing.book.available_copies > 0:
+            borrowing.book.status = 'available'
+        borrowing.book.save()
+        
+        # Delete the reservation
+        book_title = borrowing.book.title
+        borrowing.delete()
+        
+        messages.success(request, f'Reservation for "{book_title}" has been cancelled.')
+        return redirect('library_reservations')
+    
+    context = {
+        'student': student,
+        'borrowing': borrowing,
+    }
+    
+    return render(request, 'student/library/cancel_reservation.html', context)
+
+
+# ============= LIBRARY FINES =============
+@login_required
+def library_fines(request):
+    """View and manage library fines"""
+    try:
+        student = Student.objects.get(user=request.user)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    # Get all borrowings with fines
+    borrowings_with_fines = BookBorrowing.objects.filter(
+        student=student,
+        fine_amount__gt=0
+    ).select_related('book', 'book__category').order_by('-borrow_date')
+    
+    # Calculate current fines for active overdue books
+    for borrowing in borrowings_with_fines:
+        if borrowing.status in ['active', 'overdue']:
+            borrowing.calculate_fine()
+    
+    # Summary
+    total_fines = borrowings_with_fines.aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    unpaid_fines = borrowings_with_fines.filter(
+        fine_paid=False
+    ).aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    paid_fines = borrowings_with_fines.filter(
+        fine_paid=True
+    ).aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    context = {
+        'student': student,
+        'borrowings_with_fines': borrowings_with_fines,
+        'total_fines': total_fines,
+        'unpaid_fines': unpaid_fines,
+        'paid_fines': paid_fines,
+    }
+    
+    return render(request, 'student/library/fines.html', context)
+
+
+# ============= DIGITAL RESOURCES =============
+@login_required
+def digital_resources(request):
+    """View digital library resources and e-books"""
+    try:
+        student = Student.objects.get(user=request.user)
+    except Student.DoesNotExist:
+        messages.error(request, 'Student profile not found.')
+        return redirect('student_dashboard')
+    
+    # Get categories for digital resources
+    categories = BookCategory.objects.all().order_by('name')
+    
+    # This could be extended to include actual digital resources
+    # For now, we'll show information about available digital platforms
+    
+    digital_platforms = [
+        {
+            'name': 'IEEE Xplore',
+            'description': 'Access to IEEE journals, conferences, and standards',
+            'url': '#',
+            'icon': 'ri-book-open-line',
+            'category': 'Engineering & Technology'
+        },
+        {
+            'name': 'JSTOR',
+            'description': 'Academic journals, books, and primary sources',
+            'url': '#',
+            'icon': 'ri-article-line',
+            'category': 'Arts & Sciences'
+        },
+        {
+            'name': 'SpringerLink',
+            'description': 'Scientific, technical, and medical content',
+            'url': '#',
+            'icon': 'ri-flask-line',
+            'category': 'Science & Medicine'
+        },
+        {
+            'name': 'ACM Digital Library',
+            'description': 'Computing and information technology resources',
+            'url': '#',
+            'icon': 'ri-computer-line',
+            'category': 'Computer Science'
+        },
+    ]
+    
+    context = {
+        'student': student,
+        'categories': categories,
+        'digital_platforms': digital_platforms,
+    }
+    
+    return render(request, 'student/library/digital_resources.html', context)
+
+
+# ============= AJAX ENDPOINTS =============
+@login_required
+def check_book_availability(request, book_id):
+    """AJAX endpoint to check real-time book availability"""
+    try:
+        student = Student.objects.get(user=request.user)
+        book = Book.objects.get(id=book_id)
+        
+        # Check if student already has this book
+        has_borrowed = BookBorrowing.objects.filter(
+            student=student,
+            book=book,
+            status__in=['active', 'overdue']
+        ).exists()
+        
+        # Check if there's a reservation slot available (no pending reservations)
+        recent_reservations = BookBorrowing.objects.filter(
+            book=book,
+            status='active',
+            borrow_date__gte=timezone.now() - timedelta(minutes=30),
+            return_date__isnull=True
+        ).count()
+        
+        data = {
+            'available': book.status == 'available' and book.available_copies > 0,
+            'available_copies': book.available_copies,
+            'total_copies': book.total_copies,
+            'has_borrowed': has_borrowed,
+            'pending_reservations': recent_reservations,
+        }
+        
+        return JsonResponse(data)
+    except (Student.DoesNotExist, Book.DoesNotExist):
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+
+# Add missing import
+from django.db.models import Sum
