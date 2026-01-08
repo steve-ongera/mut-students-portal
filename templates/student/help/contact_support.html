@@ -1,0 +1,338 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Contact Support{% endblock %}
+{% block page_title %}Contact Support{% endblock %}
+{% block page_subtitle %}Get in touch with our support team{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Help & Support</a></li>
+        <li class="breadcrumb-item active">Contact Support</li>
+    </ol>
+</nav>
+
+<!-- Quick Contact Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="contact-quick-card">
+            <div class="icon-wrapper bg-primary">
+                <i class="ri-phone-line"></i>
+            </div>
+            <h5>Call Us</h5>
+            <p class="text-muted">Available Monday - Friday<br>8:00 AM - 5:00 PM</p>
+            <a href="tel:+254700000000" class="btn btn-outline-primary btn-sm">
+                <i class="ri-phone-line"></i> +254 700 000 000
+            </a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="contact-quick-card">
+            <div class="icon-wrapper bg-success">
+                <i class="ri-mail-line"></i>
+            </div>
+            <h5>Email Us</h5>
+            <p class="text-muted">We'll respond within<br>24 hours</p>
+            <a href="mailto:support@mut.ac.ke" class="btn btn-outline-success btn-sm">
+                <i class="ri-mail-line"></i> support@mut.ac.ke
+            </a>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="contact-quick-card">
+            <div class="icon-wrapper bg-info">
+                <i class="ri-ticket-line"></i>
+            </div>
+            <h5>Submit Ticket</h5>
+            <p class="text-muted">Create a support ticket<br>for tracking</p>
+            <a href="{% url 'report_issue' %}" class="btn btn-outline-info btn-sm">
+                <i class="ri-add-line"></i> New Ticket
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Department Contacts -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="ri-building-line"></i> Department Contacts
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if contacts %}
+        <div class="row g-4">
+            {% for contact in contacts %}
+            <div class="col-md-6 col-lg-4">
+                <div class="department-card">
+                    <div class="department-header">
+                        <i class="ri-user-settings-line"></i>
+                        <h6>{{ contact.department }}</h6>
+                    </div>
+                    <div class="department-body">
+                        {% if contact.description %}
+                        <p class="text-muted small mb-3">{{ contact.description }}</p>
+                        {% endif %}
+                        
+                        <div class="contact-item">
+                            <i class="ri-mail-line text-primary"></i>
+                            <div>
+                                <small class="text-muted d-block">Email</small>
+                                <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-item">
+                            <i class="ri-phone-line text-success"></i>
+                            <div>
+                                <small class="text-muted d-block">Phone</small>
+                                <a href="tel:{{ contact.phone_primary }}">{{ contact.phone_primary }}</a>
+                                {% if contact.phone_secondary %}
+                                <br>
+                                <a href="tel:{{ contact.phone_secondary }}">{{ contact.phone_secondary }}</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if contact.office_location %}
+                        <div class="contact-item">
+                            <i class="ri-map-pin-line text-danger"></i>
+                            <div>
+                                <small class="text-muted d-block">Location</small>
+                                <span>{{ contact.office_location }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if contact.office_hours %}
+                        <div class="contact-item">
+                            <i class="ri-time-line text-warning"></i>
+                            <div>
+                                <small class="text-muted d-block">Office Hours</small>
+                                <span>{{ contact.office_hours }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="ri-contacts-line" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">Contact information not available.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Tickets -->
+{% if recent_tickets %}
+<div class="content-card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="ri-history-line"></i> Your Recent Tickets
+            </h5>
+            <a href="{% url 'my_tickets' %}" class="btn btn-sm btn-outline-primary">
+                View All
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Subject</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in recent_tickets %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
+                               class="text-decoration-none fw-medium">
+                                {{ ticket.ticket_number }}
+                            </a>
+                        </td>
+                        <td>{{ ticket.subject|truncatewords:8 }}</td>
+                        <td>
+                            {% if ticket.status == 'open' %}
+                            <span class="badge bg-warning">Open</span>
+                            {% elif ticket.status == 'in_progress' %}
+                            <span class="badge bg-info">In Progress</span>
+                            {% elif ticket.status == 'resolved' %}
+                            <span class="badge bg-success">Resolved</span>
+                            {% elif ticket.status == 'closed' %}
+                            <span class="badge bg-secondary">Closed</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ticket.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="ri-eye-line"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Emergency Contact -->
+<div class="alert alert-danger mt-4">
+    <div class="d-flex align-items-center">
+        <i class="ri-alarm-warning-line fs-3 me-3"></i>
+        <div>
+            <h6 class="alert-heading mb-1">Emergency Contact</h6>
+            <p class="mb-0">For urgent matters requiring immediate attention, call: <strong>+254 700 111 222</strong></p>
+        </div>
+    </div>
+</div>
+
+<!-- Location Map -->
+<div class="content-card mt-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="ri-map-pin-2-line"></i> Visit Us
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Main Campus</h6>
+                <p class="text-muted">
+                    Murang'a University of Technology<br>
+                    P.O. Box 75-10200<br>
+                    Murang'a, Kenya
+                </p>
+                <a href="https://goo.gl/maps/example" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <i class="ri-map-pin-line"></i> Get Directions
+                </a>
+            </div>
+            <div class="col-md-6">
+                <div class="ratio ratio-16x9">
+                    <iframe 
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.123456789!2d37.123456!3d-0.987654!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMMKwNTknMTUuNiJTIDM3wrAwNycyNC40IkU!5e0!3m2!1sen!2ske!4v1234567890" 
+                        style="border:0;" 
+                        allowfullscreen="" 
+                        loading="lazy">
+                    </iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.contact-quick-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.contact-quick-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: translateY(-4px);
+}
+
+.icon-wrapper {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.75rem;
+    color: white;
+}
+
+.contact-quick-card h5 {
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.contact-quick-card p {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.department-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 100%;
+    transition: all 0.3s ease;
+}
+
+.department-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.department-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #1B5E20 100%);
+    color: white;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.department-header i {
+    font-size: 1.5rem;
+}
+
+.department-header h6 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.department-body {
+    padding: 1.25rem;
+}
+
+.contact-item {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    align-items: start;
+}
+
+.contact-item:last-child {
+    margin-bottom: 0;
+}
+
+.contact-item i {
+    font-size: 1.25rem;
+    margin-top: 0.25rem;
+}
+
+.contact-item a {
+    color: #495057;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.contact-item a:hover {
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}

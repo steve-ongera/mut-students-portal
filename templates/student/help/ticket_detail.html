@@ -1,0 +1,379 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Ticket {{ ticket.ticket_number }}{% endblock %}
+{% block page_title %}Support Ticket Details{% endblock %}
+{% block page_subtitle %}{{ ticket.ticket_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Help & Support</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'my_tickets' %}">My Tickets</a></li>
+        <li class="breadcrumb-item active">{{ ticket.ticket_number }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Ticket Details -->
+        <div class="content-card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-1">{{ ticket.subject }}</h5>
+                        <small class="text-muted">Ticket #{{ ticket.ticket_number }}</small>
+                    </div>
+                    <div>
+                        {% if ticket.status == 'open' %}
+                        <span class="badge bg-warning">Open</span>
+                        {% elif ticket.status == 'in_progress' %}
+                        <span class="badge bg-info">In Progress</span>
+                        {% elif ticket.status == 'waiting_response' %}
+                        <span class="badge bg-primary">Waiting Response</span>
+                        {% elif ticket.status == 'resolved' %}
+                        <span class="badge bg-success">Resolved</span>
+                        {% elif ticket.status == 'closed' %}
+                        <span class="badge bg-secondary">Closed</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Ticket Info -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-3">
+                        <label class="text-muted small">Category</label>
+                        <p class="mb-0 fw-medium">{{ ticket.get_category_display }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Priority</label>
+                        <p class="mb-0">
+                            {% if ticket.priority == 'urgent' %}
+                            <span class="badge bg-danger">Urgent</span>
+                            {% elif ticket.priority == 'high' %}
+                            <span class="badge bg-warning">High</span>
+                            {% elif ticket.priority == 'medium' %}
+                            <span class="badge bg-info">Medium</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Low</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Created</label>
+                        <p class="mb-0">{{ ticket.created_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="text-muted small">Last Updated</label>
+                        <p class="mb-0">{{ ticket.updated_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="ticket-description mb-4">
+                    <h6 class="mb-2">Description</h6>
+                    <div class="bg-light p-3 rounded">
+                        {{ ticket.description|linebreaks }}
+                    </div>
+                </div>
+
+                <!-- Attachment -->
+                {% if ticket.attachment %}
+                <div class="mb-4">
+                    <h6 class="mb-2">Attachment</h6>
+                    <a href="{{ ticket.attachment.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        <i class="ri-attachment-line"></i> View Attachment
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- Resolution Notes -->
+                {% if ticket.resolution_notes %}
+                <div class="alert alert-success">
+                    <h6 class="alert-heading">
+                        <i class="ri-checkbox-circle-line"></i> Resolution Notes
+                    </h6>
+                    <p class="mb-0">{{ ticket.resolution_notes|linebreaks }}</p>
+                    {% if ticket.resolved_at %}
+                    <hr>
+                    <small class="text-muted">
+                        Resolved on {{ ticket.resolved_at|date:"M d, Y H:i" }}
+                        {% if ticket.resolved_by %}
+                        by {{ ticket.resolved_by.get_full_name }}
+                        {% endif %}
+                    </small>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Conversation -->
+        <div class="content-card mb-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-message-3-line"></i> Conversation ({{ replies.count }})
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if replies %}
+                <div class="conversation">
+                    {% for reply in replies %}
+                    <div class="reply-item {% if reply.is_staff_reply %}staff-reply{% else %}student-reply{% endif %} mb-4">
+                        <div class="d-flex gap-3">
+                            <div class="reply-avatar">
+                                {% if reply.is_staff_reply %}
+                                <div class="avatar-circle bg-primary">
+                                    <i class="ri-customer-service-line"></i>
+                                </div>
+                                {% else %}
+                                <div class="avatar-circle bg-secondary">
+                                    <i class="ri-user-line"></i>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="reply-header mb-2">
+                                    <strong>
+                                        {% if reply.is_staff_reply %}
+                                        Support Team
+                                        {% else %}
+                                        You
+                                        {% endif %}
+                                    </strong>
+                                    <span class="text-muted mx-2">•</span>
+                                    <small class="text-muted">{{ reply.created_at|date:"M d, Y H:i" }}</small>
+                                </div>
+                                <div class="reply-content">
+                                    {{ reply.message|linebreaks }}
+                                </div>
+                                {% if reply.attachment %}
+                                <div class="mt-2">
+                                    <a href="{{ reply.attachment.url }}" target="_blank" 
+                                       class="btn btn-sm btn-outline-secondary">
+                                        <i class="ri-attachment-line"></i> View Attachment
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center py-3">No replies yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Reply Form -->
+        {% if ticket.status != 'closed' %}
+        <div class="content-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-reply-line"></i> Add Reply
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Your Message</label>
+                        <textarea name="message" class="form-control" rows="4" 
+                                  placeholder="Type your reply here..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Attachment (Optional)</label>
+                        <input type="file" name="attachment" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-send-plane-fill"></i> Send Reply
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary">
+            <i class="ri-information-line"></i> This ticket is closed. No further replies can be added.
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Actions -->
+        <div class="content-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if ticket.status == 'resolved' %}
+                    <form method="post" action="{% url 'close_ticket' ticket.ticket_number %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="ri-check-double-line"></i> Close Ticket
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{% url 'my_tickets' %}" class="btn btn-outline-secondary">
+                        <i class="ri-arrow-left-line"></i> Back to Tickets
+                    </a>
+                    {% if ticket.status == 'closed' %}
+                    <a href="{% url 'report_issue' %}" class="btn btn-outline-primary">
+                        <i class="ri-add-line"></i> New Ticket
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Ticket Info -->
+        <div class="content-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Ticket Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Ticket Number</label>
+                    <p class="mb-0 fw-medium">{{ ticket.ticket_number }}</p>
+                </div>
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Status</label>
+                    <p class="mb-0">{{ ticket.get_status_display }}</p>
+                </div>
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Category</label>
+                    <p class="mb-0">{{ ticket.get_category_display }}</p>
+                </div>
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Priority</label>
+                    <p class="mb-0">{{ ticket.get_priority_display }}</p>
+                </div>
+                {% if ticket.assigned_to %}
+                <div class="info-item mb-0">
+                    <label class="text-muted small">Assigned To</label>
+                    <p class="mb-0">{{ ticket.assigned_to.get_full_name }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="content-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Timeline</h6>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-icon bg-primary">
+                            <i class="ri-file-add-line"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <small class="text-muted">Created</small>
+                            <p class="mb-0">{{ ticket.created_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                    {% if ticket.resolved_at %}
+                    <div class="timeline-item">
+                        <div class="timeline-icon bg-success">
+                            <i class="ri-check-line"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <small class="text-muted">Resolved</small>
+                            <p class="mb-0">{{ ticket.resolved_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="timeline-item">
+                        <div class="timeline-icon bg-secondary">
+                            <i class="ri-time-line"></i>
+                        </div>
+                        <div class="timeline-content">
+                            <small class="text-muted">Last Updated</small>
+                            <p class="mb-0">{{ ticket.updated_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.reply-item {
+    position: relative;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.reply-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.staff-reply .reply-content {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 3px solid #2196F3;
+}
+
+.student-reply .reply-content {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.timeline {
+    position: relative;
+}
+
+.timeline-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+.timeline-content {
+    flex: 1;
+}
+
+.info-item label {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+</style>
+{% endblock %}

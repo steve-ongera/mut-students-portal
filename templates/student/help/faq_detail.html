@@ -1,0 +1,426 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}{{ faq.question|truncatewords:10 }}{% endblock %}
+{% block page_title %}FAQ Details{% endblock %}
+{% block page_subtitle %}{{ faq.get_category_display }} - Frequently Asked Question{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Help & Support</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'help_faqs' %}">FAQs</a></li>
+        <li class="breadcrumb-item active">{{ faq.question|truncatewords:5 }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- FAQ Card -->
+        <div class="content-card mb-4">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <span class="badge bg-primary mb-2">{{ faq.get_category_display }}</span>
+                        <h4 class="card-title mb-0">{{ faq.question }}</h4>
+                    </div>
+                    <div class="faq-stats text-end">
+                        <div class="stat-item">
+                            <i class="ri-eye-line"></i>
+                            <span>{{ faq.views_count }} views</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Answer -->
+                <div class="faq-answer mb-4">
+                    <h5 class="mb-3">
+                        <i class="ri-lightbulb-line text-warning"></i> Answer
+                    </h5>
+                    <div class="answer-content">
+                        {{ faq.answer|linebreaks }}
+                    </div>
+                </div>
+
+                <!-- Helpful Metrics -->
+                <div class="faq-metrics mb-4 p-3 bg-light rounded">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="metric-item">
+                                <i class="ri-thumb-up-line text-success fs-3"></i>
+                                <h4 class="mb-0 mt-2">{{ faq.is_helpful_count }}</h4>
+                                <small class="text-muted">Found this helpful</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="metric-item">
+                                <i class="ri-thumb-down-line text-danger fs-3"></i>
+                                <h4 class="mb-0 mt-2">{{ faq.is_not_helpful_count }}</h4>
+                                <small class="text-muted">Needs improvement</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Section -->
+                <div class="faq-feedback p-4 bg-light rounded">
+                    <h5 class="mb-3 text-center">Was this answer helpful?</h5>
+                    <p class="text-muted text-center mb-3">Your feedback helps us improve our FAQs</p>
+                    <div class="d-flex justify-content-center gap-3">
+                        <button class="btn btn-success btn-lg" id="helpfulBtn" onclick="submitFeedback({{ faq.id }}, true)">
+                            <i class="ri-thumb-up-line"></i> Yes, helpful
+                        </button>
+                        <button class="btn btn-danger btn-lg" id="notHelpfulBtn" onclick="submitFeedback({{ faq.id }}, false)">
+                            <i class="ri-thumb-down-line"></i> No, not helpful
+                        </button>
+                    </div>
+                    <div id="feedbackMessage" class="alert alert-success mt-3" style="display: none;">
+                        <i class="ri-check-line"></i> Thank you for your feedback!
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Still Need Help -->
+        <div class="content-card">
+            <div class="card-body text-center">
+                <i class="ri-question-line" style="font-size: 3rem; color: var(--primary-color);"></i>
+                <h5 class="mt-3">Still need help with this?</h5>
+                <p class="text-muted">Our support team is here to assist you further</p>
+                <div class="btn-group">
+                    <a href="{% url 'contact_support' %}" class="btn btn-primary">
+                        <i class="ri-customer-service-line"></i> Contact Support
+                    </a>
+                    <a href="{% url 'report_issue' %}" class="btn btn-outline-primary">
+                        <i class="ri-error-warning-line"></i> Report Issue
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="content-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'help_faqs' %}" class="btn btn-outline-secondary">
+                        <i class="ri-arrow-left-line"></i> Back to All FAQs
+                    </a>
+                    <a href="{% url 'help_faqs' %}?category={{ faq.category }}" class="btn btn-outline-primary">
+                        <i class="ri-folder-line"></i> More in {{ faq.get_category_display }}
+                    </a>
+                    <button onclick="window.print()" class="btn btn-outline-info">
+                        <i class="ri-printer-line"></i> Print This FAQ
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ Information -->
+        <div class="content-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-information-line"></i> Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Category</label>
+                    <p class="mb-0">
+                        <span class="badge bg-primary">{{ faq.get_category_display }}</span>
+                    </p>
+                </div>
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Views</label>
+                    <p class="mb-0">{{ faq.views_count }} times viewed</p>
+                </div>
+                <div class="info-item mb-3">
+                    <label class="text-muted small">Helpfulness Rate</label>
+                    <p class="mb-0">
+                        {% widthratio faq.is_helpful_count faq.is_helpful_count|add:faq.is_not_helpful_count 100 %}% found helpful
+                    </p>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" 
+                             style="width: {% widthratio faq.is_helpful_count faq.is_helpful_count|add:faq.is_not_helpful_count 100 %}%">
+                        </div>
+                    </div>
+                </div>
+                <div class="info-item mb-0">
+                    <label class="text-muted small">Last Updated</label>
+                    <p class="mb-0">{{ faq.updated_at|date:"M d, Y" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related FAQs -->
+        <div class="content-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-links-line"></i> Related Questions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="related-faqs">
+                    {% comment %}
+                    This will show 3 random FAQs from the same category
+                    You'll need to pass these from the view
+                    {% endcomment %}
+                    <a href="#" class="related-faq-item">
+                        <i class="ri-question-line"></i>
+                        <span>How do I register for units?</span>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                    <a href="#" class="related-faq-item">
+                        <i class="ri-question-line"></i>
+                        <span>How do I check my GPA?</span>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                    <a href="#" class="related-faq-item">
+                        <i class="ri-question-line"></i>
+                        <span>When are results released?</span>
+                        <i class="ri-arrow-right-s-line ms-auto"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search More FAQs -->
+        <div class="content-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-search-line"></i> Search FAQs
+                </h6>
+            </div>
+            <div class="card-body">
+                <form method="get" action="{% url 'help_faqs' %}">
+                    <div class="input-group">
+                        <input type="text" name="q" class="form-control" 
+                               placeholder="Search questions...">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-search-line"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitFeedback(faqId, isHelpful) {
+    // Disable buttons to prevent multiple submissions
+    document.getElementById('helpfulBtn').disabled = true;
+    document.getElementById('notHelpfulBtn').disabled = true;
+    
+    fetch(`/student/help/faq/${faqId}/feedback/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `is_helpful=${isHelpful}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            document.getElementById('feedbackMessage').style.display = 'block';
+            
+            // Update the counts on the page
+            const helpfulCount = document.querySelector('.metric-item:first-child h4');
+            const notHelpfulCount = document.querySelector('.metric-item:last-child h4');
+            
+            if (isHelpful) {
+                helpfulCount.textContent = data.helpful_count;
+            } else {
+                notHelpfulCount.textContent = data.not_helpful_count;
+            }
+            
+            // Show toast notification
+            toastr.success('Thank you for your feedback!');
+            
+            // Redirect after 2 seconds
+            setTimeout(() => {
+                window.location.href = '{% url "help_faqs" %}';
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        toastr.error('Failed to submit feedback. Please try again.');
+        
+        // Re-enable buttons
+        document.getElementById('helpfulBtn').disabled = false;
+        document.getElementById('notHelpfulBtn').disabled = false;
+    });
+}
+</script>
+
+<style>
+.faq-stats {
+    min-width: 120px;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-light);
+    font-size: 0.875rem;
+}
+
+.stat-item i {
+    font-size: 1.25rem;
+}
+
+.faq-answer {
+    border-left: 4px solid var(--primary-color);
+    padding-left: 1.5rem;
+}
+
+.answer-content {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-dark);
+}
+
+.answer-content p {
+    margin-bottom: 1rem;
+}
+
+.answer-content ul,
+.answer-content ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+}
+
+.answer-content li {
+    margin-bottom: 0.5rem;
+}
+
+.answer-content strong {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.faq-metrics {
+    border: 2px solid #e9ecef;
+}
+
+.metric-item {
+    padding: 1rem;
+}
+
+.faq-feedback {
+    border: 2px dashed #dee2e6;
+}
+
+.info-item label {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+.related-faqs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.related-faq-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    text-decoration: none;
+    color: var(--text-dark);
+    transition: all 0.2s ease;
+}
+
+.related-faq-item:hover {
+    background: var(--primary-light);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    transform: translateX(4px);
+}
+
+.related-faq-item i:first-child {
+    color: var(--primary-color);
+    font-size: 1.25rem;
+}
+
+.related-faq-item span {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.related-faq-item i:last-child {
+    color: var(--text-light);
+}
+
+/* Print Styles */
+@media print {
+    .breadcrumb,
+    .btn,
+    .faq-feedback,
+    .sidebar,
+    .content-card:not(.faq-answer) {
+        display: none !important;
+    }
+    
+    .faq-answer {
+        border-left: 4px solid #000;
+    }
+    
+    .answer-content {
+        font-size: 12pt;
+        line-height: 1.6;
+    }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.content-card {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Button Hover Effects */
+.btn-success:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.btn-danger:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+/* Disabled State */
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}
