@@ -1,5 +1,5 @@
 # management/commands/populate_mut_help_data.py
-# Create: your_app/management/commands/populate_mut_help_data.py
+# Fixed version with correct phone number length
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -59,7 +59,7 @@ Requirements:
 - Completed semester reporting
 
 Registration period: First 2 weeks of each semester
-Contact: academic@mut.ac.ke | +254 712 000 001''',
+Contact: academic@mut.ac.ke | 0712000001''',
                 'display_order': 1,
             },
             {
@@ -101,7 +101,7 @@ Requirements:
 Must report before unit registration.
 Reporting period: First week of each semester
 
-Contact: registrar@mut.ac.ke | +254 712 000 002''',
+Contact: registrar@mut.ac.ke | 0712000002''',
                 'display_order': 3,
             },
             {
@@ -148,7 +148,7 @@ Update time: Payments reflect within 24-48 hours
 
 Download PDF statement for records.
 
-Contact: finance@mut.ac.ke | +254 712 000 003''',
+Contact: finance@mut.ac.ke | 0712000003''',
                 'display_order': 1,
             },
             {
@@ -237,7 +237,7 @@ Room Types & Fees (per semester):
 Application period: 2 weeks before semester
 First-come-first-served basis
 
-Contact: hostel@mut.ac.ke | +254 712 000 004''',
+Contact: hostel@mut.ac.ke | 0712000004''',
                 'display_order': 1,
             },
             {
@@ -304,7 +304,7 @@ Services:
 - Printing: KES 10/page
 - Wi-Fi: Free
 
-Contact: library@mut.ac.ke | +254 712 000 005''',
+Contact: library@mut.ac.ke | 0712000005''',
                 'display_order': 1,
             },
             
@@ -333,7 +333,7 @@ Password Requirements:
 - At least one number
 - At least one special character
 
-Contact: ict@mut.ac.ke | +254 712 000 006''',
+Contact: ict@mut.ac.ke | 0712000006''',
                 'display_order': 1,
             },
             {
@@ -401,7 +401,7 @@ Collection:
 - Admin Block, Room 105
 - Bring student ID
 
-Contact: students@mut.ac.ke | +254 712 000 007''',
+Contact: students@mut.ac.ke | 0712000007''',
                 'display_order': 1,
             },
         ]
@@ -484,7 +484,7 @@ Your dashboard shows:
 
 Contact ICT Help Desk:
 - Email: ict@mut.ac.ke
-- Phone: +254 712 000 006
+- Phone: 0712000006
 - Location: ICT Block, Ground Floor''',
                 'display_order': 1,
             },
@@ -565,7 +565,7 @@ Before you can register units:
 
 Contact your Academic Advisor or:
 - Email: academic@mut.ac.ke
-- Phone: +254 712 000 001''',
+- Phone: 0712000001''',
                 'display_order': 2,
             },
             {
@@ -650,7 +650,7 @@ Use mobile/online banking:
 
 Contact Finance Office:
 - Email: finance@mut.ac.ke
-- Phone: +254 712 000 003
+- Phone: 0712000003
 - Visit: Admin Block, Finance Office
 - Hours: 8 AM - 5 PM, Mon-Fri''',
                 'display_order': 3,
@@ -673,100 +673,100 @@ Contact Finance Office:
             {
                 'department': 'Academic Office',
                 'email': 'academic@mut.ac.ke',
-                'phone_primary': '+254 712 000 001',
-                'phone_secondary': '+254 733 000 001',
+                'phone_primary': '0712000001',
+                'phone_secondary': '0733000001',
                 'office_location': 'Administration Block, Room 201',
-                'office_hours': 'Mon-Fri: 8:00 AM - 5:00 PM',
+                'office_hours': 'Mon-Fri: 8 AM-5 PM',
                 'description': 'For all academic matters including unit registration, results, transcripts, and academic queries.',
                 'display_order': 1,
             },
             {
                 'department': 'Finance Office',
                 'email': 'finance@mut.ac.ke',
-                'phone_primary': '+254 712 000 003',
-                'phone_secondary': '+254 733 000 003',
+                'phone_primary': '0712000003',
+                'phone_secondary': '0733000003',
                 'office_location': 'Administration Block, Ground Floor',
-                'office_hours': 'Mon-Fri: 8:00 AM - 5:00 PM',
+                'office_hours': 'Mon-Fri: 8 AM-5 PM',
                 'description': 'For fee payments, fee statements, receipts, and all financial matters.',
                 'display_order': 2,
             },
             {
                 'department': 'Hostel Office',
                 'email': 'hostel@mut.ac.ke',
-                'phone_primary': '+254 712 000 004',
-                'phone_secondary': '+254 733 000 004',
+                'phone_primary': '0712000004',
+                'phone_secondary': '0733000004',
                 'office_location': 'Hostel Administration Office',
-                'office_hours': 'Mon-Sun: 8:00 AM - 10:00 PM',
+                'office_hours': 'Mon-Sun: 8 AM-10 PM',
                 'description': 'For hostel applications, room allocations, maintenance requests, and hostel-related issues.',
                 'display_order': 3,
             },
             {
                 'department': 'Library Services',
                 'email': 'library@mut.ac.ke',
-                'phone_primary': '+254 712 000 005',
-                'phone_secondary': '+254 733 000 005',
+                'phone_primary': '0712000005',
+                'phone_secondary': '0733000005',
                 'office_location': 'Main Library, Ground Floor',
-                'office_hours': 'Mon-Fri: 7:00 AM - 10:00 PM, Sat: 8:00 AM - 6:00 PM, Sun: 9:00 AM - 5:00 PM',
+                'office_hours': 'Mon-Fri: 7 AM-10 PM',
                 'description': 'For book borrowing, library fines, digital resources, and library services.',
                 'display_order': 4,
             },
             {
                 'department': 'ICT Support',
                 'email': 'ict@mut.ac.ke',
-                'phone_primary': '+254 712 000 006',
-                'phone_secondary': '+254 733 000 006',
-                'office_location': 'ICT Block, Ground Floor - Help Desk',
-                'office_hours': 'Mon-Fri: 8:00 AM - 5:00 PM',
+                'phone_primary': '0712000006',
+                'phone_secondary': '0733000006',
+                'office_location': 'ICT Block - Help Desk',
+                'office_hours': 'Mon-Fri: 8 AM-5 PM',
                 'description': 'For portal issues, password resets, Wi-Fi problems, and all technical support.',
                 'display_order': 5,
             },
             {
                 'department': 'Student Affairs',
                 'email': 'students@mut.ac.ke',
-                'phone_primary': '+254 712 000 007',
-                'phone_secondary': '+254 733 000 007',
+                'phone_primary': '0712000007',
+                'phone_secondary': '0733000007',
                 'office_location': 'Administration Block, Room 105',
-                'office_hours': 'Mon-Fri: 8:00 AM - 5:00 PM',
+                'office_hours': 'Mon-Fri: 8 AM-5 PM',
                 'description': 'For student ID cards, clearance certificates, student welfare, and general student services.',
                 'display_order': 6,
             },
             {
                 'department': 'Admissions Office',
                 'email': 'admissions@mut.ac.ke',
-                'phone_primary': '+254 712 000 008',
-                'phone_secondary': '+254 733 000 008',
+                'phone_primary': '0712000008',
+                'phone_secondary': '0733000008',
                 'office_location': 'Administration Block, Room 102',
-                'office_hours': 'Mon-Fri: 8:00 AM - 5:00 PM',
+                'office_hours': 'Mon-Fri: 8 AM-5 PM',
                 'description': 'For new student admissions, programme information, and admission queries.',
                 'display_order': 7,
             },
             {
                 'department': 'Registrar',
                 'email': 'registrar@mut.ac.ke',
-                'phone_primary': '+254 712 000 002',
-                'phone_secondary': '+254 733 000 002',
+                'phone_primary': '0712000002',
+                'phone_secondary': '0733000002',
                 'office_location': 'Administration Block, Room 210',
-                'office_hours': 'Mon-Fri: 8:00 AM - 5:00 PM',
+                'office_hours': 'Mon-Fri: 8 AM-5 PM',
                 'description': 'For registration matters, official transcripts, and academic records.',
                 'display_order': 8,
             },
             {
                 'department': 'Counseling Center',
                 'email': 'counseling@mut.ac.ke',
-                'phone_primary': '+254 712 000 009',
+                'phone_primary': '0712000009',
                 'phone_secondary': '1190',
                 'office_location': 'Student Center, 1st Floor',
-                'office_hours': 'Mon-Fri: 8:00 AM - 8:00 PM',
+                'office_hours': 'Mon-Fri: 8 AM-8 PM',
                 'description': 'Confidential counseling services, mental health support, and student wellness.',
                 'display_order': 9,
             },
             {
                 'department': 'Main Reception',
                 'email': 'info@mut.ac.ke',
-                'phone_primary': '+254 712 000 000',
-                'phone_secondary': '+254 733 000 000',
-                'office_location': 'Administration Block, Ground Floor',
-                'office_hours': 'Mon-Fri: 8:00 AM - 5:00 PM',
+                'phone_primary': '0712000000',
+                'phone_secondary': '0733000000',
+                'office_location': 'Administration Block',
+                'office_hours': 'Mon-Fri: 8 AM-5 PM',
                 'description': 'General information, directions, and inquiries.',
                 'display_order': 10,
             },
