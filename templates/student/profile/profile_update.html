@@ -2,9 +2,12 @@
 {% load static %}
 
 {% block title %}Update Profile{% endblock %}
-
 {% block page_title %}Update Profile{% endblock %}
 {% block page_subtitle %}Update your editable information{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -20,12 +23,12 @@
     <div class="page-header mb-4">
         <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h1 class="h3 fw-semibold mb-2">Update Profile</h1>
-                <p class="text-muted mb-0">Update your editable personal information</p>
+                <h3>Update Profile</h3>
+                <p>Update your editable personal information</p>
             </div>
-            <div class="text-end">
-                <span class="badge bg-light text-dark px-3 py-2">
-                    <i class="ri-user-line me-2"></i>
+            <div>
+                <span class="badge">
+                    <i class="ri-user-line"></i>
                     {{ student.registration_number }}
                 </span>
             </div>
@@ -39,7 +42,7 @@
         <div class="management-card mb-4">
             <div class="card-header">
                 <h5 class="card-title">
-                    <i class="ri-image-line me-2"></i>
+                    <i class="ri-image-line"></i>
                     Profile Picture
                 </h5>
             </div>
@@ -47,14 +50,12 @@
                 <div class="row align-items-center">
                     <div class="col-md-4 mb-3 mb-md-0">
                         <div class="current-picture text-center">
-                            {% if user.profile_picture %}
+                            {% if user.profile_picture and user.profile_picture.url %}
                             <img src="{{ user.profile_picture.url }}" alt="{{ user.get_full_name }}" 
-                                 id="picturePreview" class="rounded-circle border border-4 border-light shadow-sm"
-                                 style="width: 150px; height: 150px; object-fit: cover;">
+                                 id="picturePreview" class="profile-preview">
                             {% else %}
-                            <div class="avatar-placeholder rounded-circle border border-4 border-light shadow-sm d-inline-flex align-items-center justify-content-center"
-                                 id="picturePreview" style="width: 150px; height: 150px; background: var(--color-gray-200); color: var(--color-gray-600);">
-                                <i class="ri-user-line" style="font-size: 3.5rem;"></i>
+                            <div class="profile-placeholder" id="picturePreview">
+                                <i class="ri-user-line"></i>
                             </div>
                             {% endif %}
                         </div>
@@ -62,12 +63,12 @@
                     <div class="col-md-8">
                         <div class="upload-section">
                             <div class="mb-3">
-                                <label for="profile_picture" class="form-label fw-medium">Upload New Picture</label>
+                                <label for="profile_picture" class="form-label">Upload New Picture</label>
                                 <input type="file" name="profile_picture" id="profile_picture" 
-                                       class="form-control form-control-lg" accept="image/*" 
+                                       class="form-control" accept="image/*" 
                                        onchange="previewImage(this)">
-                                <div class="form-text mt-1">
-                                    <small class="text-muted">Accepted formats: JPG, PNG, GIF (Max: 5MB)</small>
+                                <div class="form-text">
+                                    <small>Accepted formats: JPG, PNG, GIF (Max: 5MB)</small>
                                 </div>
                             </div>
                             
@@ -77,8 +78,8 @@
                                       onsubmit="return confirmDeletePicture();"
                                       class="d-inline">
                                     {% csrf_token %}
-                                    <button type="submit" class="btn btn-outline-danger btn-sm">
-                                        <i class="ri-delete-bin-line me-2"></i>
+                                    <button type="submit" class="btn btn-outline btn-sm">
+                                        <i class="ri-delete-bin-line"></i>
                                         Delete Current Picture
                                     </button>
                                 </form>
@@ -94,7 +95,7 @@
         <div class="management-card mb-4">
             <div class="card-header">
                 <h5 class="card-title">
-                    <i class="ri-phone-line me-2"></i>
+                    <i class="ri-phone-line"></i>
                     Contact Information
                 </h5>
             </div>
@@ -102,36 +103,36 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="phone_number" class="form-label fw-medium">
-                                Phone Number <span class="text-muted">(Required)</span>
+                            <label for="phone_number" class="form-label">
+                                Phone Number <span>(Required)</span>
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-phone-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-phone-line"></i>
                                 </span>
                                 <input type="text" name="phone_number" id="phone_number" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ user.phone_number }}" required
+                                       class="form-control" 
+                                       value="{{ user.phone_number|default:'' }}" required
                                        placeholder="e.g., +254712345678"
                                        pattern="^(\+?\d{1,4}[\s\-]?)?(\(?\d{1,4}\)?[\s\-]?)?[\d\s\-]{8,14}$">
                             </div>
-                            <div class="form-text mt-1">
-                                <small class="text-muted">Format: +254712345678 or 0712345678</small>
+                            <div class="form-text">
+                                <small>Format: +254712345678 or 0712345678</small>
                             </div>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="id_number" class="form-label fw-medium">
+                            <label for="id_number" class="form-label">
                                 ID Number
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-id-card-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-id-card-line"></i>
                                 </span>
                                 <input type="text" name="id_number" id="id_number" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ user.id_number }}"
+                                       class="form-control" 
+                                       value="{{ user.id_number|default:'' }}"
                                        placeholder="National ID / Passport">
                             </div>
                         </div>
@@ -144,7 +145,7 @@
         <div class="management-card mb-4">
             <div class="card-header">
                 <h5 class="card-title">
-                    <i class="ri-map-pin-line me-2"></i>
+                    <i class="ri-map-pin-line"></i>
                     Address Information
                 </h5>
             </div>
@@ -152,31 +153,31 @@
                 <div class="row g-3">
                     <div class="col-12">
                         <div class="form-group">
-                            <label for="current_address" class="form-label fw-medium">
+                            <label for="current_address" class="form-label">
                                 Current Address
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0 align-items-start pt-3">
-                                    <i class="ri-home-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-home-line"></i>
                                 </span>
                                 <textarea name="current_address" id="current_address" 
-                                          class="form-control border-start-0 ps-0" rows="3"
-                                          placeholder="Enter your current residential address">{{ student.current_address }}</textarea>
+                                          class="form-control" rows="3"
+                                          placeholder="Enter your current residential address">{{ student.current_address|default:'' }}</textarea>
                             </div>
                         </div>
                     </div>
                     <div class="col-12">
                         <div class="form-group">
-                            <label for="permanent_address" class="form-label fw-medium">
+                            <label for="permanent_address" class="form-label">
                                 Permanent Address
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0 align-items-start pt-3">
-                                    <i class="ri-map-pin-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-map-pin-line"></i>
                                 </span>
                                 <textarea name="permanent_address" id="permanent_address" 
-                                          class="form-control border-start-0 ps-0" rows="3"
-                                          placeholder="Enter your permanent residential address">{{ student.permanent_address }}</textarea>
+                                          class="form-control" rows="3"
+                                          placeholder="Enter your permanent residential address">{{ student.permanent_address|default:'' }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -188,7 +189,7 @@
         <div class="management-card mb-4">
             <div class="card-header">
                 <h5 class="card-title">
-                    <i class="ri-hospital-line me-2"></i>
+                    <i class="ri-hospital-line"></i>
                     Emergency Contact
                 </h5>
             </div>
@@ -196,32 +197,32 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="emergency_contact_name" class="form-label fw-medium">
-                                Contact Name <span class="text-muted">(Required)</span>
+                            <label for="emergency_contact_name" class="form-label">
+                                Contact Name <span>(Required)</span>
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-user-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-user-line"></i>
                                 </span>
                                 <input type="text" name="emergency_contact_name" id="emergency_contact_name" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.emergency_contact_name }}" required
+                                       class="form-control" 
+                                       value="{{ student.emergency_contact_name|default:'' }}" required
                                        placeholder="Emergency contact name">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="emergency_contact_phone" class="form-label fw-medium">
-                                Contact Phone <span class="text-muted">(Required)</span>
+                            <label for="emergency_contact_phone" class="form-label">
+                                Contact Phone <span>(Required)</span>
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-phone-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-phone-line"></i>
                                 </span>
                                 <input type="text" name="emergency_contact_phone" id="emergency_contact_phone" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.emergency_contact_phone }}" required
+                                       class="form-control" 
+                                       value="{{ student.emergency_contact_phone|default:'' }}" required
                                        placeholder="Emergency contact phone"
                                        pattern="^(\+?\d{1,4}[\s\-]?)?(\(?\d{1,4}\)?[\s\-]?)?[\d\s\-]{8,14}$">
                             </div>
@@ -229,16 +230,16 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="emergency_contact_relationship" class="form-label fw-medium">
-                                Relationship <span class="text-muted">(Required)</span>
+                            <label for="emergency_contact_relationship" class="form-label">
+                                Relationship <span>(Required)</span>
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-heart-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-heart-line"></i>
                                 </span>
                                 <input type="text" name="emergency_contact_relationship" id="emergency_contact_relationship" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.emergency_contact_relationship }}" required
+                                       class="form-control" 
+                                       value="{{ student.emergency_contact_relationship|default:'' }}" required
                                        placeholder="e.g., Mother, Father, Sibling">
                             </div>
                         </div>
@@ -251,7 +252,7 @@
         <div class="management-card mb-4">
             <div class="card-header">
                 <h5 class="card-title">
-                    <i class="ri-parent-line me-2"></i>
+                    <i class="ri-parent-line"></i>
                     Sponsor/Guardian Information
                 </h5>
             </div>
@@ -259,32 +260,32 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="sponsor_name" class="form-label fw-medium">
+                            <label for="sponsor_name" class="form-label">
                                 Sponsor Name
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-user-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-user-line"></i>
                                 </span>
                                 <input type="text" name="sponsor_name" id="sponsor_name" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.sponsor_name }}"
+                                       class="form-control" 
+                                       value="{{ student.sponsor_name|default:'' }}"
                                        placeholder="Sponsor/Guardian name">
                             </div>
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="sponsor_phone" class="form-label fw-medium">
+                            <label for="sponsor_phone" class="form-label">
                                 Sponsor Phone
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-phone-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-phone-line"></i>
                                 </span>
                                 <input type="text" name="sponsor_phone" id="sponsor_phone" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.sponsor_phone }}"
+                                       class="form-control" 
+                                       value="{{ student.sponsor_phone|default:'' }}"
                                        placeholder="Sponsor phone number"
                                        pattern="^(\+?\d{1,4}[\s\-]?)?(\(?\d{1,4}\)?[\s\-]?)?[\d\s\-]{8,14}$">
                             </div>
@@ -292,16 +293,16 @@
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="sponsor_email" class="form-label fw-medium">
+                            <label for="sponsor_email" class="form-label">
                                 Sponsor Email
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-mail-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-mail-line"></i>
                                 </span>
                                 <input type="email" name="sponsor_email" id="sponsor_email" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.sponsor_email }}"
+                                       class="form-control" 
+                                       value="{{ student.sponsor_email|default:'' }}"
                                        placeholder="Sponsor email address">
                             </div>
                         </div>
@@ -314,7 +315,7 @@
         <div class="management-card mb-4">
             <div class="card-header">
                 <h5 class="card-title">
-                    <i class="ri-information-line me-2"></i>
+                    <i class="ri-information-line"></i>
                     Additional Information
                 </h5>
             </div>
@@ -322,33 +323,17 @@
                 <div class="row g-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="passport_number" class="form-label fw-medium">
+                            <label for="passport_number" class="form-label">
                                 Passport Number
                             </label>
                             <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-passport-line text-muted"></i>
+                                <span class="input-group-text">
+                                    <i class="ri-passport-line"></i>
                                 </span>
                                 <input type="text" name="passport_number" id="passport_number" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.passport_number }}"
+                                       class="form-control" 
+                                       value="{{ student.passport_number|default:'' }}"
                                        placeholder="Passport number (if applicable)">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label for="sponsor_relationship" class="form-label fw-medium">
-                                Sponsor Relationship
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0">
-                                    <i class="ri-user-add-line text-muted"></i>
-                                </span>
-                                <input type="text" name="sponsor_relationship" id="sponsor_relationship" 
-                                       class="form-control border-start-0 ps-0" 
-                                       value="{{ student.sponsor_relationship }}"
-                                       placeholder="e.g., Parent, Relative, Employer">
                             </div>
                         </div>
                     </div>
@@ -361,18 +346,18 @@
             <div class="card-body">
                 <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
                     <div>
-                        <a href="{% url 'student_profile_view' %}" class="btn btn-outline-secondary">
-                            <i class="ri-close-line me-2"></i>
+                        <a href="{% url 'student_profile_view' %}" class="btn btn-outline">
+                            <i class="ri-close-line"></i>
                             Cancel
                         </a>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="reset" class="btn btn-outline-danger">
-                            <i class="ri-restart-line me-2"></i>
+                        <button type="reset" class="btn btn-outline">
+                            <i class="ri-restart-line"></i>
                             Reset Form
                         </button>
                         <button type="submit" class="btn btn-primary">
-                            <i class="ri-save-line me-2"></i>
+                            <i class="ri-save-line"></i>
                             Save Changes
                         </button>
                     </div>
@@ -383,18 +368,18 @@
 
     <!-- Information Notice -->
     <div class="info-notice mt-4">
-        <div class="alert alert-info border-0 shadow-sm">
+        <div class="alert alert-info">
             <div class="d-flex align-items-start">
-                <i class="ri-information-line fs-5 me-3 mt-1"></i>
+                <i class="ri-information-line"></i>
                 <div>
-                    <h6 class="alert-heading fw-semibold mb-2">Important Information</h6>
-                    <p class="mb-0">
+                    <h6 class="alert-heading">Important Information</h6>
+                    <p>
                         <strong>Note:</strong> Some fields like your name, registration number, programme, and national ID 
                         cannot be changed here. Contact the registrar's office for any updates to these fields.
                     </p>
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            All required fields are marked with <span class="text-muted">(Required)</span>. 
+                    <div>
+                        <small>
+                            All required fields are marked with <span>(Required)</span>. 
                             Ensure all information is accurate and up-to-date.
                         </small>
                     </div>
@@ -405,7 +390,6 @@
 </div>
 
 <style>
-    /* Base Styles */
     :root {
         --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         --radius-sm: 6px;
@@ -413,359 +397,431 @@
         --radius-lg: 12px;
         --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
         --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
-        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
         --color-primary: #2E7D32;
         --color-success: #4CAF50;
         --color-warning: #FF9800;
         --color-info: #2196F3;
         --color-danger: #F44336;
+        --color-secondary: #6c757d;
         --color-gray-100: #f8f9fa;
         --color-gray-200: #e9ecef;
         --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
     }
-    
+
     body {
         font-family: var(--font-family);
-        font-weight: 400;
     }
-    
+
     .content-container {
         padding: 0 0.5rem;
     }
-    
-    /* Breadcrumb */
+
     .breadcrumb {
         background: transparent;
         padding: 0.75rem 0;
         margin-bottom: 1rem;
         border-bottom: 1px solid var(--color-gray-200);
     }
-    
+
     .breadcrumb-item a {
         color: var(--color-gray-600);
         text-decoration: none;
         transition: color 0.2s ease;
     }
-    
+
     .breadcrumb-item a:hover {
         color: var(--color-primary);
     }
-    
+
     .breadcrumb-item.active {
         color: var(--color-gray-800);
         font-weight: 500;
     }
-    
-    /* Page Header */
+
     .page-header {
         padding: 1rem 0;
+        margin-bottom: 2rem;
     }
-    
-    .page-header h1 {
+
+    .page-header h3 {
+        font-size: 1.75rem;
         font-weight: 600;
         color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
     }
-    
-    /* Management Cards */
+
+    .page-header p {
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+
     .management-card {
         background: white;
         border: 1px solid var(--color-gray-200);
         border-radius: var(--radius-lg);
         overflow: hidden;
-        height: 100%;
+        margin-bottom: 1.5rem;
     }
-    
+
     .management-card .card-header {
         padding: 1.25rem 1.5rem;
         border-bottom: 1px solid var(--color-gray-200);
         background: var(--color-gray-100);
     }
-    
+
     .management-card .card-title {
         font-size: 1rem;
         font-weight: 600;
         color: var(--color-gray-800);
-        margin-bottom: 0.25rem;
+        margin: 0;
         display: flex;
         align-items: center;
+        gap: 0.5rem;
     }
-    
+
     .management-card .card-body {
         padding: 1.5rem;
     }
-    
-    /* Form Styles */
+
+    .profile-preview {
+        width: 150px;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 4px solid var(--color-gray-200);
+    }
+
+    .profile-placeholder {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 4px solid var(--color-gray-200);
+        font-size: 3.5rem;
+        margin: 0 auto;
+    }
+
     .form-group {
         margin-bottom: 0;
     }
-    
+
     .form-label {
         font-size: 0.875rem;
         font-weight: 500;
         color: var(--color-gray-800);
         margin-bottom: 0.5rem;
+        display: block;
     }
-    
-    .form-label.fw-medium {
-        font-weight: 500;
+
+    .form-label span {
+        color: var(--color-gray-600);
+        font-weight: 400;
+        font-size: 0.8125rem;
     }
-    
+
     .form-control {
-        border-color: var(--color-gray-300);
+        border: 1px solid var(--color-gray-300);
         border-radius: var(--radius-md);
         padding: 0.625rem 0.75rem;
         font-size: 0.9375rem;
         transition: all 0.2s ease;
+        width: 100%;
     }
-    
+
     .form-control:focus {
         border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+        outline: none;
     }
-    
-    .form-control-lg {
-        padding: 0.75rem 1rem;
-        font-size: 1rem;
-    }
-    
+
     textarea.form-control {
         resize: vertical;
         min-height: 80px;
     }
-    
+
     .form-text {
-        font-size: 0.8125rem;
+        margin-top: 0.25rem;
     }
-    
-    /* Input Groups */
+
+    .form-text small {
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+    }
+
     .input-group {
-        box-shadow: var(--shadow-sm);
         border-radius: var(--radius-md);
         overflow: hidden;
+        border: 1px solid var(--color-gray-300);
     }
-    
+
     .input-group-text {
-        border-color: var(--color-gray-300);
-        background-color: white;
+        background: var(--color-gray-100);
+        border: none;
         color: var(--color-gray-600);
         padding: 0.625rem 0.75rem;
+        border-right: 1px solid var(--color-gray-300);
     }
-    
+
     .input-group .form-control {
-        border-left: none;
+        border: none;
         box-shadow: none;
     }
-    
+
     .input-group .form-control:focus {
         box-shadow: none;
     }
-    
-    /* Action Buttons */
+
     .action-buttons .btn {
-        padding: 0.75rem 1.5rem;
-        font-weight: 500;
         border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
         transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        gap: 0.375rem;
+        gap: 0.5rem;
+        text-decoration: none;
     }
-    
+
     .btn-primary {
         background: var(--color-primary);
         border-color: var(--color-primary);
         color: white;
     }
-    
+
     .btn-primary:hover {
         background: #1B5E20;
         border-color: #1B5E20;
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
     }
-    
-    .btn-outline-secondary {
+
+    .btn-outline {
+        background: transparent;
         border-color: var(--color-gray-300);
-        color: var(--color-gray-600);
-        background: transparent;
-    }
-    
-    .btn-outline-secondary:hover {
-        border-color: var(--color-gray-600);
-        background: var(--color-gray-600);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .btn-outline-danger {
-        border-color: var(--color-danger);
-        color: var(--color-danger);
-        background: transparent;
-    }
-    
-    .btn-outline-danger:hover {
-        background: var(--color-danger);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-md);
-    }
-    
-    .btn-sm {
-        padding: 0.5rem 1rem;
-        font-size: 0.8125rem;
-    }
-    
-    /* Avatar Styles */
-    .avatar-placeholder {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--color-gray-200);
-        color: var(--color-gray-600);
-    }
-    
-    /* Badge Styles */
-    .badge {
-        border-radius: var(--radius-sm);
-        font-weight: 500;
-        padding: 0.375rem 0.75rem;
-    }
-    
-    .badge.bg-light {
-        background-color: var(--color-gray-100) !important;
-        color: var(--color-gray-800) !important;
-        border: 1px solid var(--color-gray-200);
-    }
-    
-    /* Alert Styles */
-    .alert {
-        border-radius: var(--radius-lg);
-        border: none;
-        box-shadow: var(--shadow-sm);
-    }
-    
-    .alert-info {
-        background-color: rgba(33, 150, 243, 0.08);
-        border-left: 4px solid var(--color-info);
-    }
-    
-    .alert-heading {
-        font-size: 0.9375rem;
-        font-weight: 600;
         color: var(--color-gray-800);
     }
-    
-    /* Validation Styles */
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .alert {
+        border-radius: var(--radius-lg);
+        padding: 1rem;
+        border: 1px solid transparent;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .alert .d-flex {
+        align-items: flex-start;
+    }
+
+    .alert i {
+        color: var(--color-info);
+        font-size: 1.25rem;
+        margin-right: 0.75rem;
+        margin-top: 0.125rem;
+        flex-shrink: 0;
+    }
+
+    .alert-heading {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .alert p {
+        margin-bottom: 0.5rem;
+        font-size: 0.875rem;
+    }
+
+    .alert small {
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+    }
+
     .form-control:invalid:not(:focus):not(:placeholder-shown) {
         border-color: var(--color-danger);
     }
-    
+
     .form-control:valid:not(:focus):not(:placeholder-shown) {
         border-color: var(--color-success);
     }
-    
-    /* Responsive Styles */
+
     @media (max-width: 768px) {
         .management-card .card-body {
             padding: 1rem;
         }
-        
+
         .action-buttons {
             flex-direction: column;
             gap: 1rem;
         }
-        
+
+        .action-buttons > div {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
         .action-buttons .btn {
             width: 100%;
             justify-content: center;
         }
-        
+
         .input-group-text {
             padding: 0.5rem 0.625rem;
         }
-        
+
         .form-control {
             padding: 0.5rem 0.625rem;
         }
+
+        .profile-preview,
+        .profile-placeholder {
+            width: 120px;
+            height: 120px;
+        }
+
+        .profile-placeholder i {
+            font-size: 2.5rem;
+        }
     }
-    
+
     @media (max-width: 576px) {
         .page-header {
             flex-direction: column;
             text-align: center;
             gap: 1rem;
         }
-        
-        .page-header .text-end {
-            text-align: center !important;
+
+        .page-header > div {
+            text-align: center;
         }
+
+        .col-md-4, .col-md-6 {
+            width: 100%;
+        }
+
+        .row.g-3 {
+            gap: 1rem;
+        }
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .animate-spin {
+        animation: spin 1s linear infinite;
     }
 </style>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Image preview function
-    function previewImage(input) {
-        if (input.files && input.files[0]) {
-            const file = input.files[0];
-            const maxSize = 5 * 1024 * 1024; // 5MB
-            
-            // Check file size
-            if (file.size > maxSize) {
-                alert('File size exceeds 5MB limit. Please choose a smaller file.');
-                input.value = '';
-                return;
-            }
-            
-            // Check file type
-            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-            if (!validTypes.includes(file.type)) {
-                alert('Invalid file type. Please choose a JPG, PNG, or GIF image.');
-                input.value = '';
-                return;
-            }
-            
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                const preview = document.getElementById('picturePreview');
-                if (preview.tagName === 'IMG') {
-                    preview.src = e.target.result;
-                } else {
-                    // Replace placeholder with image
-                    const img = document.createElement('img');
-                    img.src = e.target.result;
-                    img.alt = 'Profile Preview';
-                    img.id = 'picturePreview';
-                    img.className = 'rounded-circle border border-4 border-light shadow-sm';
-                    img.style.width = '150px';
-                    img.style.height = '150px';
-                    img.style.objectFit = 'cover';
-                    preview.parentNode.replaceChild(img, preview);
-                }
-                
-                // Show success message
-                if (typeof toastr !== 'undefined') {
-                    toastr.success('Profile picture selected successfully');
-                }
-            }
-            
-            reader.onerror = function() {
-                alert('Error reading file. Please try again.');
-                input.value = '';
-            }
-            
-            reader.readAsDataURL(file);
+// Store original profile picture URL (safely handle missing file)
+const originalProfilePicture = {% if user.profile_picture and user.profile_picture.url %}'{{ user.profile_picture.url }}'{% else %}null{% endif %};
+const hasProfilePicture = {% if user.profile_picture %}true{% else %}false{% endif %};
+
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        
+        // Check file size
+        if (file.size > maxSize) {
+            showAlert('File size exceeds 5MB limit. Please choose a smaller file.', 'error');
+            input.value = '';
+            return;
         }
+        
+        // Check file type
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!validTypes.includes(file.type)) {
+            showAlert('Invalid file type. Please choose a JPG, PNG, or GIF image.', 'error');
+            input.value = '';
+            return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const preview = document.getElementById('picturePreview');
+            if (preview.tagName === 'IMG') {
+                preview.src = e.target.result;
+            } else {
+                // Replace placeholder with image
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = 'Profile Preview';
+                img.id = 'picturePreview';
+                img.className = 'profile-preview';
+                preview.parentNode.replaceChild(img, preview);
+            }
+            
+            showAlert('Profile picture selected successfully', 'success');
+        }
+        
+        reader.onerror = function() {
+            showAlert('Error reading file. Please try again.', 'error');
+            input.value = '';
+        }
+        
+        reader.readAsDataURL(file);
     }
-    
-    // Confirm delete picture
-    function confirmDeletePicture() {
-        return confirm('Are you sure you want to delete your profile picture? This action cannot be undone.');
+}
+
+function confirmDeletePicture() {
+    return confirm('Are you sure you want to delete your profile picture? This action cannot be undone.');
+}
+
+ // Show alert function
+    function showAlert(message, type = 'info') {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+        alert.style.zIndex = '1050';
+        alert.innerHTML = `
+            <strong>${type === 'error' ? 'Error!' : 'Success!'}</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alert);
+        
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 3000);
     }
     
     // Form validation
@@ -776,7 +832,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             e.stopPropagation();
             
-            // Add Bootstrap validation classes
             form.classList.add('was-validated');
             
             // Scroll to first invalid field
@@ -789,11 +844,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 firstInvalid.focus();
             }
             
-            // Show error message
-            if (typeof toastr !== 'undefined') {
-                toastr.error('Please fill in all required fields correctly.');
-            }
-            
+            showAlert('Please fill in all required fields correctly.', 'error');
             return false;
         }
         
@@ -837,18 +888,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (!isValid) {
             e.preventDefault();
-            if (errorMessage && typeof toastr !== 'undefined') {
-                toastr.error(errorMessage);
-            } else if (errorMessage) {
-                alert(errorMessage);
-            }
+            showAlert(errorMessage, 'error');
             return false;
         }
         
         // Show loading state
         const submitBtn = form.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="ri-loader-4-line me-2 animate-spin"></i>Saving...';
+        submitBtn.innerHTML = '<i class="ri-loader-4-line animate-spin"></i>';
         submitBtn.disabled = true;
         
         // Allow form to submit normally
@@ -866,25 +913,25 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Reset image preview to original
-        const picturePreview = document.getElementById('picturePreview');
-        if (picturePreview && picturePreview.tagName === 'IMG' && '{{ user.profile_picture.url }}') {
-            // Keep current profile picture if exists
-        } else if (picturePreview && picturePreview.tagName !== 'IMG') {
-            // Show placeholder
-            const placeholder = document.createElement('div');
-            placeholder.id = 'picturePreview';
-            placeholder.className = 'avatar-placeholder rounded-circle border border-4 border-light shadow-sm d-inline-flex align-items-center justify-content-center';
-            placeholder.style.width = '150px';
-            placeholder.style.height = '150px';
-            placeholder.style.background = 'var(--color-gray-200)';
-            placeholder.style.color = 'var(--color-gray-600)';
-            placeholder.innerHTML = '<i class="ri-user-line" style="font-size: 3.5rem;"></i>';
-            picturePreview.parentNode.replaceChild(placeholder, picturePreview);
-        }
+const picturePreview = document.getElementById('picturePreview');
+
+if (!picturePreview) return;
+
+// If an <img> exists, it already shows the current profile picture → do nothing
+if (picturePreview.tagName === 'IMG') {
+    return;
+}
+
+// Otherwise, ensure placeholder exists
+const placeholder = document.createElement('div');
+placeholder.id = 'picturePreview';
+placeholder.className = 'profile-placeholder';
+placeholder.innerHTML = '<i class="ri-user-line"></i>';
+
+picturePreview.parentNode.replaceChild(placeholder, picturePreview);
+
         
-        if (typeof toastr !== 'undefined') {
-            toastr.info('Form has been reset to original values.');
-        }
+        showAlert('Form has been reset to original values.', 'info');
     });
     
     // Real-time validation
@@ -904,12 +951,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.add('is-invalid');
             }
         });
-    });
-    
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
 
