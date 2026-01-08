@@ -2,9 +2,12 @@
 {% load static %}
 
 {% block title %}Library Fines{% endblock %}
-
 {% block page_title %}Library Fines{% endblock %}
-{% block page_subtitle %}View and manage your fines{% endblock %}
+{% block page_subtitle %}View and manage your library fines and payments{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -15,112 +18,138 @@
     </ol>
 </nav>
 
-<div class="content-container">
-    <!-- Summary Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="ri-money-dollar-circle-line fs-2 text-danger"></i>
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="management-card h-100">
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-danger">
+                                <i class="ri-money-dollar-circle-line"></i>
+                            </div>
+                            <div class="stat-details">
+                                <div class="stat-value">KES {{ unpaid_fines }}</div>
+                                <div class="stat-label">Unpaid Fines</div>
+                                <div class="stat-trend text-danger">
+                                    <i class="ri-arrow-up-line"></i> Due
+                                </div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">KES {{ unpaid_fines }}</h4>
-                            <small class="text-muted">Unpaid Fines</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="management-card h-100">
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-success">
+                                <i class="ri-check-line"></i>
+                            </div>
+                            <div class="stat-details">
+                                <div class="stat-value">KES {{ paid_fines }}</div>
+                                <div class="stat-label">Paid Fines</div>
+                                <div class="stat-trend text-success">
+                                    <i class="ri-check-line"></i> Cleared
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="management-card h-100">
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-primary">
+                                <i class="ri-file-list-line"></i>
+                            </div>
+                            <div class="stat-details">
+                                <div class="stat-value">KES {{ total_fines }}</div>
+                                <div class="stat-label">Total Fines</div>
+                                <div class="stat-trend text-muted">
+                                    All Time
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="ri-check-line fs-2 text-success"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">KES {{ paid_fines }}</h4>
-                            <small class="text-muted">Paid Fines</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="ri-file-list-line fs-2 text-primary"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h4 class="mb-0">KES {{ total_fines }}</h4>
-                            <small class="text-muted">Total Fines</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    {% if unpaid_fines > 0 %}
-    <div class="alert alert-danger">
-        <i class="ri-alert-line"></i>
-        <strong>Outstanding Fines:</strong> You have unpaid fines totaling KES {{ unpaid_fines }}. 
-        Please clear your fines to continue borrowing books.
-    </div>
-    {% endif %}
-
-    <!-- Fines List -->
-    <div class="management-card">
-        <div class="card-header">
-            <h5 class="card-title">Fine Details</h5>
+        {% if unpaid_fines > 0 %}
+        <!-- Outstanding Fines Alert -->
+        <div class="management-card mb-4">
+            <div class="card-header bg-danger">
+                <h5 class="card-title mb-0 text-white">
+                    <i class="ri-alert-line"></i> Outstanding Fines
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="alert-icon me-3">
+                        <i class="ri-error-warning-line fs-2 text-danger"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">Immediate Action Required</h6>
+                        <p class="mb-2 text-muted">
+                            You have unpaid fines totaling <strong>KES {{ unpaid_fines }}</strong>. 
+                            Borrowing privileges are restricted until fines are cleared.
+                        </p>
+                        <div class="fine-deadline">
+                            <i class="ri-time-line"></i>
+                            <small class="text-muted">Please pay within 14 days to avoid additional penalties.</small>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0">
+                        <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#payFinesModal">
+                            <i class="ri-money-dollar-circle-line"></i> Pay Now
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            {% if borrowings_with_fines %}
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Book</th>
-                            <th>Borrow Date</th>
-                            <th>Due Date</th>
-                            <th>Return Date</th>
-                            <th>Days Overdue</th>
-                            <th>Fine Amount</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for borrowing in borrowings_with_fines %}
-                        <tr>
-                            <td>
-                                <strong>{{ borrowing.book.title|truncatewords:5 }}</strong><br>
-                                <small class="text-muted">{{ borrowing.book.author }}</small>
-                            </td>
-                            <td>{{ borrowing.borrow_date|date:"M d, Y" }}</td>
-                            <td>{{ borrowing.due_date|date:"M d, Y" }}</td>
-                            <td>
-                                {% if borrowing.return_date %}
-                                {{ borrowing.return_date|date:"M d, Y" }}
+        {% endif %}
+
+        <!-- Fines Details -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-file-list-line"></i> Fine Details
+                </h5>
+                <span class="text-muted">{{ borrowings_with_fines|length }} fine record(s)</span>
+            </div>
+            <div class="card-body">
+                {% if borrowings_with_fines %}
+                <div class="fines-list">
+                    {% for borrowing in borrowings_with_fines %}
+                    <div class="fine-item" data-fine-id="{{ borrowing.id }}">
+                        <div class="fine-header">
+                            <div class="book-cover-small">
+                                {% if borrowing.book.cover_image %}
+                                <img src="{{ borrowing.book.cover_image.url }}" 
+                                     alt="{{ borrowing.book.title }}"
+                                     class="book-cover-img">
                                 {% else %}
-                                <span class="badge bg-warning">Not Returned</span>
+                                <div class="book-placeholder-small">
+                                    <i class="ri-book-line"></i>
+                                </div>
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if borrowing.return_date %}
-                                    {% widthratio borrowing.fine_amount 5 1 as days %}
-                                    {{ days }} days
-                                {% else %}
-                                    <span class="text-danger">Ongoing</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <strong class="text-danger">KES {{ borrowing.fine_amount }}</strong>
-                            </td>
-                            <td>
+                            </div>
+                            <div class="book-info">
+                                <h6 class="book-title">{{ borrowing.book.title }}</h6>
+                                <p class="book-author text-muted">
+                                    <i class="ri-user-line"></i> {{ borrowing.book.author }}
+                                </p>
+                                <div class="book-details">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="ri-book-line"></i> {{ borrowing.book.isbn }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="fine-status">
                                 {% if borrowing.fine_paid %}
                                 <span class="badge bg-success">
                                     <i class="ri-check-line"></i> Paid
@@ -130,35 +159,1172 @@
                                     <i class="ri-close-line"></i> Unpaid
                                 </span>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th colspan="5" class="text-end">Total:</th>
-                            <th>KES {{ total_fines }}</th>
-                            <th></th>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
+                            </div>
+                        </div>
+                        
+                        <div class="fine-details">
+                            <div class="row g-2">
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Borrow Date</label>
+                                        <div class="value">{{ borrowing.borrow_date|date:"M d, Y" }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Due Date</label>
+                                        <div class="value">{{ borrowing.due_date|date:"M d, Y" }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Return Date</label>
+                                        <div class="value">
+                                            {% if borrowing.return_date %}
+                                            {{ borrowing.return_date|date:"M d, Y" }}
+                                            {% else %}
+                                            <span class="badge bg-warning">Not Returned</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Days Overdue</label>
+                                        <div class="value">
+                                            {% if borrowing.return_date %}
+                                                {% widthratio borrowing.fine_amount 5 1 as days %}
+                                                <span class="text-danger">{{ days }} days</span>
+                                            {% else %}
+                                                <span class="text-danger">Ongoing</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="fine-amount">
+                            <div class="amount-details">
+                                <div class="amount-item">
+                                    <label>Fine Rate</label>
+                                    <div class="value">KES 5 per day</div>
+                                </div>
+                                <div class="amount-item">
+                                    <label>Total Amount</label>
+                                    <div class="value text-danger fw-bold">KES {{ borrowing.fine_amount }}</div>
+                                </div>
+                                <div class="amount-item">
+                                    <label>Fine ID</label>
+                                    <div class="value text-muted">FINE-{{ borrowing.id }}</div>
+                                </div>
+                            </div>
+                            
+                            {% if not borrowing.fine_paid %}
+                            <div class="fine-actions">
+                                <button class="btn btn-outline btn-sm" onclick="paySingleFine({{ borrowing.id }}, {{ borrowing.fine_amount }})">
+                                    <i class="ri-money-dollar-circle-line"></i> Pay This Fine
+                                </button>
+                                <button class="btn btn-outline btn-sm" data-bs-toggle="modal" data-bs-target="#disputeModal{{ borrowing.id }}">
+                                    <i class="ri-question-line"></i> Dispute Fine
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
 
-            {% if unpaid_fines > 0 %}
-            <div class="text-center mt-4">
-                <a href="#" class="btn btn-primary">
-                    <i class="ri-money-dollar-circle-line"></i> Pay Fines
-                </a>
+                <!-- Summary -->
+                <div class="fines-summary">
+                    <div class="summary-item">
+                        <div class="summary-label">Total Unpaid</div>
+                        <div class="summary-value text-danger">KES {{ unpaid_fines }}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Total Paid</div>
+                        <div class="summary-value text-success">KES {{ paid_fines }}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">Grand Total</div>
+                        <div class="summary-value fw-bold">KES {{ total_fines }}</div>
+                    </div>
+                </div>
+
+                {% if unpaid_fines > 0 %}
+                <div class="text-center mt-4">
+                    <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#payFinesModal">
+                        <i class="ri-money-dollar-circle-line"></i> Pay All Fines (KES {{ unpaid_fines }})
+                    </button>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="ri-check-double-line fs-2 text-success mb-3"></i>
+                    <h5 class="text-success">No Library Fines</h5>
+                    <p class="text-muted">You have no outstanding library fines. Keep returning books on time!</p>
+                    <div class="mt-3">
+                        <a href="{% url 'library_search_books' %}" class="btn btn-outline">
+                            <i class="ri-book-line"></i> Browse Books
+                        </a>
+                        <a href="{% url 'my_borrowings' %}" class="btn btn-outline ms-2">
+                            <i class="ri-history-line"></i> View Borrowings
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-            {% else %}
-            <div class="text-center py-5">
-                <i class="ri-check-double-line fs-2 text-success"></i>
-                <h5 class="text-success mt-3">No Fines</h5>
-                <p class="text-muted">You have no library fines. Keep it up!</p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Fine Information -->
+        <div class="management-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-information-line"></i> Fine Information
+                </h6>
             </div>
-            {% endif %}
+            <div class="card-body">
+                <div class="fine-info">
+                    <div class="info-item">
+                        <i class="ri-money-dollar-circle-line text-danger"></i>
+                        <div class="info-content">
+                            <h6>Fine Rate</h6>
+                            <p class="text-muted mb-0">KES 5 per day per book</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="ri-time-line text-warning"></i>
+                        <div class="info-content">
+                            <h6>Grace Period</h6>
+                            <p class="text-muted mb-0">3 days grace period before fines start</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="ri-alert-line text-danger"></i>
+                        <div class="info-content">
+                            <h6>Max Fine</h6>
+                            <p class="text-muted mb-0">Maximum KES 500 per book</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="ri-lock-line text-primary"></i>
+                        <div class="info-content">
+                            <h6>Restrictions</h6>
+                            <p class="text-muted mb-0">Borrowing blocked with unpaid fines</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Methods -->
+        <div class="management-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-bank-card-line"></i> Payment Methods
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="payment-methods">
+                    <div class="method-item">
+                        <i class="ri-smartphone-line text-success"></i>
+                        <span>M-Pesa</span>
+                    </div>
+                    <div class="method-item">
+                        <i class="ri-bank-line text-primary"></i>
+                        <span>Bank Transfer</span>
+                    </div>
+                    <div class="method-item">
+                        <i class="ri-bank-card-line text-warning"></i>
+                        <span>Credit/Debit Card</span>
+                    </div>
+                    <div class="method-item">
+                        <i class="ri-money-dollar-box-line text-info"></i>
+                        <span>Cash at Library</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="management-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-links-line"></i> Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'library_search_books' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-search-line"></i> Search Books
+                    </a>
+                    <a href="{% url 'my_borrowings' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-book-open-line"></i> My Borrowings
+                    </a>
+                    <a href="{% url 'library_reservations' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-bookmark-line"></i> My Reservations
+                    </a>
+                    <a href="#" class="btn btn-outline btn-sm" data-bs-toggle="modal" data-bs-target="#receiptsModal">
+                        <i class="ri-receipt-line"></i> View Receipts
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Pay Fines Modal -->
+<div class="modal fade" id="payFinesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Pay Library Fines</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="payment-summary">
+                    <div class="summary-header">
+                        <h6>Payment Summary</h6>
+                        <span class="text-danger fw-bold">Total: KES {{ unpaid_fines }}</span>
+                    </div>
+                    <div class="unpaid-fines-list">
+                        {% for borrowing in borrowings_with_fines %}
+                        {% if not borrowing.fine_paid %}
+                        <div class="unpaid-item">
+                            <div class="unpaid-info">
+                                <span>{{ borrowing.book.title|truncatewords:3 }}</span>
+                                <span class="text-danger">KES {{ borrowing.fine_amount }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="payment-method-selection">
+                    <h6 class="mb-3">Select Payment Method</h6>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="payment-option active" data-method="mpesa">
+                                <i class="ri-smartphone-line"></i>
+                                <span>M-Pesa</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="payment-option" data-method="bank">
+                                <i class="ri-bank-line"></i>
+                                <span>Bank Transfer</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- M-Pesa Payment Form -->
+                <div class="payment-form" id="mpesaForm">
+                    <h6 class="mb-3">M-Pesa Payment Instructions</h6>
+                    <ol class="instructions-list">
+                        <li>Go to M-Pesa menu on your phone</li>
+                        <li>Select <strong>Lipa na M-Pesa</strong></li>
+                        <li>Choose <strong>Pay Bill</strong></li>
+                        <li>Enter Business Number: <code>123456</code></li>
+                        <li>Enter Account Number: <code>LIBRARY-{{ student.registration_number }}</code></li>
+                        <li>Enter Amount: <strong>KES {{ unpaid_fines }}</strong></li>
+                        <li>Enter your M-Pesa PIN</li>
+                        <li>Confirm and submit</li>
+                    </ol>
+                    
+                    <div class="mt-3">
+                        <label class="form-label">M-Pesa Transaction Code</label>
+                        <input type="text" class="form-control" id="mpesaCode" placeholder="Enter transaction code">
+                        <small class="text-muted">Found in your M-Pesa confirmation SMS</small>
+                    </div>
+                </div>
+
+                <!-- Bank Transfer Form -->
+                <div class="payment-form d-none" id="bankForm">
+                    <h6 class="mb-3">Bank Transfer Details</h6>
+                    <div class="bank-details">
+                        <div class="detail-row">
+                            <span>Bank Name:</span>
+                            <span>Kenya Commercial Bank (KCB)</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Account Name:</span>
+                            <span>University Library Fines</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Account Number:</span>
+                            <span>1234567890</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Reference:</span>
+                            <span>LIBRARY-{{ student.registration_number }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Amount:</span>
+                            <span class="text-danger">KES {{ unpaid_fines }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="ri-information-line"></i>
+                        Payments may take 24-48 hours to reflect. Keep your deposit slip.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="processPayment()">
+                    <i class="ri-check-line"></i> Confirm Payment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Payment method selection
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentOptions = document.querySelectorAll('.payment-option');
+    
+    paymentOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // Remove active class from all options
+            paymentOptions.forEach(opt => opt.classList.remove('active'));
+            
+            // Add active class to clicked option
+            this.classList.add('active');
+            
+            // Show corresponding form
+            const method = this.dataset.method;
+            document.querySelectorAll('.payment-form').forEach(form => {
+                form.classList.add('d-none');
+            });
+            document.getElementById(`${method}Form`).classList.remove('d-none');
+        });
+    });
+});
+
+// Process payment
+function processPayment() {
+    const activeMethod = document.querySelector('.payment-option.active').dataset.method;
+    const amount = {{ unpaid_fines }};
+    
+    // Validate M-Pesa code if M-Pesa is selected
+    if (activeMethod === 'mpesa') {
+        const mpesaCode = document.getElementById('mpesaCode').value.trim();
+        if (!mpesaCode) {
+            showNotification('Please enter your M-Pesa transaction code', 'danger');
+            return;
+        }
+    }
+    
+    // Show processing modal
+    showPaymentProcessing(activeMethod, amount);
+}
+
+// Show payment processing
+function showPaymentProcessing(method, amount) {
+    Swal.fire({
+        title: 'Processing Payment',
+        html: `
+            <div class="text-center">
+                <div class="mb-3">
+                    <i class="ri-loader-4-line spin fs-1 text-primary"></i>
+                </div>
+                <p>Processing your payment of <strong>KES ${amount}</strong> via ${method.toUpperCase()}...</p>
+                <p class="text-muted">Please wait while we verify your payment.</p>
+            </div>
+        `,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        didOpen: () => {
+            // Simulate payment processing
+            setTimeout(() => {
+                Swal.close();
+                showPaymentSuccess();
+            }, 2000);
+        }
+    });
+}
+
+// Show payment success
+function showPaymentSuccess() {
+    Swal.fire({
+        icon: 'success',
+        title: 'Payment Successful!',
+        html: `
+            <div class="text-center">
+                <i class="ri-checkbox-circle-line fs-1 text-success mb-3"></i>
+                <p>Your payment of <strong>KES {{ unpaid_fines }}</strong> has been processed successfully.</p>
+                <p class="text-muted">Your borrowing privileges have been restored.</p>
+                <div class="receipt-details mt-3">
+                    <p><strong>Receipt Number:</strong> RCPT-${Date.now()}</p>
+                    <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
+        `,
+        confirmButtonText: 'View Receipt',
+        showCancelButton: true,
+        cancelButtonText: 'Close'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Redirect to receipts page
+            window.location.href = '#';
+        } else {
+            // Refresh page to update fines
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    });
+}
+
+// Pay single fine
+function paySingleFine(fineId, amount) {
+    Swal.fire({
+        title: 'Pay Individual Fine',
+        html: `
+            <p>Pay fine of <strong>KES ${amount}</strong>?</p>
+            <p class="text-muted">This will pay only this specific fine.</p>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Pay Now',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            showPaymentProcessing('mpesa', amount);
+        }
+    });
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <i class="ri-information-line"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Loading spinner animation
+const style = document.createElement('style');
+style.textContent = `
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+`;
+document.head.appendChild(style);
+</script>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.2s ease;
+    }
+
+    .management-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .management-card .card-header.bg-danger {
+        background: var(--color-danger) !important;
+        border-color: var(--color-danger);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .management-card .card-header.bg-danger .card-title {
+        color: white;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Stat Items */
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .stat-icon.bg-primary { background-color: rgba(46, 125, 50, 0.1); color: var(--color-primary); }
+    .stat-icon.bg-success { background-color: rgba(76, 175, 80, 0.1); color: var(--color-success); }
+    .stat-icon.bg-danger { background-color: rgba(244, 67, 54, 0.1); color: var(--color-danger); }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    .stat-trend {
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* Alert Icon */
+    .alert-icon i {
+        font-size: 2rem;
+    }
+
+    .fine-deadline {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+    }
+
+    .fine-deadline i {
+        color: var(--color-warning);
+    }
+
+    /* Fines List */
+    .fines-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .fine-item {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .fine-item:hover {
+        border-color: var(--color-danger);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .fine-header {
+        display: flex;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .book-cover-small {
+        width: 60px;
+        height: 80px;
+        flex-shrink: 0;
+        margin-right: 1rem;
+    }
+
+    .book-cover-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: var(--radius-sm);
+    }
+
+    .book-placeholder-small {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--color-gray-100), var(--color-gray-200));
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-gray-600);
+        font-size: 1.5rem;
+    }
+
+    .book-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .book-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .book-author {
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .book-author i {
+        font-size: 0.75rem;
+        margin-right: 0.25rem;
+    }
+
+    .book-details .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+    }
+
+    .fine-status {
+        margin-left: auto;
+        padding-left: 1rem;
+    }
+
+    /* Fine Details */
+    .fine-details {
+        padding: 1rem 1.5rem;
+        background: white;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .detail-item {
+        text-align: center;
+    }
+
+    .detail-item label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-item .value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Fine Amount */
+    .fine-amount {
+        padding: 1.25rem 1.5rem;
+        background: white;
+    }
+
+    .amount-details {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .amount-item {
+        text-align: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+    }
+
+    .amount-item label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+
+    .amount-item .value {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .fine-actions {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    /* Fine Summary */
+    .fines-summary {
+        display: flex;
+        justify-content: space-between;
+        padding: 1.5rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-lg);
+        margin-top: 2rem;
+    }
+
+    .summary-item {
+        text-align: center;
+        flex: 1;
+    }
+
+    .summary-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+
+    .summary-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    /* Fine Information */
+    .fine-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .info-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .info-item i {
+        font-size: 1.5rem;
+        margin-top: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .info-content h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .info-content p {
+        font-size: 0.8125rem;
+        margin: 0;
+    }
+
+    /* Payment Methods */
+    .payment-methods {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .method-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+
+    .method-item:hover {
+        background: var(--color-gray-200);
+        transform: translateX(5px);
+    }
+
+    .method-item i {
+        font-size: 1.25rem;
+    }
+
+    .method-item span {
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-danger {
+        background: var(--color-danger);
+        border-color: var(--color-danger);
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #d32f2f;
+        border-color: #d32f2f;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border-radius: var(--radius-lg);
+        border: none;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1rem 1.5rem;
+    }
+
+    .payment-summary {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .unpaid-fines-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .unpaid-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem;
+        background: white;
+        border-radius: var(--radius-md);
+        border-left: 3px solid var(--color-danger);
+    }
+
+    .payment-method-selection {
+        margin-bottom: 1.5rem;
+    }
+
+    .payment-option {
+        padding: 1rem;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .payment-option:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+
+    .payment-option.active {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.1);
+    }
+
+    .payment-option i {
+        font-size: 2rem;
+        color: var(--color-primary);
+    }
+
+    .payment-option span {
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+
+    .payment-form {
+        margin-top: 1.5rem;
+    }
+
+    .instructions-list {
+        padding-left: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .instructions-list li {
+        margin-bottom: 0.5rem;
+        color: var(--color-gray-800);
+    }
+
+    .bank-details {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+    }
+
+    .bank-details .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .bank-details .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    /* Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+    }
+
+    /* Text Utilities */
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    .text-success {
+        color: var(--color-success) !important;
+    }
+
+    .text-muted {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600) !important;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .fine-header {
+            flex-wrap: wrap;
+        }
+
+        .book-cover-small {
+            width: 50px;
+            height: 70px;
+            margin-right: 0.75rem;
+        }
+
+        .fine-status {
+            margin-left: 0;
+            padding-left: 0;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+
+        .fine-details {
+            padding: 0.75rem;
+        }
+
+        .detail-item {
+            margin-bottom: 0.75rem;
+        }
+
+        .amount-details {
+            grid-template-columns: 1fr;
+            gap: 0.75rem;
+        }
+
+        .fines-summary {
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .fine-actions {
+            flex-direction: column;
+        }
+
+        .fine-actions .btn {
+            width: 100%;
+        }
+
+        .payment-option {
+            padding: 0.75rem;
+        }
+
+        .payment-option i {
+            font-size: 1.5rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .stat-item {
+            gap: 0.75rem;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+        }
+
+        .fine-header {
+            padding: 0.75rem;
+        }
+
+        .book-info h6 {
+            font-size: 0.8125rem;
+        }
+
+        .amount-item {
+            padding: 0.5rem;
+        }
+
+        .info-item i {
+            font-size: 1.25rem;
+        }
+
+        .info-content h6 {
+            font-size: 0.8125rem;
+        }
+
+        .method-item {
+            padding: 0.5rem;
+        }
+    }
+</style>
 {% endblock %}

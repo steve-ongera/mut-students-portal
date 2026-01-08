@@ -2,9 +2,12 @@
 {% load static %}
 
 {% block title %}My Borrowings{% endblock %}
-
 {% block page_title %}My Borrowings{% endblock %}
-{% block page_subtitle %}View your borrowed books{% endblock %}
+{% block page_subtitle %}View your borrowed books and borrowing history{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -15,155 +18,148 @@
     </ol>
 </nav>
 
-<div class="content-container">
+<div class="row">
     <!-- Statistics Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="ri-book-line fs-2 text-primary"></i>
+    <div class="col-lg-8">
+        <div class="row g-3 mb-4">
+            <div class="col-md-6 col-lg-3">
+                <div class="management-card h-100">
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-primary">
+                                <i class="ri-book-line"></i>
+                            </div>
+                            <div class="stat-details">
+                                <div class="stat-value">{{ total_borrowed }}</div>
+                                <div class="stat-label">Total Borrowed</div>
+                            </div>
                         </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0">{{ total_borrowed }}</h6>
-                            <small class="text-muted">Total Borrowed</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="management-card h-100">
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-success">
+                                <i class="ri-book-open-line"></i>
+                            </div>
+                            <div class="stat-details">
+                                <div class="stat-value">{{ active_count }}</div>
+                                <div class="stat-label">Currently Active</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="management-card h-100">
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-danger">
+                                <i class="ri-alert-line"></i>
+                            </div>
+                            <div class="stat-details">
+                                <div class="stat-value">{{ overdue_count }}</div>
+                                <div class="stat-label">Overdue</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3">
+                <div class="management-card h-100">
+                    <div class="card-body">
+                        <div class="stat-item">
+                            <div class="stat-icon bg-warning">
+                                <i class="ri-money-dollar-circle-line"></i>
+                            </div>
+                            <div class="stat-details">
+                                <div class="stat-value">KES {{ total_fines }}</div>
+                                <div class="stat-label">Total Fines</div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="ri-book-open-line fs-2 text-success"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0">{{ active_count }}</h6>
-                            <small class="text-muted">Currently Active</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="ri-alert-line fs-2 text-danger"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0">{{ overdue_count }}</h6>
-                            <small class="text-muted">Overdue</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <i class="ri-money-dollar-circle-line fs-2 text-warning"></i>
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h6 class="mb-0">KES {{ total_fines }}</h6>
-                            <small class="text-muted">Total Fines</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Filter Tabs -->
-    <div class="management-card mb-4">
-        <div class="card-body">
-            <ul class="nav nav-pills">
-                <li class="nav-item">
-                    <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
-                       href="?status=all">
-                        All Borrowings
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if status_filter == 'active' %}active{% endif %}" 
-                       href="?status=active">
-                        Active
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if status_filter == 'overdue' %}active{% endif %}" 
-                       href="?status=overdue">
-                        Overdue
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if status_filter == 'returned' %}active{% endif %}" 
-                       href="?status=returned">
-                        Returned
-                    </a>
-                </li>
-            </ul>
+        <!-- Filter Tabs -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-filter-line"></i> Filter Borrowings
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="nav nav-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+                                onclick="window.location.href='?status=all'" 
+                                type="button">
+                            All Borrowings
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if status_filter == 'active' %}active{% endif %}" 
+                                onclick="window.location.href='?status=active'" 
+                                type="button">
+                            Active
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if status_filter == 'overdue' %}active{% endif %}" 
+                                onclick="window.location.href='?status=overdue'" 
+                                type="button">
+                            Overdue
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if status_filter == 'returned' %}active{% endif %}" 
+                                onclick="window.location.href='?status=returned'" 
+                                type="button">
+                            Returned
+                        </button>
+                    </li>
+                </ul>
+            </div>
         </div>
-    </div>
 
-    <!-- Borrowings List -->
-    <div class="management-card">
-        <div class="card-header">
-            <h5 class="card-title">Borrowing History</h5>
-        </div>
-        <div class="card-body">
-            {% if page_obj %}
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Book</th>
-                            <th>Author</th>
-                            <th>Borrow Date</th>
-                            <th>Due Date</th>
-                            <th>Return Date</th>
-                            <th>Status</th>
-                            <th>Fine</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for borrowing in page_obj %}
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    {% if borrowing.book.cover_image %}
-                                    <img src="{{ borrowing.book.cover_image.url }}" 
-                                         alt="{{ borrowing.book.title }}" 
-                                         style="width: 40px; height: 60px; object-fit: cover;" 
-                                         class="me-2">
-                                    {% else %}
-                                    <div class="bg-light p-2 me-2">
-                                        <i class="ri-book-line"></i>
-                                    </div>
-                                    {% endif %}
-                                    <div>
-                                        <strong>{{ borrowing.book.title|truncatewords:5 }}</strong><br>
-                                        <small class="text-muted">{{ borrowing.book.isbn }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>{{ borrowing.book.author }}</td>
-                            <td>{{ borrowing.borrow_date|date:"M d, Y" }}</td>
-                            <td>{{ borrowing.due_date|date:"M d, Y" }}</td>
-                            <td>
-                                {% if borrowing.return_date %}
-                                {{ borrowing.return_date|date:"M d, Y" }}
+        <!-- Borrowings List -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-history-line"></i> Borrowing History
+                </h5>
+                <span class="text-muted">{{ page_obj.paginator.count }} record(s) found</span>
+            </div>
+            <div class="card-body">
+                {% if page_obj %}
+                <div class="borrowings-list">
+                    {% for borrowing in page_obj %}
+                    <div class="borrowing-item">
+                        <div class="borrowing-header">
+                            <div class="book-cover-small">
+                                {% if borrowing.book.cover_image %}
+                                <img src="{{ borrowing.book.cover_image.url }}" 
+                                     alt="{{ borrowing.book.title }}" 
+                                     class="book-cover-img">
                                 {% else %}
-                                <span class="text-muted">-</span>
+                                <div class="book-placeholder-small">
+                                    <i class="ri-book-line"></i>
+                                </div>
                                 {% endif %}
-                            </td>
-                            <td>
+                            </div>
+                            <div class="book-info">
+                                <h6 class="book-title">{{ borrowing.book.title }}</h6>
+                                <p class="book-author text-muted">
+                                    <i class="ri-user-line"></i> {{ borrowing.book.author }}
+                                </p>
+                                <p class="book-isbn text-muted">
+                                    <i class="ri-book-line"></i> {{ borrowing.book.isbn }}
+                                </p>
+                            </div>
+                            <div class="borrowing-status">
                                 {% if borrowing.status == 'active' %}
                                 <span class="badge bg-success">Active</span>
                                 {% elif borrowing.status == 'overdue' %}
@@ -173,56 +169,621 @@
                                 {% elif borrowing.status == 'lost' %}
                                 <span class="badge bg-dark">Lost</span>
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if borrowing.fine_amount > 0 %}
-                                <span class="text-danger">KES {{ borrowing.fine_amount }}</span>
-                                {% if borrowing.fine_paid %}
-                                <br><small class="text-success">Paid</small>
-                                {% else %}
-                                <br><small class="text-danger">Unpaid</small>
-                                {% endif %}
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination -->
-            {% if page_obj.has_other_pages %}
-            <div class="d-flex justify-content-center mt-3">
-                <nav>
-                    <ul class="pagination">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
-                        </li>
+                            </div>
+                        </div>
+                        
+                        <div class="borrowing-details">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Borrow Date</label>
+                                        <div class="value">{{ borrowing.borrow_date|date:"M d, Y" }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Due Date</label>
+                                        <div class="value {% if borrowing.status == 'overdue' %}text-danger{% endif %}">
+                                            {{ borrowing.due_date|date:"M d, Y" }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Return Date</label>
+                                        <div class="value">
+                                            {% if borrowing.return_date %}
+                                            {{ borrowing.return_date|date:"M d, Y" }}
+                                            {% else %}
+                                            <span class="text-muted">Not returned</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="detail-item">
+                                        <label>Fine Amount</label>
+                                        <div class="value">
+                                            {% if borrowing.fine_amount > 0 %}
+                                            <span class="{% if not borrowing.fine_paid %}text-danger{% else %}text-success{% endif %}">
+                                                KES {{ borrowing.fine_amount }}
+                                            </span>
+                                            <div class="fine-status">
+                                                {% if borrowing.fine_paid %}
+                                                <small class="text-success">Paid</small>
+                                                {% else %}
+                                                <small class="text-danger">Unpaid</small>
+                                                {% endif %}
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted">No fine</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if borrowing.status == 'active' %}
+                        <div class="borrowing-actions">
+                            <button class="btn btn-outline btn-sm" data-bs-toggle="modal" data-bs-target="#returnModal{{ borrowing.id }}">
+                                <i class="ri-arrow-go-back-line"></i> Mark as Returned
+                            </button>
+                            <button class="btn btn-outline btn-sm" data-bs-toggle="modal" data-bs-target="#renewModal{{ borrowing.id }}">
+                                <i class="ri-refresh-line"></i> Renew Book
+                            </button>
+                        </div>
                         {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
 
-                        <li class="page-item active">
-                            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-                        </li>
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="d-flex justify-content-center mt-4">
+                    <nav>
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
 
-                        {% if page_obj.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="ri-book-line fs-2 text-muted mb-3"></i>
+                    <h5 class="text-muted">No borrowing records found</h5>
+                    <p class="text-muted">Start borrowing books from the library to see your history here.</p>
+                    <a href="{% url 'library_search_books' %}" class="btn btn-outline mt-2">
+                        <i class="ri-search-line"></i> Search Books
+                    </a>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-            {% else %}
-            <div class="text-center py-5">
-                <i class="ri-book-line fs-2 text-muted"></i>
-                <p class="text-muted mt-3">No borrowing records found</p>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="management-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-links-line"></i> Quick Actions
+                </h6>
             </div>
-            {% endif %}
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'library_search_books' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-search-line"></i> Search Books
+                    </a>
+                    <a href="{% url 'library_reservations' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-bookmark-line"></i> My Reservations
+                    </a>
+                    <a href="{% url 'library_fines' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-money-dollar-circle-line"></i> Pay Fines
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Borrowing Tips -->
+        <div class="management-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-lightbulb-line"></i> Borrowing Tips
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="tips-list">
+                    <li><i class="ri-check-line"></i> Return books on time to avoid fines</li>
+                    <li><i class="ri-check-line"></i> Renew books before due date</li>
+                    <li><i class="ri-check-line"></i> KES 5 daily fine for overdue books</li>
+                    <li><i class="ri-check-line"></i> Max {{ max_books_allowed }} books at a time</li>
+                    <li><i class="ri-check-line"></i> Report lost books immediately</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.2s ease;
+    }
+
+    .management-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Stat Items */
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .stat-icon.bg-primary { background-color: rgba(46, 125, 50, 0.1); color: var(--color-primary); }
+    .stat-icon.bg-success { background-color: rgba(76, 175, 80, 0.1); color: var(--color-success); }
+    .stat-icon.bg-danger { background-color: rgba(244, 67, 54, 0.1); color: var(--color-danger); }
+    .stat-icon.bg-warning { background-color: rgba(255, 152, 0, 0.1); color: var(--color-warning); }
+
+    .stat-details {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+
+    /* Tab Styles */
+    .nav-tabs {
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link {
+        color: var(--color-gray-600);
+        font-weight: 500;
+        padding: 0.75rem 1rem;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        transition: all 0.2s ease;
+        background: none;
+        cursor: pointer;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        border-color: var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background-color: white;
+        border-color: var(--color-gray-200) var(--color-gray-200) white;
+    }
+
+    /* Borrowings List */
+    .borrowings-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .borrowing-item {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .borrowing-item:hover {
+        border-color: var(--color-gray-300);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .borrowing-header {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        background: white;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .book-cover-small {
+        width: 60px;
+        height: 80px;
+        flex-shrink: 0;
+        margin-right: 1rem;
+    }
+
+    .book-cover-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: var(--radius-sm);
+    }
+
+    .book-placeholder-small {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--color-gray-100), var(--color-gray-200));
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-gray-600);
+        font-size: 1.5rem;
+    }
+
+    .book-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .book-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .book-author, .book-isbn {
+        font-size: 0.75rem;
+        margin-bottom: 0.125rem;
+    }
+
+    .book-author i, .book-isbn i {
+        font-size: 0.75rem;
+        margin-right: 0.25rem;
+    }
+
+    .borrowing-status {
+        margin-left: auto;
+        padding-left: 1rem;
+    }
+
+    /* Borrowing Details */
+    .borrowing-details {
+        padding: 1rem 1.5rem;
+        background: white;
+    }
+
+    .detail-item {
+        text-align: center;
+    }
+
+    .detail-item label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-item .value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        line-height: 1.4;
+    }
+
+    .fine-status small {
+        font-size: 0.6875rem;
+        font-weight: 500;
+    }
+
+    /* Borrowing Actions */
+    .borrowing-actions {
+        padding: 1rem 1.5rem;
+        background: var(--color-gray-100);
+        border-top: 1px solid var(--color-gray-200);
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    /* Tips List */
+    .tips-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .tips-list li {
+        padding: 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--color-gray-800);
+        font-size: 0.875rem;
+        line-height: 1.5;
+    }
+
+    .tips-list li i {
+        color: var(--color-success);
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+
+    /* Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Pagination */
+    .pagination {
+        margin-bottom: 0;
+    }
+
+    .page-link {
+        border: 1px solid var(--color-gray-300);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .page-link:hover {
+        background-color: var(--color-gray-100);
+        color: var(--color-primary);
+    }
+
+    .page-item.active .page-link {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    /* Text Utilities */
+    .text-muted {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600) !important;
+    }
+
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    .text-success {
+        color: var(--color-success) !important;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .stat-item {
+            gap: 0.75rem;
+        }
+
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+        }
+
+        .borrowing-header {
+            flex-wrap: wrap;
+        }
+
+        .book-cover-small {
+            width: 50px;
+            height: 70px;
+            margin-right: 0.75rem;
+        }
+
+        .borrowing-status {
+            margin-left: 0;
+            padding-left: 0;
+            margin-top: 0.5rem;
+            width: 100%;
+        }
+
+        .borrowing-details {
+            padding: 0.75rem;
+        }
+
+        .detail-item label {
+            font-size: 0.6875rem;
+        }
+
+        .detail-item .value {
+            font-size: 0.8125rem;
+        }
+
+        .tips-list li {
+            font-size: 0.8125rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .nav-tabs .nav-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .stat-value {
+            font-size: 1.125rem;
+        }
+
+        .book-cover-small {
+            width: 45px;
+            height: 65px;
+        }
+
+        .borrowing-header {
+            padding: 0.75rem;
+        }
+
+        .borrowing-actions {
+            padding: 0.75rem;
+            flex-direction: column;
+        }
+
+        .borrowing-actions .btn {
+            width: 100%;
+        }
+    }
+</style>
 {% endblock %}

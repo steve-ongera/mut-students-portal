@@ -2,9 +2,12 @@
 {% load static %}
 
 {% block title %}Reserve Book{% endblock %}
-
 {% block page_title %}Reserve Book{% endblock %}
 {% block page_subtitle %}Confirm your book reservation{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -15,156 +18,596 @@
     </ol>
 </nav>
 
-<div class="content-container">
-    <div class="row">
-        <div class="col-lg-8 mx-auto">
-            <!-- Book Details Card -->
-            <div class="management-card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title">Book Details</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-4">
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <!-- Book Details Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-book-line"></i> Book Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3 mb-md-0">
+                        <div class="book-detail-cover">
                             {% if book.cover_image %}
                             <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" class="img-fluid rounded">
                             {% else %}
-                            <div class="text-center p-5 bg-light rounded">
+                            <div class="book-placeholder-large text-center">
                                 <i class="ri-book-2-line fs-1"></i>
-                                <p class="text-muted mt-2">No cover</p>
-                            </div>
-                            {% endif %}
-                        </div>
-                        <div class="col-md-8">
-                            <h4>{{ book.title }}</h4>
-                            <p class="text-muted"><i class="ri-user-line"></i> {{ book.author }}</p>
-                            
-                            <table class="table table-sm">
-                                <tr>
-                                    <th width="150">ISBN:</th>
-                                    <td>{{ book.isbn }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Category:</th>
-                                    <td>{{ book.category.name }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Publisher:</th>
-                                    <td>{{ book.publisher|default:"N/A" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Edition:</th>
-                                    <td>{{ book.edition|default:"N/A" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Available Copies:</th>
-                                    <td>{{ book.available_copies }} of {{ book.total_copies }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Location:</th>
-                                    <td>{{ book.shelf_location|default:"N/A" }}</td>
-                                </tr>
-                            </table>
-
-                            {% if book.description %}
-                            <div class="mt-3">
-                                <h6>Description</h6>
-                                <p>{{ book.description }}</p>
+                                <p class="text-muted mt-2">No cover available</p>
                             </div>
                             {% endif %}
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Reservation Terms Card -->
-            <div class="management-card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title">Reservation Terms</h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="ri-information-line"></i>
-                        <strong>Important Information:</strong>
-                    </div>
-
-                    <ul class="list-unstyled">
-                        <li class="mb-2">
-                            <i class="ri-time-line text-warning"></i>
-                            You must pick up the book within <strong>30 minutes</strong> from reservation time
-                        </li>
-                        <li class="mb-2">
-                            <i class="ri-calendar-line text-primary"></i>
-                            Loan period: <strong>14 days</strong> from pickup date
-                        </li>
-                        <li class="mb-2">
-                            <i class="ri-money-dollar-circle-line text-danger"></i>
-                            Late return fine: <strong>KES 5 per day</strong>
-                        </li>
-                        <li class="mb-2">
-                            <i class="ri-close-circle-line text-danger"></i>
-                            Reservation will be automatically cancelled if not picked up within 30 minutes
-                        </li>
-                        <li class="mb-2">
-                            <i class="ri-map-pin-line text-success"></i>
-                            Pickup location: <strong>Main Library Counter</strong>
-                        </li>
-                        <li class="mb-2">
-                            <i class="ri-id-card-line text-info"></i>
-                            Please bring your <strong>Student ID</strong> for verification
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <!-- Current Status Card -->
-            <div class="management-card mb-4">
-                <div class="card-header">
-                    <h5 class="card-title">Your Borrowing Status</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <p><strong>Currently Borrowed:</strong> {{ current_borrowings_count }} books</p>
-                            <p><strong>Available Slots:</strong> {{ max_books_allowed|add:"-"|add:current_borrowings_count }} books</p>
-                        </div>
-                        <div class="col-md-6">
-                            <p><strong>Unpaid Fines:</strong> KES {{ unpaid_fines }}</p>
-                            {% if unpaid_fines > 0 %}
-                            <div class="alert alert-warning">
-                                You have unpaid fines. Please clear them before borrowing.
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Confirmation Form -->
-            <div class="management-card">
-                <div class="card-body">
-                    <form method="post" action="{% url 'reserve_book' book.id %}">
-                        {% csrf_token %}
+                    <div class="col-md-8">
+                        <h4 class="mb-3">{{ book.title }}</h4>
+                        <p class="text-muted mb-4">
+                            <i class="ri-user-line"></i> {{ book.author }}
+                        </p>
                         
-                        <div class="form-check mb-3">
-                            <input class="form-check-input" type="checkbox" id="agreeTerms" required>
-                            <label class="form-check-label" for="agreeTerms">
-                                I agree to pick up this book within 30 minutes and return it within 14 days
-                            </label>
+                        <div class="details-box mb-4">
+                            <div class="detail-row">
+                                <span class="detail-label">ISBN:</span>
+                                <span class="detail-value">{{ book.isbn }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Category:</span>
+                                <span class="detail-value">{{ book.category.name }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Publisher:</span>
+                                <span class="detail-value">{{ book.publisher|default:"N/A" }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Edition:</span>
+                                <span class="detail-value">{{ book.edition|default:"N/A" }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Available Copies:</span>
+                                <span class="detail-value">
+                                    <strong>{{ book.available_copies }}</strong> of {{ book.total_copies }}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Location:</span>
+                                <span class="detail-value">{{ book.shelf_location|default:"N/A" }}</span>
+                            </div>
                         </div>
 
-                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                            <a href="{% url 'library_search_books' %}" class="btn btn-secondary">
-                                <i class="ri-close-line"></i> Cancel
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="ri-bookmark-line"></i> Confirm Reservation
-                            </button>
+                        {% if book.description %}
+                        <div class="description-box">
+                            <h6 class="mb-3">Description</h6>
+                            <p class="text-muted">{{ book.description }}</p>
                         </div>
-                    </form>
+                        {% endif %}
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Reservation Terms Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-file-list-line"></i> Reservation Terms
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="ri-information-line"></i>
+                    <strong>Important Information:</strong> Please read and understand all terms before reserving.
+                </div>
+
+                <div class="terms-list">
+                    <div class="term-item">
+                        <i class="ri-time-line term-icon"></i>
+                        <div class="term-content">
+                            <h6>Pickup Time Limit</h6>
+                            <p>You must pick up the book within <strong>30 minutes</strong> from reservation time.</p>
+                        </div>
+                    </div>
+                    <div class="term-item">
+                        <i class="ri-calendar-line term-icon"></i>
+                        <div class="term-content">
+                            <h6>Loan Period</h6>
+                            <p>Books must be returned within <strong>14 days</strong> from the pickup date.</p>
+                        </div>
+                    </div>
+                    <div class="term-item">
+                        <i class="ri-money-dollar-circle-line term-icon"></i>
+                        <div class="term-content">
+                            <h6>Late Return Fines</h6>
+                            <p>Late returns incur a fine of <strong>KES 5 per day</strong>.</p>
+                        </div>
+                    </div>
+                    <div class="term-item">
+                        <i class="ri-close-circle-line term-icon"></i>
+                        <div class="term-content">
+                            <h6>Automatic Cancellation</h6>
+                            <p>Reservations are automatically cancelled if not picked up within 30 minutes.</p>
+                        </div>
+                    </div>
+                    <div class="term-item">
+                        <i class="ri-map-pin-line term-icon"></i>
+                        <div class="term-content">
+                            <h6>Pickup Location</h6>
+                            <p>Collect your book from the <strong>Main Library Counter</strong>.</p>
+                        </div>
+                    </div>
+                    <div class="term-item">
+                        <i class="ri-id-card-line term-icon"></i>
+                        <div class="term-content">
+                            <h6>Verification Required</h6>
+                            <p>Bring your <strong>Student ID</strong> for verification during pickup.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Status Card -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-bar-chart-line"></i> Your Borrowing Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="balance-item">
+                            <label>Currently Borrowed</label>
+                            <h3>{{ current_borrowings_count }}</h3>
+                            <small class="text-muted">Books</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="balance-item">
+                            <label>Available Slots</label>
+                            <h3>{{ max_books_allowed|add:"-"|add:current_borrowings_count }}</h3>
+                            <small class="text-muted">Books</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <div class="balance-item">
+                        <label>Unpaid Fines</label>
+                        <h3 class="{% if unpaid_fines > 0 %}text-danger{% endif %}">
+                            KES {{ unpaid_fines }}
+                        </h3>
+                    </div>
+                    
+                    {% if unpaid_fines > 0 %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="ri-alert-line"></i>
+                        <strong>Attention:</strong> You have unpaid fines. Please clear them before borrowing new books.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Form -->
+        <div class="management-card">
+            <div class="card-body">
+                <form method="post" action="{% url 'reserve_book' book.id %}">
+                    {% csrf_token %}
+                    
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                        <label class="form-check-label" for="agreeTerms">
+                            I agree to all reservation terms and conditions. I understand that I must:
+                        </label>
+                        <ul class="text-muted mt-2 mb-0 ps-3">
+                            <li>Pick up the book within 30 minutes of reservation</li>
+                            <li>Return the book within 14 days of pickup</li>
+                            <li>Pay applicable fines for late returns</li>
+                            <li>Bring my Student ID for verification</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{% url 'library_search_books' %}" class="btn btn-outline btn-lg">
+                            <i class="ri-close-line"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="ri-bookmark-line"></i> Confirm Reservation
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.2s ease;
+    }
+
+    .management-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Book Details Cover */
+    .book-detail-cover {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-lg);
+        padding: 1rem;
+        text-align: center;
+    }
+
+    .book-detail-cover img {
+        max-height: 300px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    .book-placeholder-large {
+        padding: 3rem 1rem;
+        background: linear-gradient(135deg, var(--color-gray-100), var(--color-gray-200));
+        border-radius: var(--radius-lg);
+        color: var(--color-gray-600);
+    }
+
+    /* Details Box */
+    .details-box {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        font-weight: 500;
+        color: var(--color-gray-600);
+    }
+
+    .detail-value {
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+
+    /* Description Box */
+    .description-box {
+        background: white;
+        border-left: 3px solid var(--color-primary);
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-sm);
+    }
+
+    .description-box h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.75rem;
+    }
+
+    /* Alerts */
+    .alert {
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid transparent;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .alert-warning {
+        background-color: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .alert i {
+        margin-right: 0.5rem;
+    }
+
+    /* Terms List */
+    .terms-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .term-item {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .term-icon {
+        font-size: 1.5rem;
+        color: var(--color-primary);
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+    }
+
+    .term-content h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .term-content p {
+        margin: 0;
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    /* Balance Items */
+    .balance-item {
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-lg);
+        text-align: center;
+        height: 100%;
+    }
+
+    .balance-item label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+        display: block;
+        font-weight: 500;
+    }
+
+    .balance-item h3 {
+        margin: 0;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        font-size: 1.75rem;
+    }
+
+    .balance-item small {
+        font-size: 0.75rem;
+    }
+
+    /* Form Styles */
+    .form-check {
+        padding-left: 2.5rem;
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-left: -2.5rem;
+        border: 2px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+    }
+
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+        border-color: var(--color-primary);
+    }
+
+    .form-check-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        line-height: 1.6;
+    }
+
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    .text-muted {
+        font-size: 0.875rem;
+        color: var(--color-gray-600) !important;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1.5rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1.75rem;
+        font-size: 0.9375rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .book-detail-cover {
+            max-width: 250px;
+            margin: 0 auto;
+        }
+
+        .book-detail-cover img {
+            max-height: 200px;
+        }
+
+        .terms-list {
+            gap: 1rem;
+        }
+
+        .term-item {
+            gap: 0.75rem;
+        }
+
+        .term-icon {
+            font-size: 1.25rem;
+        }
+
+        .balance-item h3 {
+            font-size: 1.5rem;
+        }
+
+        .btn {
+            padding: 0.375rem 1rem;
+            font-size: 0.8125rem;
+        }
+
+        .btn-lg {
+            padding: 0.5rem 1.25rem;
+            font-size: 0.875rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .detail-row {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .term-content h6 {
+            font-size: 0.8125rem;
+        }
+
+        .term-content p {
+            font-size: 0.8125rem;
+        }
+
+        .form-check {
+            padding-left: 2rem;
+        }
+
+        .form-check-input {
+            width: 1rem;
+            height: 1rem;
+            margin-left: -2rem;
+        }
+
+        .balance-item {
+            padding: 0.75rem;
+        }
+
+        .balance-item h3 {
+            font-size: 1.25rem;
+        }
+    }
+</style>
 {% endblock %}

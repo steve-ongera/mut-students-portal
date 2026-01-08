@@ -2,9 +2,12 @@
 {% load static %}
 
 {% block title %}Digital Resources{% endblock %}
-
 {% block page_title %}Digital Resources{% endblock %}
-{% block page_subtitle %}Access online library resources{% endblock %}
+{% block page_subtitle %}Access online library resources and e-learning materials{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -15,117 +18,1129 @@
     </ol>
 </nav>
 
-<div class="content-container">
-    <div class="management-card mb-4">
-        <div class="card-body">
-            <div class="alert alert-info">
-                <i class="ri-information-line"></i>
-                <strong>Access Information:</strong> Use your student credentials to access these resources. 
-                Some platforms may require VPN access when off-campus.
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Access Information -->
+        <div class="management-card mb-4">
+            <div class="card-header bg-info">
+                <h5 class="card-title mb-0 text-white">
+                    <i class="ri-information-line"></i> Access Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-0">
+                    <div class="d-flex align-items-start">
+                        <div class="flex-shrink-0">
+                            <i class="ri-key-line fs-2"></i>
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h6 class="alert-heading">Login Credentials</h6>
+                            <p class="mb-2">Use your student credentials (student ID and password) to access these resources. Some platforms may require additional verification.</p>
+                            <hr>
+                            <p class="mb-0">
+                                <strong>VPN Access:</strong> When accessing from off-campus, you may need to connect to the university VPN.
+                                <a href="#" class="text-decoration-underline" data-bs-toggle="modal" data-bs-target="#vpnModal">View VPN Setup Guide</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="management-card">
-        <div class="card-header">
-            <h5 class="card-title">Available Digital Platforms</h5>
+        <!-- Digital Platforms Grid -->
+        <div class="management-card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-grid-line"></i> Digital Platforms
+                </h5>
+                <span class="text-muted">{{ digital_platforms|length }} platforms available</span>
+            </div>
+            <div class="card-body">
+                {% if digital_platforms %}
+                <div class="platforms-grid">
+                    {% for platform in digital_platforms %}
+                    <div class="platform-card">
+                        <div class="platform-header">
+                            <div class="platform-icon {{ platform.category|lower }}">
+                                <i class="{{ platform.icon }}"></i>
+                            </div>
+                            <div class="platform-info">
+                                <h6>{{ platform.name }}</h6>
+                                <span class="platform-category">{{ platform.category }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="platform-description">
+                            <p>{{ platform.description }}</p>
+                        </div>
+                        
+                        <div class="platform-details">
+                            <div class="detail-row">
+                                <span class="detail-label">Access Type:</span>
+                                <span class="detail-value">{{ platform.access_type|default:"Full Access" }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Content Type:</span>
+                                <span class="detail-value">{{ platform.content_type|default:"Mixed" }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="platform-actions">
+                            <a href="{{ platform.url }}" target="_blank" class="btn btn-primary btn-sm w-100">
+                                <i class="ri-external-link-line"></i> Access Platform
+                            </a>
+                            {% if platform.tutorial_url %}
+                            <a href="{{ platform.tutorial_url }}" target="_blank" class="btn btn-outline btn-sm w-100 mt-2">
+                                <i class="ri-play-circle-line"></i> View Tutorial
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="ri-database-line fs-2 text-muted mb-3"></i>
+                    <h5 class="text-muted">No Digital Platforms Available</h5>
+                    <p class="text-muted">Digital resources are currently being updated. Please check back later.</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
-        <div class="card-body">
-            <div class="row g-4">
-                {% for platform in digital_platforms %}
-                <div class="col-md-6">
-                    <div class="card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-start mb-3">
-                                <div class="flex-shrink-0">
-                                    <div class="bg-primary text-white p-3 rounded">
-                                        <i class="{{ platform.icon }} fs-3"></i>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <h5 class="card-title mb-1">{{ platform.name }}</h5>
-                                    <span class="badge bg-secondary">{{ platform.category }}</span>
+
+        <!-- E-Book Collections -->
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-book-2-line"></i> E-Book Collections
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="ebooks-list">
+                    <div class="ebook-item">
+                        <div class="ebook-header">
+                            <div class="ebook-icon bg-primary">
+                                <i class="ri-book-open-line"></i>
+                            </div>
+                            <div class="ebook-info">
+                                <h6 class="ebook-title">Project Gutenberg</h6>
+                                <p class="ebook-description text-muted">
+                                    Over 60,000 free eBooks including classics and academic texts
+                                </p>
+                                <div class="ebook-stats">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="ri-book-line"></i> 60,000+ Books
+                                    </span>
+                                    <span class="badge bg-light text-dark ms-2">
+                                        <i class="ri-global-line"></i> Worldwide
+                                    </span>
                                 </div>
                             </div>
-                            
-                            <p class="card-text">{{ platform.description }}</p>
-                            
-                            <div class="d-grid">
-                                <a href="{{ platform.url }}" target="_blank" class="btn btn-primary">
-                                    <i class="ri-external-link-line"></i> Access Resource
-                                </a>
+                        </div>
+                        <div class="ebook-actions">
+                            <a href="https://www.gutenberg.org/" target="_blank" class="btn btn-primary btn-sm">
+                                <i class="ri-external-link-line"></i> Access Collection
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="ebook-item">
+                        <div class="ebook-header">
+                            <div class="ebook-icon bg-success">
+                                <i class="ri-book-line"></i>
+                            </div>
+                            <div class="ebook-info">
+                                <h6 class="ebook-title">Open Library</h6>
+                                <p class="ebook-description text-muted">
+                                    Millions of free books, modern works, and academic publications
+                                </p>
+                                <div class="ebook-stats">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="ri-book-line"></i> Millions
+                                    </span>
+                                    <span class="badge bg-light text-dark ms-2">
+                                        <i class="ri-community-line"></i> Community
+                                    </span>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <!-- E-Books Section -->
-    <div class="management-card mt-4">
-        <div class="card-header">
-            <h5 class="card-title">E-Book Collections</h5>
-        </div>
-        <div class="card-body">
-            <div class="list-group">
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">
-                                <i class="ri-book-open-line text-primary"></i> Project Gutenberg
-                            </h6>
-                            <p class="mb-1">Over 60,000 free eBooks</p>
+                        <div class="ebook-actions">
+                            <a href="https://openlibrary.org/" target="_blank" class="btn btn-primary btn-sm">
+                                <i class="ri-external-link-line"></i> Access Collection
+                            </a>
                         </div>
-                        <a href="https://www.gutenberg.org/" target="_blank" class="btn btn-sm btn-outline-primary">
-                            Access
-                        </a>
                     </div>
-                </div>
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">
-                                <i class="ri-book-line text-success"></i> Open Library
-                            </h6>
-                            <p class="mb-1">Millions of free books available</p>
+                    
+                    <div class="ebook-item">
+                        <div class="ebook-header">
+                            <div class="ebook-icon bg-info">
+                                <i class="ri-graduation-cap-line"></i>
+                            </div>
+                            <div class="ebook-info">
+                                <h6 class="ebook-title">Google Scholar</h6>
+                                <p class="ebook-description text-muted">
+                                    Scholarly articles, research papers, theses, and academic journals
+                                </p>
+                                <div class="ebook-stats">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="ri-file-text-line"></i> Academic
+                                    </span>
+                                    <span class="badge bg-light text-dark ms-2">
+                                        <i class="ri-search-line"></i> Advanced Search
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <a href="https://openlibrary.org/" target="_blank" class="btn btn-sm btn-outline-primary">
-                            Access
-                        </a>
-                    </div>
-                </div>
-                <div class="list-group-item">
-                    <div class="d-flex w-100 justify-content-between align-items-center">
-                        <div>
-                            <h6 class="mb-1">
-                                <i class="ri-graduation-cap-line text-info"></i> Google Scholar
-                            </h6>
-                            <p class="mb-1">Scholarly articles and research papers</p>
+                        <div class="ebook-actions">
+                            <a href="https://scholar.google.com/" target="_blank" class="btn btn-primary btn-sm">
+                                <i class="ri-external-link-line"></i> Access Collection
+                            </a>
                         </div>
-                        <a href="https://scholar.google.com/" target="_blank" class="btn btn-sm btn-outline-primary">
-                            Access
-                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Help Section -->
-    <div class="management-card mt-4">
-        <div class="card-header">
-            <h5 class="card-title">Need Help?</h5>
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Quick Access -->
+        <div class="management-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-rocket-line"></i> Quick Access
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="quick-links">
+                    <a href="#" class="quick-link-item" data-bs-toggle="modal" data-bs-target="#vpnModal">
+                        <i class="ri-shield-line"></i>
+                        <span>VPN Setup Guide</span>
+                        <i class="ri-arrow-right-s-line"></i>
+                    </a>
+                    <a href="#" class="quick-link-item" data-bs-toggle="modal" data-bs-target="#loginGuideModal">
+                        <i class="ri-key-2-line"></i>
+                        <span>Login Help</span>
+                        <i class="ri-arrow-right-s-line"></i>
+                    </a>
+                    <a href="#" class="quick-link-item" onclick="downloadResearchGuide()">
+                        <i class="ri-download-line"></i>
+                        <span>Research Guide (PDF)</span>
+                        <i class="ri-arrow-right-s-line"></i>
+                    </a>
+                    <a href="#" class="quick-link-item" data-bs-toggle="modal" data-bs-target="#citationModal">
+                        <i class="ri-quote-text"></i>
+                        <span>Citation Tools</span>
+                        <i class="ri-arrow-right-s-line"></i>
+                    </a>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <p>If you're having trouble accessing any digital resource, please contact:</p>
-            <ul>
-                <li>Library Help Desk: library@university.edu</li>
-                <li>Phone: +254 XXX XXX XXX</li>
-                <li>Office Hours: Monday - Friday, 8:00 AM - 5:00 PM</li>
-            </ul>
+
+        <!-- Recently Added -->
+        <div class="management-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-time-line"></i> Recently Added
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="recent-items">
+                    <div class="recent-item">
+                        <div class="recent-icon bg-warning">
+                            <i class="ri-video-line"></i>
+                        </div>
+                        <div class="recent-info">
+                            <h6>Academic Video Online</h6>
+                            <small class="text-muted">Added 2 days ago</small>
+                        </div>
+                    </div>
+                    <div class="recent-item">
+                        <div class="recent-icon bg-success">
+                            <i class="ri-article-line"></i>
+                        </div>
+                        <div class="recent-info">
+                            <h6>JSTOR Journal Access</h6>
+                            <small class="text-muted">Added 1 week ago</small>
+                        </div>
+                    </div>
+                    <div class="recent-item">
+                        <div class="recent-icon bg-info">
+                            <i class="ri-database-line"></i>
+                        </div>
+                        <div class="recent-info">
+                            <h6>ScienceDirect</h6>
+                            <small class="text-muted">Added 2 weeks ago</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Section -->
+        <div class="management-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-question-line"></i> Need Help?
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="help-content">
+                    <div class="help-item">
+                        <i class="ri-mail-line"></i>
+                        <div class="help-details">
+                            <h6>Email Support</h6>
+                            <p class="text-muted mb-0">library@mut.ac.ke</p>
+                        </div>
+                    </div>
+                    <div class="help-item">
+                        <i class="ri-phone-line"></i>
+                        <div class="help-details">
+                            <h6>Phone Support</h6>
+                            <p class="text-muted mb-0">+254 712 000 001</p>
+                        </div>
+                    </div>
+                    <div class="help-item">
+                        <i class="ri-time-line"></i>
+                        <div class="help-details">
+                            <h6>Office Hours</h6>
+                            <p class="text-muted mb-0">Mon - Fri, 8:00 AM - 5:00 PM</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <i class="ri-lightbulb-line"></i>
+                    <small>For immediate assistance, visit the Library Help Desk on the ground floor.</small>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- VPN Setup Modal -->
+<div class="modal fade" id="vpnModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">VPN Setup Guide</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="vpn-steps">
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h6>Download VPN Client</h6>
+                            <p>Download the university VPN client from the IT Department website.</p>
+                            <a href="#" class="btn btn-outline btn-sm">
+                                <i class="ri-download-line"></i> Download VPN Client
+                            </a>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h6>Install and Configure</h6>
+                            <p>Install the VPN client and configure with these settings:</p>
+                            <ul class="settings-list">
+                                <li><strong>Server:</strong> vpn.mut.ac.ke</li>
+                                <li><strong>Username:</strong> Your student ID</li>
+                                <li><strong>Password:</strong> Your student portal password</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h6>Connect and Access</h6>
+                            <p>Connect to the VPN before accessing restricted digital resources.</p>
+                            <div class="alert alert-success">
+                                <i class="ri-check-line"></i>
+                                You'll see a green connection icon when successfully connected.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary">Download Guide (PDF)</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Login Guide Modal -->
+<div class="modal fade" id="loginGuideModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Login Help</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="login-tips">
+                    <div class="tip-item">
+                        <i class="ri-user-line text-primary"></i>
+                        <div>
+                            <h6>Username/ID</h6>
+                            <p class="text-muted">Use your full student ID (e.g., SCT212-0000/2020)</p>
+                        </div>
+                    </div>
+                    <div class="tip-item">
+                        <i class="ri-lock-line text-primary"></i>
+                        <div>
+                            <h6>Password</h6>
+                            <p class="text-muted">Use your student portal password (case-sensitive)</p>
+                        </div>
+                    </div>
+                    <div class="tip-item">
+                        <i class="ri-refresh-line text-primary"></i>
+                        <div>
+                            <h6>Reset Password</h6>
+                            <p class="text-muted">Reset via student portal or visit IT Department</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-warning mt-3">
+                    <i class="ri-alert-line"></i>
+                    <small>If login issues persist, clear browser cache or try incognito mode.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Download research guide
+function downloadResearchGuide() {
+    // Simulate download
+    const link = document.createElement('a');
+    link.href = '#'; // Replace with actual PDF URL
+    link.download = 'Library_Research_Guide.pdf';
+    link.click();
+    
+    // Show download notification
+    showNotification('Download started: Library Research Guide.pdf', 'success');
+}
+
+// Show notification
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+        <i class="ri-check-line"></i> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Platform card hover effect
+document.addEventListener('DOMContentLoaded', function() {
+    const platformCards = document.querySelectorAll('.platform-card');
+    
+    platformCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.boxShadow = 'var(--shadow-md)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+            this.style.boxShadow = 'var(--shadow-sm)';
+        });
+    });
+});
+</script>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.2s ease;
+    }
+
+    .management-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .management-card .card-header.bg-info {
+        background: var(--color-info) !important;
+        border-color: var(--color-info);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .management-card .card-header.bg-info .card-title {
+        color: white;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Alert Styles */
+    .alert {
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        border: 1px solid transparent;
+        margin-bottom: 0;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .alert-warning {
+        background-color: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.2);
+    }
+
+    .alert-success {
+        background-color: rgba(76, 175, 80, 0.1);
+        border-color: rgba(76, 175, 80, 0.2);
+    }
+
+    .alert-heading {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Platforms Grid */
+    .platforms-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.25rem;
+    }
+
+    .platform-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .platform-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .platform-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: 1.5rem;
+        color: white;
+    }
+
+    .platform-icon.journals { background-color: var(--color-info); }
+    .platform-icon.ebooks { background-color: var(--color-primary); }
+    .platform-icon.databases { background-color: var(--color-success); }
+    .platform-icon.videos { background-color: var(--color-danger); }
+    .platform-icon.tools { background-color: var(--color-warning); }
+
+    .platform-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .platform-info h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .platform-category {
+        display: inline-block;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+    }
+
+    .platform-description {
+        margin-bottom: 1rem;
+        flex: 1;
+    }
+
+    .platform-description p {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .platform-details {
+        margin-bottom: 1.25rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8125rem;
+        padding: 0.25rem 0;
+    }
+
+    .detail-label {
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    .detail-value {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    .platform-actions {
+        margin-top: auto;
+    }
+
+    /* E-Books List */
+    .ebooks-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .ebook-item {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.2s ease;
+    }
+
+    .ebook-item:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .ebook-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+        flex: 1;
+    }
+
+    .ebook-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: white;
+        font-size: 1.5rem;
+    }
+
+    .ebook-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .ebook-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .ebook-description {
+        font-size: 0.875rem;
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
+    }
+
+    .ebook-stats {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .ebook-stats .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+
+    .ebook-actions {
+        margin-left: 1rem;
+    }
+
+    /* Quick Links */
+    .quick-links {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .quick-link-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+    }
+
+    .quick-link-item:hover {
+        background: var(--color-gray-200);
+        transform: translateX(5px);
+        color: var(--color-primary);
+    }
+
+    .quick-link-item i:first-child {
+        font-size: 1.25rem;
+        margin-right: 0.75rem;
+        color: var(--color-primary);
+    }
+
+    .quick-link-item span {
+        flex: 1;
+        font-weight: 500;
+        font-size: 0.875rem;
+    }
+
+    .quick-link-item i:last-child {
+        color: var(--color-gray-400);
+        transition: transform 0.2s ease;
+    }
+
+    .quick-link-item:hover i:last-child {
+        transform: translateX(3px);
+        color: var(--color-primary);
+    }
+
+    /* Recent Items */
+    .recent-items {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .recent-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+
+    .recent-item:hover {
+        background: var(--color-gray-200);
+    }
+
+    .recent-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: white;
+        font-size: 1.25rem;
+    }
+
+    .recent-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .recent-info h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.125rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .recent-info small {
+        font-size: 0.75rem;
+    }
+
+    /* Help Section */
+    .help-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .help-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .help-item i {
+        font-size: 1.25rem;
+        color: var(--color-primary);
+        margin-top: 0.25rem;
+        flex-shrink: 0;
+    }
+
+    .help-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .help-details h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .help-details p {
+        font-size: 0.8125rem;
+        margin: 0;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border-radius: var(--radius-lg);
+        border: none;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1rem 1.5rem;
+    }
+
+    .vpn-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .step-item {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .step-number {
+        width: 32px;
+        height: 32px;
+        background: var(--color-primary);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        flex-shrink: 0;
+        font-size: 0.875rem;
+    }
+
+    .step-content h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .step-content p {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.75rem;
+    }
+
+    .settings-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .settings-list li {
+        padding: 0.25rem 0;
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+    }
+
+    .login-tips {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .tip-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .tip-item i {
+        font-size: 1.5rem;
+        margin-top: 0.125rem;
+        flex-shrink: 0;
+    }
+
+    .tip-item h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .tip-item p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+
+    /* Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+    }
+
+    .bg-light {
+        background-color: var(--color-gray-100) !important;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .platforms-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .platform-card {
+            padding: 1rem;
+        }
+
+        .ebook-item {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 1rem;
+        }
+
+        .ebook-header {
+            margin-bottom: 1rem;
+        }
+
+        .ebook-actions {
+            margin-left: 0;
+            margin-top: 1rem;
+        }
+
+        .quick-link-item {
+            padding: 0.5rem;
+        }
+
+        .recent-item {
+            padding: 0.5rem;
+        }
+
+        .help-item {
+            gap: 0.75rem;
+        }
+
+        .modal-body {
+            padding: 1rem;
+        }
+
+        .modal-footer {
+            padding: 0.75rem 1rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .platform-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.75rem;
+        }
+
+        .platform-icon {
+            margin: 0 auto;
+        }
+
+        .ebook-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.75rem;
+        }
+
+        .ebook-icon {
+            margin: 0 auto;
+        }
+
+        .ebook-stats {
+            justify-content: center;
+        }
+
+        .step-item {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .step-number {
+            margin: 0 auto;
+        }
+    }
+</style>
 {% endblock %}

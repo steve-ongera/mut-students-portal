@@ -2,9 +2,12 @@
 {% load static %}
 
 {% block title %}Book Reservations{% endblock %}
-
 {% block page_title %}Book Reservations{% endblock %}
 {% block page_subtitle %}Books waiting for pickup{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -15,88 +18,980 @@
     </ol>
 </nav>
 
-<div class="content-container">
-    {% if expired_count > 0 %}
-    <div class="alert alert-warning alert-dismissible fade show" role="alert">
-        <i class="ri-time-line"></i>
-        <strong>Notice:</strong> {{ expired_count }} reservation(s) were automatically cancelled due to timeout.
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    {% endif %}
-
-    <div class="management-card">
-        <div class="card-header">
-            <h5 class="card-title">Active Reservations</h5>
-            <small class="text-muted">Pick up within 30 minutes to avoid cancellation</small>
+<div class="row">
+    <div class="col-lg-8">
+        {% if expired_count > 0 %}
+        <div class="management-card mb-4">
+            <div class="card-header bg-warning">
+                <h5 class="card-title mb-0 text-white">
+                    <i class="ri-time-line"></i> Reservation Alert
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="alert-icon me-3">
+                        <i class="ri-alert-line fs-2 text-warning"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">Reservations Expired</h6>
+                        <p class="mb-0 text-muted">
+                            {{ expired_count }} reservation(s) were automatically cancelled due to timeout.
+                            You can reserve these books again from the library.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            {% if reservations %}
-            <div class="row g-4">
-                {% for reservation in reservations %}
-                <div class="col-md-6">
-                    <div class="card border-{% if reservation.minutes_remaining <= 10 %}danger{% elif reservation.minutes_remaining <= 20 %}warning{% else %}success{% endif %}">
-                        <div class="card-body">
-                            <div class="d-flex">
-                                <div class="flex-shrink-0">
-                                    {% if reservation.book.cover_image %}
-                                    <img src="{{ reservation.book.cover_image.url }}" 
-                                         alt="{{ reservation.book.title }}"
-                                         style="width: 80px; height: 120px; object-fit: cover;">
-                                    {% else %}
-                                    <div class="bg-light d-flex align-items-center justify-content-center" 
-                                         style="width: 80px; height: 120px;">
-                                        <i class="ri-book-2-line fs-2"></i>
-                                    </div>
-                                    {% endif %}
+        {% endif %}
+
+        <div class="management-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-bookmark-line"></i> Active Reservations
+                </h5>
+                <span class="text-muted">Pick up within 30 minutes to avoid cancellation</span>
+            </div>
+            <div class="card-body">
+                {% if reservations %}
+                <div class="reservations-grid">
+                    {% for reservation in reservations %}
+                    <div class="reservation-card" data-reservation-id="{{ reservation.id }}">
+                        <div class="reservation-header">
+                            <div class="book-cover-medium">
+                                {% if reservation.book.cover_image %}
+                                <img src="{{ reservation.book.cover_image.url }}" 
+                                     alt="{{ reservation.book.title }}"
+                                     class="book-cover-img">
+                                {% else %}
+                                <div class="book-placeholder-medium">
+                                    <i class="ri-book-2-line"></i>
                                 </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <h6>{{ reservation.book.title }}</h6>
-                                    <p class="text-muted mb-2">{{ reservation.book.author }}</p>
-                                    
-                                    <div class="mb-2">
-                                        <small><strong>ISBN:</strong> {{ reservation.book.isbn }}</small><br>
-                                        <small><strong>Location:</strong> {{ reservation.book.shelf_location|default:"Main Library" }}</small>
-                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="reservation-book-info">
+                                <h6 class="book-title">{{ reservation.book.title }}</h6>
+                                <p class="book-author text-muted">
+                                    <i class="ri-user-line"></i> {{ reservation.book.author }}
+                                </p>
+                                <div class="book-details">
+                                    <span class="badge bg-light text-dark">
+                                        <i class="ri-book-line"></i> {{ reservation.book.isbn }}
+                                    </span>
+                                    <span class="badge bg-light text-dark ms-1">
+                                        <i class="ri-map-pin-line"></i> {{ reservation.book.shelf_location|default:"Main Library" }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
 
-                                    <div class="alert alert-{% if reservation.minutes_remaining <= 10 %}danger{% elif reservation.minutes_remaining <= 20 %}warning{% else %}info{% endif %} mb-2">
-                                        <i class="ri-timer-line"></i>
-                                        <strong>{{ reservation.minutes_remaining }} minutes remaining</strong><br>
-                                        <small>Pickup by: {{ reservation.pickup_deadline|date:"h:i A" }}</small>
+                        <div class="reservation-timer">
+                            <div class="timer-header">
+                                <i class="ri-timer-line"></i>
+                                <span class="timer-label">Time Remaining</span>
+                            </div>
+                            <div class="timer-display">
+                                <div class="time-container">
+                                    <div class="time-unit">
+                                        <div class="time-value" id="hours-{{ reservation.id }}">00</div>
+                                        <div class="time-label">Hours</div>
                                     </div>
-
-                                    <div class="mb-2">
-                                        <small class="text-muted">
-                                            <i class="ri-calendar-line"></i> Reserved: {{ reservation.borrow_date|date:"h:i A" }}
-                                        </small><br>
-                                        <small class="text-muted">
-                                            <i class="ri-calendar-check-line"></i> Due Date: {{ reservation.due_date|date:"M d, Y" }}
-                                        </small>
+                                    <div class="time-separator">:</div>
+                                    <div class="time-unit">
+                                        <div class="time-value" id="minutes-{{ reservation.id }}">00</div>
+                                        <div class="time-label">Minutes</div>
                                     </div>
+                                    <div class="time-separator">:</div>
+                                    <div class="time-unit">
+                                        <div class="time-value" id="seconds-{{ reservation.id }}">00</div>
+                                        <div class="time-label">Seconds</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="timer-progress">
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar" 
+                                         id="progress-{{ reservation.id }}"
+                                         role="progressbar" 
+                                         style="width: 100%"></div>
+                                </div>
+                            </div>
+                            <div class="timer-deadline">
+                                <small class="text-muted">
+                                    <i class="ri-calendar-line"></i> Pickup deadline: 
+                                    <span id="deadline-{{ reservation.id }}">
+                                        {{ reservation.pickup_deadline|date:"h:i A" }}
+                                    </span>
+                                </small>
+                            </div>
+                        </div>
 
-                                    <div class="d-grid gap-2">
-                                        <a href="{% url 'cancel_reservation' reservation.id %}" 
-                                           class="btn btn-sm btn-outline-danger">
-                                            <i class="ri-close-line"></i> Cancel Reservation
-                                        </a>
+                        <div class="reservation-details">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="detail-item">
+                                        <label>Reserved At</label>
+                                        <div class="value">{{ reservation.borrow_date|date:"h:i A" }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="detail-item">
+                                        <label>Due Date</label>
+                                        <div class="value">{{ reservation.due_date|date:"M d, Y" }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="detail-item">
+                                        <label>Loan Period</label>
+                                        <div class="value">14 Days</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="detail-item">
+                                        <label>Pickup Location</label>
+                                        <div class="value">Main Library Counter</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <div class="reservation-actions">
+                            <a href="{% url 'cancel_reservation' reservation.id %}" 
+                               class="btn btn-outline btn-sm"
+                               onclick="return confirm('Are you sure you want to cancel this reservation?')">
+                                <i class="ri-close-line"></i> Cancel Reservation
+                            </a>
+                            <button class="btn btn-outline btn-sm" 
+                                    onclick="showPickupInstructions('{{ reservation.book.title }}')">
+                                <i class="ri-information-line"></i> Pickup Info
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="ri-bookmark-line fs-2 text-muted mb-3"></i>
+                    <h5 class="text-muted">No Active Reservations</h5>
+                    <p class="text-muted">You don't have any books waiting for pickup</p>
+                    <a href="{% url 'library_search_books' %}" class="btn btn-primary mt-2">
+                        <i class="ri-search-line"></i> Browse Books
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Pickup Instructions -->
+        <div class="management-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-information-line"></i> Pickup Instructions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="instructions-list">
+                    <div class="instruction-item">
+                        <i class="ri-time-line text-danger"></i>
+                        <div class="instruction-content">
+                            <h6>30-Minute Rule</h6>
+                            <p>You must collect the book within 30 minutes of reservation.</p>
+                        </div>
+                    </div>
+                    <div class="instruction-item">
+                        <i class="ri-map-pin-line text-primary"></i>
+                        <div class="instruction-content">
+                            <h6>Location</h6>
+                            <p>Collect from Main Library Counter during working hours.</p>
+                        </div>
+                    </div>
+                    <div class="instruction-item">
+                        <i class="ri-id-card-line text-warning"></i>
+                        <div class="instruction-content">
+                            <h6>Requirements</h6>
+                            <p>Bring your valid Student ID for verification.</p>
+                        </div>
+                    </div>
+                    <div class="instruction-item">
+                        <i class="ri-book-2-line text-success"></i>
+                        <div class="instruction-content">
+                            <h6>Loan Period</h6>
+                            <p>Books are issued for 14 days from pickup date.</p>
+                        </div>
                     </div>
                 </div>
-                {% endfor %}
             </div>
-            {% else %}
-            <div class="text-center py-5">
-                <i class="ri-bookmark-line fs-2 text-muted"></i>
-                <h5 class="text-muted mt-3">No Active Reservations</h5>
-                <p class="text-muted">You don't have any books waiting for pickup</p>
-                <a href="{% url 'library_search_books' %}" class="btn btn-primary mt-2">
-                    <i class="ri-search-line"></i> Browse Books
-                </a>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="management-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-bar-chart-line"></i> Reservation Stats
+                </h6>
             </div>
-            {% endif %}
+            <div class="card-body">
+                <div class="stats-grid">
+                    <div class="stat-item-sm">
+                        <div class="stat-value-sm">{{ reservations|length }}</div>
+                        <div class="stat-label-sm">Active</div>
+                    </div>
+                    <div class="stat-item-sm">
+                        <div class="stat-value-sm">{{ expired_count }}</div>
+                        <div class="stat-label-sm">Expired</div>
+                    </div>
+                    <div class="stat-item-sm">
+                        <div class="stat-value-sm">30</div>
+                        <div class="stat-label-sm">Min. Pickup</div>
+                    </div>
+                    <div class="stat-item-sm">
+                        <div class="stat-value-sm">14</div>
+                        <div class="stat-label-sm">Days Loan</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="management-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-links-line"></i> Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'library_search_books' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-search-line"></i> Search Books
+                    </a>
+                    <a href="{% url 'my_borrowings' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-book-open-line"></i> My Borrowings
+                    </a>
+                    <a href="{% url 'library_fines' %}" class="btn btn-outline btn-sm">
+                        <i class="ri-money-dollar-circle-line"></i> Pay Fines
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Pickup Instructions Modal -->
+<div class="modal fade" id="pickupInstructionsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Pickup Instructions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="instructions-box">
+                    <h6 id="modalBookTitle"></h6>
+                    <ol class="instructions-list-modal">
+                        <li>Go to the <strong>Main Library Counter</strong></li>
+                        <li>Present your <strong>Student ID</strong> to the librarian</li>
+                        <li>Provide the <strong>Book Title</strong> or <strong>Reservation ID</strong></li>
+                        <li>Sign the borrowing register</li>
+                        <li>Collect your book and receipt</li>
+                    </ol>
+                    <div class="alert alert-info mt-3">
+                        <i class="ri-information-line"></i>
+                        <strong>Working Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-primary" id="cancelReservationBtn">
+                    <i class="ri-close-line"></i> Cancel Reservation
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Store reservation deadlines for countdown
+const reservations = [
+    {% for reservation in reservations %}
+    {
+        id: '{{ reservation.id }}',
+        deadline: '{{ reservation.pickup_deadline|date:"Y-m-d H:i:s" }}',
+        initialMinutes: {{ reservation.minutes_remaining }}
+    },
+    {% endfor %}
+];
+
+// Initialize countdown timers
+function initializeCountdowns() {
+    reservations.forEach(reservation => {
+        const deadline = new Date(reservation.deadline).getTime();
+        
+        // Update timer immediately
+        updateTimer(reservation.id, deadline);
+        
+        // Update every second
+        setInterval(() => {
+            updateTimer(reservation.id, deadline);
+        }, 1000);
+    });
+}
+
+// Update individual timer
+function updateTimer(reservationId, deadline) {
+    const now = new Date().getTime();
+    const timeLeft = deadline - now;
+    
+    if (timeLeft <= 0) {
+        // Time's up - refresh page to update status
+        document.getElementById(`hours-${reservationId}`).textContent = '00';
+        document.getElementById(`minutes-${reservationId}`).textContent = '00';
+        document.getElementById(`seconds-${reservationId}`).textContent = '00';
+        
+        // Change progress bar to red
+        const progressBar = document.getElementById(`progress-${reservationId}`);
+        if (progressBar) {
+            progressBar.style.width = '0%';
+            progressBar.className = 'progress-bar bg-danger';
+        }
+        
+        // Show expired message
+        const deadlineElement = document.getElementById(`deadline-${reservationId}`);
+        if (deadlineElement) {
+            deadlineElement.innerHTML = '<span class="text-danger">Expired</span>';
+        }
+        
+        return;
+    }
+    
+    // Calculate time units
+    const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+    
+    // Update display
+    document.getElementById(`hours-${reservationId}`).textContent = hours.toString().padStart(2, '0');
+    document.getElementById(`minutes-${reservationId}`).textContent = minutes.toString().padStart(2, '0');
+    document.getElementById(`seconds-${reservationId}`).textContent = seconds.toString().padStart(2, '0');
+    
+    // Update progress bar
+    const totalTime = 30 * 60 * 1000; // 30 minutes in milliseconds
+    const percentage = (timeLeft / totalTime) * 100;
+    const progressBar = document.getElementById(`progress-${reservationId}`);
+    
+    if (progressBar) {
+        progressBar.style.width = `${percentage}%`;
+        
+        // Change color based on time left
+        if (percentage <= 33) {
+            progressBar.className = 'progress-bar bg-danger';
+        } else if (percentage <= 66) {
+            progressBar.className = 'progress-bar bg-warning';
+        } else {
+            progressBar.className = 'progress-bar bg-success';
+        }
+    }
+}
+
+// Show pickup instructions modal
+function showPickupInstructions(bookTitle) {
+    const modalTitle = document.getElementById('modalBookTitle');
+    modalTitle.textContent = `Pickup instructions for: ${bookTitle}`;
+    
+    const modal = new bootstrap.Modal(document.getElementById('pickupInstructionsModal'));
+    modal.show();
+}
+
+// Update all timers every second
+document.addEventListener('DOMContentLoaded', function() {
+    if (reservations.length > 0) {
+        initializeCountdowns();
+    }
+    
+    // Auto-refresh page when any timer expires
+    const refreshInterval = setInterval(() => {
+        const now = new Date().getTime();
+        let shouldRefresh = false;
+        
+        reservations.forEach(reservation => {
+            const deadline = new Date(reservation.deadline).getTime();
+            if (deadline - now <= 0) {
+                shouldRefresh = true;
+            }
+        });
+        
+        if (shouldRefresh) {
+            clearInterval(refreshInterval);
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000); // Wait 2 seconds before refresh
+        }
+    }, 5000); // Check every 5 seconds
+});
+</script>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: box-shadow 0.2s ease;
+    }
+
+    .management-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .management-card .card-header.bg-warning {
+        background: var(--color-warning) !important;
+        border-color: var(--color-warning);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Reservation Cards */
+    .reservations-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    .reservation-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .reservation-card:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-md);
+    }
+
+    .reservation-header {
+        display: flex;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .book-cover-medium {
+        width: 80px;
+        height: 120px;
+        flex-shrink: 0;
+        margin-right: 1.25rem;
+    }
+
+    .book-cover-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .book-placeholder-medium {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, var(--color-gray-100), var(--color-gray-200));
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-gray-600);
+        font-size: 2rem;
+    }
+
+    .reservation-book-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .book-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.375rem;
+        line-height: 1.4;
+    }
+
+    .book-author {
+        font-size: 0.875rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .book-author i {
+        font-size: 0.875rem;
+        margin-right: 0.375rem;
+    }
+
+    .book-details {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .book-details .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+    }
+
+    .book-details .badge i {
+        font-size: 0.875rem;
+    }
+
+    /* Timer Section */
+    .reservation-timer {
+        padding: 1.25rem 1.5rem;
+        background: white;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .timer-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .timer-header i {
+        font-size: 1.25rem;
+        color: var(--color-primary);
+    }
+
+    .timer-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .timer-display {
+        margin-bottom: 1rem;
+    }
+
+    .time-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .time-unit {
+        text-align: center;
+        min-width: 60px;
+    }
+
+    .time-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    .time-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.25rem;
+    }
+
+    .time-separator {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-400);
+        margin-top: -0.5rem;
+    }
+
+    .timer-progress {
+        margin-bottom: 0.75rem;
+    }
+
+    .progress {
+        background-color: var(--color-gray-200);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        transition: width 1s linear, background-color 0.3s ease;
+    }
+
+    .timer-deadline {
+        text-align: center;
+    }
+
+    .timer-deadline small {
+        font-size: 0.8125rem;
+    }
+
+    /* Reservation Details */
+    .reservation-details {
+        padding: 1.25rem 1.5rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .detail-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .detail-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .detail-item label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .detail-item .value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Reservation Actions */
+    .reservation-actions {
+        padding: 1rem 1.5rem;
+        background: white;
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    /* Instructions List */
+    .instructions-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .instruction-item {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .instruction-item i {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+    }
+
+    .instruction-content h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .instruction-content p {
+        margin: 0;
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .stat-item-sm {
+        text-align: center;
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+    }
+
+    .stat-value-sm {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-label-sm {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.375rem;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border-radius: var(--radius-lg);
+        border: none;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1rem 1.5rem;
+    }
+
+    .instructions-box h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+    }
+
+    .instructions-list-modal {
+        padding-left: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .instructions-list-modal li {
+        margin-bottom: 0.75rem;
+        color: var(--color-gray-800);
+        line-height: 1.6;
+    }
+
+    /* Alert Styles */
+    .alert {
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        border: 1px solid transparent;
+        margin-bottom: 0;
+    }
+
+    .alert-icon i {
+        font-size: 2rem;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .reservation-header {
+            flex-direction: column;
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .book-cover-medium {
+            width: 70px;
+            height: 105px;
+            margin: 0 auto 1rem auto;
+        }
+
+        .book-details {
+            justify-content: center;
+        }
+
+        .reservation-timer {
+            padding: 1rem;
+        }
+
+        .time-container {
+            gap: 0.5rem;
+        }
+
+        .time-unit {
+            min-width: 50px;
+        }
+
+        .time-value {
+            font-size: 1.5rem;
+        }
+
+        .reservation-details {
+            padding: 1rem;
+        }
+
+        .reservation-actions {
+            padding: 1rem;
+            flex-direction: column;
+        }
+
+        .reservation-actions .btn {
+            width: 100%;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+        }
+
+        .stat-item-sm {
+            padding: 0.75rem;
+        }
+
+        .stat-value-sm {
+            font-size: 1.25rem;
+        }
+
+        .instruction-item {
+            gap: 0.75rem;
+        }
+
+        .instruction-item i {
+            font-size: 1.25rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .time-container {
+            gap: 0.25rem;
+        }
+
+        .time-unit {
+            min-width: 40px;
+        }
+
+        .time-value {
+            font-size: 1.25rem;
+        }
+
+        .time-separator {
+            font-size: 1rem;
+            margin-top: -0.25rem;
+        }
+
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .instructions-list-modal {
+            padding-left: 1rem;
+        }
+    }
+</style>
 {% endblock %}
