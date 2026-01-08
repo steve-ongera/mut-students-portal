@@ -3,9 +3,12 @@
 {% load static %}
 
 {% block title %}My Profile{% endblock %}
-
 {% block page_title %}My Profile{% endblock %}
 {% block page_subtitle %}View and manage your personal information{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -40,7 +43,7 @@
                             <i class="ri-book-line"></i>
                             {{ student.programme.name }}
                         </span>
-                        <span class="meta-item status-badge status-{{ student.student_status }}">
+                        <span class="status-badge status-{{ student.student_status }}">
                             <i class="ri-checkbox-circle-line"></i>
                             {{ student.get_student_status_display }}
                         </span>
@@ -48,11 +51,11 @@
                 </div>
                 <div class="profile-actions">
                     <a href="{% url 'student_profile_update' %}" class="btn btn-primary">
-                        <i class="ri-edit-line me-2"></i>
+                        <i class="ri-edit-line"></i>
                         Edit Profile
                     </a>
-                    <a href="{% url 'student_change_password' %}" class="btn btn-outline-secondary">
-                        <i class="ri-lock-password-line me-2"></i>
+                    <a href="{% url 'student_change_password' %}" class="btn btn-outline">
+                        <i class="ri-lock-password-line"></i>
                         Change Password
                     </a>
                 </div>
@@ -68,7 +71,7 @@
                 <div class="management-card mb-3">
                     <div class="card-header">
                         <h5 class="card-title">
-                            <i class="ri-user-line me-2"></i>
+                            <i class="ri-user-line"></i>
                             Personal Information
                         </h5>
                     </div>
@@ -105,8 +108,6 @@
                         </div>
                     </div>
                 </div>
-
-              
             </div>
         </div>
 
@@ -119,35 +120,35 @@
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="academic-tab" data-bs-toggle="tab" 
                                         data-bs-target="#academic" type="button" role="tab">
-                                    <i class="ri-graduation-cap-line me-2"></i>
+                                    <i class="ri-graduation-cap-line"></i>
                                     Academic
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="admission-tab" data-bs-toggle="tab" 
                                         data-bs-target="#admission" type="button" role="tab">
-                                    <i class="ri-calendar-line me-2"></i>
+                                    <i class="ri-calendar-line"></i>
                                     Admission
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="sponsor-tab" data-bs-toggle="tab" 
                                         data-bs-target="#sponsor" type="button" role="tab">
-                                    <i class="ri-parent-line me-2"></i>
+                                    <i class="ri-parent-line"></i>
                                     Sponsor
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="documents-tab" data-bs-toggle="tab" 
                                         data-bs-target="#documents" type="button" role="tab">
-                                    <i class="ri-file-text-line me-2"></i>
+                                    <i class="ri-file-text-line"></i>
                                     Documents
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="activities-tab" data-bs-toggle="tab" 
                                         data-bs-target="#activities" type="button" role="tab">
-                                    <i class="ri-history-line me-2"></i>
+                                    <i class="ri-history-line"></i>
                                     Activities
                                 </button>
                             </li>
@@ -191,13 +192,13 @@
                                             <div class="info-item">
                                                 <span class="info-label">Current Year</span>
                                                 <span class="info-value">
-                                                    <span class="badge bg-info-subtle text-info">Year {{ student.current_year }}</span>
+                                                    <span class="badge">Year {{ student.current_year }}</span>
                                                 </span>
                                             </div>
                                             <div class="info-item">
                                                 <span class="info-label">Current Semester</span>
                                                 <span class="info-value">
-                                                    <span class="badge bg-secondary-subtle text-secondary">Semester {{ student.current_semester }}</span>
+                                                    <span class="badge">Semester {{ student.current_semester }}</span>
                                                 </span>
                                             </div>
                                         </div>
@@ -214,7 +215,7 @@
                                                 <div class="metric-progress mt-2">
                                                     {% with gpa_percent=student.cumulative_gpa|floatformat:2|add:"0"|div:4|mul:100 %}
                                                     <div class="progress" style="height: 6px;">
-                                                        <div class="progress-bar {% if student.cumulative_gpa >= 3.0 %}bg-success{% elif student.cumulative_gpa >= 2.0 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                                        <div class="progress-bar" 
                                                              role="progressbar" 
                                                              style="width: {{ gpa_percent }}%">
                                                         </div>
@@ -225,22 +226,22 @@
                                         </div>
                                         <div class="col-md-4 text-center">
                                             <div class="metric-card">
-                                                <div class="metric-value text-primary">{{ student.total_credit_hours }}</div>
+                                                <div class="metric-value">{{ student.total_credit_hours }}</div>
                                                 <div class="metric-label">Total Credits</div>
                                                 <div class="metric-info mt-2">
-                                                    <small class="text-muted">Completed</small>
+                                                    <small>Completed</small>
                                                 </div>
                                             </div>
                                         </div>
                                         <div class="col-md-4 text-center">
                                             <div class="metric-card">
-                                                <div class="metric-value {% if student.student_status == 'active' %}text-success{% elif student.student_status == 'graduated' %}text-info{% else %}text-warning{% endif %}">
+                                                <div class="metric-value">
                                                     {{ student.get_student_status_display }}
                                                 </div>
                                                 <div class="metric-label">Academic Status</div>
                                                 <div class="metric-info mt-2">
                                                     <span class="status-badge status-{{ student.student_status }}">
-                                                        <i class="ri-checkbox-circle-line me-1"></i>
+                                                        <i class="ri-checkbox-circle-line"></i>
                                                         {{ student.get_student_status_display }}
                                                     </span>
                                                 </div>
@@ -269,7 +270,7 @@
                                                     {% if student.expected_graduation_date %}
                                                     {{ student.expected_graduation_date|date:"M d, Y" }}
                                                     {% else %}
-                                                    <span class="text-muted">Not set</span>
+                                                    <span>Not set</span>
                                                     {% endif %}
                                                 </span>
                                             </div>
@@ -299,28 +300,28 @@
                                 
                                 <!-- Timeline Section -->
                                 <div class="admission-timeline mt-4 pt-4 border-top">
-                                    <h6 class="mb-3 fw-semibold">Admission Timeline</h6>
+                                    <h6 class="mb-3">Admission Timeline</h6>
                                     <div class="timeline">
                                         <div class="timeline-item">
-                                            <div class="timeline-marker bg-success"></div>
+                                            <div class="timeline-marker"></div>
                                             <div class="timeline-content">
                                                 <h6 class="mb-1">Admission</h6>
-                                                <p class="text-muted mb-0">{{ student.admission_date|date:"M d, Y" }}</p>
+                                                <p class="mb-0">{{ student.admission_date|date:"M d, Y" }}</p>
                                             </div>
                                         </div>
                                         <div class="timeline-item">
-                                            <div class="timeline-marker bg-info"></div>
+                                            <div class="timeline-marker"></div>
                                             <div class="timeline-content">
                                                 <h6 class="mb-1">Current Progress</h6>
-                                                <p class="text-muted mb-0">Year {{ student.current_year }} - Semester {{ student.current_semester }}</p>
+                                                <p class="mb-0">Year {{ student.current_year }} - Semester {{ student.current_semester }}</p>
                                             </div>
                                         </div>
                                         {% if student.expected_graduation_date %}
                                         <div class="timeline-item">
-                                            <div class="timeline-marker bg-primary"></div>
+                                            <div class="timeline-marker"></div>
                                             <div class="timeline-content">
                                                 <h6 class="mb-1">Expected Graduation</h6>
-                                                <p class="text-muted mb-0">{{ student.expected_graduation_date|date:"M d, Y" }}</p>
+                                                <p class="mb-0">{{ student.expected_graduation_date|date:"M d, Y" }}</p>
                                             </div>
                                         </div>
                                         {% endif %}
@@ -367,7 +368,7 @@
                                 
                                 <!-- Sponsor Details Card -->
                                 <div class="sponsor-details-card mt-4 pt-4 border-top">
-                                    <h6 class="mb-3 fw-semibold">Sponsorship Details</h6>
+                                    <h6 class="mb-3">Sponsorship Details</h6>
                                     <div class="row">
                                         <div class="col-md-4">
                                             <div class="sponsor-stat">
@@ -379,7 +380,7 @@
                                             <div class="sponsor-stat">
                                                 <div class="stat-label">Payment Status</div>
                                                 <div class="stat-value">
-                                                    <span class="badge bg-success">Current</span>
+                                                    <span class="badge status-completed">Current</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -406,7 +407,7 @@
                                                     <h6 class="document-title">Admission Letter</h6>
                                                     <p class="document-desc">Issued on {{ student.admission_date|date:"M d, Y" }}</p>
                                                 </div>
-                                                <button class="btn btn-sm btn-outline-primary">
+                                                <button class="btn btn-sm btn-outline">
                                                     <i class="ri-download-line"></i>
                                                 </button>
                                             </div>
@@ -420,7 +421,7 @@
                                                     <h6 class="document-title">Student ID</h6>
                                                     <p class="document-desc">Valid until Dec 2025</p>
                                                 </div>
-                                                <button class="btn btn-sm btn-outline-primary">
+                                                <button class="btn btn-sm btn-outline">
                                                     <i class="ri-download-line"></i>
                                                 </button>
                                             </div>
@@ -434,7 +435,7 @@
                                                     <h6 class="document-title">Fee Statement</h6>
                                                     <p class="document-desc">Current semester</p>
                                                 </div>
-                                                <button class="btn btn-sm btn-outline-primary">
+                                                <button class="btn btn-sm btn-outline">
                                                     <i class="ri-download-line"></i>
                                                 </button>
                                             </div>
@@ -443,12 +444,12 @@
                                     
                                     <!-- Upload Section -->
                                     <div class="upload-section mt-4 pt-4 border-top">
-                                        <h6 class="mb-3 fw-semibold">Upload Documents</h6>
+                                        <h6 class="mb-3">Upload Documents</h6>
                                         <div class="upload-area">
                                             <div class="upload-placeholder">
-                                                <i class="ri-upload-cloud-line display-4 text-muted mb-3"></i>
-                                                <p class="text-muted mb-2">Drag & drop files here or click to browse</p>
-                                                <small class="text-muted">Supported formats: PDF, JPG, PNG (Max 5MB)</small>
+                                                <i class="ri-upload-cloud-line"></i>
+                                                <p>Drag & drop files here or click to browse</p>
+                                                <small>Supported formats: PDF, JPG, PNG (Max 5MB)</small>
                                             </div>
                                         </div>
                                     </div>
@@ -459,43 +460,43 @@
                             <div class="tab-pane fade" id="activities" role="tabpanel">
                                 <div class="activities-timeline">
                                     <div class="activity-item">
-                                        <div class="activity-icon bg-success">
+                                        <div class="activity-icon">
                                             <i class="ri-login-circle-line"></i>
                                         </div>
                                         <div class="activity-content">
                                             <h6 class="mb-1">Logged into system</h6>
-                                            <p class="text-muted mb-1">Accessed student portal from Chrome browser</p>
-                                            <small class="text-muted">Just now</small>
+                                            <p class="mb-1">Accessed student portal from Chrome browser</p>
+                                            <small>Just now</small>
                                         </div>
                                     </div>
                                     <div class="activity-item">
-                                        <div class="activity-icon bg-info">
+                                        <div class="activity-icon">
                                             <i class="ri-file-edit-line"></i>
                                         </div>
                                         <div class="activity-content">
                                             <h6 class="mb-1">Profile Updated</h6>
-                                            <p class="text-muted mb-1">Updated contact information</p>
-                                            <small class="text-muted">2 days ago</small>
+                                            <p class="mb-1">Updated contact information</p>
+                                            <small>2 days ago</small>
                                         </div>
                                     </div>
                                     <div class="activity-item">
-                                        <div class="activity-icon bg-warning">
+                                        <div class="activity-icon">
                                             <i class="ri-check-double-line"></i>
                                         </div>
                                         <div class="activity-content">
                                             <h6 class="mb-1">Assignment Submitted</h6>
-                                            <p class="text-muted mb-1">Submitted "Data Structures" assignment</p>
-                                            <small class="text-muted">1 week ago</small>
+                                            <p class="mb-1">Submitted "Data Structures" assignment</p>
+                                            <small>1 week ago</small>
                                         </div>
                                     </div>
                                     <div class="activity-item">
-                                        <div class="activity-icon bg-primary">
+                                        <div class="activity-icon">
                                             <i class="ri-eye-line"></i>
                                         </div>
                                         <div class="activity-content">
                                             <h6 class="mb-1">Grades Viewed</h6>
-                                            <p class="text-muted mb-1">Checked semester results</p>
-                                            <small class="text-muted">2 weeks ago</small>
+                                            <p class="mb-1">Checked semester results</p>
+                                            <small>2 weeks ago</small>
                                         </div>
                                     </div>
                                 </div>
@@ -509,7 +510,6 @@
 </div>
 
 <style>
-    /* Base Styles */
     :root {
         --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         --radius-sm: 6px;
@@ -517,68 +517,60 @@
         --radius-lg: 12px;
         --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
         --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
-        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
         --color-primary: #2E7D32;
         --color-success: #4CAF50;
         --color-warning: #FF9800;
-        --color-danger: #F44336;
         --color-info: #2196F3;
-        --color-purple: #673AB7;
-        --color-secondary: #9E9E9E;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
         --color-gray-100: #f8f9fa;
         --color-gray-200: #e9ecef;
         --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
-        --color-text: var(--color-gray-800);
-        --color-text-muted: var(--color-gray-600);
     }
-    
+
     body {
         font-family: var(--font-family);
-        font-weight: 400;
     }
-    
-    
+
     .content-container {
         padding: 0 0.5rem;
     }
-    
-    /* Breadcrumb */
+
     .breadcrumb {
         background: transparent;
         padding: 0.75rem 0;
         margin-bottom: 1rem;
         border-bottom: 1px solid var(--color-gray-200);
     }
-    
+
     .breadcrumb-item a {
         color: var(--color-gray-600);
         text-decoration: none;
         transition: color 0.2s ease;
     }
-    
+
     .breadcrumb-item a:hover {
         color: var(--color-primary);
     }
-    
+
     .breadcrumb-item.active {
         color: var(--color-gray-800);
         font-weight: 500;
     }
-    
+
     /* Profile Header */
     .profile-header {
         display: flex;
         align-items: center;
         gap: 2rem;
-        padding: 1rem;
     }
-    
+
     .profile-avatar {
         flex-shrink: 0;
     }
-    
+
     .profile-avatar img,
     .avatar-placeholder {
         width: 100px;
@@ -587,33 +579,34 @@
         object-fit: cover;
         border: 4px solid var(--color-gray-200);
     }
-    
+
     .avatar-placeholder {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--color-gray-200);
+        background: var(--color-gray-100);
         color: var(--color-gray-600);
         font-size: 2.5rem;
     }
-    
+
     .profile-info {
         flex: 1;
     }
-    
+
     .profile-name {
         font-size: 1.5rem;
         font-weight: 600;
         color: var(--color-gray-800);
         margin-bottom: 0.5rem;
     }
-    
+
     .profile-meta {
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
+        align-items: center;
     }
-    
+
     .meta-item {
         display: inline-flex;
         align-items: center;
@@ -621,12 +614,12 @@
         font-size: 0.875rem;
         color: var(--color-gray-600);
     }
-    
+
     .profile-actions {
         display: flex;
         gap: 0.75rem;
     }
-    
+
     /* Management Cards */
     .management-card {
         background: white;
@@ -635,41 +628,44 @@
         overflow: hidden;
         height: 100%;
     }
-    
+
     .management-card .card-header {
         padding: 1.25rem 1.5rem;
         border-bottom: 1px solid var(--color-gray-200);
         background: var(--color-gray-100);
     }
-    
+
     .management-card .card-title {
         font-size: 1rem;
         font-weight: 600;
         color: var(--color-gray-800);
-        margin-bottom: 0;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
-    
+
     .management-card .card-body {
         padding: 1.5rem;
     }
-    
+
     /* Info Group */
     .info-group {
         display: flex;
         flex-direction: column;
         gap: 1rem;
     }
-    
+
     .info-item {
         display: flex;
         flex-direction: column;
         gap: 0.375rem;
     }
-    
+
     .info-item.full-width {
         width: 100%;
     }
-    
+
     .info-label {
         font-size: 0.8125rem;
         font-weight: 500;
@@ -677,39 +673,13 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
-    
+
     .info-value {
         font-size: 0.9375rem;
         color: var(--color-gray-800);
         font-weight: 500;
     }
-    
-    /* Tab Styles */
-    .nav-tabs {
-        border-bottom: 1px solid var(--color-gray-200);
-    }
-    
-    .nav-tabs .nav-link {
-        border: none;
-        color: var(--color-gray-600);
-        font-weight: 500;
-        padding: 0.75rem 1rem;
-        border-radius: var(--radius-sm);
-        margin-right: 0.5rem;
-        transition: all 0.2s ease;
-    }
-    
-    .nav-tabs .nav-link:hover {
-        color: var(--color-primary);
-        background: rgba(46, 125, 50, 0.05);
-    }
-    
-    .nav-tabs .nav-link.active {
-        color: var(--color-primary);
-        background: rgba(46, 125, 50, 0.1);
-        border-bottom: 2px solid var(--color-primary);
-    }
-    
+
     /* Status Badges */
     .status-badge {
         display: inline-flex;
@@ -718,34 +688,67 @@
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
         font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
+        font-weight: 500;
     }
-    
+
     .status-active {
-        background: rgba(76, 175, 80, 0.1);
+        background-color: rgba(76, 175, 80, 0.1);
         color: var(--color-success);
         border: 1px solid rgba(76, 175, 80, 0.2);
     }
-    
+
     .status-suspended {
-        background: rgba(244, 67, 54, 0.1);
+        background-color: rgba(244, 67, 54, 0.1);
         color: var(--color-danger);
         border: 1px solid rgba(244, 67, 54, 0.2);
     }
-    
+
     .status-deferred {
-        background: rgba(255, 152, 0, 0.1);
+        background-color: rgba(255, 152, 0, 0.1);
         color: var(--color-warning);
         border: 1px solid rgba(255, 152, 0, 0.2);
     }
-    
+
     .status-graduated {
-        background: rgba(33, 150, 243, 0.1);
+        background-color: rgba(33, 150, 243, 0.1);
         color: var(--color-info);
         border: 1px solid rgba(33, 150, 243, 0.2);
     }
-    
+
+    .status-completed { 
+        background-color: var(--color-success) !important; 
+        color: white !important;
+        border: none;
+    }
+
+    /* Tab Styles */
+    .nav-tabs {
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link {
+        color: var(--color-gray-600);
+        font-weight: 500;
+        padding: 0.75rem 1rem;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        border-color: var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background-color: white;
+        border-color: var(--color-gray-200) var(--color-gray-200) white;
+    }
+
     /* Metric Cards */
     .metric-card {
         padding: 1.5rem;
@@ -753,52 +756,99 @@
         border-radius: var(--radius-md);
         text-align: center;
     }
-    
+
     .metric-value {
         font-size: 2rem;
         font-weight: 700;
         line-height: 1;
         margin-bottom: 0.5rem;
-    }
-    
-    .gpa-value {
         color: var(--color-primary);
     }
-    
+
     .metric-label {
         font-size: 0.875rem;
         color: var(--color-gray-600);
         margin-bottom: 0.5rem;
     }
-    
+
+    /* Progress Bar */
+    .progress {
+        background-color: var(--color-gray-200);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        background-color: var(--color-primary);
+        height: 100%;
+        transition: width 0.6s ease;
+    }
+
+    /* Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
     /* Timeline */
     .timeline {
         position: relative;
         padding-left: 2rem;
     }
-    
+
     .timeline-item {
         position: relative;
         padding-bottom: 1.5rem;
     }
-    
+
     .timeline-item:last-child {
         padding-bottom: 0;
     }
-    
+
     .timeline-marker {
         position: absolute;
         left: -2rem;
         width: 12px;
         height: 12px;
         border-radius: 50%;
-        background: var(--color-gray-300);
+        background: var(--color-primary);
     }
-    
-    .timeline-content {
-        padding-left: 1rem;
+
+    .timeline-content h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
     }
-    
+
+    .timeline-content p {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin: 0;
+    }
+
+    /* Sponsor Stats */
+    .sponsor-stat {
+        text-align: center;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+    }
+
+    .stat-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
     /* Document Cards */
     .document-card {
         display: flex;
@@ -809,7 +859,7 @@
         border-radius: var(--radius-md);
         margin-bottom: 1rem;
     }
-    
+
     .document-icon {
         width: 48px;
         height: 48px;
@@ -821,23 +871,24 @@
         color: var(--color-primary);
         font-size: 1.5rem;
     }
-    
+
     .document-info {
         flex: 1;
     }
-    
+
     .document-title {
         font-size: 0.9375rem;
         font-weight: 600;
+        color: var(--color-gray-800);
         margin-bottom: 0.25rem;
     }
-    
+
     .document-desc {
         font-size: 0.8125rem;
         color: var(--color-gray-600);
         margin-bottom: 0;
     }
-    
+
     /* Upload Area */
     .upload-area {
         border: 2px dashed var(--color-gray-300);
@@ -847,30 +898,53 @@
         cursor: pointer;
         transition: all 0.2s ease;
     }
-    
+
     .upload-area:hover {
         border-color: var(--color-primary);
         background: rgba(46, 125, 50, 0.02);
     }
-    
+
+    .upload-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .upload-placeholder i {
+        font-size: 3rem;
+        color: var(--color-gray-400);
+    }
+
+    .upload-placeholder p {
+        color: var(--color-gray-600);
+        margin: 0;
+        font-size: 0.875rem;
+    }
+
+    .upload-placeholder small {
+        color: var(--color-gray-500);
+        font-size: 0.75rem;
+    }
+
     /* Activities Timeline */
     .activities-timeline {
         max-height: 400px;
         overflow-y: auto;
         padding-right: 1rem;
     }
-    
+
     .activity-item {
         display: flex;
         gap: 1rem;
         padding: 1rem 0;
         border-bottom: 1px solid var(--color-gray-200);
     }
-    
+
     .activity-item:last-child {
         border-bottom: none;
     }
-    
+
     .activity-icon {
         width: 40px;
         height: 40px;
@@ -879,124 +953,158 @@
         justify-content: center;
         border-radius: var(--radius-md);
         color: white;
+        background: var(--color-primary);
         font-size: 1.25rem;
         flex-shrink: 0;
     }
-    
+
     .activity-content {
         flex: 1;
     }
-    
-    /* Buttons */
+
+    .activity-content h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .activity-content p {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+        line-height: 1.4;
+    }
+
+    .activity-content small {
+        font-size: 0.75rem;
+        color: var(--color-gray-500);
+    }
+
+    /* Button Styles */
     .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
         display: inline-flex;
         align-items: center;
-        justify-content: center;
-        gap: 0.375rem;
-        padding: 0.75rem 1.25rem;
-        font-weight: 500;
-        font-size: 0.875rem;
-        border-radius: var(--radius-sm);
-        transition: all 0.2s ease;
+        gap: 0.5rem;
         text-decoration: none;
-        border: 1px solid transparent;
-        cursor: pointer;
-        white-space: nowrap;
     }
-    
+
     .btn-primary {
         background: var(--color-primary);
         border-color: var(--color-primary);
         color: white;
     }
-    
+
     .btn-primary:hover {
         background: #1B5E20;
         border-color: #1B5E20;
     }
-    
-    .btn-outline-primary {
-        border-color: var(--color-primary);
-        color: var(--color-primary);
+
+    .btn-outline {
         background: transparent;
-    }
-    
-    .btn-outline-primary:hover {
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .btn-outline-secondary {
         border-color: var(--color-gray-300);
-        color: var(--color-gray-600);
-        background: transparent;
+        color: var(--color-gray-800);
     }
-    
-    .btn-outline-secondary:hover {
-        border-color: var(--color-gray-600);
-        background: var(--color-gray-600);
-        color: white;
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
     }
-    
+
     .btn-sm {
-        padding: 0.5rem 0.75rem;
+        padding: 0.375rem 0.75rem;
         font-size: 0.8125rem;
     }
-    
-    .btn-icon {
-        width: 32px;
-        height: 32px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--radius-sm);
+
+    /* Spacing Utilities */
+    .border-top {
+        border-top: 1px solid var(--color-gray-200);
     }
-    
-    /* Color Utilities */
-    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
-    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
-    
-    .text-info { color: var(--color-info); }
-    .text-secondary { color: var(--color-gray-600); }
-    .text-success { color: var(--color-success); }
-    .text-warning { color: var(--color-warning); }
-    .text-danger { color: var(--color-danger); }
-    
-    /* Responsive */
-    @media (max-width: 992px) {
+
+    /* Text Styles */
+    h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    small {
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
         .profile-header {
             flex-direction: column;
             text-align: center;
             gap: 1.5rem;
         }
-        
+
+        .profile-meta {
+            justify-content: center;
+        }
+
         .profile-actions {
             width: 100%;
             flex-direction: column;
         }
-        
+
         .btn {
             width: 100%;
+            justify-content: center;
         }
-    }
-    
-    @media (max-width: 768px) {
+
         .management-card .card-body {
             padding: 1rem;
         }
-        
+
         .nav-tabs .nav-link {
             padding: 0.5rem 0.75rem;
             font-size: 0.875rem;
         }
-        
+
+        .metric-card {
+            padding: 1rem;
+        }
+
         .metric-value {
             font-size: 1.5rem;
         }
-        
+
         .upload-area {
             padding: 1.5rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .profile-avatar img,
+        .avatar-placeholder {
+            width: 80px;
+            height: 80px;
+        }
+
+        .profile-name {
+            font-size: 1.25rem;
+        }
+
+        .col-md-6 {
+            width: 100%;
+        }
+
+        .row .row {
+            gap: 1rem;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
         }
     }
 </style>
@@ -1007,7 +1115,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const tabEls = document.querySelectorAll('button[data-bs-toggle="tab"]');
     tabEls.forEach(tabEl => {
         tabEl.addEventListener('shown.bs.tab', function (event) {
-            // Save active tab to localStorage
             localStorage.setItem('activeProfileTab', event.target.id);
         });
     });
@@ -1034,31 +1141,28 @@ document.addEventListener('DOMContentLoaded', function() {
             input.onchange = function(e) {
                 const files = e.target.files;
                 if (files.length > 0) {
-                    // Show loading state
                     uploadArea.innerHTML = `
                         <div class="uploading">
-                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
                             <span>Uploading ${files.length} file(s)...</span>
                         </div>
                     `;
                     
-                    // Simulate upload
                     setTimeout(() => {
                         uploadArea.innerHTML = `
                             <div class="upload-success">
-                                <i class="ri-checkbox-circle-line text-success display-4 mb-3"></i>
-                                <p class="text-success mb-2">Successfully uploaded ${files.length} file(s)</p>
-                                <small class="text-muted">Documents will appear in your profile shortly</small>
+                                <i class="ri-checkbox-circle-line"></i>
+                                <p>Successfully uploaded ${files.length} file(s)</p>
+                                <small>Documents will appear in your profile shortly</small>
                             </div>
                         `;
                         
-                        // Reset after 3 seconds
                         setTimeout(() => {
                             uploadArea.innerHTML = `
                                 <div class="upload-placeholder">
-                                    <i class="ri-upload-cloud-line display-4 text-muted mb-3"></i>
-                                    <p class="text-muted mb-2">Drag & drop files here or click to browse</p>
-                                    <small class="text-muted">Supported formats: PDF, JPG, PNG (Max 5MB)</small>
+                                    <i class="ri-upload-cloud-line"></i>
+                                    <p>Drag & drop files here or click to browse</p>
+                                    <small>Supported formats: PDF, JPG, PNG (Max 5MB)</small>
                                 </div>
                             `;
                         }, 3000);
@@ -1071,26 +1175,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Download document functionality
-    const downloadBtns = document.querySelectorAll('.btn-outline-primary');
+    const downloadBtns = document.querySelectorAll('.btn-outline');
     downloadBtns.forEach(btn => {
         if (btn.querySelector('.ri-download-line')) {
             btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 const documentTitle = this.closest('.document-card').querySelector('.document-title').textContent;
                 
-                // Show downloading toast/alert
-                if (typeof toastr !== 'undefined') {
-                    toastr.info(`Downloading ${documentTitle}...`);
-                } else {
-                    alert(`Downloading ${documentTitle}...`);
-                }
+                // Show downloading message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-info alert-dismissible fade show position-fixed top-0 end-0 m-3';
+                alert.style.zIndex = '1050';
+                alert.innerHTML = `
+                    <strong>Downloading...</strong> ${documentTitle}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(alert);
                 
-                // Simulate download
                 setTimeout(() => {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(`${documentTitle} downloaded successfully`);
-                    }
-                }, 1500);
+                    alert.remove();
+                }, 3000);
             });
         }
     });
@@ -1112,12 +1216,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (activitiesTimeline) {
         activitiesTimeline.scrollTop = 0;
     }
-    
-    // Initialize tooltips
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
 });
 </script>
 {% endblock %}
