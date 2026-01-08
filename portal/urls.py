@@ -346,6 +346,19 @@ urlpatterns = [
     path('api/chat/rate-message/', views.rate_message, name='rate_message'),
     path('api/chat/end-session/', views.end_session, name='end_session'),
     
+    # Help & Support URLs
+    path('help/faqs/', views.help_faqs, name='help_faqs'),
+    path('help/faq/<int:faq_id>/', views.faq_detail, name='faq_detail'),
+    path('help/faq/<int:faq_id>/feedback/', views.faq_feedback, name='faq_feedback'),
     
+    path('help/contact-support/', views.contact_support, name='contact_support'),
+    
+    path('help/system-guides/', views.system_guides, name='system_guides'),
+    path('help/guide/<int:guide_id>/', views.guide_detail, name='guide_detail'),
+    
+    path('help/report-issue/', views.report_issue, name='report_issue'),
+    path('help/my-tickets/', views.my_tickets, name='my_tickets'),
+    path('help/ticket/<str:ticket_number>/', views.ticket_detail, name='ticket_detail'),
+    path('help/ticket/<str:ticket_number>/close/', views.close_ticket, name='close_ticket'),
     
 ]
