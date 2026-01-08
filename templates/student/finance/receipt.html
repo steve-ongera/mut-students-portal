@@ -1,0 +1,368 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Payment Receipt{% endblock %}
+{% block page_title %}Payment Receipt{% endblock %}
+{% block page_subtitle %}Official payment receipt{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_fee_statement' %}">Finance</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_payment_history' %}">Payment History</a></li>
+        <li class="breadcrumb-item active">Receipt</li>
+    </ol>
+</nav>
+
+<!-- Action Buttons -->
+<div class="mb-4 d-flex gap-2 justify-content-end no-print">
+    <a href="{% url 'student_payment_receipt' payment.id %}?download=true" 
+       class="btn btn-primary">
+        <i class="ri-download-line"></i> Download PDF
+    </a>
+    <button onclick="window.print()" class="btn btn-outline-secondary">
+        <i class="ri-printer-line"></i> Print
+    </button>
+    <a href="{% url 'student_payment_history' %}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line"></i> Back
+    </a>
+</div>
+
+<!-- Receipt Content -->
+<div class="receipt-container" id="receipt">
+    <!-- Header -->
+    <div class="receipt-header">
+        <div class="row align-items-center">
+            <div class="col-md-2 text-center">
+                <img src="{% static 'images/university-logo.png' %}" alt="University Logo" 
+                     class="university-logo" style="max-width: 80px;">
+            </div>
+            <div class="col-md-8 text-center">
+                <h3 class="mb-1">YOUR UNIVERSITY NAME</h3>
+                <p class="mb-0">P.O. Box 12345-00100, Nairobi, Kenya</p>
+                <p class="mb-0">Tel: +254 700 000 000 | Email: finance@university.ac.ke</p>
+            </div>
+            <div class="col-md-2 text-center">
+                {% if payment.status == 'completed' %}
+                <div class="status-stamp paid">
+                    <i class="ri-check-double-line"></i>
+                    <div>PAID</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="receipt-title">
+            <h4 class="text-center mb-0">OFFICIAL PAYMENT RECEIPT</h4>
+        </div>
+    </div>
+
+    <!-- Receipt Details -->
+    <div class="receipt-body">
+        <!-- Receipt Info -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <table class="info-table">
+                    <tr>
+                        <th>Receipt No:</th>
+                        <td class="fw-bold text-primary">{{ payment.receipt_number }}</td>
+                    </tr>
+                    <tr>
+                        <th>Payment Date:</th>
+                        <td>{{ payment.payment_date|date:"l, F d, Y" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Payment Time:</th>
+                        <td>{{ payment.payment_date|date:"h:i A" }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="info-table">
+                    <tr>
+                        <th>Academic Year:</th>
+                        <td>{{ payment.academic_year.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Semester:</th>
+                        <td>{{ payment.semester.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Transaction Ref:</th>
+                        <td><code>{{ payment.transaction_reference }}</code></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Student Information -->
+        <div class="section-header">Student Information</div>
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <table class="info-table">
+                    <tr>
+                        <th>Student Name:</th>
+                        <td>{{ student.user.get_full_name|upper }}</td>
+                    </tr>
+                    <tr>
+                        <th>Registration No:</th>
+                        <td class="fw-bold">{{ student.registration_number }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="info-table">
+                    <tr>
+                        <th>Programme:</th>
+                        <td>{{ student.programme.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Year/Semester:</th>
+                        <td>Year {{ student.current_year }} - Semester {{ student.current_semester }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Payment Details -->
+        <div class="section-header">Payment Details</div>
+        <table class="payment-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Payment Method</th>
+                    <th class="text-end">Amount (KES)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <strong>Fee Payment</strong><br>
+                        <small class="text-muted">{{ payment.semester.name }} - {{ payment.academic_year.name }}</small>
+                    </td>
+                    <td>
+                        <span class="badge bg-secondary">
+                            {{ payment.get_payment_method_display }}
+                        </span>
+                    </td>
+                    <td class="text-end">{{ payment.amount|floatformat:2 }}</td>
+                </tr>
+            </tbody>
+            <tfoot>
+                <tr class="total-row">
+                    <td colspan="2" class="text-end"><strong>TOTAL AMOUNT PAID:</strong></td>
+                    <td class="text-end"><strong>KES {{ payment.amount|floatformat:2 }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <!-- Amount in Words -->
+        <div class="amount-words">
+            <strong>Amount in Words:</strong> 
+            <span class="text-uppercase">{{ payment.amount|floatformat:2 }} Kenya Shillings Only</span>
+        </div>
+
+        <!-- Additional Information -->
+        {% if payment.processed_by %}
+        <div class="mt-4">
+            <table class="info-table">
+                <tr>
+                    <th>Processed By:</th>
+                    <td>{{ payment.processed_by.get_full_name }}</td>
+                </tr>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if payment.remarks %}
+        <div class="mt-3">
+            <strong>Remarks:</strong>
+            <p class="mb-0">{{ payment.remarks }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <div class="receipt-footer">
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-1"><small><strong>Important Notes:</strong></small></p>
+                <ul class="small mb-0">
+                    <li>This is an official receipt issued by the university</li>
+                    <li>Please retain this receipt for your records</li>
+                    <li>For any queries, contact the Finance Office</li>
+                </ul>
+            </div>
+            <div class="col-md-6 text-end">
+                <div class="signature-section">
+                    <div class="signature-line"></div>
+                    <p class="mb-0"><small>Authorized Signature</small></p>
+                    <p class="mb-0"><small class="text-muted">Finance Office</small></p>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-4 pt-3 border-top">
+            <small class="text-muted">
+                Generated on {{ payment.created_at|date:"F d, Y \a\t h:i A" }} | 
+                This is a computer-generated receipt and does not require a physical signature
+            </small>
+        </div>
+    </div>
+</div>
+
+<style>
+.receipt-container {
+    max-width: 900px;
+    margin: 0 auto;
+    background: white;
+    padding: 2rem;
+    border: 2px solid #2c3e50;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.receipt-header {
+    border-bottom: 3px solid #2c3e50;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
+
+.university-logo {
+    max-width: 80px;
+    height: auto;
+}
+
+.receipt-title {
+    background: #2c3e50;
+    color: white;
+    padding: 0.75rem;
+    margin-top: 1rem;
+    border-radius: 4px;
+}
+
+.status-stamp {
+    width: 80px;
+    height: 80px;
+    border: 3px solid;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.875rem;
+}
+
+.status-stamp.paid {
+    border-color: #28a745;
+    color: #28a745;
+}
+
+.status-stamp i {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.section-header {
+    background: #f8f9fa;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    border-left: 4px solid #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.info-table {
+    width: 100%;
+}
+
+.info-table th {
+    width: 40%;
+    padding: 0.5rem 0;
+    font-weight: 600;
+    color: #495057;
+}
+
+.info-table td {
+    padding: 0.5rem 0;
+}
+
+.payment-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.payment-table thead th {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+.payment-table tbody td {
+    padding: 1rem 0.75rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.payment-table tfoot .total-row td {
+    padding: 1rem 0.75rem;
+    background: #f8f9fa;
+    font-size: 1.125rem;
+}
+
+.amount-words {
+    background: #e9ecef;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+
+.signature-section {
+    margin-top: 2rem;
+}
+
+.signature-line {
+    width: 200px;
+    border-bottom: 2px solid #2c3e50;
+    margin: 0 0 0.5rem auto;
+}
+
+.receipt-footer {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid #dee2e6;
+}
+
+code {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    color: #e83e8c;
+}
+
+/* Print Styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .receipt-container {
+        border: 2px solid #000;
+        box-shadow: none;
+        page-break-after: avoid;
+    }
+    
+    body {
+        background: white;
+    }
+}
+</style>
+
+<script>
+// Optional: Add print functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // You can add additional print formatting here if needed
+});
+</script>
+{% endblock %}

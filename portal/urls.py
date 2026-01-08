@@ -361,4 +361,15 @@ urlpatterns = [
     path('help/ticket/<str:ticket_number>/', views.ticket_detail, name='ticket_detail'),
     path('help/ticket/<str:ticket_number>/close/', views.close_ticket, name='close_ticket'),
     
+    #Student Finance URLs
+    path('finance/fee-statement/', views.student_fee_statement, name='student_fee_statement'),
+    path('finance/make-payment/', views.student_make_payment, name='student_make_payment'),
+    path('finance/payment-history/', views.student_payment_history, name='student_payment_history'),
+    path('finance/receipt/<int:payment_id>/', views.student_payment_receipt, name='student_payment_receipt'),
+    path('finance/receipts/', views.student_all_receipts, name='student_all_receipts'),
+    path('finance/fee-structure/', views.student_fee_structure, name='student_fee_structure'),
+    
+    # AJAX endpoints
+    path('api/verify-payment/', views.verify_payment, name='verify_payment'),
+    
 ]

@@ -1,0 +1,325 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Fee Statement{% endblock %}
+{% block page_title %}Fee Statement{% endblock %}
+{% block page_subtitle %}View your fee balance and payment history{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Finance</a></li>
+        <li class="breadcrumb-item active">Fee Statement</li>
+    </ol>
+</nav>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary">
+                <i class="ri-money-dollar-circle-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">KES {{ total_fees_all_time|floatformat:2|default:"0.00" }}</div>
+                <div class="stat-label">Total Fees</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-success">
+                <i class="ri-check-double-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">KES {{ total_paid_all_time|floatformat:2|default:"0.00" }}</div>
+                <div class="stat-label">Total Paid</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon {% if total_balance_all_time > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                <i class="ri-alert-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">KES {{ total_balance_all_time|floatformat:2|default:"0.00" }}</div>
+                <div class="stat-label">Balance</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-info">
+                <i class="ri-file-list-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">{{ recent_payments.count }}</div>
+                <div class="stat-label">Transactions</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Semester Balance -->
+{% if fee_balance %}
+<div class="content-card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="ri-calendar-line"></i> {{ current_semester.name }}
+            </h5>
+            {% if fee_balance.is_cleared %}
+            <span class="badge bg-success">Fully Paid</span>
+            {% else %}
+            <span class="badge bg-warning">Outstanding Balance</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="fee-detail-item">
+                    <label>Total Fees</label>
+                    <h4 class="mb-0">KES {{ fee_balance.total_fees|floatformat:2 }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="fee-detail-item">
+                    <label>Amount Paid</label>
+                    <h4 class="mb-0 text-success">KES {{ fee_balance.amount_paid|floatformat:2 }}</h4>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="fee-detail-item">
+                    <label>Balance</label>
+                    <h4 class="mb-0 {% if fee_balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                        KES {{ fee_balance.balance|floatformat:2 }}
+                    </h4>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mt-4">
+            <div class="d-flex justify-content-between mb-2">
+                <span class="text-muted">Payment Progress</span>
+                <span class="fw-semibold">
+                    {% widthratio fee_balance.amount_paid fee_balance.total_fees 100 %}%
+                </span>
+            </div>
+            <div class="progress" style="height: 20px;">
+                <div class="progress-bar bg-success" 
+                     style="width: {% widthratio fee_balance.amount_paid fee_balance.total_fees 100 %}%">
+                </div>
+            </div>
+        </div>
+
+        {% if fee_balance.last_payment_date %}
+        <div class="mt-3">
+            <small class="text-muted">
+                <i class="ri-time-line"></i> Last payment: {{ fee_balance.last_payment_date|date:"M d, Y H:i" }}
+            </small>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="mt-4">
+            <a href="{% url 'student_make_payment' %}" class="btn btn-primary">
+                <i class="ri-money-dollar-circle-line"></i> Make Payment
+            </a>
+            <a href="{% url 'student_payment_history' %}" class="btn btn-outline-secondary">
+                <i class="ri-history-line"></i> Payment History
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Fee History by Semester -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="ri-history-line"></i> Fee History
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if all_balances %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Academic Year</th>
+                        <th>Semester</th>
+                        <th>Total Fees</th>
+                        <th>Amount Paid</th>
+                        <th>Balance</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for balance in all_balances %}
+                    <tr>
+                        <td>{{ balance.academic_year.name }}</td>
+                        <td>{{ balance.semester.name }}</td>
+                        <td>KES {{ balance.total_fees|floatformat:2 }}</td>
+                        <td class="text-success">KES {{ balance.amount_paid|floatformat:2 }}</td>
+                        <td class="{% if balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                            KES {{ balance.balance|floatformat:2 }}
+                        </td>
+                        <td>
+                            {% if balance.is_cleared %}
+                            <span class="badge bg-success">Cleared</span>
+                            {% else %}
+                            <span class="badge bg-warning">Outstanding</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="ri-file-list-line" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No fee records found.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Payments -->
+<div class="content-card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="ri-bill-line"></i> Recent Payments
+            </h5>
+            <a href="{% url 'student_payment_history' %}" class="btn btn-sm btn-outline-primary">
+                View All
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if recent_payments %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Receipt No.</th>
+                        <th>Method</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in recent_payments %}
+                    <tr>
+                        <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+                        <td>{{ payment.receipt_number|default:"Pending" }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                        </td>
+                        <td class="fw-semibold">KES {{ payment.amount|floatformat:2 }}</td>
+                        <td>
+                            {% if payment.status == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif payment.status == 'pending' %}
+                            <span class="badge bg-warning">Pending</span>
+                            {% elif payment.status == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ payment.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if payment.status == 'completed' and payment.receipt_number %}
+                            <a href="{% url 'student_payment_receipt' payment.id %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="ri-file-text-line"></i> Receipt
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="ri-inbox-line" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No payments yet.</p>
+            <a href="{% url 'student_make_payment' %}" class="btn btn-primary mt-2">
+                <i class="ri-add-line"></i> Make First Payment
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.stat-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-details {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.fee-detail-item {
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.fee-detail-item label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.fee-detail-item h4 {
+    font-weight: 700;
+}
+</style>
+{% endblock %}

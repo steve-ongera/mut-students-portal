@@ -14496,3 +14496,394 @@ def close_ticket(request, ticket_number):
     
     return redirect('my_tickets')
 
+# ==================== VIEWS.PY - Student Finance ====================
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse, HttpResponse
+from django.db.models import Sum, Q
+from django.utils import timezone
+from decimal import Decimal
+from .models import (
+    Student, FeeStructure, FeePayment, FeeBalance,
+    Semester, AcademicYear
+)
+
+
+@login_required
+def student_fee_statement(request):
+    """View detailed fee statement"""
+    try:
+        student = request.user.student_profile
+        
+        # Get current semester
+        current_semester = Semester.objects.filter(is_current=True).first()
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        
+        # Get fee balance for current semester
+        fee_balance = None
+        if current_semester:
+            fee_balance = FeeBalance.objects.filter(
+                student=student,
+                semester=current_semester
+            ).first()
+        
+        # Get all fee balances (history)
+        all_balances = FeeBalance.objects.filter(
+            student=student
+        ).select_related(
+            'semester', 
+            'academic_year'
+        ).order_by('-academic_year__start_date', '-semester__start_date')
+        
+        # Get recent payments
+        recent_payments = FeePayment.objects.filter(
+            student=student,
+            status='completed'
+        ).order_by('-payment_date')[:10]
+        
+        # Calculate totals
+        total_fees_all_time = all_balances.aggregate(
+            total=Sum('total_fees')
+        )['total'] or Decimal('0.00')
+        
+        total_paid_all_time = all_balances.aggregate(
+            total=Sum('amount_paid')
+        )['total'] or Decimal('0.00')
+        
+        total_balance_all_time = all_balances.aggregate(
+            total=Sum('balance')
+        )['total'] or Decimal('0.00')
+        
+        context = {
+            'student': student,
+            'current_semester': current_semester,
+            'current_academic_year': current_academic_year,
+            'fee_balance': fee_balance,
+            'all_balances': all_balances,
+            'recent_payments': recent_payments,
+            'total_fees_all_time': total_fees_all_time,
+            'total_paid_all_time': total_paid_all_time,
+            'total_balance_all_time': total_balance_all_time,
+        }
+        
+        return render(request, 'student/finance/fee_statement.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error loading fee statement: {str(e)}')
+        return redirect('student_dashboard')
+
+
+@login_required
+def student_make_payment(request):
+    """Make fee payment page with M-Pesa integration"""
+    try:
+        student = request.user.student_profile
+        
+        # Get current semester
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        if not current_semester:
+            messages.warning(request, 'No active semester found.')
+            return redirect('student_fee_statement')
+        
+        # Get fee balance
+        fee_balance = FeeBalance.objects.filter(
+            student=student,
+            semester=current_semester
+        ).first()
+        
+        if not fee_balance:
+            messages.warning(request, 'No fee structure found for current semester.')
+            return redirect('student_fee_statement')
+        
+        # M-Pesa payment details
+        mpesa_paybill = '400200'  # Your paybill number
+        mpesa_account = student.registration_number
+        
+        context = {
+            'student': student,
+            'current_semester': current_semester,
+            'fee_balance': fee_balance,
+            'mpesa_paybill': mpesa_paybill,
+            'mpesa_account': mpesa_account,
+        }
+        
+        return render(request, 'student/finance/make_payment.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('student_fee_statement')
+
+
+@login_required
+def student_payment_history(request):
+    """View all payment history"""
+    try:
+        student = request.user.student_profile
+        
+        # Filters
+        status_filter = request.GET.get('status', 'all')
+        semester_filter = request.GET.get('semester', 'all')
+        
+        # Get all payments
+        payments = FeePayment.objects.filter(student=student)
+        
+        # Apply filters
+        if status_filter != 'all':
+            payments = payments.filter(status=status_filter)
+        
+        if semester_filter != 'all':
+            payments = payments.filter(semester_id=semester_filter)
+        
+        payments = payments.select_related(
+            'semester',
+            'academic_year',
+            'fee_structure',
+            'processed_by'
+        ).order_by('-payment_date')
+        
+        # Get all semesters for filter
+        semesters = Semester.objects.all().order_by('-start_date')
+        
+        # Calculate statistics
+        total_paid = payments.filter(status='completed').aggregate(
+            total=Sum('amount')
+        )['total'] or Decimal('0.00')
+        
+        completed_count = payments.filter(status='completed').count()
+        pending_count = payments.filter(status='pending').count()
+        failed_count = payments.filter(status='failed').count()
+        
+        context = {
+            'student': student,
+            'payments': payments,
+            'semesters': semesters,
+            'status_filter': status_filter,
+            'semester_filter': semester_filter,
+            'total_paid': total_paid,
+            'completed_count': completed_count,
+            'pending_count': pending_count,
+            'failed_count': failed_count,
+        }
+        
+        return render(request, 'student/finance/payment_history.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('student_fee_statement')
+
+
+@login_required
+def student_payment_receipt(request, payment_id):
+    """View/Download single payment receipt"""
+    try:
+        student = request.user.student_profile
+        
+        payment = get_object_or_404(
+            FeePayment,
+            id=payment_id,
+            student=student,
+            status='completed'
+        )
+        
+        # Check if download requested
+        download = request.GET.get('download', 'false') == 'true'
+        
+        context = {
+            'student': student,
+            'payment': payment,
+        }
+        
+        if download:
+            # Render as PDF (you'll need to implement PDF generation)
+            # For now, just render the template
+            response = render(request, 'student/finance/receipt_pdf.html', context)
+            response['Content-Disposition'] = f'attachment; filename="receipt_{payment.receipt_number}.pdf"'
+            return response
+        
+        return render(request, 'student/finance/receipt.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('student_payment_history')
+
+
+@login_required
+def student_all_receipts(request):
+    """View all receipts"""
+    try:
+        student = request.user.student_profile
+        
+        # Get all completed payments with receipts
+        payments = FeePayment.objects.filter(
+            student=student,
+            status='completed',
+            receipt_number__isnull=False
+        ).select_related(
+            'semester',
+            'academic_year'
+        ).order_by('-payment_date')
+        
+        # Group by semester
+        receipts_by_semester = {}
+        for payment in payments:
+            semester_key = payment.semester.name
+            if semester_key not in receipts_by_semester:
+                receipts_by_semester[semester_key] = []
+            receipts_by_semester[semester_key].append(payment)
+        
+        context = {
+            'student': student,
+            'payments': payments,
+            'receipts_by_semester': receipts_by_semester,
+        }
+        
+        return render(request, 'student/finance/all_receipts.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('student_fee_statement')
+
+
+@login_required
+def student_fee_structure(request):
+    """View fee structure for student's programme"""
+    try:
+        student = request.user.student_profile
+        
+        # Get current academic year
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        
+        # Get fee structures for student's programme
+        fee_structures = FeeStructure.objects.filter(
+            programme=student.programme,
+            academic_year=current_academic_year,
+            is_active=True
+        ).order_by('year_of_study', 'semester_number')
+        
+        # Get student's current fee structure
+        current_fee_structure = fee_structures.filter(
+            year_of_study=student.current_year,
+            semester_number=student.current_semester
+        ).first()
+        
+        # Group by year of study
+        structures_by_year = {}
+        for structure in fee_structures:
+            year = structure.year_of_study
+            if year not in structures_by_year:
+                structures_by_year[year] = []
+            structures_by_year[year].append(structure)
+        
+        context = {
+            'student': student,
+            'current_academic_year': current_academic_year,
+            'fee_structures': fee_structures,
+            'current_fee_structure': current_fee_structure,
+            'structures_by_year': structures_by_year,
+        }
+        
+        return render(request, 'student/finance/fee_structure.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('student_fee_statement')
+
+
+@login_required
+def verify_payment(request):
+    """AJAX endpoint to verify M-Pesa payment"""
+    if request.method == 'POST':
+        try:
+            import json
+            data = json.loads(request.body)
+            
+            transaction_ref = data.get('transaction_ref')
+            amount = data.get('amount')
+            phone_number = data.get('phone_number')
+            
+            student = request.user.student_profile
+            current_semester = Semester.objects.filter(is_current=True).first()
+            
+            if not all([transaction_ref, amount, phone_number, current_semester]):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Missing required fields'
+                })
+            
+            # Get fee structure
+            fee_structure = FeeStructure.objects.filter(
+                programme=student.programme,
+                academic_year=current_semester.academic_year,
+                year_of_study=student.current_year,
+                semester_number=student.current_semester
+            ).first()
+            
+            if not fee_structure:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Fee structure not found'
+                })
+            
+            # Create payment record
+            payment = FeePayment.objects.create(
+                student=student,
+                semester=current_semester,
+                academic_year=current_semester.academic_year,
+                fee_structure=fee_structure,
+                amount=Decimal(amount),
+                payment_method='mpesa',
+                transaction_reference=transaction_ref,
+                payment_date=timezone.now(),
+                status='pending'  # Will be updated by M-Pesa callback
+            )
+            
+            # Here you would integrate with M-Pesa API to verify the transaction
+            # For now, we'll simulate successful verification
+            
+            # Simulate M-Pesa verification (replace with actual API call)
+            # mpesa_verified = verify_mpesa_transaction(transaction_ref)
+            
+            # For demo purposes, mark as completed
+            payment.status = 'completed'
+            payment.receipt_number = f'RCP-{timezone.now().strftime("%Y%m%d")}-{payment.id:05d}'
+            payment.save()
+            
+            # Update fee balance
+            fee_balance, created = FeeBalance.objects.get_or_create(
+                student=student,
+                semester=current_semester,
+                academic_year=current_semester.academic_year,
+                defaults={
+                    'total_fees': fee_structure.total_fee,
+                    'amount_paid': Decimal('0.00'),
+                    'balance': fee_structure.total_fee
+                }
+            )
+            
+            fee_balance.amount_paid += Decimal(amount)
+            fee_balance.balance = fee_balance.total_fees - fee_balance.amount_paid
+            fee_balance.last_payment_date = timezone.now()
+            if fee_balance.balance <= 0:
+                fee_balance.is_cleared = True
+                fee_balance.clearance_date = timezone.now()
+            fee_balance.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Payment verified successfully',
+                'receipt_number': payment.receipt_number,
+                'new_balance': float(fee_balance.balance)
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+
