@@ -1535,6 +1535,49 @@ class QuickActionAdmin(admin.ModelAdmin):
     list_display = ['name', 'action_type', 'is_active', 'display_order', 'usage_count']
     list_filter = ['action_type', 'is_active']
     ordering = ['display_order']
+
+from django.contrib import admin
+from .models import FAQ, SupportTicket, TicketReply, SystemGuide, ContactInfo
+
+
+@admin.register(FAQ)
+class FAQAdmin(admin.ModelAdmin):
+    list_display = ['question', 'category', 'display_order', 'views_count', 'is_active']
+    list_filter = ['category', 'is_active']
+    search_fields = ['question', 'answer']
+    ordering = ['category', 'display_order']
+
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ['ticket_number', 'student', 'category', 'priority', 'status', 'created_at']
+    list_filter = ['status', 'category', 'priority', 'created_at']
+    search_fields = ['ticket_number', 'subject', 'student__registration_number']
+    readonly_fields = ['ticket_number', 'created_at']
+
+
+@admin.register(TicketReply)
+class TicketReplyAdmin(admin.ModelAdmin):
+    list_display = ['ticket', 'user', 'is_staff_reply', 'created_at']
+    list_filter = ['is_staff_reply', 'created_at']
+    search_fields = ['ticket__ticket_number', 'message']
+
+
+@admin.register(SystemGuide)
+class SystemGuideAdmin(admin.ModelAdmin):
+    list_display = ['title', 'guide_type', 'display_order', 'views_count', 'is_active']
+    list_filter = ['guide_type', 'is_active']
+    search_fields = ['title', 'description']
+    ordering = ['guide_type', 'display_order']
+
+
+@admin.register(ContactInfo)
+class ContactInfoAdmin(admin.ModelAdmin):
+    list_display = ['department', 'email', 'phone_primary', 'display_order', 'is_active']
+    list_filter = ['is_active']
+    search_fields = ['department', 'email']
+    ordering = ['display_order']
+    
     
 # Customize admin site
 admin.site.site_header = "MUT University Management System"
