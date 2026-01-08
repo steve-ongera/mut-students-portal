@@ -1,0 +1,201 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}Report Issue{% endblock %}
+{% block page_title %}Report an Issue{% endblock %}
+{% block page_subtitle %}Submit a support ticket for assistance{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Help & Support</a></li>
+        <li class="breadcrumb-item active">Report Issue</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- Report Issue Form -->
+    <div class="col-lg-8">
+        <div class="content-card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="ri-error-warning-line"></i> Create Support Ticket
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        <!-- Category -->
+                        <div class="col-md-6">
+                            <label class="form-label">Category <span class="text-danger">*</span></label>
+                            <select name="category" class="form-select" required>
+                                <option value="">Select Category</option>
+                                {% for value, label in categories %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Priority -->
+                        <div class="col-md-6">
+                            <label class="form-label">Priority <span class="text-danger">*</span></label>
+                            <select name="priority" class="form-select" required>
+                                {% for value, label in priorities %}
+                                <option value="{{ value }}" {% if value == 'medium' %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">
+                                Select "Urgent" only for critical issues
+                            </small>
+                        </div>
+
+                        <!-- Subject -->
+                        <div class="col-12">
+                            <label class="form-label">Subject <span class="text-danger">*</span></label>
+                            <input type="text" name="subject" class="form-control" 
+                                   placeholder="Brief description of your issue" 
+                                   maxlength="300" required>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="col-12">
+                            <label class="form-label">Description <span class="text-danger">*</span></label>
+                            <textarea name="description" class="form-control" rows="6" 
+                                      placeholder="Please provide detailed information about your issue..." 
+                                      required></textarea>
+                            <small class="text-muted">
+                                Include relevant details like registration number, dates, error messages, etc.
+                            </small>
+                        </div>
+
+                        <!-- Attachment -->
+                        <div class="col-12">
+                            <label class="form-label">Attachment (Optional)</label>
+                            <input type="file" name="attachment" class="form-control" 
+                                   accept="image/*,.pdf,.doc,.docx">
+                            <small class="text-muted">
+                                Max file size: 5MB. Supported: Images, PDF, Word documents
+                            </small>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="ri-send-plane-fill"></i> Submit Ticket
+                                </button>
+                                <a href="{% url 'my_tickets' %}" class="btn btn-outline-secondary">
+                                    <i class="ri-file-list-line"></i> My Tickets
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Tips Card -->
+        <div class="content-card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-lightbulb-line"></i> Tips for Better Support
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="ri-check-line text-success"></i>
+                        Be specific and detailed
+                    </li>
+                    <li class="mb-2">
+                        <i class="ri-check-line text-success"></i>
+                        Include error messages if any
+                    </li>
+                    <li class="mb-2">
+                        <i class="ri-check-line text-success"></i>
+                        Attach screenshots if helpful
+                    </li>
+                    <li class="mb-2">
+                        <i class="ri-check-line text-success"></i>
+                        Mention relevant dates/times
+                    </li>
+                    <li class="mb-0">
+                        <i class="ri-check-line text-success"></i>
+                        Check FAQs first
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Response Time -->
+        <div class="content-card mb-3">
+            <div class="card-body">
+                <h6 class="mb-3">
+                    <i class="ri-time-line"></i> Expected Response Time
+                </h6>
+                <div class="mb-2">
+                    <span class="badge bg-danger">Urgent</span>
+                    <span class="text-muted ms-2">1-2 hours</span>
+                </div>
+                <div class="mb-2">
+                    <span class="badge bg-warning">High</span>
+                    <span class="text-muted ms-2">4-6 hours</span>
+                </div>
+                <div class="mb-2">
+                    <span class="badge bg-info">Medium</span>
+                    <span class="text-muted ms-2">24 hours</span>
+                </div>
+                <div>
+                    <span class="badge bg-secondary">Low</span>
+                    <span class="text-muted ms-2">48 hours</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Tickets -->
+        {% if recent_tickets %}
+        <div class="content-card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="ri-history-line"></i> Recent Tickets
+                </h6>
+            </div>
+            <div class="card-body">
+                {% for ticket in recent_tickets %}
+                <div class="ticket-item {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
+                    <div class="d-flex justify-content-between align-items-start mb-1">
+                        <span class="badge bg-{{ ticket.status|default:'secondary' }}">
+                            {{ ticket.get_status_display }}
+                        </span>
+                        <small class="text-muted">{{ ticket.created_at|date:"M d" }}</small>
+                    </div>
+                    <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
+                       class="text-decoration-none d-block text-dark">
+                        <small class="fw-medium">{{ ticket.subject|truncatewords:8 }}</small>
+                    </a>
+                    <small class="text-muted">{{ ticket.ticket_number }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.ticket-item:hover {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin: -0.5rem;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}FAQs{% endblock %}
+{% block page_title %}Frequently Asked Questions{% endblock %}
+{% block page_subtitle %}Find answers to common questions{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Help & Support</a></li>
+        <li class="breadcrumb-item active">FAQs</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- Search and Filter -->
+    <div class="col-12 mb-4">
+        <div class="content-card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-6">
+                        <input type="text" name="q" class="form-control" 
+                               placeholder="Search FAQs..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="category" class="form-select">
+                            <option value="all">All Categories</option>
+                            <option value="academic" {% if selected_category == 'academic' %}selected{% endif %}>Academic</option>
+                            <option value="finance" {% if selected_category == 'finance' %}selected{% endif %}>Finance</option>
+                            <option value="hostel" {% if selected_category == 'hostel' %}selected{% endif %}>Hostel</option>
+                            <option value="library" {% if selected_category == 'library' %}selected{% endif %}>Library</option>
+                            <option value="technical" {% if selected_category == 'technical' %}selected{% endif %}>Technical</option>
+                            <option value="general" {% if selected_category == 'general' %}selected{% endif %}>General</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-search-line"></i> Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Categories Summary -->
+    <div class="col-12 mb-4">
+        <div class="row g-3">
+            {% for cat in categories %}
+            <div class="col-md-4 col-lg-2">
+                <a href="?category={{ cat.category }}" class="text-decoration-none">
+                    <div class="stat-card {% if selected_category == cat.category %}active{% endif %}">
+                        <div class="stat-icon bg-primary">
+                            <i class="ri-question-line"></i>
+                        </div>
+                        <div class="stat-details">
+                            <div class="stat-value">{{ cat.count }}</div>
+                            <div class="stat-label">{{ cat.category|title }}</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- FAQs List -->
+    <div class="col-12">
+        {% if faqs_by_category %}
+            {% for category, faqs in faqs_by_category.items %}
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="ri-questionnaire-line"></i>
+                        {{ category|title }} Questions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="accordion{{ category }}">
+                        {% for faq in faqs %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#faq{{ faq.id }}">
+                                    {{ faq.question }}
+                                    <span class="badge bg-light text-dark ms-2">
+                                        <i class="ri-eye-line"></i> {{ faq.views_count }}
+                                    </span>
+                                </button>
+                            </h2>
+                            <div id="faq{{ faq.id }}" class="accordion-collapse collapse" 
+                                 data-bs-parent="#accordion{{ category }}">
+                                <div class="accordion-body">
+                                    <div class="faq-answer">
+                                        {{ faq.answer|linebreaks }}
+                                    </div>
+                                    <div class="faq-feedback mt-3 pt-3 border-top">
+                                        <p class="text-muted mb-2">Was this helpful?</p>
+                                        <button class="btn btn-sm btn-outline-success me-2" 
+                                                onclick="submitFeedback({{ faq.id }}, true)">
+                                            <i class="ri-thumb-up-line"></i> Yes ({{ faq.is_helpful_count }})
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" 
+                                                onclick="submitFeedback({{ faq.id }}, false)">
+                                            <i class="ri-thumb-down-line"></i> No ({{ faq.is_not_helpful_count }})
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="content-card">
+                <div class="card-body text-center py-5">
+                    <i class="ri-file-search-line" style="font-size: 3rem; color: #ccc;"></i>
+                    <p class="text-muted mt-3">No FAQs found matching your search.</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Still need help? -->
+    <div class="col-12 mt-4">
+        <div class="content-card bg-light">
+            <div class="card-body text-center">
+                <h5>Still need help?</h5>
+                <p class="text-muted">Can't find what you're looking for?</p>
+                <div class="btn-group">
+                    <a href="{% url 'contact_support' %}" class="btn btn-primary">
+                        <i class="ri-customer-service-line"></i> Contact Support
+                    </a>
+                    <a href="{% url 'report_issue' %}" class="btn btn-outline-primary">
+                        <i class="ri-error-warning-line"></i> Report an Issue
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function submitFeedback(faqId, isHelpful) {
+    fetch(`/student/help/faq/${faqId}/feedback/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `is_helpful=${isHelpful}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            toastr.success('Thank you for your feedback!');
+            setTimeout(() => location.reload(), 1000);
+        }
+    });
+}
+</script>
+
+<style>
+.stat-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover, .stat-card.active {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.accordion-button {
+    font-weight: 500;
+}
+
+.faq-answer {
+    color: #495057;
+    line-height: 1.6;
+}
+</style>
+{% endblock %}

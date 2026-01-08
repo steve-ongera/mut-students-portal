@@ -1,0 +1,219 @@
+{% extends 'student/student_base.html' %}
+{% load static %}
+
+{% block title %}My Support Tickets{% endblock %}
+{% block page_title %}My Support Tickets{% endblock %}
+{% block page_subtitle %}View and manage your support requests{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Help & Support</a></li>
+        <li class="breadcrumb-item active">My Tickets</li>
+    </ol>
+</nav>
+
+<!-- Statistics -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-primary">
+                <i class="ri-file-list-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">{{ stats.total }}</div>
+                <div class="stat-label">Total Tickets</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-warning">
+                <i class="ri-time-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">{{ stats.open }}</div>
+                <div class="stat-label">Open</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-info">
+                <i class="ri-loader-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">{{ stats.in_progress }}</div>
+                <div class="stat-label">In Progress</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="stat-card">
+            <div class="stat-icon bg-success">
+                <i class="ri-checkbox-circle-line"></i>
+            </div>
+            <div class="stat-details">
+                <div class="stat-value">{{ stats.resolved }}</div>
+                <div class="stat-label">Resolved</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters and New Ticket -->
+<div class="content-card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-4">
+                <form method="get" class="d-flex gap-2">
+                    <select name="status" class="form-select" onchange="this.form.submit()">
+                        <option value="all">All Status</option>
+                        {% for value, label in statuses %}
+                        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <select name="category" class="form-select" onchange="this.form.submit()">
+                        <option value="all">All Categories</option>
+                        {% for value, label in categories %}
+                        <option value="{{ value }}" {% if category_filter == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="col-md-8 text-end">
+                <a href="{% url 'report_issue' %}" class="btn btn-primary">
+                    <i class="ri-add-line"></i> New Ticket
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tickets List -->
+<div class="content-card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Support Tickets ({{ tickets.count }})</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if tickets %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Ticket #</th>
+                        <th>Subject</th>
+                        <th>Category</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
+                               class="text-decoration-none fw-medium">
+                                {{ ticket.ticket_number }}
+                            </a>
+                        </td>
+                        <td>{{ ticket.subject|truncatewords:10 }}</td>
+                        <td>
+                            <span class="badge bg-secondary">
+                                {{ ticket.get_category_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if ticket.priority == 'urgent' %}
+                            <span class="badge bg-danger">Urgent</span>
+                            {% elif ticket.priority == 'high' %}
+                            <span class="badge bg-warning">High</span>
+                            {% elif ticket.priority == 'medium' %}
+                            <span class="badge bg-info">Medium</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Low</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if ticket.status == 'open' %}
+                            <span class="badge bg-warning">Open</span>
+                            {% elif ticket.status == 'in_progress' %}
+                            <span class="badge bg-info">In Progress</span>
+                            {% elif ticket.status == 'resolved' %}
+                            <span class="badge bg-success">Resolved</span>
+                            {% elif ticket.status == 'closed' %}
+                            <span class="badge bg-secondary">Closed</span>
+                            {% else %}
+                            <span class="badge bg-primary">{{ ticket.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ ticket.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="ri-eye-line"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="ri-inbox-line" style="font-size: 3rem; color: #ccc;"></i>
+            <p class="text-muted mt-3">No support tickets found.</p>
+            <a href="{% url 'report_issue' %}" class="btn btn-primary mt-2">
+                <i class="ri-add-line"></i> Create Your First Ticket
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.stat-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-details {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}
