@@ -346,4 +346,6 @@ urlpatterns = [
     path('api/chat/rate-message/', views.rate_message, name='rate_message'),
     path('api/chat/end-session/', views.end_session, name='end_session'),
     
+    
+    
 ]

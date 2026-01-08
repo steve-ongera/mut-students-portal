@@ -14165,3 +14165,334 @@ def end_session(request):
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.http import JsonResponse, FileResponse, Http404
+from django.db.models import Q, Count
+from django.utils import timezone
+from .models import (
+    FAQ, SupportTicket, TicketReply, SystemGuide, 
+    ContactInfo, Student
+)
+
+
+@login_required
+def help_faqs(request):
+    """Display FAQs grouped by category"""
+    category = request.GET.get('category', 'all')
+    search_query = request.GET.get('q', '')
+    
+    # Get all active FAQs
+    faqs = FAQ.objects.filter(is_active=True)
+    
+    # Filter by category
+    if category != 'all':
+        faqs = faqs.filter(category=category)
+    
+    # Search
+    if search_query:
+        faqs = faqs.filter(
+            Q(question__icontains=search_query) | 
+            Q(answer__icontains=search_query)
+        )
+    
+    # Group FAQs by category
+    faqs_by_category = {}
+    for faq in faqs:
+        if faq.category not in faqs_by_category:
+            faqs_by_category[faq.category] = []
+        faqs_by_category[faq.category].append(faq)
+    
+    # Get categories with counts
+    categories = FAQ.objects.filter(is_active=True).values('category').annotate(
+        count=Count('id')
+    ).order_by('category')
+    
+    context = {
+        'faqs_by_category': faqs_by_category,
+        'categories': categories,
+        'selected_category': category,
+        'search_query': search_query,
+        'total_faqs': faqs.count(),
+    }
+    
+    return render(request, 'student/help/faqs.html', context)
+
+
+@login_required
+def faq_detail(request, faq_id):
+    """View single FAQ and mark as helpful/not helpful"""
+    faq = get_object_or_404(FAQ, id=faq_id, is_active=True)
+    
+    # Increment view count
+    faq.views_count += 1
+    faq.save(update_fields=['views_count'])
+    
+    context = {
+        'faq': faq,
+    }
+    
+    return render(request, 'student/help/faq_detail.html', context)
+
+
+@login_required
+def faq_feedback(request, faq_id):
+    """Mark FAQ as helpful or not helpful"""
+    if request.method == 'POST':
+        faq = get_object_or_404(FAQ, id=faq_id)
+        is_helpful = request.POST.get('is_helpful') == 'true'
+        
+        if is_helpful:
+            faq.is_helpful_count += 1
+        else:
+            faq.is_not_helpful_count += 1
+        
+        faq.save()
+        
+        return JsonResponse({
+            'success': True,
+            'helpful_count': faq.is_helpful_count,
+            'not_helpful_count': faq.is_not_helpful_count
+        })
+    
+    return JsonResponse({'success': False})
+
+
+@login_required
+def contact_support(request):
+    """Display contact information for support"""
+    contacts = ContactInfo.objects.filter(is_active=True)
+    
+    # Get student's recent tickets
+    student = request.user.student_profile
+    recent_tickets = SupportTicket.objects.filter(
+        student=student
+    ).order_by('-created_at')[:5]
+    
+    context = {
+        'contacts': contacts,
+        'recent_tickets': recent_tickets,
+    }
+    
+    return render(request, 'student/help/contact_support.html', context)
+
+
+@login_required
+def system_guides(request):
+    """Display system guides and tutorials"""
+    guide_type = request.GET.get('type', 'all')
+    search_query = request.GET.get('q', '')
+    
+    guides = SystemGuide.objects.filter(is_active=True)
+    
+    # Filter by type
+    if guide_type != 'all':
+        guides = guides.filter(guide_type=guide_type)
+    
+    # Search
+    if search_query:
+        guides = guides.filter(
+            Q(title__icontains=search_query) | 
+            Q(description__icontains=search_query) |
+            Q(content__icontains=search_query)
+        )
+    
+    # Group by type
+    guides_by_type = {}
+    for guide in guides:
+        if guide.guide_type not in guides_by_type:
+            guides_by_type[guide.guide_type] = []
+        guides_by_type[guide.guide_type].append(guide)
+    
+    # Get types with counts
+    guide_types = SystemGuide.objects.filter(is_active=True).values('guide_type').annotate(
+        count=Count('id')
+    ).order_by('guide_type')
+    
+    context = {
+        'guides_by_type': guides_by_type,
+        'guide_types': guide_types,
+        'selected_type': guide_type,
+        'search_query': search_query,
+        'total_guides': guides.count(),
+    }
+    
+    return render(request, 'student/help/system_guides.html', context)
+
+
+@login_required
+def guide_detail(request, guide_id):
+    """View single guide"""
+    guide = get_object_or_404(SystemGuide, id=guide_id, is_active=True)
+    
+    # Increment view count
+    guide.views_count += 1
+    guide.save(update_fields=['views_count'])
+    
+    # Get related guides
+    related_guides = SystemGuide.objects.filter(
+        guide_type=guide.guide_type,
+        is_active=True
+    ).exclude(id=guide.id)[:3]
+    
+    context = {
+        'guide': guide,
+        'related_guides': related_guides,
+    }
+    
+    return render(request, 'student/help/guide_detail.html', context)
+
+
+@login_required
+def report_issue(request):
+    """Create a new support ticket"""
+    student = request.user.student_profile
+    
+    if request.method == 'POST':
+        category = request.POST.get('category')
+        priority = request.POST.get('priority', 'medium')
+        subject = request.POST.get('subject')
+        description = request.POST.get('description')
+        attachment = request.FILES.get('attachment')
+        
+        # Validate
+        if not all([category, subject, description]):
+            messages.error(request, 'Please fill in all required fields.')
+            return redirect('report_issue')
+        
+        # Create ticket
+        ticket = SupportTicket.objects.create(
+            student=student,
+            category=category,
+            priority=priority,
+            subject=subject,
+            description=description,
+            attachment=attachment,
+            status='open'
+        )
+        
+        messages.success(
+            request, 
+            f'Support ticket {ticket.ticket_number} created successfully. '
+            f'We will respond to you shortly.'
+        )
+        return redirect('my_tickets')
+    
+    # Get recent tickets
+    recent_tickets = SupportTicket.objects.filter(
+        student=student
+    ).order_by('-created_at')[:3]
+    
+    context = {
+        'categories': SupportTicket.CATEGORIES,
+        'priorities': SupportTicket.PRIORITY_LEVELS,
+        'recent_tickets': recent_tickets,
+    }
+    
+    return render(request, 'student/help/report_issue.html', context)
+
+
+@login_required
+def my_tickets(request):
+    """View all student's support tickets"""
+    student = request.user.student_profile
+    
+    status_filter = request.GET.get('status', 'all')
+    category_filter = request.GET.get('category', 'all')
+    
+    tickets = SupportTicket.objects.filter(student=student)
+    
+    # Apply filters
+    if status_filter != 'all':
+        tickets = tickets.filter(status=status_filter)
+    
+    if category_filter != 'all':
+        tickets = tickets.filter(category=category_filter)
+    
+    tickets = tickets.order_by('-created_at')
+    
+    # Get statistics
+    stats = {
+        'total': SupportTicket.objects.filter(student=student).count(),
+        'open': SupportTicket.objects.filter(student=student, status='open').count(),
+        'in_progress': SupportTicket.objects.filter(student=student, status='in_progress').count(),
+        'resolved': SupportTicket.objects.filter(student=student, status='resolved').count(),
+        'closed': SupportTicket.objects.filter(student=student, status='closed').count(),
+    }
+    
+    context = {
+        'tickets': tickets,
+        'stats': stats,
+        'status_filter': status_filter,
+        'category_filter': category_filter,
+        'statuses': SupportTicket.TICKET_STATUS,
+        'categories': SupportTicket.CATEGORIES,
+    }
+    
+    return render(request, 'student/help/my_tickets.html', context)
+
+
+@login_required
+def ticket_detail(request, ticket_number):
+    """View ticket details and replies"""
+    student = request.user.student_profile
+    ticket = get_object_or_404(
+        SupportTicket, 
+        ticket_number=ticket_number,
+        student=student
+    )
+    
+    if request.method == 'POST':
+        message = request.POST.get('message')
+        attachment = request.FILES.get('attachment')
+        
+        if message:
+            TicketReply.objects.create(
+                ticket=ticket,
+                user=request.user,
+                message=message,
+                attachment=attachment,
+                is_staff_reply=False
+            )
+            
+            # Update ticket status
+            if ticket.status == 'resolved' or ticket.status == 'closed':
+                ticket.status = 'open'
+                ticket.save()
+            
+            messages.success(request, 'Reply added successfully.')
+            return redirect('ticket_detail', ticket_number=ticket_number)
+    
+    # Get all replies
+    replies = ticket.replies.all().select_related('user')
+    
+    context = {
+        'ticket': ticket,
+        'replies': replies,
+    }
+    
+    return render(request, 'student/help/ticket_detail.html', context)
+
+
+@login_required
+def close_ticket(request, ticket_number):
+    """Close a support ticket"""
+    if request.method == 'POST':
+        student = request.user.student_profile
+        ticket = get_object_or_404(
+            SupportTicket,
+            ticket_number=ticket_number,
+            student=student
+        )
+        
+        ticket.status = 'closed'
+        ticket.save()
+        
+        messages.success(request, f'Ticket {ticket_number} closed successfully.')
+        return redirect('my_tickets')
+    
+    return redirect('my_tickets')
+
