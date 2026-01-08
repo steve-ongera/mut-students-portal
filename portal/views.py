@@ -14280,47 +14280,67 @@ def contact_support(request):
     return render(request, 'student/help/contact_support.html', context)
 
 
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q, Count
+
+from .models import SystemGuide
+
+
 @login_required
 def system_guides(request):
     """Display system guides and tutorials"""
+
     guide_type = request.GET.get('type', 'all')
-    search_query = request.GET.get('q', '')
-    
+    search_query = request.GET.get('q', '').strip()
+
+    # Base queryset
     guides = SystemGuide.objects.filter(is_active=True)
-    
+
     # Filter by type
     if guide_type != 'all':
         guides = guides.filter(guide_type=guide_type)
-    
+
     # Search
     if search_query:
         guides = guides.filter(
-            Q(title__icontains=search_query) | 
+            Q(title__icontains=search_query) |
             Q(description__icontains=search_query) |
             Q(content__icontains=search_query)
         )
-    
-    # Group by type
+
+    # Group guides by type
     guides_by_type = {}
     for guide in guides:
-        if guide.guide_type not in guides_by_type:
-            guides_by_type[guide.guide_type] = []
-        guides_by_type[guide.guide_type].append(guide)
-    
-    # Get types with counts
-    guide_types = SystemGuide.objects.filter(is_active=True).values('guide_type').annotate(
-        count=Count('id')
-    ).order_by('guide_type')
-    
+        guides_by_type.setdefault(guide.guide_type, []).append(guide)
+
+    # Guide types summary with counts
+    guide_types = (
+        SystemGuide.objects
+        .filter(is_active=True)
+        .values('guide_type')
+        .annotate(count=Count('id'))
+        .order_by('guide_type')
+    )
+
+    # 🔥 Most viewed guides (FIXED PROPERLY)
+    popular_guides = (
+        SystemGuide.objects
+        .filter(is_active=True)
+        .order_by('-views_count')[:5]
+    )
+
     context = {
         'guides_by_type': guides_by_type,
         'guide_types': guide_types,
+        'popular_guides': popular_guides,
         'selected_type': guide_type,
         'search_query': search_query,
         'total_guides': guides.count(),
     }
-    
+
     return render(request, 'student/help/system_guides.html', context)
+
 
 
 @login_required

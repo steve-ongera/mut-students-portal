@@ -5,6 +5,10 @@
 {% block page_title %}Frequently Asked Questions{% endblock %}
 {% block page_subtitle %}Find answers to common questions{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -17,7 +21,7 @@
 <div class="row">
     <!-- Search and Filter -->
     <div class="col-12 mb-4">
-        <div class="content-card">
+        <div class="management-card">
             <div class="card-body">
                 <form method="get" class="row g-3">
                     <div class="col-md-6">
@@ -25,7 +29,7 @@
                                placeholder="Search FAQs..." value="{{ search_query }}">
                     </div>
                     <div class="col-md-4">
-                        <select name="category" class="form-select">
+                        <select name="category" class="form-select" onchange="this.form.submit()">
                             <option value="all">All Categories</option>
                             <option value="academic" {% if selected_category == 'academic' %}selected{% endif %}>Academic</option>
                             <option value="finance" {% if selected_category == 'finance' %}selected{% endif %}>Finance</option>
@@ -52,7 +56,7 @@
             <div class="col-md-4 col-lg-2">
                 <a href="?category={{ cat.category }}" class="text-decoration-none">
                     <div class="stat-card {% if selected_category == cat.category %}active{% endif %}">
-                        <div class="stat-icon bg-primary">
+                        <div class="stat-icon">
                             <i class="ri-question-line"></i>
                         </div>
                         <div class="stat-details">
@@ -70,7 +74,7 @@
     <div class="col-12">
         {% if faqs_by_category %}
             {% for category, faqs in faqs_by_category.items %}
-            <div class="content-card mb-4">
+            <div class="management-card mb-4">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
                         <i class="ri-questionnaire-line"></i>
@@ -86,7 +90,7 @@
                                         data-bs-toggle="collapse" 
                                         data-bs-target="#faq{{ faq.id }}">
                                     {{ faq.question }}
-                                    <span class="badge bg-light text-dark ms-2">
+                                    <span class="badge ms-2">
                                         <i class="ri-eye-line"></i> {{ faq.views_count }}
                                     </span>
                                 </button>
@@ -97,16 +101,18 @@
                                     <div class="faq-answer">
                                         {{ faq.answer|linebreaks }}
                                     </div>
-                                    <div class="faq-feedback mt-3 pt-3 border-top">
+                                    <div class="faq-feedback mt-3 pt-3">
                                         <p class="text-muted mb-2">Was this helpful?</p>
-                                        <button class="btn btn-sm btn-outline-success me-2" 
-                                                onclick="submitFeedback({{ faq.id }}, true)">
-                                            <i class="ri-thumb-up-line"></i> Yes ({{ faq.is_helpful_count }})
-                                        </button>
-                                        <button class="btn btn-sm btn-outline-danger" 
-                                                onclick="submitFeedback({{ faq.id }}, false)">
-                                            <i class="ri-thumb-down-line"></i> No ({{ faq.is_not_helpful_count }})
-                                        </button>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline" 
+                                                    onclick="submitFeedback({{ faq.id }}, true)">
+                                                <i class="ri-thumb-up-line"></i> Yes ({{ faq.is_helpful_count }})
+                                            </button>
+                                            <button class="btn btn-sm btn-outline" 
+                                                    onclick="submitFeedback({{ faq.id }}, false)">
+                                                <i class="ri-thumb-down-line"></i> No ({{ faq.is_not_helpful_count }})
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -117,10 +123,10 @@
             </div>
             {% endfor %}
         {% else %}
-            <div class="content-card">
+            <div class="management-card">
                 <div class="card-body text-center py-5">
-                    <i class="ri-file-search-line" style="font-size: 3rem; color: #ccc;"></i>
-                    <p class="text-muted mt-3">No FAQs found matching your search.</p>
+                    <i class="ri-file-search-line empty-state-icon"></i>
+                    <h5 class="mt-3 text-muted">No FAQs found matching your search.</h5>
                 </div>
             </div>
         {% endif %}
@@ -128,15 +134,15 @@
 
     <!-- Still need help? -->
     <div class="col-12 mt-4">
-        <div class="content-card bg-light">
+        <div class="management-card">
             <div class="card-body text-center">
-                <h5>Still need help?</h5>
-                <p class="text-muted">Can't find what you're looking for?</p>
-                <div class="btn-group">
+                <h5 class="mb-3">Still need help?</h5>
+                <p class="text-muted mb-4">Can't find what you're looking for?</p>
+                <div class="d-flex gap-3 justify-content-center">
                     <a href="{% url 'contact_support' %}" class="btn btn-primary">
                         <i class="ri-customer-service-line"></i> Contact Support
                     </a>
-                    <a href="{% url 'report_issue' %}" class="btn btn-outline-primary">
+                    <a href="{% url 'report_issue' %}" class="btn btn-outline">
                         <i class="ri-error-warning-line"></i> Report an Issue
                     </a>
                 </div>
@@ -158,38 +164,383 @@ function submitFeedback(faqId, isHelpful) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            toastr.success('Thank you for your feedback!');
-            setTimeout(() => location.reload(), 1000);
+            // Using Bootstrap toast or alert for feedback
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
+            alert.style.zIndex = '1050';
+            alert.innerHTML = `
+                <strong>Thank you!</strong> Your feedback has been recorded.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alert);
+            
+            // Remove alert after 3 seconds
+            setTimeout(() => {
+                alert.remove();
+                location.reload();
+            }, 3000);
         }
     });
 }
 </script>
 
 <style>
-.stat-card {
-    background: white;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    transition: all 0.3s ease;
-}
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
 
-.stat-card:hover, .stat-card.active {
-    border-color: var(--primary-color);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
+    body {
+        font-family: var(--font-family);
+    }
 
-.accordion-button {
-    font-weight: 500;
-}
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
 
-.faq-answer {
-    color: #495057;
-    line-height: 1.6;
-}
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .stat-card:hover, .stat-card.active {
+        border-color: var(--color-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-card.active {
+        background-color: rgba(46, 125, 50, 0.05);
+    }
+
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+        background: var(--color-primary);
+        flex-shrink: 0;
+    }
+
+    .stat-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Form Styles */
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+    }
+
+    /* Accordion Styles */
+    .accordion-item {
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+    }
+
+    .accordion-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .accordion-button {
+        background-color: white;
+        color: var(--color-gray-800);
+        font-weight: 500;
+        padding: 1rem 1.25rem;
+        border: none;
+        text-align: left;
+        width: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .accordion-button:not(.collapsed) {
+        background-color: var(--color-gray-100);
+        color: var(--color-primary);
+    }
+
+    .accordion-button:hover {
+        background-color: var(--color-gray-100);
+    }
+
+    .accordion-button:focus {
+        box-shadow: none;
+    }
+
+    .accordion-button:after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%232c3e50'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    }
+
+    .accordion-button:not(.collapsed):after {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%232E7D32'%3e%3cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e");
+    }
+
+    .accordion-body {
+        padding: 1rem 1.25rem;
+        background-color: white;
+        border-top: 1px solid var(--color-gray-200);
+    }
+
+    /* FAQ Content */
+    .faq-answer {
+        color: var(--color-gray-800);
+        line-height: 1.6;
+    }
+
+    .faq-feedback {
+        border-top: 1px solid var(--color-gray-200);
+    }
+
+    /* Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Empty State */
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--color-gray-300);
+    }
+
+    .text-center h5 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Text Colors */
+    .text-muted {
+        color: var(--color-gray-600) !important;
+    }
+
+    /* Spacing Utilities */
+    .d-flex.gap-2 {
+        gap: 0.5rem;
+    }
+
+    .d-flex.gap-3 {
+        gap: 1rem;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .stat-card {
+            padding: 0.75rem;
+        }
+
+        .stat-icon {
+            width: 32px;
+            height: 32px;
+            font-size: 1rem;
+        }
+
+        .stat-value {
+            font-size: 1.125rem;
+        }
+
+        .stat-label {
+            font-size: 0.6875rem;
+        }
+
+        .accordion-button {
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .accordion-body {
+            padding: 0.75rem 1rem;
+        }
+
+        .empty-state-icon {
+            font-size: 2.5rem;
+        }
+
+        .d-flex.gap-3 {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .form-control, .form-select {
+            padding: 0.5rem 0.625rem;
+            font-size: 0.875rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .stat-card {
+            padding: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1rem;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .col-md-4.col-lg-2 {
+            width: 50%;
+        }
+
+        .accordion-button {
+            font-size: 0.8125rem;
+            padding: 0.625rem 0.75rem;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
 </style>
 {% endblock %}

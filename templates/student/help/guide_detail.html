@@ -5,6 +5,33 @@
 {% block page_title %}{{ guide.title }}{% endblock %}
 {% block page_subtitle %}{{ guide.get_guide_type_display }} Guide{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    @media print {
+        .breadcrumb,
+        .btn,
+        .col-lg-4,
+        .guide-meta,
+        .video-container,
+        .alert,
+        .content-card:last-child {
+            display: none !important;
+        }
+        
+        .guide-content {
+            font-size: 12pt !important;
+            line-height: 1.6 !important;
+        }
+        
+        .management-card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -19,13 +46,13 @@
     <!-- Main Content -->
     <div class="col-lg-8">
         <!-- Guide Header -->
-        <div class="content-card mb-4">
+        <div class="management-card mb-4">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-3">
                     <div>
-                        <span class="badge bg-primary mb-2">{{ guide.get_guide_type_display }}</span>
+                        <span class="badge mb-2">{{ guide.get_guide_type_display }}</span>
                         <h3 class="mb-2">{{ guide.title }}</h3>
-                        <p class="text-muted mb-0">{{ guide.description }}</p>
+                        <p class="mb-0">{{ guide.description }}</p>
                     </div>
                     <div class="guide-meta">
                         <div class="meta-item">
@@ -44,11 +71,12 @@
                             <iframe 
                                 src="https://www.youtube.com/embed/{{ video_id }}" 
                                 allowfullscreen
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                title="Guide Video">
                             </iframe>
                             {% endwith %}
                         {% else %}
-                            <iframe src="{{ guide.video_url }}" allowfullscreen></iframe>
+                            <iframe src="{{ guide.video_url }}" allowfullscreen title="Guide Video"></iframe>
                         {% endif %}
                     </div>
                 </div>
@@ -58,12 +86,12 @@
                 {% if guide.pdf_file %}
                 <div class="alert alert-info mb-4">
                     <div class="d-flex align-items-center">
-                        <i class="ri-file-pdf-line fs-3 me-3"></i>
+                        <i class="ri-file-pdf-line"></i>
                         <div class="flex-grow-1">
                             <h6 class="alert-heading mb-1">PDF Guide Available</h6>
                             <p class="mb-0">Download this guide as a PDF for offline reading.</p>
                         </div>
-                        <a href="{{ guide.pdf_file.url }}" target="_blank" class="btn btn-info">
+                        <a href="{{ guide.pdf_file.url }}" target="_blank" class="btn btn-outline">
                             <i class="ri-download-line"></i> Download PDF
                         </a>
                     </div>
@@ -78,15 +106,15 @@
         </div>
 
         <!-- Was this helpful? -->
-        <div class="content-card">
+        <div class="management-card">
             <div class="card-body text-center">
-                <h5>Was this guide helpful?</h5>
-                <p class="text-muted">Let us know if you found this guide useful.</p>
-                <div class="btn-group">
-                    <button class="btn btn-outline-success" onclick="submitFeedback(true)">
+                <h5 class="mb-3">Was this guide helpful?</h5>
+                <p class="mb-4">Let us know if you found this guide useful.</p>
+                <div class="d-flex gap-3 justify-content-center">
+                    <button class="btn btn-outline" onclick="submitFeedback(true)">
                         <i class="ri-thumb-up-line"></i> Yes, it helped
                     </button>
-                    <button class="btn btn-outline-danger" onclick="submitFeedback(false)">
+                    <button class="btn btn-outline" onclick="submitFeedback(false)">
                         <i class="ri-thumb-down-line"></i> No, needs improvement
                     </button>
                 </div>
@@ -97,21 +125,21 @@
     <!-- Sidebar -->
     <div class="col-lg-4">
         <!-- Quick Actions -->
-        <div class="content-card mb-3">
+        <div class="management-card mb-3">
             <div class="card-header">
                 <h6 class="card-title mb-0">Quick Actions</h6>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="{% url 'system_guides' %}" class="btn btn-outline-secondary">
+                    <a href="{% url 'system_guides' %}" class="btn btn-outline">
                         <i class="ri-arrow-left-line"></i> Back to Guides
                     </a>
                     {% if guide.pdf_file %}
-                    <a href="{{ guide.pdf_file.url }}" target="_blank" class="btn btn-outline-primary">
+                    <a href="{{ guide.pdf_file.url }}" target="_blank" class="btn btn-outline">
                         <i class="ri-printer-line"></i> Print Guide
                     </a>
                     {% endif %}
-                    <a href="{% url 'report_issue' %}" class="btn btn-outline-info">
+                    <a href="{% url 'report_issue' %}" class="btn btn-outline">
                         <i class="ri-question-line"></i> Still Need Help?
                     </a>
                 </div>
@@ -120,21 +148,21 @@
 
         <!-- Related Guides -->
         {% if related_guides %}
-        <div class="content-card mb-3">
+        <div class="management-card mb-3">
             <div class="card-header">
                 <h6 class="card-title mb-0">
                     <i class="ri-links-line"></i> Related Guides
                 </h6>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="list-group list-group-flush">
                     {% for related in related_guides %}
                     <a href="{% url 'guide_detail' related.id %}" 
-                       class="list-group-item list-group-item-action">
+                       class="list-group-item list-group-item-action py-3">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
                                 <h6 class="mb-1">{{ related.title|truncatewords:8 }}</h6>
-                                <small class="text-muted">{{ related.description|truncatewords:10 }}</small>
+                                <small>{{ related.description|truncatewords:10 }}</small>
                             </div>
                             <i class="ri-arrow-right-s-line"></i>
                         </div>
@@ -145,8 +173,8 @@
         </div>
         {% endif %}
 
-        <!-- Table of Contents (if content is long) -->
-        <div class="content-card mb-3">
+        <!-- Table of Contents -->
+        <div class="management-card mb-3">
             <div class="card-header">
                 <h6 class="card-title mb-0">
                     <i class="ri-list-check"></i> In This Guide
@@ -163,16 +191,16 @@
         </div>
 
         <!-- Support Contact -->
-        <div class="content-card">
+        <div class="management-card">
             <div class="card-body text-center">
-                <i class="ri-customer-service-line" style="font-size: 2.5rem; color: var(--primary-color);"></i>
+                <i class="ri-customer-service-line"></i>
                 <h6 class="mt-3">Need More Help?</h6>
-                <p class="text-muted small mb-3">Our support team is ready to assist you</p>
+                <p class="small mb-4">Our support team is ready to assist you</p>
                 <div class="d-grid gap-2">
                     <a href="{% url 'contact_support' %}" class="btn btn-primary btn-sm">
                         <i class="ri-mail-line"></i> Contact Support
                     </a>
-                    <a href="{% url 'report_issue' %}" class="btn btn-outline-primary btn-sm">
+                    <a href="{% url 'report_issue' %}" class="btn btn-outline btn-sm">
                         <i class="ri-error-warning-line"></i> Report Issue
                     </a>
                 </div>
@@ -183,149 +211,512 @@
 
 <script>
 function submitFeedback(isHelpful) {
-    toastr.success('Thank you for your feedback!');
-    setTimeout(() => {
-        window.location.href = '{% url "system_guides" %}';
-    }, 1500);
+    fetch(`/student/help/guides/${guide.id}/feedback/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: `is_helpful=${isHelpful}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
+            alert.style.zIndex = '1050';
+            alert.innerHTML = `
+                <strong>Thank you!</strong> Your feedback has been recorded.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+    });
 }
+
+// Smooth scroll for table of contents
+document.querySelectorAll('.toc-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            window.scrollTo({
+                top: targetElement.offsetTop - 100,
+                behavior: 'smooth'
+            });
+        }
+    });
+});
 </script>
 
 <style>
-.guide-meta {
-    text-align: right;
-}
-
-.meta-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: var(--text-light);
-    font-size: 0.875rem;
-}
-
-.meta-item i {
-    font-size: 1.25rem;
-}
-
-.video-container {
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.guide-content {
-    font-size: 1rem;
-    line-height: 1.8;
-    color: var(--text-dark);
-}
-
-.guide-content h1,
-.guide-content h2,
-.guide-content h3,
-.guide-content h4 {
-    color: var(--primary-color);
-    margin-top: 2rem;
-    margin-bottom: 1rem;
-    font-weight: 600;
-}
-
-.guide-content h1 { font-size: 2rem; }
-.guide-content h2 { font-size: 1.75rem; }
-.guide-content h3 { font-size: 1.5rem; }
-.guide-content h4 { font-size: 1.25rem; }
-
-.guide-content p {
-    margin-bottom: 1rem;
-}
-
-.guide-content ul,
-.guide-content ol {
-    margin-bottom: 1rem;
-    padding-left: 2rem;
-}
-
-.guide-content li {
-    margin-bottom: 0.5rem;
-}
-
-.guide-content code {
-    background: #f8f9fa;
-    padding: 0.2rem 0.4rem;
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 0.9em;
-    color: #e83e8c;
-}
-
-.guide-content pre {
-    background: #f8f9fa;
-    padding: 1rem;
-    border-radius: 5px;
-    overflow-x: auto;
-}
-
-.guide-content blockquote {
-    border-left: 4px solid var(--primary-color);
-    padding-left: 1rem;
-    margin: 1.5rem 0;
-    color: var(--text-medium);
-    font-style: italic;
-}
-
-.guide-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-    margin: 1.5rem 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.toc-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.toc-link {
-    padding: 0.5rem 1rem;
-    border-left: 3px solid transparent;
-    color: var(--text-medium);
-    text-decoration: none;
-    transition: all 0.2s;
-    border-radius: 0 4px 4px 0;
-}
-
-.toc-link:hover {
-    background: var(--primary-light);
-    border-left-color: var(--primary-color);
-    color: var(--primary-color);
-}
-
-.toc-link.active {
-    background: var(--primary-light);
-    border-left-color: var(--primary-color);
-    color: var(--primary-color);
-    font-weight: 600;
-}
-
-/* Smooth scroll */
-html {
-    scroll-behavior: smooth;
-}
-
-/* Print Styles */
-@media print {
-    .breadcrumb,
-    .btn,
-    .sidebar,
-    .content-card:not(.guide-content) {
-        display: none !important;
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
-    
-    .guide-content {
-        font-size: 12pt;
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Guide Header */
+    .management-card h3 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1.2;
+        margin-bottom: 0.5rem;
+    }
+
+    .management-card p {
+        color: var(--color-gray-600);
         line-height: 1.6;
     }
-}
+
+    /* Guide Meta */
+    .guide-meta {
+        text-align: right;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+
+    .meta-item i {
+        font-size: 1.25rem;
+    }
+
+    /* Badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    /* Video Container */
+    .video-container {
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-md);
+    }
+
+    .ratio iframe {
+        border: none;
+    }
+
+    /* Alert Styles */
+    .alert {
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        border: 1px solid transparent;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .alert .d-flex {
+        align-items: center;
+    }
+
+    .alert i {
+        font-size: 1.5rem;
+        color: var(--color-info);
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .alert-heading {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .alert p {
+        margin: 0;
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+
+    /* Guide Content */
+    .guide-content {
+        font-size: 1rem;
+        line-height: 1.8;
+        color: var(--color-gray-800);
+        margin-top: 2rem;
+    }
+
+    .guide-content h1,
+    .guide-content h2,
+    .guide-content h3,
+    .guide-content h4 {
+        color: var(--color-gray-800);
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    .guide-content h1 { 
+        font-size: 2rem; 
+        border-bottom: 2px solid var(--color-gray-200);
+        padding-bottom: 0.5rem;
+    }
+
+    .guide-content h2 { 
+        font-size: 1.75rem; 
+        border-bottom: 1px solid var(--color-gray-200);
+        padding-bottom: 0.25rem;
+    }
+
+    .guide-content h3 { 
+        font-size: 1.5rem; 
+        color: var(--color-primary);
+    }
+
+    .guide-content h4 { 
+        font-size: 1.25rem; 
+        color: var(--color-primary);
+    }
+
+    .guide-content p {
+        margin-bottom: 1.5rem;
+        line-height: 1.8;
+    }
+
+    .guide-content ul,
+    .guide-content ol {
+        margin-bottom: 1.5rem;
+        padding-left: 2rem;
+    }
+
+    .guide-content li {
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+    }
+
+    .guide-content code {
+        background: var(--color-gray-100);
+        padding: 0.2rem 0.4rem;
+        border-radius: var(--radius-sm);
+        font-family: 'SFMono-Regular', Consolas, monospace;
+        font-size: 0.9em;
+        color: var(--color-gray-800);
+    }
+
+    .guide-content pre {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .guide-content blockquote {
+        border-left: 4px solid var(--color-primary);
+        padding-left: 1rem;
+        margin: 1.5rem 0;
+        color: var(--color-gray-600);
+        font-style: italic;
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    }
+
+    .guide-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--radius-md);
+        margin: 1.5rem 0;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--color-gray-200);
+    }
+
+    /* Table of Contents */
+    .toc-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .toc-link {
+        padding: 0.75rem 1rem;
+        border-left: 3px solid transparent;
+        color: var(--color-gray-800);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        font-size: 0.875rem;
+    }
+
+    .toc-link:hover {
+        background: var(--color-gray-100);
+        border-left-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+
+    .toc-link.active {
+        background: var(--color-gray-100);
+        border-left-color: var(--color-primary);
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    /* List Group Styles */
+    .list-group-item {
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+        padding: 1rem 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+
+    .list-group-item h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .list-group-item small {
+        color: var(--color-gray-600);
+        font-size: 0.8125rem;
+        line-height: 1.4;
+    }
+
+    .list-group-item i {
+        color: var(--color-gray-400);
+        transition: color 0.2s ease;
+    }
+
+    .list-group-item:hover i {
+        color: var(--color-primary);
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Support Icon */
+    .ri-customer-service-line {
+        font-size: 2.5rem;
+        color: var(--color-primary);
+    }
+
+    /* Action Buttons */
+    .d-grid.gap-2 {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .d-flex.gap-3 {
+        gap: 1rem;
+    }
+
+    /* Text Styles */
+    .text-center h5 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .text-center p {
+        color: var(--color-gray-600);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .management-card h3 {
+            font-size: 1.5rem;
+        }
+
+        .guide-meta {
+            text-align: left;
+            margin-top: 1rem;
+        }
+
+        .video-container {
+            margin: 1rem 0;
+        }
+
+        .alert .d-flex {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .alert i {
+            margin-right: 0;
+            margin-bottom: 0.5rem;
+        }
+
+        .alert a.btn {
+            margin-top: 1rem;
+            width: 100%;
+        }
+
+        .guide-content h1 {
+            font-size: 1.75rem;
+        }
+
+        .guide-content h2 {
+            font-size: 1.5rem;
+        }
+
+        .guide-content h3 {
+            font-size: 1.25rem;
+        }
+
+        .d-flex.gap-3 {
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .toc-link {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .list-group-item {
+            padding: 0.75rem 1rem;
+        }
+
+        .ri-customer-service-line {
+            font-size: 2rem;
+        }
+    }
+
+    /* Smooth scroll */
+    html {
+        scroll-behavior: smooth;
+    }
 </style>
 {% endblock %}

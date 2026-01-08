@@ -5,6 +5,10 @@
 {% block page_title %}Report an Issue{% endblock %}
 {% block page_subtitle %}Submit a support ticket for assistance{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -17,7 +21,7 @@
 <div class="row">
     <!-- Report Issue Form -->
     <div class="col-lg-8">
-        <div class="content-card">
+        <div class="management-card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <i class="ri-error-warning-line"></i> Create Support Ticket
@@ -49,7 +53,7 @@
                                 </option>
                                 {% endfor %}
                             </select>
-                            <small class="text-muted">
+                            <small>
                                 Select "Urgent" only for critical issues
                             </small>
                         </div>
@@ -68,7 +72,7 @@
                             <textarea name="description" class="form-control" rows="6" 
                                       placeholder="Please provide detailed information about your issue..." 
                                       required></textarea>
-                            <small class="text-muted">
+                            <small>
                                 Include relevant details like registration number, dates, error messages, etc.
                             </small>
                         </div>
@@ -78,7 +82,7 @@
                             <label class="form-label">Attachment (Optional)</label>
                             <input type="file" name="attachment" class="form-control" 
                                    accept="image/*,.pdf,.doc,.docx">
-                            <small class="text-muted">
+                            <small>
                                 Max file size: 5MB. Supported: Images, PDF, Word documents
                             </small>
                         </div>
@@ -89,7 +93,7 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="ri-send-plane-fill"></i> Submit Ticket
                                 </button>
-                                <a href="{% url 'my_tickets' %}" class="btn btn-outline-secondary">
+                                <a href="{% url 'my_tickets' %}" class="btn btn-outline">
                                     <i class="ri-file-list-line"></i> My Tickets
                                 </a>
                             </div>
@@ -103,7 +107,7 @@
     <!-- Sidebar -->
     <div class="col-lg-4">
         <!-- Tips Card -->
-        <div class="content-card mb-3">
+        <div class="management-card mb-3">
             <div class="card-header">
                 <h6 class="card-title mb-0">
                     <i class="ri-lightbulb-line"></i> Tips for Better Support
@@ -112,23 +116,23 @@
             <div class="card-body">
                 <ul class="list-unstyled mb-0">
                     <li class="mb-2">
-                        <i class="ri-check-line text-success"></i>
+                        <i class="ri-check-line"></i>
                         Be specific and detailed
                     </li>
                     <li class="mb-2">
-                        <i class="ri-check-line text-success"></i>
+                        <i class="ri-check-line"></i>
                         Include error messages if any
                     </li>
                     <li class="mb-2">
-                        <i class="ri-check-line text-success"></i>
+                        <i class="ri-check-line"></i>
                         Attach screenshots if helpful
                     </li>
                     <li class="mb-2">
-                        <i class="ri-check-line text-success"></i>
+                        <i class="ri-check-line"></i>
                         Mention relevant dates/times
                     </li>
                     <li class="mb-0">
-                        <i class="ri-check-line text-success"></i>
+                        <i class="ri-check-line"></i>
                         Check FAQs first
                     </li>
                 </ul>
@@ -136,33 +140,33 @@
         </div>
 
         <!-- Response Time -->
-        <div class="content-card mb-3">
+        <div class="management-card mb-3">
             <div class="card-body">
                 <h6 class="mb-3">
                     <i class="ri-time-line"></i> Expected Response Time
                 </h6>
                 <div class="mb-2">
-                    <span class="badge bg-danger">Urgent</span>
-                    <span class="text-muted ms-2">1-2 hours</span>
+                    <span class="badge status-draft">Urgent</span>
+                    <span class="ms-2">1-2 hours</span>
                 </div>
                 <div class="mb-2">
-                    <span class="badge bg-warning">High</span>
-                    <span class="text-muted ms-2">4-6 hours</span>
+                    <span class="badge status-payment_pending">High</span>
+                    <span class="ms-2">4-6 hours</span>
                 </div>
                 <div class="mb-2">
-                    <span class="badge bg-info">Medium</span>
-                    <span class="text-muted ms-2">24 hours</span>
+                    <span class="badge">Medium</span>
+                    <span class="ms-2">24 hours</span>
                 </div>
                 <div>
-                    <span class="badge bg-secondary">Low</span>
-                    <span class="text-muted ms-2">48 hours</span>
+                    <span class="badge">Low</span>
+                    <span class="ms-2">48 hours</span>
                 </div>
             </div>
         </div>
 
         <!-- Recent Tickets -->
         {% if recent_tickets %}
-        <div class="content-card">
+        <div class="management-card">
             <div class="card-header">
                 <h6 class="card-title mb-0">
                     <i class="ri-history-line"></i> Recent Tickets
@@ -172,16 +176,16 @@
                 {% for ticket in recent_tickets %}
                 <div class="ticket-item {% if not forloop.last %}mb-3 pb-3 border-bottom{% endif %}">
                     <div class="d-flex justify-content-between align-items-start mb-1">
-                        <span class="badge bg-{{ ticket.status|default:'secondary' }}">
+                        <span class="badge">
                             {{ ticket.get_status_display }}
                         </span>
-                        <small class="text-muted">{{ ticket.created_at|date:"M d" }}</small>
+                        <small>{{ ticket.created_at|date:"M d" }}</small>
                     </div>
                     <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
-                       class="text-decoration-none d-block text-dark">
+                       class="text-decoration-none d-block">
                         <small class="fw-medium">{{ ticket.subject|truncatewords:8 }}</small>
                     </a>
-                    <small class="text-muted">{{ ticket.ticket_number }}</small>
+                    <small>{{ ticket.ticket_number }}</small>
                 </div>
                 {% endfor %}
             </div>
@@ -191,11 +195,327 @@
 </div>
 
 <style>
-.ticket-item:hover {
-    background-color: #f8f9fa;
-    border-radius: 4px;
-    padding: 0.5rem;
-    margin: -0.5rem;
-}
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
+
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Form Styles */
+    .form-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.75rem;
+        transition: all 0.2s ease;
+        width: 100%;
+        font-size: 0.875rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+        outline: none;
+    }
+
+    .form-control::placeholder {
+        color: var(--color-gray-500);
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 120px;
+        line-height: 1.5;
+    }
+
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    /* Helper Text */
+    small {
+        display: block;
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+        line-height: 1.4;
+    }
+
+    /* Tips List */
+    .list-unstyled li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .list-unstyled li i {
+        color: var(--color-success);
+        margin-top: 0.125rem;
+        flex-shrink: 0;
+    }
+
+    /* Response Time Section */
+    .management-card h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+    }
+
+    .management-card h6 i {
+        color: var(--color-gray-600);
+        margin-right: 0.5rem;
+    }
+
+    .response-time-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .response-time-item:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    .status-draft { 
+        background-color: var(--color-secondary) !important; 
+        color: white !important;
+    }
+
+    .status-payment_pending { 
+        background-color: var(--color-warning) !important; 
+        color: var(--color-gray-800) !important; 
+    }
+
+    /* Recent Tickets */
+    .ticket-item {
+        transition: background-color 0.2s ease;
+    }
+
+    .ticket-item:hover {
+        background-color: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+        padding: 0.5rem;
+        margin: -0.5rem;
+    }
+
+    .ticket-item .d-flex {
+        align-items: center;
+    }
+
+    .ticket-item a {
+        color: var(--color-gray-800);
+        text-decoration: none;
+        font-weight: 500;
+    }
+
+    .ticket-item a:hover {
+        color: var(--color-primary);
+    }
+
+    .ticket-item small {
+        margin-top: 0.125rem;
+    }
+
+    .border-bottom {
+        border-bottom: 1px solid var(--color-gray-200) !important;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .d-flex.gap-2 {
+        gap: 0.5rem;
+    }
+
+    /* File Input Styling */
+    input[type="file"] {
+        cursor: pointer;
+    }
+
+    input[type="file"]::-webkit-file-upload-button {
+        background: var(--color-gray-200);
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.375rem 0.75rem;
+        color: var(--color-gray-800);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-right: 0.75rem;
+    }
+
+    input[type="file"]::-webkit-file-upload-button:hover {
+        background: var(--color-gray-300);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .management-card .card-header {
+            padding: 1rem;
+        }
+
+        .form-control, .form-select {
+            padding: 0.5rem 0.625rem;
+            font-size: 0.8125rem;
+        }
+
+        textarea.form-control {
+            min-height: 100px;
+        }
+
+        .list-unstyled li {
+            font-size: 0.875rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .d-flex.gap-2 {
+            flex-direction: column;
+        }
+
+        .btn, .btn-outline {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .ticket-item {
+            font-size: 0.8125rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .col-md-6 {
+            width: 100%;
+        }
+
+        .row.g-3 {
+            gap: 1rem;
+        }
+    }
 </style>
 {% endblock %}

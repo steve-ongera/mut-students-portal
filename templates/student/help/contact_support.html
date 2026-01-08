@@ -5,6 +5,10 @@
 {% block page_title %}Contact Support{% endblock %}
 {% block page_subtitle %}Get in touch with our support team{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -18,36 +22,36 @@
 <div class="row g-4 mb-4">
     <div class="col-md-4">
         <div class="contact-quick-card">
-            <div class="icon-wrapper bg-primary">
+            <div class="icon-wrapper">
                 <i class="ri-phone-line"></i>
             </div>
             <h5>Call Us</h5>
-            <p class="text-muted">Available Monday - Friday<br>8:00 AM - 5:00 PM</p>
-            <a href="tel:+254700000000" class="btn btn-outline-primary btn-sm">
+            <p>Available Monday - Friday<br>8:00 AM - 5:00 PM</p>
+            <a href="tel:+254700000000" class="btn btn-outline btn-sm">
                 <i class="ri-phone-line"></i> +254 700 000 000
             </a>
         </div>
     </div>
     <div class="col-md-4">
         <div class="contact-quick-card">
-            <div class="icon-wrapper bg-success">
+            <div class="icon-wrapper">
                 <i class="ri-mail-line"></i>
             </div>
             <h5>Email Us</h5>
-            <p class="text-muted">We'll respond within<br>24 hours</p>
-            <a href="mailto:support@mut.ac.ke" class="btn btn-outline-success btn-sm">
+            <p>We'll respond within<br>24 hours</p>
+            <a href="mailto:support@mut.ac.ke" class="btn btn-outline btn-sm">
                 <i class="ri-mail-line"></i> support@mut.ac.ke
             </a>
         </div>
     </div>
     <div class="col-md-4">
         <div class="contact-quick-card">
-            <div class="icon-wrapper bg-info">
+            <div class="icon-wrapper">
                 <i class="ri-ticket-line"></i>
             </div>
             <h5>Submit Ticket</h5>
-            <p class="text-muted">Create a support ticket<br>for tracking</p>
-            <a href="{% url 'report_issue' %}" class="btn btn-outline-info btn-sm">
+            <p>Create a support ticket<br>for tracking</p>
+            <a href="{% url 'report_issue' %}" class="btn btn-outline btn-sm">
                 <i class="ri-add-line"></i> New Ticket
             </a>
         </div>
@@ -55,7 +59,7 @@
 </div>
 
 <!-- Department Contacts -->
-<div class="content-card mb-4">
+<div class="management-card mb-4">
     <div class="card-header">
         <h5 class="card-title mb-0">
             <i class="ri-building-line"></i> Department Contacts
@@ -73,21 +77,21 @@
                     </div>
                     <div class="department-body">
                         {% if contact.description %}
-                        <p class="text-muted small mb-3">{{ contact.description }}</p>
+                        <p class="small mb-3">{{ contact.description }}</p>
                         {% endif %}
                         
                         <div class="contact-item">
-                            <i class="ri-mail-line text-primary"></i>
+                            <i class="ri-mail-line"></i>
                             <div>
-                                <small class="text-muted d-block">Email</small>
+                                <small>Email</small>
                                 <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
                             </div>
                         </div>
                         
                         <div class="contact-item">
-                            <i class="ri-phone-line text-success"></i>
+                            <i class="ri-phone-line"></i>
                             <div>
-                                <small class="text-muted d-block">Phone</small>
+                                <small>Phone</small>
                                 <a href="tel:{{ contact.phone_primary }}">{{ contact.phone_primary }}</a>
                                 {% if contact.phone_secondary %}
                                 <br>
@@ -98,9 +102,9 @@
                         
                         {% if contact.office_location %}
                         <div class="contact-item">
-                            <i class="ri-map-pin-line text-danger"></i>
+                            <i class="ri-map-pin-line"></i>
                             <div>
-                                <small class="text-muted d-block">Location</small>
+                                <small>Location</small>
                                 <span>{{ contact.office_location }}</span>
                             </div>
                         </div>
@@ -108,9 +112,9 @@
                         
                         {% if contact.office_hours %}
                         <div class="contact-item">
-                            <i class="ri-time-line text-warning"></i>
+                            <i class="ri-time-line"></i>
                             <div>
-                                <small class="text-muted d-block">Office Hours</small>
+                                <small>Office Hours</small>
                                 <span>{{ contact.office_hours }}</span>
                             </div>
                         </div>
@@ -122,7 +126,7 @@
         </div>
         {% else %}
         <div class="text-center py-5">
-            <i class="ri-contacts-line" style="font-size: 3rem; color: #ccc;"></i>
+            <i class="ri-contacts-line empty-state-icon"></i>
             <p class="text-muted mt-3">Contact information not available.</p>
         </div>
         {% endif %}
@@ -131,13 +135,13 @@
 
 <!-- Recent Tickets -->
 {% if recent_tickets %}
-<div class="content-card">
+<div class="management-card mb-4">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">
                 <i class="ri-history-line"></i> Your Recent Tickets
             </h5>
-            <a href="{% url 'my_tickets' %}" class="btn btn-sm btn-outline-primary">
+            <a href="{% url 'my_tickets' %}" class="btn btn-sm btn-outline">
                 View All
             </a>
         </div>
@@ -159,26 +163,26 @@
                     <tr>
                         <td>
                             <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
-                               class="text-decoration-none fw-medium">
+                               class="text-decoration-none">
                                 {{ ticket.ticket_number }}
                             </a>
                         </td>
                         <td>{{ ticket.subject|truncatewords:8 }}</td>
                         <td>
                             {% if ticket.status == 'open' %}
-                            <span class="badge bg-warning">Open</span>
+                            <span class="badge status-payment_pending">Open</span>
                             {% elif ticket.status == 'in_progress' %}
-                            <span class="badge bg-info">In Progress</span>
+                            <span class="badge">In Progress</span>
                             {% elif ticket.status == 'resolved' %}
-                            <span class="badge bg-success">Resolved</span>
+                            <span class="badge status-completed">Resolved</span>
                             {% elif ticket.status == 'closed' %}
-                            <span class="badge bg-secondary">Closed</span>
+                            <span class="badge status-draft">Closed</span>
                             {% endif %}
                         </td>
                         <td>{{ ticket.created_at|date:"M d, Y" }}</td>
                         <td>
                             <a href="{% url 'ticket_detail' ticket.ticket_number %}" 
-                               class="btn btn-sm btn-outline-primary">
+                               class="btn btn-sm btn-outline">
                                 <i class="ri-eye-line"></i> View
                             </a>
                         </td>
@@ -192,18 +196,22 @@
 {% endif %}
 
 <!-- Emergency Contact -->
-<div class="alert alert-danger mt-4">
-    <div class="d-flex align-items-center">
-        <i class="ri-alarm-warning-line fs-3 me-3"></i>
-        <div>
-            <h6 class="alert-heading mb-1">Emergency Contact</h6>
-            <p class="mb-0">For urgent matters requiring immediate attention, call: <strong>+254 700 111 222</strong></p>
+<div class="management-card mb-4">
+    <div class="card-body">
+        <div class="alert alert-emergency">
+            <div class="d-flex align-items-center">
+                <i class="ri-alarm-warning-line"></i>
+                <div>
+                    <h6 class="alert-heading mb-1">Emergency Contact</h6>
+                    <p class="mb-0">For urgent matters requiring immediate attention, call: <strong>+254 700 111 222</strong></p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Location Map -->
-<div class="content-card mt-4">
+<div class="management-card">
     <div class="card-header">
         <h5 class="card-title mb-0">
             <i class="ri-map-pin-2-line"></i> Visit Us
@@ -212,13 +220,13 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-6">
-                <h6>Main Campus</h6>
-                <p class="text-muted">
+                <h6 class="mb-3">Main Campus</h6>
+                <p class="mb-4">
                     Murang'a University of Technology<br>
                     P.O. Box 75-10200<br>
                     Murang'a, Kenya
                 </p>
-                <a href="https://goo.gl/maps/example" target="_blank" class="btn btn-outline-primary btn-sm">
+                <a href="https://goo.gl/maps/example" target="_blank" class="btn btn-outline">
                     <i class="ri-map-pin-line"></i> Get Directions
                 </a>
             </div>
@@ -228,7 +236,8 @@
                         src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.123456789!2d37.123456!3d-0.987654!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMMKwNTknMTUuNiJTIDM3wrAwNycyNC40IkU!5e0!3m2!1sen!2ske!4v1234567890" 
                         style="border:0;" 
                         allowfullscreen="" 
-                        loading="lazy">
+                        loading="lazy"
+                        title="Murang'a University of Technology Location">
                     </iframe>
                 </div>
             </div>
@@ -237,102 +246,457 @@
 </div>
 
 <style>
-.contact-quick-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 12px;
-    padding: 2rem;
-    text-align: center;
-    transition: all 0.3s ease;
-    height: 100%;
-}
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
 
-.contact-quick-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    transform: translateY(-4px);
-}
+    body {
+        font-family: var(--font-family);
+    }
 
-.icon-wrapper {
-    width: 64px;
-    height: 64px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 1.75rem;
-    color: white;
-}
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
 
-.contact-quick-card h5 {
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-}
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
 
-.contact-quick-card p {
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
-}
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
 
-.department-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    overflow: hidden;
-    height: 100%;
-    transition: all 0.3s ease;
-}
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
 
-.department-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-}
+    /* Contact Quick Cards */
+    .contact-quick-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
 
-.department-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #1B5E20 100%);
-    color: white;
-    padding: 1.25rem;
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
+    .contact-quick-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-4px);
+    }
 
-.department-header i {
-    font-size: 1.5rem;
-}
+    .icon-wrapper {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1rem;
+        font-size: 1.75rem;
+        color: white;
+        background: var(--color-primary);
+    }
 
-.department-header h6 {
-    margin: 0;
-    font-weight: 600;
-}
+    .contact-quick-card h5 {
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
 
-.department-body {
-    padding: 1.25rem;
-}
+    .contact-quick-card p {
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        color: var(--color-gray-600);
+        line-height: 1.4;
+        flex-grow: 1;
+    }
 
-.contact-item {
-    display: flex;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-    align-items: start;
-}
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
 
-.contact-item:last-child {
-    margin-bottom: 0;
-}
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
 
-.contact-item i {
-    font-size: 1.25rem;
-    margin-top: 0.25rem;
-}
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
 
-.contact-item a {
-    color: #495057;
-    text-decoration: none;
-    font-weight: 500;
-}
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
 
-.contact-item a:hover {
-    color: var(--primary-color);
-}
+    /* Department Cards */
+    .department-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+        transition: all 0.3s ease;
+    }
+
+    .department-card:hover {
+        box-shadow: var(--shadow-md);
+    }
+
+    .department-header {
+        background: var(--color-primary);
+        color: white;
+        padding: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .department-header i {
+        font-size: 1.5rem;
+    }
+
+    .department-header h6 {
+        margin: 0;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .department-body {
+        padding: 1.25rem;
+    }
+
+    .department-body p {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+
+    .contact-item {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        align-items: flex-start;
+    }
+
+    .contact-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .contact-item i {
+        font-size: 1.125rem;
+        color: var(--color-gray-600);
+        margin-top: 0.125rem;
+        flex-shrink: 0;
+    }
+
+    .contact-item div {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .contact-item small {
+        display: block;
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+        margin-bottom: 0.125rem;
+    }
+
+    .contact-item a, .contact-item span {
+        color: var(--color-gray-800);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 0.875rem;
+        word-break: break-word;
+    }
+
+    .contact-item a:hover {
+        color: var(--color-primary);
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-300);
+        padding: 1rem;
+    }
+
+    .table td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.05);
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    .status-completed { 
+        background-color: var(--color-success) !important; 
+        color: white !important;
+    }
+
+    .status-payment_pending { 
+        background-color: var(--color-warning) !important; 
+        color: var(--color-gray-800) !important; 
+    }
+
+    .status-draft { 
+        background-color: var(--color-secondary) !important; 
+        color: white !important;
+    }
+
+    /* Emergency Alert */
+    .alert-emergency {
+        background-color: rgba(244, 67, 54, 0.1);
+        border: 1px solid rgba(244, 67, 54, 0.2);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin: 0;
+    }
+
+    .alert-emergency i {
+        font-size: 1.5rem;
+        color: var(--color-danger);
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+
+    .alert-heading {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .alert-emergency p {
+        color: var(--color-gray-800);
+        margin: 0;
+        font-size: 0.875rem;
+    }
+
+    .alert-emergency strong {
+        color: var(--color-danger);
+    }
+
+    /* Location Section */
+    .management-card h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .management-card .ratio iframe {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Empty State */
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--color-gray-300);
+    }
+
+    .text-center h5 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Text Colors */
+    .text-muted {
+        color: var(--color-gray-600) !important;
+    }
+
+    /* Link Styles */
+    .text-decoration-none {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    .text-decoration-none:hover {
+        color: var(--color-primary);
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .contact-quick-card {
+            padding: 1.5rem;
+        }
+
+        .icon-wrapper {
+            width: 48px;
+            height: 48px;
+            font-size: 1.25rem;
+        }
+
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .department-header {
+            padding: 1rem;
+        }
+
+        .department-body {
+            padding: 1rem;
+        }
+
+        .contact-item {
+            margin-bottom: 0.75rem;
+        }
+
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .empty-state-icon {
+            font-size: 2.5rem;
+        }
+
+        .alert-emergency {
+            padding: 0.75rem;
+        }
+
+        .alert-emergency i {
+            font-size: 1.25rem;
+            margin-right: 0.75rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .contact-quick-card {
+            padding: 1rem;
+        }
+
+        .contact-quick-card h5 {
+            font-size: 1rem;
+        }
+
+        .contact-quick-card p {
+            font-size: 0.8125rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .department-header {
+            flex-direction: column;
+            text-align: center;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+
+        .contact-item {
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .contact-item i {
+            margin-top: 0;
+        }
+
+        .table-responsive {
+            font-size: 0.8125rem;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .col-md-6.col-lg-4 {
+            width: 100%;
+        }
+
+        .contact-quick-card {
+            margin-bottom: 1rem;
+        }
+
+        .contact-quick-card:last-child {
+            margin-bottom: 0;
+        }
+    }
 </style>
 {% endblock %}

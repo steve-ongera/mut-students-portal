@@ -5,35 +5,43 @@
 {% block page_title %}System Guides & Tutorials{% endblock %}
 {% block page_subtitle %}Learn how to use the student portal effectively{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
+
+<!-- Breadcrumb -->
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'student_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="#">Help & Support</a></li>
+        <li class="breadcrumb-item">Help & Support</li>
         <li class="breadcrumb-item active">System Guides</li>
     </ol>
 </nav>
 
-<!-- Search and Filter -->
-<div class="content-card mb-4">
+<!-- Search & Filter -->
+<div class="management-card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
             <div class="col-md-6">
-                <input type="text" name="q" class="form-control" 
-                       placeholder="Search guides..." value="{{ search_query }}">
+                <input type="text" name="q" class="form-control"
+                       placeholder="Search guides..."
+                       value="{{ search_query }}">
             </div>
+
             <div class="col-md-4">
                 <select name="type" class="form-select" onchange="this.form.submit()">
                     <option value="all">All Types</option>
-                    <option value="getting_started" {% if selected_type == 'getting_started' %}selected{% endif %}>Getting Started</option>
-                    <option value="academic" {% if selected_type == 'academic' %}selected{% endif %}>Academic</option>
-                    <option value="finance" {% if selected_type == 'finance' %}selected{% endif %}>Finance</option>
-                    <option value="hostel" {% if selected_type == 'hostel' %}selected{% endif %}>Hostel</option>
-                    <option value="library" {% if selected_type == 'library' %}selected{% endif %}>Library</option>
-                    <option value="profile" {% if selected_type == 'profile' %}selected{% endif %}>Profile</option>
-                    <option value="troubleshooting" {% if selected_type == 'troubleshooting' %}selected{% endif %}>Troubleshooting</option>
+                    {% for type in guide_types %}
+                        <option value="{{ type.guide_type }}"
+                            {% if selected_type == type.guide_type %}selected{% endif %}>
+                            {{ type.guide_type|title }}
+                        </option>
+                    {% endfor %}
                 </select>
             </div>
+
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="ri-search-line"></i> Search
@@ -43,73 +51,56 @@
     </div>
 </div>
 
-<!-- Guide Types Summary -->
+<!-- Guide Type Summary -->
 <div class="row g-3 mb-4">
     {% for type in guide_types %}
-    <div class="col-md-4 col-lg-3">
+    <div class="col-md-3 col-lg-2">
         <a href="?type={{ type.guide_type }}" class="text-decoration-none">
             <div class="guide-type-card {% if selected_type == type.guide_type %}active{% endif %}">
-                <div class="guide-icon">
-                    {% if type.guide_type == 'getting_started' %}
-                    <i class="ri-rocket-line"></i>
-                    {% elif type.guide_type == 'academic' %}
-                    <i class="ri-book-open-line"></i>
-                    {% elif type.guide_type == 'finance' %}
-                    <i class="ri-money-dollar-circle-line"></i>
-                    {% elif type.guide_type == 'hostel' %}
-                    <i class="ri-hotel-line"></i>
-                    {% elif type.guide_type == 'library' %}
-                    <i class="ri-book-2-line"></i>
-                    {% elif type.guide_type == 'profile' %}
-                    <i class="ri-user-settings-line"></i>
-                    {% else %}
-                    <i class="ri-tools-line"></i>
-                    {% endif %}
-                </div>
-                <div class="guide-type-details">
-                    <div class="guide-count">{{ type.count }}</div>
-                    <div class="guide-label">{{ type.guide_type|title|replace:"_":" " }}</div>
-                </div>
+                <div class="guide-count">{{ type.count }}</div>
+                <div class="guide-label">{{ type.guide_type|title }}</div>
             </div>
         </a>
     </div>
     {% endfor %}
 </div>
 
-<!-- Guides List -->
+<!-- Guides Grouped By Type -->
 {% if guides_by_type %}
     {% for guide_type, guides in guides_by_type.items %}
-    <div class="content-card mb-4">
+    <div class="management-card mb-4">
         <div class="card-header">
             <h5 class="card-title mb-0">
                 <i class="ri-book-read-line"></i>
-                {{ guide_type|title|replace:"_":" " }} Guides
+                {{ guide_type|title }} Guides
             </h5>
         </div>
+
         <div class="card-body">
             <div class="row g-4">
                 {% for guide in guides %}
                 <div class="col-md-6 col-lg-4">
                     <div class="guide-card">
                         <div class="guide-card-header">
-                            <div class="guide-badge">
-                                {% if guide.video_url %}
-                                <i class="ri-video-line"></i> Video
-                                {% elif guide.pdf_file %}
-                                <i class="ri-file-pdf-line"></i> PDF
-                                {% else %}
-                                <i class="ri-article-line"></i> Article
-                                {% endif %}
-                            </div>
-                            <div class="guide-views">
+                            <span class="badge">
+                                {% if guide.video_url %}Video
+                                {% elif guide.pdf_file %}PDF
+                                {% else %}Article{% endif %}
+                            </span>
+                            <small>
                                 <i class="ri-eye-line"></i> {{ guide.views_count }}
-                            </div>
+                            </small>
                         </div>
+
                         <div class="guide-card-body">
-                            <h6 class="guide-title">{{ guide.title }}</h6>
-                            <p class="guide-description">{{ guide.description|truncatewords:15 }}</p>
-                            <a href="{% url 'guide_detail' guide.id %}" class="btn btn-outline-primary btn-sm w-100">
-                                <i class="ri-arrow-right-line"></i> View Guide
+                            <h6>{{ guide.title }}</h6>
+                            <p>
+                                {{ guide.description|truncatewords:15 }}
+                            </p>
+
+                            <a href="{% url 'guide_detail' guide.id %}"
+                               class="btn btn-outline btn-sm w-100">
+                                View Guide
                             </a>
                         </div>
                     </div>
@@ -120,156 +111,414 @@
     </div>
     {% endfor %}
 {% else %}
-    <div class="content-card">
+    <div class="management-card">
         <div class="card-body text-center py-5">
-            <i class="ri-file-search-line" style="font-size: 3rem; color: #ccc;"></i>
-            <p class="text-muted mt-3">No guides found matching your search.</p>
+            <i class="ri-file-search-line empty-state-icon"></i>
+            <p class="mt-3 text-muted">No guides found.</p>
         </div>
     </div>
 {% endif %}
 
-<!-- Popular Guides -->
-<div class="content-card mt-4">
+<!-- Most Viewed Guides -->
+<div class="management-card mt-4">
     <div class="card-header">
         <h5 class="card-title mb-0">
             <i class="ri-fire-line"></i> Most Viewed Guides
         </h5>
     </div>
-    <div class="card-body">
+
+    <div class="card-body p-0">
         <div class="list-group list-group-flush">
-            {% for guide in guides_by_type.values|first|slice:":5" %}
-            <a href="{% url 'guide_detail' guide.id %}" 
-               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            {% for guide in popular_guides %}
+            <a href="{% url 'guide_detail' guide.id %}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
                 <div>
-                    <strong>{{ guide.title }}</strong>
-                    <br>
-                    <small class="text-muted">{{ guide.get_guide_type_display }}</small>
+                    <strong>{{ guide.title }}</strong><br>
+                    <small>
+                        {{ guide.get_guide_type_display }}
+                    </small>
                 </div>
-                <span class="badge bg-primary rounded-pill">
-                    <i class="ri-eye-line"></i> {{ guide.views_count }}
+                <span class="badge">
+                    {{ guide.views_count }}
                 </span>
             </a>
+            {% empty %}
+            <div class="text-center text-muted py-5">
+                <i class="ri-information-line me-2"></i>
+                No popular guides yet.
+            </div>
             {% endfor %}
         </div>
     </div>
 </div>
 
-<!-- Need More Help -->
-<div class="content-card mt-4 bg-light">
-    <div class="card-body text-center">
-        <i class="ri-question-line" style="font-size: 3rem; color: var(--primary-color);"></i>
-        <h5 class="mt-3">Can't find what you're looking for?</h5>
-        <p class="text-muted">Our support team is here to help you!</p>
-        <div class="btn-group">
-            <a href="{% url 'help_faqs' %}" class="btn btn-outline-primary">
-                <i class="ri-questionnaire-line"></i> Check FAQs
-            </a>
-            <a href="{% url 'contact_support' %}" class="btn btn-primary">
-                <i class="ri-customer-service-line"></i> Contact Support
-            </a>
-        </div>
-    </div>
-</div>
-
 <style>
-.guide-type-card {
-    background: white;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    padding: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    transition: all 0.3s ease;
-}
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
 
-.guide-type-card:hover,
-.guide-type-card.active {
-    border-color: var(--primary-color);
-    background: var(--primary-light);
-    transform: translateY(-4px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
+    body {
+        font-family: var(--font-family);
+    }
 
-.guide-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 8px;
-    background: var(--primary-color);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-}
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
 
-.guide-type-details {
-    flex: 1;
-}
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
 
-.guide-count {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-dark);
-}
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
 
-.guide-label {
-    font-size: 0.875rem;
-    color: var(--text-light);
-}
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
 
-.guide-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    overflow: hidden;
-    height: 100%;
-    transition: all 0.3s ease;
-}
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
 
-.guide-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    transform: translateY(-4px);
-}
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
 
-.guide-card-header {
-    padding: 1rem;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
 
-.guide-badge {
-    background: var(--primary-color);
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 600;
-}
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
 
-.guide-views {
-    color: var(--text-light);
-    font-size: 0.875rem;
-}
+    /* Form Styles */
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.75rem;
+        transition: all 0.2s ease;
+    }
 
-.guide-card-body {
-    padding: 1.25rem;
-}
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+    }
 
-.guide-title {
-    font-weight: 600;
-    margin-bottom: 0.75rem;
-    color: var(--text-dark);
-    line-height: 1.4;
-}
+    /* Guide Type Cards */
+    .guide-type-card {
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
 
-.guide-description {
-    font-size: 0.875rem;
-    color: var(--text-light);
-    margin-bottom: 1rem;
-    line-height: 1.5;
-}
+    .guide-type-card:hover, .guide-type-card.active {
+        border-color: var(--color-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .guide-type-card.active {
+        background-color: rgba(46, 125, 50, 0.05);
+    }
+
+    .guide-count {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        line-height: 1;
+        margin-bottom: 0.5rem;
+    }
+
+    .guide-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    /* Guide Cards */
+    .guide-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .guide-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+
+    .guide-card-header {
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .guide-card-body {
+        padding: 1.5rem;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .guide-card-body h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.75rem;
+        line-height: 1.4;
+    }
+
+    .guide-card-body p {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+        line-height: 1.5;
+        margin-bottom: 1.5rem;
+        flex: 1;
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    .guide-card-header small {
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    /* List Group Styles */
+    .list-group-item {
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+        padding: 1rem 1.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .list-group-item:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+
+    .list-group-item strong {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    .list-group-item small {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    .w-100 {
+        width: 100%;
+    }
+
+    /* Empty State */
+    .empty-state-icon {
+        font-size: 3rem;
+        color: var(--color-gray-300);
+    }
+
+    .text-center h5 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+
+    /* Text Colors */
+    .text-muted {
+        color: var(--color-gray-600) !important;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .management-card .card-header {
+            padding: 1rem;
+        }
+
+        .guide-type-card {
+            padding: 1rem;
+        }
+
+        .guide-count {
+            font-size: 1.5rem;
+        }
+
+        .guide-card-body {
+            padding: 1rem;
+        }
+
+        .guide-card-body h6 {
+            font-size: 0.9375rem;
+        }
+
+        .list-group-item {
+            padding: 0.75rem 1rem;
+        }
+
+        .empty-state-icon {
+            font-size: 2.5rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .form-control, .form-select {
+            padding: 0.5rem 0.625rem;
+            font-size: 0.875rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .guide-type-card {
+            padding: 0.75rem;
+        }
+
+        .guide-count {
+            font-size: 1.25rem;
+        }
+
+        .guide-label {
+            font-size: 0.75rem;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .col-md-6.col-lg-4 {
+            width: 100%;
+        }
+
+        .col-md-3.col-lg-2 {
+            width: 50%;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .row.g-3 {
+            margin-left: -0.5rem;
+            margin-right: -0.5rem;
+        }
+
+        .row.g-3 > [class*="col-"] {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+
+        .guide-card-header {
+            padding: 0.75rem;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+
+        .list-group-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .list-group-item .badge {
+            align-self: flex-start;
+        }
+    }
 </style>
 {% endblock %}

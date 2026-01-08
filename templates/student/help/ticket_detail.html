@@ -5,6 +5,10 @@
 {% block page_title %}Support Ticket Details{% endblock %}
 {% block page_subtitle %}{{ ticket.ticket_number }}{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
@@ -19,24 +23,24 @@
     <!-- Main Content -->
     <div class="col-lg-8">
         <!-- Ticket Details -->
-        <div class="content-card mb-4">
+        <div class="management-card mb-4">
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <h5 class="card-title mb-1">{{ ticket.subject }}</h5>
-                        <small class="text-muted">Ticket #{{ ticket.ticket_number }}</small>
+                        <small>Ticket #{{ ticket.ticket_number }}</small>
                     </div>
                     <div>
                         {% if ticket.status == 'open' %}
-                        <span class="badge bg-warning">Open</span>
+                        <span class="badge status-payment_pending">Open</span>
                         {% elif ticket.status == 'in_progress' %}
-                        <span class="badge bg-info">In Progress</span>
+                        <span class="badge">In Progress</span>
                         {% elif ticket.status == 'waiting_response' %}
-                        <span class="badge bg-primary">Waiting Response</span>
+                        <span class="badge">Waiting Response</span>
                         {% elif ticket.status == 'resolved' %}
-                        <span class="badge bg-success">Resolved</span>
+                        <span class="badge status-completed">Resolved</span>
                         {% elif ticket.status == 'closed' %}
-                        <span class="badge bg-secondary">Closed</span>
+                        <span class="badge status-draft">Closed</span>
                         {% endif %}
                     </div>
                 </div>
@@ -45,29 +49,29 @@
                 <!-- Ticket Info -->
                 <div class="row g-3 mb-4">
                     <div class="col-md-3">
-                        <label class="text-muted small">Category</label>
-                        <p class="mb-0 fw-medium">{{ ticket.get_category_display }}</p>
+                        <label>Category</label>
+                        <p class="mb-0">{{ ticket.get_category_display }}</p>
                     </div>
                     <div class="col-md-3">
-                        <label class="text-muted small">Priority</label>
+                        <label>Priority</label>
                         <p class="mb-0">
                             {% if ticket.priority == 'urgent' %}
-                            <span class="badge bg-danger">Urgent</span>
+                            <span class="badge status-draft">Urgent</span>
                             {% elif ticket.priority == 'high' %}
-                            <span class="badge bg-warning">High</span>
+                            <span class="badge status-payment_pending">High</span>
                             {% elif ticket.priority == 'medium' %}
-                            <span class="badge bg-info">Medium</span>
+                            <span class="badge">Medium</span>
                             {% else %}
-                            <span class="badge bg-secondary">Low</span>
+                            <span class="badge">Low</span>
                             {% endif %}
                         </p>
                     </div>
                     <div class="col-md-3">
-                        <label class="text-muted small">Created</label>
+                        <label>Created</label>
                         <p class="mb-0">{{ ticket.created_at|date:"M d, Y H:i" }}</p>
                     </div>
                     <div class="col-md-3">
-                        <label class="text-muted small">Last Updated</label>
+                        <label>Last Updated</label>
                         <p class="mb-0">{{ ticket.updated_at|date:"M d, Y H:i" }}</p>
                     </div>
                 </div>
@@ -75,7 +79,7 @@
                 <!-- Description -->
                 <div class="ticket-description mb-4">
                     <h6 class="mb-2">Description</h6>
-                    <div class="bg-light p-3 rounded">
+                    <div class="ticket-content">
                         {{ ticket.description|linebreaks }}
                     </div>
                 </div>
@@ -84,7 +88,7 @@
                 {% if ticket.attachment %}
                 <div class="mb-4">
                     <h6 class="mb-2">Attachment</h6>
-                    <a href="{{ ticket.attachment.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <a href="{{ ticket.attachment.url }}" target="_blank" class="btn btn-sm btn-outline">
                         <i class="ri-attachment-line"></i> View Attachment
                     </a>
                 </div>
@@ -99,7 +103,7 @@
                     <p class="mb-0">{{ ticket.resolution_notes|linebreaks }}</p>
                     {% if ticket.resolved_at %}
                     <hr>
-                    <small class="text-muted">
+                    <small>
                         Resolved on {{ ticket.resolved_at|date:"M d, Y H:i" }}
                         {% if ticket.resolved_by %}
                         by {{ ticket.resolved_by.get_full_name }}
@@ -112,7 +116,7 @@
         </div>
 
         <!-- Conversation -->
-        <div class="content-card mb-4">
+        <div class="management-card mb-4">
             <div class="card-header">
                 <h6 class="card-title mb-0">
                     <i class="ri-message-3-line"></i> Conversation ({{ replies.count }})
@@ -126,11 +130,11 @@
                         <div class="d-flex gap-3">
                             <div class="reply-avatar">
                                 {% if reply.is_staff_reply %}
-                                <div class="avatar-circle bg-primary">
+                                <div class="avatar-circle">
                                     <i class="ri-customer-service-line"></i>
                                 </div>
                                 {% else %}
-                                <div class="avatar-circle bg-secondary">
+                                <div class="avatar-circle">
                                     <i class="ri-user-line"></i>
                                 </div>
                                 {% endif %}
@@ -144,8 +148,8 @@
                                         You
                                         {% endif %}
                                     </strong>
-                                    <span class="text-muted mx-2">•</span>
-                                    <small class="text-muted">{{ reply.created_at|date:"M d, Y H:i" }}</small>
+                                    <span class="mx-2">•</span>
+                                    <small>{{ reply.created_at|date:"M d, Y H:i" }}</small>
                                 </div>
                                 <div class="reply-content">
                                     {{ reply.message|linebreaks }}
@@ -153,7 +157,7 @@
                                 {% if reply.attachment %}
                                 <div class="mt-2">
                                     <a href="{{ reply.attachment.url }}" target="_blank" 
-                                       class="btn btn-sm btn-outline-secondary">
+                                       class="btn btn-sm btn-outline">
                                         <i class="ri-attachment-line"></i> View Attachment
                                     </a>
                                 </div>
@@ -164,14 +168,14 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-muted text-center py-3">No replies yet.</p>
+                <p class="text-center py-3">No replies yet.</p>
                 {% endif %}
             </div>
         </div>
 
         <!-- Reply Form -->
         {% if ticket.status != 'closed' %}
-        <div class="content-card">
+        <div class="management-card">
             <div class="card-header">
                 <h6 class="card-title mb-0">
                     <i class="ri-reply-line"></i> Add Reply
@@ -196,7 +200,7 @@
             </div>
         </div>
         {% else %}
-        <div class="alert alert-secondary">
+        <div class="alert alert-info">
             <i class="ri-information-line"></i> This ticket is closed. No further replies can be added.
         </div>
         {% endif %}
@@ -205,7 +209,7 @@
     <!-- Sidebar -->
     <div class="col-lg-4">
         <!-- Actions -->
-        <div class="content-card mb-3">
+        <div class="management-card mb-3">
             <div class="card-header">
                 <h6 class="card-title mb-0">Actions</h6>
             </div>
@@ -214,16 +218,16 @@
                     {% if ticket.status == 'resolved' %}
                     <form method="post" action="{% url 'close_ticket' ticket.ticket_number %}">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-success w-100">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="ri-check-double-line"></i> Close Ticket
                         </button>
                     </form>
                     {% endif %}
-                    <a href="{% url 'my_tickets' %}" class="btn btn-outline-secondary">
+                    <a href="{% url 'my_tickets' %}" class="btn btn-outline">
                         <i class="ri-arrow-left-line"></i> Back to Tickets
                     </a>
                     {% if ticket.status == 'closed' %}
-                    <a href="{% url 'report_issue' %}" class="btn btn-outline-primary">
+                    <a href="{% url 'report_issue' %}" class="btn btn-outline">
                         <i class="ri-add-line"></i> New Ticket
                     </a>
                     {% endif %}
@@ -232,30 +236,30 @@
         </div>
 
         <!-- Ticket Info -->
-        <div class="content-card mb-3">
+        <div class="management-card mb-3">
             <div class="card-header">
                 <h6 class="card-title mb-0">Ticket Information</h6>
             </div>
             <div class="card-body">
                 <div class="info-item mb-3">
-                    <label class="text-muted small">Ticket Number</label>
-                    <p class="mb-0 fw-medium">{{ ticket.ticket_number }}</p>
+                    <label>Ticket Number</label>
+                    <p class="mb-0">{{ ticket.ticket_number }}</p>
                 </div>
                 <div class="info-item mb-3">
-                    <label class="text-muted small">Status</label>
+                    <label>Status</label>
                     <p class="mb-0">{{ ticket.get_status_display }}</p>
                 </div>
                 <div class="info-item mb-3">
-                    <label class="text-muted small">Category</label>
+                    <label>Category</label>
                     <p class="mb-0">{{ ticket.get_category_display }}</p>
                 </div>
                 <div class="info-item mb-3">
-                    <label class="text-muted small">Priority</label>
+                    <label>Priority</label>
                     <p class="mb-0">{{ ticket.get_priority_display }}</p>
                 </div>
                 {% if ticket.assigned_to %}
                 <div class="info-item mb-0">
-                    <label class="text-muted small">Assigned To</label>
+                    <label>Assigned To</label>
                     <p class="mb-0">{{ ticket.assigned_to.get_full_name }}</p>
                 </div>
                 {% endif %}
@@ -263,38 +267,38 @@
         </div>
 
         <!-- Timeline -->
-        <div class="content-card">
+        <div class="management-card">
             <div class="card-header">
                 <h6 class="card-title mb-0">Timeline</h6>
             </div>
             <div class="card-body">
                 <div class="timeline">
                     <div class="timeline-item">
-                        <div class="timeline-icon bg-primary">
+                        <div class="timeline-icon">
                             <i class="ri-file-add-line"></i>
                         </div>
                         <div class="timeline-content">
-                            <small class="text-muted">Created</small>
+                            <small>Created</small>
                             <p class="mb-0">{{ ticket.created_at|date:"M d, Y H:i" }}</p>
                         </div>
                     </div>
                     {% if ticket.resolved_at %}
                     <div class="timeline-item">
-                        <div class="timeline-icon bg-success">
+                        <div class="timeline-icon">
                             <i class="ri-check-line"></i>
                         </div>
                         <div class="timeline-content">
-                            <small class="text-muted">Resolved</small>
+                            <small>Resolved</small>
                             <p class="mb-0">{{ ticket.resolved_at|date:"M d, Y H:i" }}</p>
                         </div>
                     </div>
                     {% endif %}
                     <div class="timeline-item">
-                        <div class="timeline-icon bg-secondary">
+                        <div class="timeline-icon">
                             <i class="ri-time-line"></i>
                         </div>
                         <div class="timeline-content">
-                            <small class="text-muted">Last Updated</small>
+                            <small>Last Updated</small>
                             <p class="mb-0">{{ ticket.updated_at|date:"M d, Y H:i" }}</p>
                         </div>
                     </div>
@@ -305,75 +309,450 @@
 </div>
 
 <style>
-.avatar-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 1.2rem;
-}
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-secondary: #6c757d;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
 
-.reply-item {
-    position: relative;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #e9ecef;
-}
+    body {
+        font-family: var(--font-family);
+    }
 
-.reply-item:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
 
-.staff-reply .reply-content {
-    background: #e3f2fd;
-    padding: 1rem;
-    border-radius: 8px;
-    border-left: 3px solid #2196F3;
-}
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
 
-.student-reply .reply-content {
-    background: #f5f5f5;
-    padding: 1rem;
-    border-radius: 8px;
-}
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
 
-.timeline {
-    position: relative;
-}
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
 
-.timeline-item {
-    display: flex;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
 
-.timeline-item:last-child {
-    margin-bottom: 0;
-}
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
 
-.timeline-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    flex-shrink: 0;
-}
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0;
+    }
 
-.timeline-content {
-    flex: 1;
-}
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
 
-.info-item label {
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.5px;
-}
+    /* Ticket Header */
+    .management-card .card-header .card-title {
+        font-size: 1.125rem;
+        color: var(--color-gray-800);
+    }
+
+    .management-card .card-header small {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+
+    /* Ticket Info Grid */
+    .management-card .row label {
+        display: block;
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+
+    .management-card .row p {
+        color: var(--color-gray-800);
+        font-weight: 500;
+        margin: 0;
+    }
+
+    /* Ticket Description */
+    .ticket-description h6 {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.75rem;
+    }
+
+    .ticket-content {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border-left: 3px solid var(--color-primary);
+        color: var(--color-gray-800);
+        line-height: 1.6;
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        background-color: var(--color-gray-200);
+        color: var(--color-gray-800);
+    }
+
+    .status-completed { 
+        background-color: var(--color-success) !important; 
+        color: white !important;
+    }
+
+    .status-payment_pending { 
+        background-color: var(--color-warning) !important; 
+        color: var(--color-gray-800) !important; 
+    }
+
+    .status-draft { 
+        background-color: var(--color-secondary) !important; 
+        color: white !important;
+    }
+
+    /* Alert Styles */
+    .alert {
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        border: 1px solid transparent;
+    }
+
+    .alert-success {
+        background-color: rgba(76, 175, 80, 0.1);
+        border-color: rgba(76, 175, 80, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-color: rgba(33, 150, 243, 0.2);
+        color: var(--color-gray-800);
+    }
+
+    .alert-heading {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .alert-heading i {
+        color: var(--color-success);
+        margin-right: 0.5rem;
+    }
+
+    .alert hr {
+        border-top-color: rgba(76, 175, 80, 0.2);
+        margin: 0.75rem 0;
+    }
+
+    /* Conversation Styles */
+    .reply-item {
+        position: relative;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .reply-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.2rem;
+        background: var(--color-primary);
+        flex-shrink: 0;
+    }
+
+    .reply-header {
+        display: flex;
+        align-items: center;
+    }
+
+    .reply-header strong {
+        color: var(--color-gray-800);
+        font-weight: 600;
+    }
+
+    .reply-header span {
+        color: var(--color-gray-400);
+    }
+
+    .reply-header small {
+        color: var(--color-gray-600);
+    }
+
+    .staff-reply .reply-content {
+        background: rgba(33, 150, 243, 0.1);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border-left: 3px solid var(--color-info);
+        color: var(--color-gray-800);
+        line-height: 1.6;
+    }
+
+    .student-reply .reply-content {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border-left: 3px solid var(--color-primary);
+        color: var(--color-gray-800);
+        line-height: 1.6;
+    }
+
+    /* Form Styles */
+    .form-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+    }
+
+    textarea.form-control {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    /* Button Styles */
+    .btn {
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+        font-size: 0.875rem;
+        border: 1px solid transparent;
+    }
+
+    .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+    }
+
+    .btn-outline {
+        background: transparent;
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+    }
+
+    .btn-outline:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-400);
+    }
+
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Sidebar Info Items */
+    .info-item label {
+        display: block;
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+    }
+
+    .info-item p {
+        color: var(--color-gray-800);
+        font-weight: 500;
+        margin: 0;
+    }
+
+    /* Timeline */
+    .timeline {
+        position: relative;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .timeline-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .timeline-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        background: var(--color-primary);
+        flex-shrink: 0;
+    }
+
+    .timeline-content {
+        flex: 1;
+    }
+
+    .timeline-content small {
+        display: block;
+        color: var(--color-gray-600);
+        font-size: 0.75rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .timeline-content p {
+        color: var(--color-gray-800);
+        font-weight: 500;
+        margin: 0;
+    }
+
+    /* Action Buttons */
+    .d-grid.gap-2 {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+
+        .management-card .card-header {
+            padding: 1rem;
+        }
+
+        .ticket-content {
+            padding: 0.75rem;
+        }
+
+        .reply-item {
+            flex-direction: column;
+        }
+
+        .reply-header {
+            flex-wrap: wrap;
+        }
+
+        .timeline-item {
+            gap: 0.75rem;
+        }
+
+        .timeline-icon {
+            width: 32px;
+            height: 32px;
+            font-size: 0.875rem;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .form-control {
+            padding: 0.5rem 0.625rem;
+            font-size: 0.875rem;
+        }
+
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        .badge {
+            font-size: 0.6875rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        .avatar-circle {
+            width: 32px;
+            height: 32px;
+            font-size: 1rem;
+        }
+
+        .staff-reply .reply-content,
+        .student-reply .reply-content {
+            padding: 0.75rem;
+        }
+
+        .timeline-item {
+            margin-bottom: 1rem;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .row.g-3 .col-md-3 {
+            width: 50%;
+        }
+
+        .reply-item .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .reply-avatar {
+            margin-bottom: 0.5rem;
+        }
+    }
 </style>
 {% endblock %}
