@@ -402,4 +402,67 @@ urlpatterns = [
     path('accreditation/', views.accreditation, name='accreditation'),
     path('external-examiners/', views.external_examiners, name='external_examiners'),
     
+    
+    # ============================================================================
+    # QUALITY ASSURANCE URLS
+    # ============================================================================
+    path('quality-assurance/teaching-evaluations/', views.dean_teaching_evaluations_view, name='teaching_evaluations'),
+    path('quality-assurance/programme-reviews/', views.dean_programme_reviews_view, name='programme_reviews'),
+    path('quality-assurance/audit-reports/', views.dean_audit_reports_view, name='audit_reports'),
+    path('quality-assurance/compliance-monitoring/', views.dean_compliance_monitoring_view, name='compliance_monitoring'),
+    path('quality-assurance/quality-metrics/', views.dean_quality_metrics_view, name='quality_metrics'),
+
+    # ============================================================================
+    # RESEARCH & INNOVATION URLS
+    # ============================================================================
+    path('research/strategy/', views.dean_research_strategy_view,  name='research_strategy'),
+    path('research/grant-management/',  views.dean_grant_management_view, name='grant_management'),
+    path('research/publications/', views.dean_publications_view,  name='publications'),
+    path('research/research-centers/', views.dean_research_centers_view, name='research_centers'), 
+    path('research/innovation-projects/', views.dean_innovation_projects_view, name='innovation_projects'),
+
+    # ============================================================================
+    # HUMAN RESOURCES URLS
+    # ============================================================================
+    path('hr/staff-recruitment/', views.dean_staff_recruitment_view, name='staff_recruitment'),
+    path('hr/performance-appraisal/', views.dean_performance_appraisal_view, name='performance_appraisal'),
+    path('hr/promotions/', views.dean_promotions_view,  name='promotions'),
+    path('hr/staff-development/',  views.dean_staff_development_view, name='staff_development'),
+    path('hr/disciplinary-matters/',  views.dean_disciplinary_matters_view,  name='disciplinary_matters'),
+
+    # ============================================================================
+    # FINANCIAL MANAGEMENT URLS
+    # ============================================================================
+    path('finance/school-budget/', views.dean_school_budget_view, name='school_budget'),
+    path('finance/resource-allocation/', views.dean_resource_allocation_view, name='resource_allocation'),
+    path('finance/expenditure-control/', views.dean_expenditure_control_view, name='expenditure_control'),
+    path('finance/revenue-generation/', views.dean_revenue_generation_view, name='revenue_generation'),
+    path('finance/financial-reports/', views.dean_financial_reports_view,  name='financial_reports'),
+
+    # ============================================================================
+    # PARTNERSHIPS & LINKAGES URLS
+    # ============================================================================
+    path('partnerships/industry-linkages/', views.dean_industry_linkages_view, name='industry_linkages'),
+    path('partnerships/international-partners/', views.dean_international_partners_view, name='international_partners'),
+    path('partnerships/mous/', views.dean_mous_view, name='mous'),
+    path('partnerships/collaborative-projects/', views.dean_collaborative_projects_view, name='collaborative_projects'),
+    path('partnerships/alumni-relations/', views.dean_alumni_relations_view, name='alumni_relations'),
+
+    # ============================================================================
+    # STRATEGIC PLANNING URLS
+    # ============================================================================
+    path('strategic/strategic-goals/', views.dean_strategic_goals_view, name='strategic_goals'),
+    path('strategic/performance-indicators/', views.dean_performance_indicators_view,  name='performance_indicators'),
+    path('strategic/annual-plans/',  views.dean_annual_plans_view, name='annual_plans'),
+    path('strategic/progress-reports/',  views.dean_progress_reports_view, name='progress_reports'),
+    path('strategic/future-planning/', views.dean_future_planning_view, name='future_planning'),
+
+    # ============================================================================
+    # APPROVALS & AUTHORIZATIONS URLS
+    # ============================================================================
+    path('approvals/', views.dean_approvals_view, name='approvals'),
+    path('approvals/department-budgets/', views.dean_department_budgets_approval_view, name='department_budgets_approval'),
+    path('approvals/staff-appointments/', views.dean_staff_appointments_approval_view, name='staff_appointments_approval'),
+    path('approvals/research-grants/', views.dean_research_grants_approval_view, name='research_grants_approval'),
+    
 ]
