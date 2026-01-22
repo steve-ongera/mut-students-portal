@@ -1,59 +1,575 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Academic Staff - Dean Portal</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="../../static/css/dean.css">
-</head>
-<body>
-    <!-- Navigation will be included via template inheritance -->
-    
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar will be included -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Academic Staff</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <!-- Page-specific actions will go here -->
+﻿{% extends 'dean/dean_base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}Academic Staff - Dean Portal{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Academic Staff{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-download"></i> Export
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#"><i class="bi bi-file-pdf"></i> PDF Report</a></li>
+        <li><a class="dropdown-item" href="#"><i class="bi bi-file-excel"></i> Excel Data</a></li>
+        <li><a class="dropdown-item" href="#"><i class="bi bi-printer"></i> Print</a></li>
+    </ul>
+    <button type="button" class="btn btn-primary">
+        <i class="bi bi-person-plus"></i> Add Staff
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Staff Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Academic Staff Management</h1>
+                <p class="text-muted mb-0">Manage all teaching staff in {{ school.name }}</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-team-line me-2"></i>
+                    {{ total_lecturers }} Staff Members
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-body">
+                    <form method="GET" action="" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted mb-1">Search Staff</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-transparent">
+                                    <i class="ri-search-line"></i>
+                                </span>
+                                <input type="text" class="form-control" name="search" 
+                                       placeholder="Search by name, employee number..." 
+                                       value="{{ search_query }}">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Filter by Department</label>
+                            <select name="department" class="form-select">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}" 
+                                        {% if department_filter == dept.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ dept.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Filter by Designation</label>
+                            <select name="designation" class="form-select">
+                                <option value="">All Designations</option>
+                                {% for designation in lecturer.DESIGNATION_CHOICES %}
+                                <option value="{{ designation.0 }}" 
+                                        {% if designation_filter == designation.0 %}selected{% endif %}>
+                                    {{ designation.1 }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-filter-line me-1"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Designation Statistics -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <h5 class="fw-semibold mb-3"><i class="ri-pie-chart-line me-2"></i>Staff by Designation</h5>
+        </div>
+        {% for stat in lecturers_by_designation %}
+        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+            <div class="designation-card">
+                <div class="designation-icon">
+                    {% if stat.designation == 'professor' %}
+                    <i class="ri-award-line"></i>
+                    {% elif stat.designation == 'associate_professor' %}
+                    <i class="ri-medal-line"></i>
+                    {% elif stat.designation == 'senior_lecturer' %}
+                    <i class="ri-user-star-line"></i>
+                    {% elif stat.designation == 'lecturer' %}
+                    <i class="ri-user-line"></i>
+                    {% elif stat.designation == 'assistant_lecturer' %}
+                    <i class="ri-user-add-line"></i>
+                    {% elif stat.designation == 'teaching_assistant' %}
+                    <i class="ri-user-shared-line"></i>
+                    {% else %}
+                    <i class="ri-user-3-line"></i>
+                    {% endif %}
+                </div>
+                <div class="designation-info">
+                    <div class="designation-count fw-bold">{{ stat.count }}</div>
+                    <div class="designation-name small">
+                        {% for choice in lecturer.DESIGNATION_CHOICES %}
+                            {% if choice.0 == stat.designation %}
+                                {{ choice.1 }}
+                            {% endif %}
+                        {% endfor %}
                     </div>
                 </div>
-                
-                <!-- Page content will go here -->
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> 
-                    Academic Staff page is under development. Content will be loaded dynamically.
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-body text-center py-4">
+                    <p class="text-muted mb-0">No designation statistics available</p>
                 </div>
-                
-                <!-- Placeholder for dynamic content -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">School Overview</h5>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Staff List -->
+    <div class="row g-4 mb-5">
+        {% for lecturer in lecturers %}
+        <div class="col-xl-4 col-lg-6">
+            <div class="staff-card">
+                <div class="staff-header">
+                    <div class="staff-avatar">
+                        {% if lecturer.user.profile_picture %}
+                        <img src="{{ lecturer.user.profile_picture.url }}" 
+                             alt="{{ lecturer.user.get_full_name }}" 
+                             class="avatar-img">
+                        {% else %}
+                        <div class="avatar-placeholder bg-primary-subtle text-primary">
+                            {{ lecturer.user.get_full_name|first|upper }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="staff-badges">
+                        <span class="badge bg-success-subtle text-success rounded-pill">
+                            {{ lecturer.get_designation_display }}
+                        </span>
+                        {% if lecturer.is_active %}
+                        <span class="badge bg-success rounded-pill">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger rounded-pill">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="staff-body">
+                    <h5 class="staff-name mb-1">{{ lecturer.user.get_full_name }}</h5>
+                    <p class="text-muted small mb-2">
+                        <i class="ri-briefcase-line me-1"></i>{{ lecturer.department.name }}
+                    </p>
+                    
+                    <div class="staff-info">
+                        <div class="info-row">
+                            <span class="text-muted small">Employee No:</span>
+                            <span class="fw-medium">{{ lecturer.employee_number }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-muted small">Qualification:</span>
+                            <span class="fw-medium">{{ lecturer.qualification|truncatechars:40 }}</span>
+                        </div>
+                        {% if lecturer.specialization %}
+                        <div class="info-row">
+                            <span class="text-muted small">Specialization:</span>
+                            <span class="fw-medium">{{ lecturer.specialization|truncatechars:40 }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="text-muted small">Hire Date:</span>
+                            <span class="fw-medium">{{ lecturer.hire_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="staff-contact mt-3">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="contact-item">
+                                    <i class="ri-mail-line text-muted me-1"></i>
+                                    <a href="mailto:{{ lecturer.user.email }}" class="small text-decoration-none">
+                                        {{ lecturer.user.email|truncatechars:20 }}
+                                    </a>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <p class="card-text">
-                                    This page will display Academic Staff information.
-                                    Data will be populated from the Django backend.
-                                </p>
+                            <div class="col-6">
+                                <div class="contact-item">
+                                    <i class="ri-phone-line text-muted me-1"></i>
+                                    <span class="small">{{ lecturer.user.phone_number|default:"-" }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </main>
+                <div class="staff-footer">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <a href="{% url 'staff_detail' lecturer.id %}" 
+                           class="btn btn-sm btn-primary">
+                            <i class="ri-eye-line me-1"></i> View Profile
+                        </a>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                    data-bs-toggle="dropdown">
+                                <i class="ri-more-2-line"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="ri-edit-line me-2"></i> Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="ri-mail-line me-2"></i> Send Email
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#">
+                                        <i class="ri-calendar-line me-2"></i> View Schedule
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#">
+                                        <i class="ri-delete-bin-line me-2"></i> Deactivate
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-body text-center py-5">
+                    <i class="ri-team-line display-1 text-muted mb-4"></i>
+                    <h5 class="mb-3">No academic staff found</h5>
+                    <p class="text-muted mb-4">
+                        {% if search_query or department_filter or designation_filter %}
+                        No staff members match your search criteria.
+                        {% else %}
+                        No academic staff have been added to the school yet.
+                        {% endif %}
+                    </p>
+                    <button class="btn btn-primary">
+                        <i class="ri-add-line me-2"></i> Add First Staff Member
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if lecturers.has_other_pages %}
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="Staff pagination">
+                <ul class="pagination justify-content-center">
+                    {% if lecturers.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ lecturers.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if designation_filter %}&designation={{ designation_filter }}{% endif %}">
+                            <i class="ri-arrow-left-s-line"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                    </li>
+                    {% endif %}
+
+                    {% for num in lecturers.paginator.page_range %}
+                        {% if lecturers.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > lecturers.number|add:'-3' and num < lecturers.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if designation_filter %}&designation={{ designation_filter }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if lecturers.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ lecturers.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if department_filter %}&department={{ department_filter }}{% endif %}{% if designation_filter %}&designation={{ designation_filter }}{% endif %}">
+                            <i class="ri-arrow-right-s-line"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+                <div class="text-center text-muted small mt-2">
+                    Showing {{ lecturers.start_index }} - {{ lecturers.end_index }} of {{ lecturers.paginator.count }} staff members
+                </div>
+            </nav>
         </div>
     </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
     
-    <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <script src="../../static/js/dean.js"></script>
-</body>
-</html>
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Designation Cards */
+    .designation-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .designation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+    
+    .designation-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        background: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: var(--color-primary);
+    }
+    
+    .designation-count {
+        font-size: 1.25rem;
+        line-height: 1;
+    }
+    
+    .designation-name {
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    /* Staff Cards */
+    .staff-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+        transition: all 0.2s ease;
+    }
+    
+    .staff-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+    
+    .staff-header {
+        padding: 1.5rem 1.5rem 1rem;
+        position: relative;
+    }
+    
+    .staff-avatar {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 1rem;
+    }
+    
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        font-weight: 600;
+        border: 4px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .staff-badges {
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-end;
+    }
+    
+    .staff-body {
+        padding: 0 1.5rem 1.5rem;
+    }
+    
+    .staff-name {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .staff-info {
+        margin-top: 1rem;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .staff-contact {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .contact-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.8125rem;
+    }
+    
+    .staff-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+    
+    /* Pagination */
+    .pagination .page-link {
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+    
+    .pagination .page-item.active .page-link {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .pagination .page-link:hover {
+        background-color: var(--color-gray-100);
+        color: var(--color-primary);
+    }
+</style>
+{% endblock %}
