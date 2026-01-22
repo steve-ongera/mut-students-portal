@@ -17273,3 +17273,836 @@ def external_examiners(request):
     
     return render(request, 'dean/academic_management/external_examiners.html', context)
 
+"""
+Dean Views - Complete Implementation
+File: views/dean_views.py
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Sum, Avg, Q, F
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+from decimal import Decimal
+import json
+
+from .models import (
+    # Quality Assurance
+    TeachingEvaluation, ProgrammeReview, AuditReport, ComplianceCheck, QualityMetric,
+    # Research & Innovation
+    ResearchProject, ResearchGrant, Publication, ResearchCenter, InnovationProject,
+    # Human Resources
+    StaffRecruitment, PerformanceAppraisal, StaffPromotion, StaffTraining, DisciplinaryCase,
+    # Financial Management
+    # SchoolBudget, BudgetAllocation, ExpenditureTracking, RevenueSource,
+    # # Partnerships
+    # Partnership, MOU, CollaborativeProject, AlumniRelation,
+    # # Strategic Planning
+    # StrategicGoal, PerformanceIndicator, KPIMeasurement, AnnualPlan, 
+    # AnnualPlanActivity, ProgressReport, DeanApproval,
+    # Core models
+    School, Department, AcademicYear, Semester, Programme, Lecturer, User
+)
+
+
+# ============================================================================
+# QUALITY ASSURANCE VIEWS
+# ============================================================================
+
+@login_required
+def dean_teaching_evaluations_view(request):
+    """View all teaching evaluations for the school"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Get current academic year
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Filters
+    academic_year_id = request.GET.get('academic_year', current_year.id if current_year else None)
+    semester_id = request.GET.get('semester')
+    department_id = request.GET.get('department')
+    status = request.GET.get('status')
+    
+    # Base queryset
+    evaluations = TeachingEvaluation.objects.filter(
+        unit_allocation__programme_unit__programme__department__school=dean_school
+    ).select_related(
+        'unit_allocation__programme_unit__unit',
+        'unit_allocation__lecturer__user',
+        'unit_allocation__programme_unit__programme__department',
+        'academic_year',
+        'semester'
+    ).order_by('-created_at')
+    
+    # Apply filters
+    if academic_year_id:
+        evaluations = evaluations.filter(academic_year_id=academic_year_id)
+    if semester_id:
+        evaluations = evaluations.filter(semester_id=semester_id)
+    if department_id:
+        evaluations = evaluations.filter(
+            unit_allocation__programme_unit__programme__department_id=department_id
+        )
+    if status:
+        evaluations = evaluations.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total_evaluations': evaluations.count(),
+        'published': evaluations.filter(status='published').count(),
+        'open': evaluations.filter(status='open').count(),
+        'closed': evaluations.filter(status='closed').count(),
+        'avg_overall_rating': evaluations.aggregate(Avg('overall_rating'))['overall_rating__avg'] or 0,
+        'avg_response_rate': evaluations.aggregate(Avg('response_rate'))['response_rate__avg'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(evaluations, 20)
+    page_number = request.GET.get('page')
+    evaluations_page = paginator.get_page(page_number)
+    
+    context = {
+        'evaluations': evaluations_page,
+        'stats': stats,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+        'semesters': Semester.objects.filter(academic_year_id=academic_year_id) if academic_year_id else [],
+        'departments': dean_school.departments.all(),
+        'current_year': current_year,
+        'selected_year': academic_year_id,
+        'selected_semester': semester_id,
+        'selected_department': department_id,
+        'selected_status': status,
+    }
+    
+    return render(request, 'dean/quality_assurance/teaching_evaluations.html', context)
+
+
+@login_required
+def dean_programme_reviews_view(request):
+    """View all programme reviews"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    academic_year_id = request.GET.get('academic_year')
+    review_type = request.GET.get('review_type')
+    status = request.GET.get('status')
+    
+    # Base queryset
+    reviews = ProgrammeReview.objects.filter(
+        programme__department__school=dean_school
+    ).select_related(
+        'programme__department',
+        'academic_year',
+        'conducted_by',
+        'approved_by'
+    ).order_by('-review_date')
+    
+    # Apply filters
+    if academic_year_id:
+        reviews = reviews.filter(academic_year_id=academic_year_id)
+    if review_type:
+        reviews = reviews.filter(review_type=review_type)
+    if status:
+        reviews = reviews.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total_reviews': reviews.count(),
+        'completed': reviews.filter(status='completed').count(),
+        'in_progress': reviews.filter(status='in_progress').count(),
+        'scheduled': reviews.filter(status='scheduled').count(),
+        'avg_overall_rating': reviews.aggregate(Avg('overall_rating'))['overall_rating__avg'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(reviews, 15)
+    page_number = request.GET.get('page')
+    reviews_page = paginator.get_page(page_number)
+    
+    context = {
+        'reviews': reviews_page,
+        'stats': stats,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+        'review_types': ProgrammeReview.REVIEW_TYPE,
+        'statuses': ProgrammeReview.REVIEW_STATUS,
+    }
+    
+    return render(request, 'dean/quality_assurance/programme_reviews.html', context)
+
+
+@login_required
+def dean_audit_reports_view(request):
+    """View all audit reports"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    audit_type = request.GET.get('audit_type')
+    status = request.GET.get('status')
+    academic_year_id = request.GET.get('academic_year')
+    
+    # Base queryset
+    audits = AuditReport.objects.filter(
+        Q(school=dean_school) | Q(department__school=dean_school)
+    ).select_related('school', 'department', 'academic_year').order_by('-audit_date')
+    
+    # Apply filters
+    if audit_type:
+        audits = audits.filter(audit_type=audit_type)
+    if status:
+        audits = audits.filter(status=status)
+    if academic_year_id:
+        audits = audits.filter(academic_year_id=academic_year_id)
+    
+    # Statistics
+    stats = {
+        'total_audits': audits.count(),
+        'completed': audits.filter(status='completed').count(),
+        'ongoing': audits.filter(status='ongoing').count(),
+        'planned': audits.filter(status='planned').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(audits, 15)
+    page_number = request.GET.get('page')
+    audits_page = paginator.get_page(page_number)
+    
+    context = {
+        'audits': audits_page,
+        'stats': stats,
+        'audit_types': AuditReport.AUDIT_TYPE,
+        'statuses': AuditReport.AUDIT_STATUS,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+    }
+    
+    return render(request, 'dean/quality_assurance/audit_reports.html', context)
+
+
+@login_required
+def dean_compliance_monitoring_view(request):
+    """View compliance checks"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    compliance_area = request.GET.get('compliance_area')
+    status = request.GET.get('status')
+    
+    # Base queryset
+    compliance_checks = ComplianceCheck.objects.filter(
+        school=dean_school
+    ).select_related(
+        'academic_year',
+        'responsible_person',
+        'checked_by'
+    ).order_by('-check_date')
+    
+    # Apply filters
+    if compliance_area:
+        compliance_checks = compliance_checks.filter(compliance_area=compliance_area)
+    if status:
+        compliance_checks = compliance_checks.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total_checks': compliance_checks.count(),
+        'compliant': compliance_checks.filter(status='compliant').count(),
+        'non_compliant': compliance_checks.filter(status='non_compliant').count(),
+        'partially_compliant': compliance_checks.filter(status='partially_compliant').count(),
+        'action_required': compliance_checks.filter(action_required=True, is_resolved=False).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(compliance_checks, 20)
+    page_number = request.GET.get('page')
+    checks_page = paginator.get_page(page_number)
+    
+    context = {
+        'checks': checks_page,
+        'stats': stats,
+        'compliance_areas': ComplianceCheck.COMPLIANCE_AREA,
+        'statuses': ComplianceCheck.COMPLIANCE_STATUS,
+    }
+    
+    return render(request, 'dean/quality_assurance/compliance_monitoring.html', context)
+
+
+@login_required
+def dean_quality_metrics_view(request):
+    """View quality metrics and KPIs"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    metric_type = request.GET.get('metric_type')
+    academic_year_id = request.GET.get('academic_year')
+    
+    # Base queryset
+    metrics = QualityMetric.objects.filter(
+        school=dean_school
+    ).select_related('academic_year', 'programme', 'recorded_by').order_by('-measurement_date')
+    
+    # Apply filters
+    if metric_type:
+        metrics = metrics.filter(metric_type=metric_type)
+    if academic_year_id:
+        metrics = metrics.filter(academic_year_id=academic_year_id)
+    
+    # Statistics
+    stats = {
+        'total_metrics': metrics.count(),
+        'targets_met': metrics.filter(is_target_met=True).count(),
+        'targets_not_met': metrics.filter(is_target_met=False).count(),
+        'avg_achievement': metrics.aggregate(
+            avg=Avg(F('actual_value') * 100.0 / F('target_value'))
+        )['avg'] or 0,
+    }
+    
+    # Trend analysis
+    improving = metrics.filter(trend='improving').count()
+    declining = metrics.filter(trend='declining').count()
+    stable = metrics.filter(trend='stable').count()
+    
+    stats['trends'] = {
+        'improving': improving,
+        'declining': declining,
+        'stable': stable,
+    }
+    
+    # Pagination
+    paginator = Paginator(metrics, 20)
+    page_number = request.GET.get('page')
+    metrics_page = paginator.get_page(page_number)
+    
+    context = {
+        'metrics': metrics_page,
+        'stats': stats,
+        'metric_types': QualityMetric.METRIC_TYPE,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+    }
+    
+    return render(request, 'dean/quality_assurance/quality_metrics.html', context)
+
+
+# ============================================================================
+# RESEARCH & INNOVATION VIEWS
+# ============================================================================
+
+@login_required
+def dean_research_strategy_view(request):
+    """Research strategy overview and dashboard"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Research projects statistics
+    projects = ResearchProject.objects.filter(school=dean_school)
+    
+    stats = {
+        'total_projects': projects.count(),
+        'ongoing': projects.filter(status='ongoing').count(),
+        'completed': projects.filter(status='completed').count(),
+        'total_budget': projects.aggregate(Sum('total_budget'))['total_budget__sum'] or 0,
+        'funds_utilized': projects.aggregate(Sum('funds_utilized'))['funds_utilized__sum'] or 0,
+        'total_publications': projects.aggregate(Sum('publications_count'))['publications_count__sum'] or 0,
+        'total_patents': projects.aggregate(Sum('patents_count'))['patents_count__sum'] or 0,
+    }
+    
+    # Research grants
+    grants = ResearchGrant.objects.filter(school=dean_school)
+    grant_stats = {
+        'total_grants': grants.count(),
+        'active': grants.filter(status='active').count(),
+        'amount_awarded': grants.aggregate(Sum('amount_awarded'))['amount_awarded__sum'] or 0,
+    }
+    
+    # Publications
+    publications = Publication.objects.filter(school=dean_school)
+    pub_stats = {
+        'total_publications': publications.count(),
+        'peer_reviewed': publications.filter(is_peer_reviewed=True).count(),
+        'this_year': publications.filter(year=timezone.now().year).count(),
+    }
+    
+    # Research centers
+    centers = ResearchCenter.objects.filter(school=dean_school, is_active=True)
+    
+    # Recent research activities
+    recent_projects = projects.order_by('-created_at')[:5]
+    recent_publications = publications.order_by('-publication_date')[:5]
+    recent_grants = grants.order_by('-application_date')[:5]
+    
+    context = {
+        'stats': stats,
+        'grant_stats': grant_stats,
+        'pub_stats': pub_stats,
+        'centers': centers,
+        'recent_projects': recent_projects,
+        'recent_publications': recent_publications,
+        'recent_grants': recent_grants,
+    }
+    
+    return render(request, 'dean/research/research_strategy.html', context)
+
+
+@login_required
+def dean_grant_management_view(request):
+    """Manage research grants"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    grant_type = request.GET.get('grant_type')
+    status = request.GET.get('status')
+    
+    # Base queryset
+    grants = ResearchGrant.objects.filter(
+        school=dean_school
+    ).select_related(
+        'principal_applicant__user',
+        'principal_applicant__department'
+    ).prefetch_related('co_applicants').order_by('-application_date')
+    
+    # Apply filters
+    if grant_type:
+        grants = grants.filter(grant_type=grant_type)
+    if status:
+        grants = grants.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total_grants': grants.count(),
+        'approved': grants.filter(status='approved').count(),
+        'active': grants.filter(status='active').count(),
+        'completed': grants.filter(status='completed').count(),
+        'total_applied': grants.aggregate(Sum('amount_applied'))['amount_applied__sum'] or 0,
+        'total_awarded': grants.aggregate(Sum('amount_awarded'))['amount_awarded__sum'] or 0,
+        'success_rate': (grants.filter(status__in=['approved', 'active', 'completed']).count() / grants.count() * 100) if grants.count() > 0 else 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(grants, 15)
+    page_number = request.GET.get('page')
+    grants_page = paginator.get_page(page_number)
+    
+    context = {
+        'grants': grants_page,
+        'stats': stats,
+        'grant_types': ResearchGrant.GRANT_TYPE,
+        'statuses': ResearchGrant.GRANT_STATUS,
+    }
+    
+    return render(request, 'dean/research/grant_management.html', context)
+
+
+@login_required
+def dean_publications_view(request):
+    """View all publications"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    publication_type = request.GET.get('publication_type')
+    year = request.GET.get('year')
+    
+    # Base queryset
+    publications = Publication.objects.filter(
+        school=dean_school
+    ).select_related(
+        'corresponding_author__user',
+        'research_project'
+    ).prefetch_related('authors').order_by('-publication_date')
+    
+    # Apply filters
+    if publication_type:
+        publications = publications.filter(publication_type=publication_type)
+    if year:
+        publications = publications.filter(year=year)
+    
+    # Statistics
+    stats = {
+        'total_publications': publications.count(),
+        'peer_reviewed': publications.filter(is_peer_reviewed=True).count(),
+        'total_citations': publications.aggregate(Sum('citations_count'))['citations_count__sum'] or 0,
+        'avg_impact_factor': publications.filter(impact_factor__isnull=False).aggregate(
+            Avg('impact_factor'))['impact_factor__avg'] or 0,
+    }
+    
+    # Publications by type
+    by_type = publications.values('publication_type').annotate(count=Count('id'))
+    
+    # Pagination
+    paginator = Paginator(publications, 15)
+    page_number = request.GET.get('page')
+    publications_page = paginator.get_page(page_number)
+    
+    context = {
+        'publications': publications_page,
+        'stats': stats,
+        'by_type': by_type,
+        'publication_types': Publication.PUBLICATION_TYPE,
+        'years': range(timezone.now().year, timezone.now().year - 10, -1),
+    }
+    
+    return render(request, 'dean/research/publications.html', context)
+
+
+@login_required
+def dean_research_centers_view(request):
+    """Manage research centers"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Get all research centers
+    centers = ResearchCenter.objects.filter(
+        school=dean_school
+    ).select_related('director__user', 'deputy_director__user').order_by('name')
+    
+    # Statistics
+    stats = {
+        'total_centers': centers.count(),
+        'active_centers': centers.filter(is_active=True).count(),
+        'total_budget': centers.aggregate(Sum('annual_budget'))['annual_budget__sum'] or 0,
+    }
+    
+    context = {
+        'centers': centers,
+        'stats': stats,
+    }
+    
+    return render(request, 'dean/research/research_centers.html', context)
+
+
+@login_required
+def dean_innovation_projects_view(request):
+    """Manage innovation projects"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    status = request.GET.get('status')
+    
+    # Base queryset
+    projects = InnovationProject.objects.filter(
+        school=dean_school
+    ).select_related('project_lead__user').prefetch_related('team_members').order_by('-created_at')
+    
+    # Apply filters
+    if status:
+        projects = projects.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total_projects': projects.count(),
+        'in_development': projects.filter(status='development').count(),
+        'commercialization': projects.filter(status='commercialization').count(),
+        'completed': projects.filter(status='completed').count(),
+        'total_budget': projects.aggregate(Sum('budget'))['budget__sum'] or 0,
+        'total_revenue': projects.aggregate(Sum('revenue_generated'))['revenue_generated__sum'] or 0,
+        'with_ip': projects.filter(has_ip_protection=True).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(projects, 15)
+    page_number = request.GET.get('page')
+    projects_page = paginator.get_page(page_number)
+    
+    context = {
+        'projects': projects_page,
+        'stats': stats,
+        'statuses': InnovationProject.PROJECT_STATUS,
+    }
+    
+    return render(request, 'dean/research/innovation_projects.html', context)
+
+
+# ============================================================================
+# HUMAN RESOURCES VIEWS
+# ============================================================================
+
+@login_required
+def dean_staff_recruitment_view(request):
+    """Manage staff recruitment"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    status = request.GET.get('status')
+    department_id = request.GET.get('department')
+    
+    # Base queryset
+    recruitments = StaffRecruitment.objects.filter(
+        school=dean_school
+    ).select_related('department', 'academic_year').order_by('-advertised_date')
+    
+    # Apply filters
+    if status:
+        recruitments = recruitments.filter(status=status)
+    if department_id:
+        recruitments = recruitments.filter(department_id=department_id)
+    
+    # Statistics
+    stats = {
+        'total_recruitments': recruitments.count(),
+        'open': recruitments.filter(status='open').count(),
+        'shortlisting': recruitments.filter(status='shortlisting').count(),
+        'interviewing': recruitments.filter(status='interviewing').count(),
+        'total_applications': recruitments.aggregate(Sum('total_applications'))['total_applications__sum'] or 0,
+        'positions_filled': recruitments.filter(status='accepted').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(recruitments, 15)
+    page_number = request.GET.get('page')
+    recruitments_page = paginator.get_page(page_number)
+    
+    context = {
+        'recruitments': recruitments_page,
+        'stats': stats,
+        'departments': dean_school.departments.all(),
+        'statuses': StaffRecruitment.RECRUITMENT_STATUS,
+    }
+    
+    return render(request, 'dean/hr/staff_recruitment.html', context)
+
+
+@login_required
+def dean_performance_appraisal_view(request):
+    """View staff performance appraisals"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    academic_year_id = request.GET.get('academic_year')
+    appraisal_period = request.GET.get('appraisal_period')
+    department_id = request.GET.get('department')
+    
+    # Base queryset
+    appraisals = PerformanceAppraisal.objects.filter(
+        lecturer__department__school=dean_school
+    ).select_related(
+        'lecturer__user',
+        'lecturer__department',
+        'academic_year'
+    ).order_by('-review_date')
+    
+    # Apply filters
+    if academic_year_id:
+        appraisals = appraisals.filter(academic_year_id=academic_year_id)
+    if appraisal_period:
+        appraisals = appraisals.filter(appraisal_period=appraisal_period)
+    if department_id:
+        appraisals = appraisals.filter(lecturer__department_id=department_id)
+    
+    # Statistics
+    stats = {
+        'total_appraisals': appraisals.count(),
+        'outstanding': appraisals.filter(overall_rating='outstanding').count(),
+        'exceeds': appraisals.filter(overall_rating='exceeds').count(),
+        'meets': appraisals.filter(overall_rating='meets').count(),
+        'needs_improvement': appraisals.filter(overall_rating='needs_improvement').count(),
+        'avg_score': appraisals.aggregate(Avg('overall_score'))['overall_score__avg'] or 0,
+    }
+    
+    # Pagination
+    paginator = Paginator(appraisals, 15)
+    page_number = request.GET.get('page')
+    appraisals_page = paginator.get_page(page_number)
+    
+    context = {
+        'appraisals': appraisals_page,
+        'stats': stats,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+        'appraisal_periods': PerformanceAppraisal.APPRAISAL_PERIOD,
+        'departments': dean_school.departments.all(),
+    }
+    
+    return render(request, 'dean/hr/performance_appraisal.html', context)
+
+
+@login_required
+def dean_promotions_view(request):
+    """Manage staff promotions"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    status = request.GET.get('status')
+    
+    # Base queryset
+    promotions = StaffPromotion.objects.filter(
+        lecturer__department__school=dean_school
+    ).select_related(
+        'lecturer__user',
+        'lecturer__department',
+        'academic_year'
+    ).order_by('-application_date')
+    
+    # Apply filters
+    if status:
+        promotions = promotions.filter(status=status)
+    
+    # Promotions needing Dean's recommendation
+    pending_dean = promotions.filter(status='pending_hos', dean_recommended_by__isnull=True)
+    
+    # Statistics
+    stats = {
+        'total_promotions': promotions.count(),
+        'pending_dean': pending_dean.count(),
+        'approved': promotions.filter(status='approved').count(),
+        'implemented': promotions.filter(status='implemented').count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(promotions, 15)
+    page_number = request.GET.get('page')
+    promotions_page = paginator.get_page(page_number)
+    
+    context = {
+        'promotions': promotions_page,
+        'pending_dean': pending_dean,
+        'stats': stats,
+        'statuses': StaffPromotion.PROMOTION_STATUS,
+    }
+    
+    return render(request, 'dean/hr/promotions.html', context)
+
+
+@login_required
+def dean_staff_development_view(request):
+    """View staff training and development"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    training_type = request.GET.get('training_type')
+    status = request.GET.get('status')
+    
+    # Base queryset
+    trainings = StaffTraining.objects.filter(
+        lecturer__department__school=dean_school
+    ).select_related('lecturer__user', 'lecturer__department').order_by('-start_date')
+    
+    # Apply filters
+    if training_type:
+        trainings = trainings.filter(training_type=training_type)
+    if status:
+        trainings = trainings.filter(status=status)
+    
+    # Statistics
+    stats = {
+        'total_trainings': trainings.count(),
+        'completed': trainings.filter(status='completed').count(),
+        'ongoing': trainings.filter(status='ongoing').count(),
+        'total_cost': trainings.aggregate(Sum('cost'))['cost__sum'] or 0,
+        'certificates_obtained': trainings.filter(certificate_obtained=True).count(),
+    }
+    
+    # Pagination
+    paginator = Paginator(trainings, 15)
+    page_number = request.GET.get('page')
+    trainings_page = paginator.get_page(page_number)
+    
+    context = {
+        'trainings': trainings_page,
+        'stats': stats,
+        'training_types': StaffTraining.TRAINING_TYPE,
+        'statuses': StaffTraining.TRAINING_STATUS,
+    }
+    
+    return render(request, 'dean/hr/staff_development.html', context)
+
+
+@login_required
+def dean_disciplinary_matters_view(request):
+    """Manage disciplinary cases"""
+    dean_school = request.user.school_as_dean.first()
+    
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+    
+    # Filters
+    status = request.GET.get('status')
+    severity = request.GET.get('severity')
+    
+    # Base queryset
+    cases = DisciplinaryCase.objects.filter(
+        lecturer__department__school=dean_school
+    ).select_related(
+        'lecturer__user',
+        'lecturer__department',
+        'academic_year'
+    ).order_by('-reported_date')
+    
+    # Apply filters
+    # Statistics
+    stats = {
+        'total_cases': cases.count(),
+        'under_investigation': cases.filter(status='under_investigation').count(),
+        'resolved': cases.filter(status='resolved').count(),
+        'appealed': cases.filter(status='appealed').count(),
+        'gross_misconduct': cases.filter(severity='gross_misconduct').count(),
+    }
+
+    # Pagination
+    paginator = Paginator(cases, 15)
+    page_number = request.GET.get('page')
+    cases_page = paginator.get_page(page_number)
+
+    context = {
+        'cases': cases_page,
+        'stats': stats,
+        'statuses': DisciplinaryCase.CASE_STATUS,
+        'severities': DisciplinaryCase.SEVERITY,
+    }
+
+    return render(request, 'dean/hr/disciplinary_matters.html', context)

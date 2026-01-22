@@ -3381,3 +3381,1121 @@ class ContactInfo(models.Model):
 
     def __str__(self):
         return self.department
+    
+    
+"""
+Missing Models for Dean Functionality
+Add these to your existing models.py file
+"""
+
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from decimal import Decimal
+
+
+# ============= QUALITY ASSURANCE MODELS =============
+
+class TeachingEvaluation(models.Model):
+    """Student evaluations of teaching quality"""
+    EVALUATION_STATUS = (
+        ('open', 'Open'),
+        ('closed', 'Closed'),
+        ('published', 'Published'),
+    )
+    
+    unit_allocation = models.ForeignKey('UnitAllocation', on_delete=models.CASCADE, 
+                                       related_name='teaching_evaluations')
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='teaching_evaluations')
+    semester = models.ForeignKey('Semester', on_delete=models.CASCADE, 
+                                 related_name='teaching_evaluations')
+    
+    # Evaluation period
+    start_date = models.DateField()
+    end_date = models.DateField()
+    status = models.CharField(max_length=20, choices=EVALUATION_STATUS, default='open')
+    
+    # Results summary
+    total_responses = models.IntegerField(default=0)
+    total_enrolled = models.IntegerField(default=0)
+    response_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    
+    # Average ratings (1-5 scale)
+    avg_content_delivery = models.DecimalField(max_digits=3, decimal_places=2, 
+                                               default=0.00, validators=[MinValueValidator(0), MaxValueValidator(5)])
+    avg_engagement = models.DecimalField(max_digits=3, decimal_places=2, 
+                                        default=0.00, validators=[MinValueValidator(0), MaxValueValidator(5)])
+    avg_assessment_fairness = models.DecimalField(max_digits=3, decimal_places=2, 
+                                                  default=0.00, validators=[MinValueValidator(0), MaxValueValidator(5)])
+    avg_availability = models.DecimalField(max_digits=3, decimal_places=2, 
+                                          default=0.00, validators=[MinValueValidator(0), MaxValueValidator(5)])
+    overall_rating = models.DecimalField(max_digits=3, decimal_places=2, 
+                                        default=0.00, validators=[MinValueValidator(0), MaxValueValidator(5)])
+    
+    # Feedback
+    positive_comments = models.TextField(blank=True)
+    improvement_areas = models.TextField(blank=True)
+    
+    is_published = models.BooleanField(default=False)
+    published_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.unit_allocation.programme_unit.unit.code} - {self.semester}"
+
+    class Meta:
+        db_table = 'teaching_evaluations'
+        ordering = ['-created_at']
+        unique_together = ('unit_allocation', 'semester')
+
+
+class ProgrammeReview(models.Model):
+    """Periodic reviews of academic programmes"""
+    REVIEW_STATUS = (
+        ('scheduled', 'Scheduled'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('published', 'Published'),
+    )
+    
+    REVIEW_TYPE = (
+        ('annual', 'Annual Review'),
+        ('periodic', 'Periodic Review'),
+        ('accreditation', 'Accreditation Review'),
+        ('external', 'External Review'),
+    )
+    
+    programme = models.ForeignKey('Programme', on_delete=models.CASCADE, 
+                                  related_name='reviews')
+    review_type = models.CharField(max_length=20, choices=REVIEW_TYPE)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='programme_reviews')
+    
+    # Review details
+    review_date = models.DateField()
+    review_panel = models.TextField(help_text="Names and roles of review panel members")
+    
+    # Review findings
+    strengths = models.TextField()
+    weaknesses = models.TextField()
+    opportunities = models.TextField()
+    threats = models.TextField()
+    
+    # Recommendations
+    recommendations = models.TextField()
+    action_plan = models.TextField(blank=True)
+    
+    # Ratings
+    curriculum_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    teaching_quality_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    resources_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    student_satisfaction_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    employability_rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    overall_rating = models.DecimalField(max_digits=3, decimal_places=2)
+    
+    # Follow-up
+    follow_up_date = models.DateField(null=True, blank=True)
+    follow_up_notes = models.TextField(blank=True)
+    
+    status = models.CharField(max_length=20, choices=REVIEW_STATUS, default='scheduled')
+    conducted_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, 
+                                    related_name='programme_reviews_conducted')
+    approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='programme_reviews_approved')
+    
+    report_document = models.FileField(upload_to='programme_reviews/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate overall rating
+        self.overall_rating = (
+            self.curriculum_rating +
+            self.teaching_quality_rating +
+            self.resources_rating +
+            self.student_satisfaction_rating +
+            self.employability_rating
+        ) / 5.0
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.programme.code} - {self.review_type} - {self.review_date}"
+
+    class Meta:
+        db_table = 'programme_reviews'
+        ordering = ['-review_date']
+
+
+class AuditReport(models.Model):
+    """Quality audit reports"""
+    AUDIT_TYPE = (
+        ('internal', 'Internal Audit'),
+        ('external', 'External Audit'),
+        ('financial', 'Financial Audit'),
+        ('academic', 'Academic Audit'),
+        ('compliance', 'Compliance Audit'),
+    )
+    
+    AUDIT_STATUS = (
+        ('planned', 'Planned'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('closed', 'Closed'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='audit_reports', null=True, blank=True)
+    department = models.ForeignKey('Department', on_delete=models.CASCADE, 
+                                  related_name='audit_reports', null=True, blank=True)
+    audit_type = models.CharField(max_length=20, choices=AUDIT_TYPE)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='audit_reports')
+    
+    # Audit details
+    audit_number = models.CharField(max_length=50, unique=True)
+    audit_date = models.DateField()
+    auditor_name = models.CharField(max_length=200)
+    auditor_organization = models.CharField(max_length=200, blank=True)
+    
+    # Findings
+    executive_summary = models.TextField()
+    key_findings = models.TextField()
+    non_conformities = models.TextField(blank=True)
+    observations = models.TextField(blank=True)
+    
+    # Recommendations
+    recommendations = models.TextField()
+    management_response = models.TextField(blank=True)
+    corrective_actions = models.TextField(blank=True)
+    
+    # Timeline
+    implementation_deadline = models.DateField(null=True, blank=True)
+    follow_up_date = models.DateField(null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=AUDIT_STATUS, default='planned')
+    audit_document = models.FileField(upload_to='audit_reports/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.audit_number:
+            year = timezone.now().year
+            from django.db.models import Max
+            last_audit = AuditReport.objects.filter(
+                audit_number__startswith=f'AUD-{year}-'
+            ).aggregate(Max('id'))
+            next_id = (last_audit['id__max'] or 0) + 1
+            self.audit_number = f'AUD-{year}-{next_id:04d}'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.audit_number} - {self.audit_type}"
+
+    class Meta:
+        db_table = 'audit_reports'
+        ordering = ['-audit_date']
+
+
+class ComplianceCheck(models.Model):
+    """Compliance monitoring records"""
+    COMPLIANCE_STATUS = (
+        ('compliant', 'Compliant'),
+        ('non_compliant', 'Non-Compliant'),
+        ('partially_compliant', 'Partially Compliant'),
+        ('under_review', 'Under Review'),
+    )
+    
+    COMPLIANCE_AREA = (
+        ('academic', 'Academic Standards'),
+        ('financial', 'Financial Regulations'),
+        ('health_safety', 'Health & Safety'),
+        ('data_protection', 'Data Protection'),
+        ('employment', 'Employment Laws'),
+        ('accreditation', 'Accreditation Requirements'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='compliance_checks')
+    compliance_area = models.CharField(max_length=20, choices=COMPLIANCE_AREA)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='compliance_checks')
+    
+    # Check details
+    check_date = models.DateField()
+    requirement = models.TextField(help_text="Specific requirement being checked")
+    criteria = models.TextField(help_text="Compliance criteria")
+    
+    # Status
+    status = models.CharField(max_length=20, choices=COMPLIANCE_STATUS)
+    evidence = models.TextField(help_text="Evidence of compliance")
+    gaps = models.TextField(blank=True, help_text="Compliance gaps identified")
+    
+    # Actions
+    action_required = models.BooleanField(default=False)
+    action_plan = models.TextField(blank=True)
+    responsible_person = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                          related_name='compliance_responsibilities')
+    deadline = models.DateField(null=True, blank=True)
+    
+    # Follow-up
+    is_resolved = models.BooleanField(default=False)
+    resolution_date = models.DateField(null=True, blank=True)
+    resolution_notes = models.TextField(blank=True)
+    
+    checked_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                  related_name='compliance_checks_conducted')
+    supporting_documents = models.FileField(upload_to='compliance/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.school.code} - {self.compliance_area} - {self.check_date}"
+
+    class Meta:
+        db_table = 'compliance_checks'
+        ordering = ['-check_date']
+
+
+class QualityMetric(models.Model):
+    """Quality metrics and KPIs tracking"""
+    METRIC_TYPE = (
+        ('academic', 'Academic Performance'),
+        ('satisfaction', 'Student Satisfaction'),
+        ('retention', 'Student Retention'),
+        ('graduation', 'Graduation Rate'),
+        ('employability', 'Graduate Employability'),
+        ('research', 'Research Output'),
+        ('teaching', 'Teaching Quality'),
+    )
+    
+    MEASUREMENT_PERIOD = (
+        ('semester', 'Semester'),
+        ('annual', 'Annual'),
+        ('quarterly', 'Quarterly'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='quality_metrics')
+    programme = models.ForeignKey('Programme', on_delete=models.CASCADE, 
+                                 related_name='quality_metrics', null=True, blank=True)
+    metric_type = models.CharField(max_length=20, choices=METRIC_TYPE)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='quality_metrics')
+    measurement_period = models.CharField(max_length=20, choices=MEASUREMENT_PERIOD)
+    
+    # Metric details
+    metric_name = models.CharField(max_length=200)
+    description = models.TextField()
+    target_value = models.DecimalField(max_digits=10, decimal_places=2)
+    actual_value = models.DecimalField(max_digits=10, decimal_places=2)
+    unit_of_measure = models.CharField(max_length=50, help_text="%, number, rating, etc.")
+    
+    # Performance
+    is_target_met = models.BooleanField(default=False)
+    variance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    variance_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    
+    # Analysis
+    trend = models.CharField(max_length=20, choices=(
+        ('improving', 'Improving'),
+        ('declining', 'Declining'),
+        ('stable', 'Stable'),
+    ), default='stable')
+    comments = models.TextField(blank=True)
+    action_items = models.TextField(blank=True)
+    
+    measurement_date = models.DateField()
+    recorded_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                   related_name='metrics_recorded')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate variance and check if target met
+        self.variance = self.actual_value - self.target_value
+        if self.target_value != 0:
+            self.variance_percentage = (self.variance / self.target_value) * 100
+        self.is_target_met = self.actual_value >= self.target_value
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.metric_name} - {self.academic_year}"
+
+    class Meta:
+        db_table = 'quality_metrics'
+        ordering = ['-measurement_date']
+
+
+# ============= RESEARCH & INNOVATION MODELS =============
+
+class ResearchProject(models.Model):
+    """Research projects"""
+    PROJECT_STATUS = (
+        ('proposal', 'Proposal'),
+        ('approved', 'Approved'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    PROJECT_TYPE = (
+        ('basic', 'Basic Research'),
+        ('applied', 'Applied Research'),
+        ('collaborative', 'Collaborative Research'),
+        ('consultancy', 'Consultancy'),
+    )
+    
+    title = models.CharField(max_length=500)
+    project_code = models.CharField(max_length=50, unique=True)
+    project_type = models.CharField(max_length=20, choices=PROJECT_TYPE)
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='research_projects')
+    department = models.ForeignKey('Department', on_delete=models.CASCADE, 
+                                  related_name='research_projects')
+    
+    # Team
+    principal_investigator = models.ForeignKey('Lecturer', on_delete=models.CASCADE,
+                                              related_name='research_projects_pi')
+    co_investigators = models.ManyToManyField('Lecturer', related_name='research_projects_co', blank=True)
+    
+    # Project details
+    abstract = models.TextField()
+    objectives = models.TextField()
+    methodology = models.TextField()
+    expected_outcomes = models.TextField()
+    
+    # Timeline
+    start_date = models.DateField()
+    end_date = models.DateField()
+    duration_months = models.IntegerField()
+    
+    # Funding
+    total_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    funding_source = models.CharField(max_length=200, blank=True)
+    funds_allocated = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    funds_utilized = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    status = models.CharField(max_length=20, choices=PROJECT_STATUS, default='proposal')
+    
+    # Outputs
+    publications_count = models.IntegerField(default=0)
+    patents_count = models.IntegerField(default=0)
+    
+    approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='research_projects_approved')
+    approval_date = models.DateField(null=True, blank=True)
+    
+    proposal_document = models.FileField(upload_to='research/proposals/', null=True, blank=True)
+    final_report = models.FileField(upload_to='research/reports/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.project_code} - {self.title[:50]}"
+
+    class Meta:
+        db_table = 'research_projects'
+        ordering = ['-created_at']
+
+
+class ResearchGrant(models.Model):
+    """Research grants and funding"""
+    GRANT_STATUS = (
+        ('applied', 'Application Submitted'),
+        ('under_review', 'Under Review'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+    )
+    
+    GRANT_TYPE = (
+        ('internal', 'Internal Grant'),
+        ('external', 'External Grant'),
+        ('government', 'Government Grant'),
+        ('private', 'Private Sector'),
+        ('international', 'International'),
+    )
+    
+    grant_title = models.CharField(max_length=500)
+    grant_number = models.CharField(max_length=50, unique=True)
+    grant_type = models.CharField(max_length=20, choices=GRANT_TYPE)
+    funding_agency = models.CharField(max_length=200)
+    
+    # Applicants
+    principal_applicant = models.ForeignKey('Lecturer', on_delete=models.CASCADE,
+                                           related_name='grants_principal')
+    co_applicants = models.ManyToManyField('Lecturer', related_name='grants_co', blank=True)
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='research_grants')
+    
+    # Grant details
+    amount_applied = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_awarded = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    application_date = models.DateField()
+    decision_date = models.DateField(null=True, blank=True)
+    
+    # Project timeline
+    project_start_date = models.DateField(null=True, blank=True)
+    project_end_date = models.DateField(null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=GRANT_STATUS, default='applied')
+    
+    # Documents
+    proposal_document = models.FileField(upload_to='grants/proposals/', null=True, blank=True)
+    award_letter = models.FileField(upload_to='grants/awards/', null=True, blank=True)
+    
+    # Reporting
+    progress_reports = models.TextField(blank=True)
+    final_report_submitted = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.grant_number} - {self.grant_title[:50]}"
+
+    class Meta:
+        db_table = 'research_grants'
+        ordering = ['-application_date']
+
+
+class Publication(models.Model):
+    """Academic publications"""
+    PUBLICATION_TYPE = (
+        ('journal', 'Journal Article'),
+        ('conference', 'Conference Paper'),
+        ('book', 'Book'),
+        ('chapter', 'Book Chapter'),
+        ('thesis', 'Thesis/Dissertation'),
+        ('report', 'Technical Report'),
+    )
+    
+    title = models.CharField(max_length=500)
+    publication_type = models.CharField(max_length=20, choices=PUBLICATION_TYPE)
+    
+    # Authors
+    authors = models.ManyToManyField('Lecturer', related_name='publications')
+    corresponding_author = models.ForeignKey('Lecturer', on_delete=models.CASCADE,
+                                            related_name='publications_corresponding')
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='publications')
+    
+    # Publication details
+    journal_name = models.CharField(max_length=300, blank=True)
+    conference_name = models.CharField(max_length=300, blank=True)
+    publisher = models.CharField(max_length=200, blank=True)
+    isbn_issn = models.CharField(max_length=50, blank=True)
+    doi = models.CharField(max_length=100, blank=True)
+    
+    # Date
+    publication_date = models.DateField()
+    year = models.IntegerField()
+    
+    # Quality metrics
+    is_peer_reviewed = models.BooleanField(default=False)
+    impact_factor = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    citations_count = models.IntegerField(default=0)
+    
+    # Links
+    url = models.URLField(blank=True)
+    pdf_file = models.FileField(upload_to='publications/', null=True, blank=True)
+    
+    # Research project link
+    research_project = models.ForeignKey(ResearchProject, on_delete=models.SET_NULL,
+                                        null=True, blank=True, related_name='publications')
+    
+    abstract = models.TextField(blank=True)
+    keywords = models.CharField(max_length=500, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title[:100]}"
+
+    class Meta:
+        db_table = 'publications'
+        ordering = ['-publication_date']
+
+
+class ResearchCenter(models.Model):
+    """Research centers and institutes"""
+    name = models.CharField(max_length=200)
+    code = models.CharField(max_length=20, unique=True)
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='research_centers')
+    
+    # Leadership
+    director = models.ForeignKey('Lecturer', on_delete=models.SET_NULL, null=True,
+                                 related_name='research_centers_directed')
+    deputy_director = models.ForeignKey('Lecturer', on_delete=models.SET_NULL, null=True, blank=True,
+                                       related_name='research_centers_deputy')
+    
+    # Details
+    description = models.TextField()
+    focus_areas = models.TextField(help_text="Main research focus areas")
+    objectives = models.TextField()
+    
+    # Resources
+    location = models.CharField(max_length=200, blank=True)
+    facilities = models.TextField(blank=True)
+    annual_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    # Contact
+    email = models.EmailField(blank=True)
+    phone_number = models.CharField(max_length=15, blank=True)
+    website = models.URLField(blank=True)
+    
+    # Status
+    establishment_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    class Meta:
+        db_table = 'research_centers'
+        ordering = ['name']
+
+
+
+# ============= HUMAN RESOURCES MODELS =============
+
+class StaffRecruitment(models.Model):
+    """Staff recruitment tracking"""
+    POSITION_TYPE = (
+        ('lecturer', 'Lecturer'),
+        ('senior_lecturer', 'Senior Lecturer'),
+        ('professor', 'Professor'),
+        ('technician', 'Technician'),
+        ('administrator', 'Administrator'),
+        ('support_staff', 'Support Staff'),
+    )
+    
+    RECRUITMENT_STATUS = (
+        ('open', 'Open'),
+        ('shortlisting', 'Shortlisting'),
+        ('interviewing', 'Interviewing'),
+        ('offer_made', 'Offer Made'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('closed', 'Closed'),
+    )
+    
+    CONTRACT_TYPE = (
+        ('permanent', 'Permanent & Pensionable'),
+        ('contract', 'Contract'),
+        ('part_time', 'Part-Time'),
+        ('visiting', 'Visiting'),
+    )
+    
+    recruitment_number = models.CharField(max_length=50, unique=True)
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='staff_recruitments')
+    department = models.ForeignKey('Department', on_delete=models.CASCADE, 
+                                  related_name='staff_recruitments')
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE,
+                                     related_name='staff_recruitments')
+    
+    # Position details
+    position_title = models.CharField(max_length=200)
+    position_type = models.CharField(max_length=20, choices=POSITION_TYPE)
+    contract_type = models.CharField(max_length=20, choices=CONTRACT_TYPE, default='permanent')
+    number_of_positions = models.IntegerField(default=1)
+    salary_scale = models.CharField(max_length=100, blank=True)
+    
+    # Requirements
+    qualifications_required = models.TextField()
+    experience_required = models.TextField()
+    responsibilities = models.TextField()
+    key_competencies = models.TextField(blank=True)
+    
+    # Job details
+    job_description = models.TextField(blank=True)
+    reporting_to = models.CharField(max_length=200, blank=True)
+    location = models.CharField(max_length=200, blank=True)
+    
+    # Timeline
+    advertised_date = models.DateField()
+    application_deadline = models.DateField()
+    shortlisting_date = models.DateField(null=True, blank=True)
+    interview_date = models.DateField(null=True, blank=True)
+    expected_start_date = models.DateField(null=True, blank=True)
+    
+    # Applications
+    total_applications = models.IntegerField(default=0)
+    shortlisted_candidates = models.IntegerField(default=0)
+    interviewed_candidates = models.IntegerField(default=0)
+    
+    # Interview panel
+    interview_panel_members = models.TextField(blank=True, 
+                                              help_text="Names and titles of panel members")
+    interview_venue = models.CharField(max_length=200, blank=True)
+    
+    # Selection
+    status = models.CharField(max_length=20, choices=RECRUITMENT_STATUS, default='open')
+    selected_candidate_name = models.CharField(max_length=200, blank=True)
+    selected_candidate_email = models.EmailField(blank=True)
+    selected_candidate_phone = models.CharField(max_length=20, blank=True)
+    
+    # Offer details
+    offer_letter_sent = models.BooleanField(default=False)
+    offer_sent_date = models.DateField(null=True, blank=True)
+    offer_expiry_date = models.DateField(null=True, blank=True)
+    offer_accepted_date = models.DateField(null=True, blank=True)
+    
+    # Contract details
+    contract_start_date = models.DateField(null=True, blank=True)
+    contract_end_date = models.DateField(null=True, blank=True)
+    probation_period_months = models.IntegerField(null=True, blank=True)
+    
+    # Approvals
+    approved_by_hod = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='recruitments_approved_hod')
+    approved_by_dean = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                         related_name='recruitments_approved_dean')
+    approved_by_hr = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='recruitments_approved_hr')
+    
+    # Documents
+    job_advertisement = models.FileField(upload_to='recruitments/ads/', null=True, blank=True)
+    shortlisting_report = models.FileField(upload_to='recruitments/shortlist/', null=True, blank=True)
+    interview_report = models.FileField(upload_to='recruitments/interviews/', null=True, blank=True)
+    offer_letter = models.FileField(upload_to='recruitments/offers/', null=True, blank=True)
+    
+    # Notes and reasons
+    recruitment_justification = models.TextField(blank=True)
+    rejection_reason = models.TextField(blank=True)
+    closure_notes = models.TextField(blank=True)
+    
+    # Tracking
+    initiated_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                    related_name='recruitments_initiated')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.recruitment_number:
+            from django.db.models import Max
+            # Generate recruitment number: REC-YYYY-SCHOOL-NNN
+            year = timezone.now().year
+            school_code = self.school.code
+            last_recruitment = StaffRecruitment.objects.filter(
+                recruitment_number__startswith=f'REC-{year}-{school_code}-'
+            ).aggregate(Max('id'))
+            next_id = (last_recruitment['id__max'] or 0) + 1
+            self.recruitment_number = f'REC-{year}-{school_code}-{next_id:03d}'
+        
+        super().save(*args, **kwargs)
+
+    def is_deadline_passed(self):
+        """Check if application deadline has passed"""
+        return timezone.now().date() > self.application_deadline
+
+    def days_until_deadline(self):
+        """Calculate days remaining until deadline"""
+        if self.is_deadline_passed():
+            return 0
+        delta = self.application_deadline - timezone.now().date()
+        return delta.days
+
+    def __str__(self):
+        return f"{self.recruitment_number} - {self.position_title}"
+
+    class Meta:
+        db_table = 'staff_recruitments'
+        ordering = ['-advertised_date']
+        indexes = [
+            models.Index(fields=['school', 'status']),
+            models.Index(fields=['application_deadline']),
+        ]
+    
+class InnovationProject(models.Model):
+    """Innovation and commercialization projects"""
+    PROJECT_STATUS = (
+        ('ideation', 'Ideation'),
+        ('development', 'Development'),
+        ('prototype', 'Prototype'),
+        ('testing', 'Testing'),
+        ('commercialization', 'Commercialization'),
+        ('completed', 'Completed'),
+    )
+    
+    title = models.CharField(max_length=500)
+    project_code = models.CharField(max_length=50, unique=True)
+    school = models.ForeignKey('School', on_delete=models.CASCADE, 
+                              related_name='innovation_projects')
+    
+    # Team
+    project_lead = models.ForeignKey('Lecturer', on_delete=models.CASCADE,
+                                    related_name='innovation_projects_lead')
+    team_members = models.ManyToManyField('Lecturer', related_name='innovation_projects', blank=True)
+    
+    # Project details
+    description = models.TextField()
+    problem_statement = models.TextField()
+    solution = models.TextField()
+    innovation_type = models.CharField(max_length=200, help_text="Product, Service, Process, etc.")
+    
+    # Development
+    status = models.CharField(max_length=20, choices=PROJECT_STATUS, default='ideation')
+    technology_readiness_level = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(9)],
+        help_text="TRL 1-9"
+    )
+    
+    # IP and Commercialization
+    has_ip_protection = models.BooleanField(default=False)
+    ip_type = models.CharField(max_length=100, blank=True, help_text="Patent, Copyright, Trademark, etc.")
+    ip_reference = models.CharField(max_length=100, blank=True)
+    
+    market_potential = models.TextField(blank=True)
+    target_market = models.CharField(max_length=300, blank=True)
+    
+    # Funding
+    budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    funding_received = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    revenue_generated = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    # Timeline
+    start_date = models.DateField()
+    expected_completion = models.DateField()
+    actual_completion = models.DateField(null=True, blank=True)
+    
+    # Documents
+    business_plan = models.FileField(upload_to='innovation/business_plans/', null=True, blank=True)
+    technical_document = models.FileField(upload_to='innovation/technical/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.project_code} - {self.title[:50]}"
+
+    class Meta:
+        db_table = 'innovation_projects'
+        ordering = ['-created_at']
+
+
+# ============= HUMAN RESOURCES MODELS =============
+
+class PerformanceAppraisal(models.Model):
+    """Staff performance appraisals"""
+    APPRAISAL_PERIOD = (
+        ('annual', 'Annual'),
+        ('mid_year', 'Mid-Year'),
+        ('probation', 'Probation Review'),
+        ('special', 'Special Review'),
+    )
+    
+    PERFORMANCE_RATING = (
+        ('outstanding', 'Outstanding (90-100%)'),
+        ('exceeds', 'Exceeds Expectations (80-89%)'),
+        ('meets', 'Meets Expectations (70-79%)'),
+        ('needs_improvement', 'Needs Improvement (60-69%)'),
+        ('unsatisfactory', 'Unsatisfactory (<60%)'),
+    )
+    
+    lecturer = models.ForeignKey('Lecturer', on_delete=models.CASCADE, 
+                                 related_name='performance_appraisals')
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='performance_appraisals')
+    appraisal_period = models.CharField(max_length=20, choices=APPRAISAL_PERIOD)
+    review_date = models.DateField()
+    
+    # Performance Areas (1-100 scale)
+    teaching_quality = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    research_output = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    service_delivery = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    student_feedback = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    professional_development = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    
+    # Calculated scores
+    overall_score = models.DecimalField(max_digits=5, decimal_places=2)
+    overall_rating = models.CharField(max_length=20, choices=PERFORMANCE_RATING)
+    
+    # Qualitative feedback
+    strengths = models.TextField()
+    areas_for_improvement = models.TextField()
+    training_needs = models.TextField(blank=True)
+    career_development_plan = models.TextField(blank=True)
+    
+    # Goals and objectives
+    goals_set = models.TextField(help_text="Goals set for next period")
+    previous_goals_achievement = models.TextField(blank=True)
+    
+    # Approvals
+    self_assessment = models.TextField(blank=True)
+    hod_comments = models.TextField(blank=True)
+    hod_approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='appraisals_hod_approved')
+    dean_comments = models.TextField(blank=True)
+    dean_approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                        related_name='appraisals_dean_approved')
+    
+    appraisal_document = models.FileField(upload_to='appraisals/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate overall score (weighted average)
+        self.overall_score = (
+            self.teaching_quality * 0.30 +
+            self.research_output * 0.25 +
+            self.service_delivery * 0.20 +
+            self.student_feedback * 0.15 +
+            self.professional_development * 0.10
+        )
+        
+        # Determine rating
+        if self.overall_score >= 90:
+            self.overall_rating = 'outstanding'
+        elif self.overall_score >= 80:
+            self.overall_rating = 'exceeds'
+        elif self.overall_score >= 70:
+            self.overall_rating = 'meets'
+        elif self.overall_score >= 60:
+            self.overall_rating = 'needs_improvement'
+        else:
+            self.overall_rating = 'unsatisfactory'
+        
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.lecturer.employee_number} - {self.appraisal_period} {self.academic_year}"
+
+    class Meta:
+        db_table = 'performance_appraisals'
+        unique_together = ('lecturer', 'academic_year', 'appraisal_period')
+        ordering = ['-review_date']
+
+
+class StaffPromotion(models.Model):
+    """Staff promotion tracking"""
+    PROMOTION_STATUS = (
+        ('pending', 'Pending'),
+        ('under_review', 'Under Review'),
+        ('recommended', 'Recommended by School'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('implemented', 'Implemented'),
+    )
+    
+    lecturer = models.ForeignKey('Lecturer', on_delete=models.CASCADE, 
+                                 related_name='promotions')
+    current_designation = models.CharField(max_length=30)
+    proposed_designation = models.CharField(max_length=30)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='staff_promotions')
+    
+    # Application details
+    application_date = models.DateField()
+    years_in_current_position = models.IntegerField()
+    
+    # Qualifications
+    highest_qualification = models.CharField(max_length=200)
+    additional_qualifications = models.TextField(blank=True)
+    
+    # Performance metrics
+    teaching_years = models.IntegerField()
+    publications_count = models.IntegerField(default=0)
+    research_grants_count = models.IntegerField(default=0)
+    phd_supervisions = models.IntegerField(default=0)
+    
+    # Justification
+    justification = models.TextField()
+    supporting_documents = models.FileField(upload_to='promotions/', null=True, blank=True)
+    
+    # Review process
+    hod_recommendation = models.TextField(blank=True)
+    hod_recommended_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                          related_name='promotions_hod_recommended')
+    hod_recommendation_date = models.DateField(null=True, blank=True)
+    
+    school_recommendation = models.TextField(blank=True)
+    dean_recommended_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                           related_name='promotions_dean_recommended')
+    dean_recommendation_date = models.DateField(null=True, blank=True)
+    
+    # Final decision
+    status = models.CharField(max_length=20, choices=PROMOTION_STATUS, default='pending')
+    final_decision = models.TextField(blank=True)
+    decided_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='promotions_decided')
+    decision_date = models.DateField(null=True, blank=True)
+    
+    # Implementation
+    effective_date = models.DateField(null=True, blank=True)
+    new_salary_scale = models.CharField(max_length=50, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.lecturer.employee_number} - {self.current_designation} to {self.proposed_designation}"
+
+    class Meta:
+        db_table = 'staff_promotions'
+        ordering = ['-application_date']
+
+
+class StaffTraining(models.Model):
+    """Staff development and training"""
+    TRAINING_TYPE = (
+        ('workshop', 'Workshop'),
+        ('seminar', 'Seminar'),
+        ('conference', 'Conference'),
+        ('short_course', 'Short Course'),
+        ('certification', 'Certification'),
+        ('degree_program', 'Degree Program'),
+    )
+    
+    TRAINING_STATUS = (
+        ('planned', 'Planned'),
+        ('approved', 'Approved'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    lecturer = models.ForeignKey('Lecturer', on_delete=models.CASCADE, 
+                                 related_name='trainings')
+    training_type = models.CharField(max_length=20, choices=TRAINING_TYPE)
+    title = models.CharField(max_length=300)
+    organizer = models.CharField(max_length=200)
+    venue = models.CharField(max_length=200)
+    
+    # Dates
+    start_date = models.DateField()
+    end_date = models.DateField()
+    duration_days = models.IntegerField()
+    
+    # Financial
+    cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    funding_source = models.CharField(max_length=200, blank=True)
+    is_sponsored = models.BooleanField(default=False)
+    
+    # Outcomes
+    skills_acquired = models.TextField(blank=True)
+    certificate_obtained = models.BooleanField(default=False)
+    certificate_file = models.FileField(upload_to='training_certificates/', null=True, blank=True)
+    
+    # Relevance
+    relevance_to_role = models.TextField()
+    expected_impact = models.TextField()
+    
+    # Approval
+    status = models.CharField(max_length=20, choices=TRAINING_STATUS, default='planned')
+    approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='trainings_approved')
+    approval_date = models.DateField(null=True, blank=True)
+    
+    # Post-training
+    completion_report = models.TextField(blank=True)
+    report_submitted_date = models.DateField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.lecturer.employee_number} - {self.title}"
+
+    class Meta:
+        db_table = 'staff_training'
+        ordering = ['-start_date']
+
+
+class DisciplinaryCase(models.Model):
+    """Staff disciplinary matters"""
+    CASE_STATUS = (
+        ('reported', 'Reported'),
+        ('under_investigation', 'Under Investigation'),
+        ('hearing_scheduled', 'Hearing Scheduled'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+        ('appealed', 'Appealed'),
+    )
+    
+    SEVERITY = (
+        ('minor', 'Minor'),
+        ('moderate', 'Moderate'),
+        ('serious', 'Serious'),
+        ('gross_misconduct', 'Gross Misconduct'),
+    )
+    
+    case_number = models.CharField(max_length=50, unique=True)
+    lecturer = models.ForeignKey('Lecturer', on_delete=models.CASCADE, 
+                                 related_name='disciplinary_cases')
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                     related_name='disciplinary_cases')
+    
+    # Case details
+    incident_date = models.DateField()
+    reported_date = models.DateField()
+    reported_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                   related_name='disciplinary_cases_reported')
+    
+    allegation = models.TextField()
+    severity = models.CharField(max_length=20, choices=SEVERITY)
+    evidence = models.TextField(blank=True)
+    witness_statements = models.TextField(blank=True)
+    
+    # Investigation
+    investigating_officer = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                             related_name='disciplinary_investigations')
+    investigation_findings = models.TextField(blank=True)
+    investigation_completed_date = models.DateField(null=True, blank=True)
+    
+    # Hearing
+    hearing_date = models.DateField(null=True, blank=True)
+    hearing_venue = models.CharField(max_length=200, blank=True)
+    hearing_panel = models.TextField(blank=True)
+    hearing_minutes = models.TextField(blank=True)
+    
+    # Decision
+    status = models.CharField(max_length=25, choices=CASE_STATUS, default='reported')
+    decision = models.TextField(blank=True)
+    disciplinary_action = models.TextField(blank=True)
+    decided_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                  related_name='disciplinary_decisions')
+    decision_date = models.DateField(null=True, blank=True)
+    
+    # Appeal
+    is_appealed = models.BooleanField(default=False)
+    appeal_details = models.TextField(blank=True)
+    appeal_decision = models.TextField(blank=True)
+    
+    # Documents
+    supporting_documents = models.FileField(upload_to='disciplinary/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.case_number:
+            year = timezone.now().year
+            last_case = DisciplinaryCase.objects.filter(
+                case_number__startswith=f'DISC-{year}-'
+            ).aggregate(Max('id'))
+            next_id = (last_case['id__max'] or 0) + 1
+            self.case_number = f'DISC-{year}-{next_id:04d}'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.case_number} - {self.lecturer.employee_number}"
+
+    class Meta:
+        db_table = 'disciplinary_cases'
+        ordering = ['-reported_date']
