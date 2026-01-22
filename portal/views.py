@@ -16125,44 +16125,43 @@ def dean_department_detail(request, department_id):
 
 # ==================== ACADEMIC STAFF ====================
 
+
 @login_required
 def academic_staff(request):
     """List all academic staff in the school"""
-    
+
     # Get dean's school
     try:
-        dean_profile = request.user
-        school = School.objects.get(dean=dean_profile)
+        school = School.objects.get(dean=request.user)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
         return redirect('dean_dashboard')
-    
-    # Get current semester
-    current_semester = Semester.objects.filter(is_current=True).first()
-    
-    # Get all lecturers with teaching load
+
+    # Get all lecturers
     lecturers = Lecturer.objects.filter(
         department__school=school,
         is_active=True
-    ).select_related('user', 'department').annotate(
-        unit_count=Count(
-            'unit_allocations',
-            filter=Q(unit_allocations__semester=current_semester),
-            distinct=True
-        ) if current_semester else Count('id') * 0
-    ).order_by('department__name', 'user__first_name')
-    
+    ).select_related(
+        'user',
+        'department'
+    ).annotate(
+        unit_count=Count('id') * 0   # placeholder (no unit allocation model yet)
+    ).order_by(
+        'department__name',
+        'user__first_name'
+    )
+
     # Filter by department
     department_filter = request.GET.get('department', '')
     if department_filter:
         lecturers = lecturers.filter(department_id=department_filter)
-    
+
     # Filter by designation
     designation_filter = request.GET.get('designation', '')
     if designation_filter:
         lecturers = lecturers.filter(designation=designation_filter)
-    
-    # Search functionality
+
+    # Search
     search_query = request.GET.get('search', '')
     if search_query:
         lecturers = lecturers.filter(
@@ -16171,41 +16170,45 @@ def academic_staff(request):
             Q(employee_number__icontains=search_query) |
             Q(department__name__icontains=search_query)
         )
-    
+
     # Pagination
     paginator = Paginator(lecturers, 20)
     page_number = request.GET.get('page')
     lecturers_page = paginator.get_page(page_number)
-    
-    # Get departments for filter
+
+    # Departments for filter
     departments = Department.objects.filter(
         school=school,
         is_active=True
     ).order_by('name')
-    
+
     # Statistics
     total_lecturers = lecturers.count()
+
     lecturers_by_designation = Lecturer.objects.filter(
         department__school=school,
         is_active=True
     ).values('designation').annotate(
         count=Count('id')
     ).order_by('designation')
-    
+
     context = {
         'page_title': 'Academic Staff',
         'school': school,
         'lecturers': lecturers_page,
         'departments': departments,
-        'current_semester': current_semester,
         'search_query': search_query,
         'department_filter': department_filter,
         'designation_filter': designation_filter,
         'total_lecturers': total_lecturers,
         'lecturers_by_designation': lecturers_by_designation,
     }
-    
-    return render(request, 'dean/school_overview/academic_staff.html', context)
+
+    return render(
+        request,
+        'dean/school_overview/academic_staff.html',
+        context
+    )
 
 
 @login_required
