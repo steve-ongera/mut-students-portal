@@ -2333,11 +2333,389 @@ def lecturer_dashboard(request):
     return render(request, 'lecturer/dashboard.html', context)
 
 # Placeholder views for other roles
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Sum, Avg, Q, F, Max
+from django.utils import timezone
+from decimal import Decimal
+from datetime import datetime, timedelta
+from collections import defaultdict
+
 @login_required
 def dean_dashboard(request):
-    context = {'page_title': 'Dean Dashboard'}
+    """Dean Dashboard with comprehensive school statistics"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        # If no school assigned, show empty dashboard
+        context = {
+            'page_title': 'Dean Dashboard',
+            'error': 'No school assigned to your account'
+        }
+        return render(request, 'dean/dashboard.html', context)
+    
+    # Get current academic period
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all departments in the school
+    departments = Department.objects.filter(school=school, is_active=True)
+    
+    # ==================== STAT CARDS ====================
+    
+    # Total Students in School
+    total_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).count()
+    
+    # Total Lecturers in School
+    total_lecturers = Lecturer.objects.filter(
+        department__school=school,
+        is_active=True
+    ).count()
+    
+    # Total Programmes in School
+    total_programmes = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    ).count()
+    
+    # Average School GPA
+    avg_school_gpa = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+    
+    # ==================== GENDER DISTRIBUTION ====================
+    
+    gender_data = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).values('gender').annotate(count=Count('id')).order_by('gender')
+    
+    gender_labels = []
+    gender_counts = []
+    gender_mapping = {'M': 'Male', 'F': 'Female', 'O': 'Other'}
+    
+    for item in gender_data:
+        gender_labels.append(gender_mapping.get(item['gender'], 'Unknown'))
+        gender_counts.append(item['count'])
+    
+    # ==================== YEAR OF STUDY DISTRIBUTION ====================
+    
+    year_data = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).values('current_year').annotate(count=Count('id')).order_by('current_year')
+    
+    year_labels = [f"Year {item['current_year']}" for item in year_data]
+    year_counts = [item['count'] for item in year_data]
+    
+    # ==================== DEPARTMENT PERFORMANCE RANKING ====================
+    
+    dept_performance = []
+    for dept in departments:
+        avg_gpa = Student.objects.filter(
+            programme__department=dept,
+            student_status='active'
+        ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+        
+        student_count = Student.objects.filter(
+            programme__department=dept,
+            student_status='active'
+        ).count()
+        
+        dept_performance.append({
+            'department': dept,
+            'avg_gpa': round(avg_gpa, 2),
+            'student_count': student_count
+        })
+    
+    # Sort by GPA
+    dept_performance = sorted(dept_performance, key=lambda x: x['avg_gpa'], reverse=True)
+    
+    # ==================== PROGRAMME PERFORMANCE RANKING ====================
+    
+    programme_performance = []
+    programmes = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    )
+    
+    for prog in programmes:
+        avg_gpa = Student.objects.filter(
+            programme=prog,
+            student_status='active'
+        ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+        
+        student_count = Student.objects.filter(
+            programme=prog,
+            student_status='active'
+        ).count()
+        
+        if student_count > 0:  # Only include programmes with students
+            programme_performance.append({
+                'programme': prog,
+                'avg_gpa': round(avg_gpa, 2),
+                'student_count': student_count
+            })
+    
+    # Sort by GPA
+    programme_performance = sorted(programme_performance, key=lambda x: x['avg_gpa'], reverse=True)[:10]
+    
+    # ==================== TOP 10 PERFORMING STUDENTS ====================
+    
+    top_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).order_by('-cumulative_gpa')[:10]
+    
+    # ==================== UNIT PERFORMANCE (BEST & WORST) ====================
+    
+    if current_semester:
+        # Get units offered in school
+        unit_performance = []
+        
+        unit_results = SemesterResults.objects.filter(
+            programme_unit__programme__department__school=school,
+            semester=current_semester,
+            is_published=True
+        ).values(
+            'programme_unit__unit__code',
+            'programme_unit__unit__name'
+        ).annotate(
+            avg_marks=Avg('total_marks'),
+            student_count=Count('id'),
+            pass_count=Count('id', filter=Q(is_passed=True))
+        )
+        
+        for item in unit_results:
+            if item['student_count'] > 0:
+                pass_rate = (item['pass_count'] / item['student_count']) * 100
+                unit_performance.append({
+                    'code': item['programme_unit__unit__code'],
+                    'name': item['programme_unit__unit__name'],
+                    'avg_marks': round(item['avg_marks'], 2),
+                    'pass_rate': round(pass_rate, 2),
+                    'student_count': item['student_count']
+                })
+        
+        # Sort by average marks
+        unit_performance_sorted = sorted(unit_performance, key=lambda x: x['avg_marks'], reverse=True)
+        top_5_units = unit_performance_sorted[:5]
+        bottom_5_units = unit_performance_sorted[-5:]
+    else:
+        top_5_units = []
+        bottom_5_units = []
+    
+    # ==================== STUDENT ENROLLMENT TRENDS (12 MONTHS) ====================
+    
+    enrollment_labels = []
+    enrollment_counts = []
+    
+    for i in range(11, -1, -1):
+        month_date = timezone.now() - timedelta(days=30*i)
+        month_label = month_date.strftime('%b %Y')
+        enrollment_labels.append(month_label)
+        
+        count = Student.objects.filter(
+            programme__department__school=school,
+            admission_date__year=month_date.year,
+            admission_date__month=month_date.month
+        ).count()
+        enrollment_counts.append(count)
+    
+    # ==================== SEMESTER REPORTING STATUS ====================
+    
+    if current_semester:
+        reporting_data = SemesterReport.objects.filter(
+            student__programme__department__school=school,
+            to_semester=current_semester
+        ).values('status').annotate(count=Count('id'))
+        
+        reporting_labels = []
+        reporting_counts = []
+        
+        status_mapping = {
+            'pending': 'Pending',
+            'approved': 'Approved',
+            'rejected': 'Rejected',
+            'deferred': 'Deferred'
+        }
+        
+        for item in reporting_data:
+            reporting_labels.append(status_mapping.get(item['status'], item['status']))
+            reporting_counts.append(item['count'])
+    else:
+        reporting_labels = []
+        reporting_counts = []
+    
+    # ==================== FEE PAYMENT ANALYSIS ====================
+    
+    fee_labels = []
+    fee_expected = []
+    fee_paid = []
+    fee_percentages = []
+    
+    # Get last 6 semesters
+    recent_semesters = Semester.objects.all().order_by('-start_date')[:6]
+    
+    for sem in reversed(list(recent_semesters)):
+        fee_labels.append(sem.name)
+        
+        # Calculate expected fees
+        expected = FeeBalance.objects.filter(
+            student__programme__department__school=school,
+            semester=sem
+        ).aggregate(total=Sum('total_fees'))['total'] or 0
+        
+        # Calculate paid fees
+        paid = FeeBalance.objects.filter(
+            student__programme__department__school=school,
+            semester=sem
+        ).aggregate(total=Sum('amount_paid'))['total'] or 0
+        
+        fee_expected.append(float(expected))
+        fee_paid.append(float(paid))
+        
+        # Calculate percentage
+        percentage = (paid / expected * 100) if expected > 0 else 0
+        fee_percentages.append(round(percentage, 2))
+    
+    # ==================== PROGRAMME TYPE DISTRIBUTION ====================
+    
+    programme_type_data = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    ).values('programme_type').annotate(count=Count('id'))
+    
+    programme_type_labels = []
+    programme_type_counts = []
+    
+    type_mapping = {
+        'certificate': 'Certificate',
+        'diploma': 'Diploma',
+        'degree': 'Degree',
+        'masters': 'Masters',
+        'phd': 'PhD'
+    }
+    
+    for item in programme_type_data:
+        programme_type_labels.append(type_mapping.get(item['programme_type'], item['programme_type']))
+        programme_type_counts.append(item['count'])
+    
+    # ==================== DEPARTMENT COMPARISON (RADAR CHART DATA) ====================
+    
+    radar_labels = [dept.name for dept in departments[:6]]  # Max 6 departments for readability
+    
+    # Metrics: Avg GPA, Student Count (normalized), Programme Count (normalized)
+    radar_datasets = []
+    
+    # Dataset 1: Average GPA (scale 0-4)
+    dept_gpas = []
+    for dept in departments[:6]:
+        avg_gpa = Student.objects.filter(
+            programme__department=dept,
+            student_status='active'
+        ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+        dept_gpas.append(round(avg_gpa, 2))
+    
+    # Dataset 2: Student Count (normalized to 100)
+    dept_student_counts = []
+    max_students = max([Student.objects.filter(
+        programme__department=dept,
+        student_status='active'
+    ).count() for dept in departments[:6]]) or 1
+    
+    for dept in departments[:6]:
+        count = Student.objects.filter(
+            programme__department=dept,
+            student_status='active'
+        ).count()
+        normalized = (count / max_students) * 4  # Scale to 0-4 like GPA
+        dept_student_counts.append(round(normalized, 2))
+    
+    # ==================== ACADEMIC PERFORMANCE TRENDS ====================
+    
+    # Get last 5 semesters GPA trends
+    performance_labels = []
+    performance_data = []
+    
+    performance_semesters = Semester.objects.all().order_by('-start_date')[:5]
+    
+    for sem in reversed(list(performance_semesters)):
+        performance_labels.append(sem.name)
+        
+        avg_gpa = SemesterGPA.objects.filter(
+            student__programme__department__school=school,
+            semester=sem
+        ).aggregate(avg_gpa=Avg('semester_gpa'))['avg_gpa'] or 0
+        
+        performance_data.append(round(avg_gpa, 2))
+    
+    # Prepare context
+    context = {
+        'page_title': 'Dean Dashboard',
+        'school': school,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        
+        # Stat Cards
+        'total_students': total_students,
+        'total_lecturers': total_lecturers,
+        'total_programmes': total_programmes,
+        'avg_school_gpa': round(avg_school_gpa, 2),
+        
+        # Gender Distribution
+        'gender_labels': gender_labels,
+        'gender_counts': gender_counts,
+        
+        # Year Distribution
+        'year_labels': year_labels,
+        'year_counts': year_counts,
+        
+        # Rankings
+        'dept_performance': dept_performance,
+        'programme_performance': programme_performance,
+        'top_students': top_students,
+        
+        # Unit Performance
+        'top_5_units': top_5_units,
+        'bottom_5_units': bottom_5_units,
+        
+        # Trends
+        'enrollment_labels': enrollment_labels,
+        'enrollment_counts': enrollment_counts,
+        
+        # Reporting
+        'reporting_labels': reporting_labels,
+        'reporting_counts': reporting_counts,
+        
+        # Fee Payment
+        'fee_labels': fee_labels,
+        'fee_expected': fee_expected,
+        'fee_paid': fee_paid,
+        'fee_percentages': fee_percentages,
+        
+        # Programme Types
+        'programme_type_labels': programme_type_labels,
+        'programme_type_counts': programme_type_counts,
+        
+        # Radar Chart
+        'radar_labels': radar_labels,
+        'dept_gpas': dept_gpas,
+        'dept_student_counts': dept_student_counts,
+        
+        # Performance Trends
+        'performance_labels': performance_labels,
+        'performance_data': performance_data,
+    }
+    
     return render(request, 'dean/dashboard.html', context)
-
 
 @login_required
 def hos_dashboard(request):
