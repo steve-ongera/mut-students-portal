@@ -1,0 +1,1095 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}My Profile - {{ user.get_role_display }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Profile Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">{{ user.get_full_name }}</h1>
+                <p class="text-muted mb-0">
+                    <i class="bi bi-person-badge me-1"></i>{{ user.get_role_display }}
+                    {% if user.role == 'student' and student_profile %}
+                        • {{ student_profile.registration_number }}
+                    {% elif user.role == 'lecturer' and lecturer_profile %}
+                        • {{ lecturer_profile.employee_number }}
+                    {% endif %}
+                </p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-verified-badge-line me-2"></i>
+                    {% if user.is_active_user %}
+                        <span class="text-success">Active</span>
+                    {% else %}
+                        <span class="text-danger">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="row g-4 mb-5">
+        <!-- Left Column: Personal Information -->
+        <div class="col-xl-4">
+            <div class="staff-card">
+                <div class="staff-header">
+                    <!-- Profile Picture -->
+                    <div class="staff-avatar mb-3">
+                        {% if user.profile_picture %}
+                        <img src="{{ user.profile_picture.url }}" 
+                             alt="{{ user.get_full_name }}" 
+                             class="avatar-img">
+                        {% else %}
+                        <div class="avatar-placeholder bg-primary-subtle text-primary">
+                            {{ user.get_full_name|first|upper }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Status Badges -->
+                    <div class="staff-badges">
+                        <span class="badge bg-primary-subtle text-primary rounded-pill">
+                            {{ user.get_role_display }}
+                        </span>
+                        {% if user.is_active_user %}
+                        <span class="badge bg-success rounded-pill">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger rounded-pill">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="staff-body">
+                    <h5 class="staff-name mb-2">{{ user.get_full_name }}</h5>
+                    <p class="text-muted small mb-3">
+                        <i class="ri-user-line me-1"></i>@{{ user.username }}
+                    </p>
+                    
+                    <!-- Personal Information -->
+                    <div class="staff-info">
+                        <div class="info-row">
+                            <span class="text-muted small">Email:</span>
+                            <span class="fw-medium">
+                                <a href="mailto:{{ user.email }}" class="text-decoration-none">
+                                    {{ user.email }}
+                                </a>
+                            </span>
+                        </div>
+                        {% if user.phone_number %}
+                        <div class="info-row">
+                            <span class="text-muted small">Phone:</span>
+                            <span class="fw-medium">{{ user.phone_number }}</span>
+                        </div>
+                        {% endif %}
+                        {% if user.id_number %}
+                        <div class="info-row">
+                            <span class="text-muted small">ID Number:</span>
+                            <span class="fw-medium">{{ user.id_number }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="text-muted small">Joined:</span>
+                            <span class="fw-medium">{{ user.date_joined|date:"M d, Y" }}</span>
+                        </div>
+                        
+                        <!-- Role-Specific Information -->
+                        {% if user.role == 'student' and student_profile %}
+                        <div class="info-row">
+                            <span class="text-muted small">Registration No:</span>
+                            <span class="fw-medium">{{ student_profile.registration_number }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-muted small">Programme:</span>
+                            <span class="fw-medium">{{ student_profile.programme.name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-muted small">Intake:</span>
+                            <span class="fw-medium">{{ student_profile.intake.name }}</span>
+                        </div>
+                        
+                        {% elif user.role == 'lecturer' and lecturer_profile %}
+                        <div class="info-row">
+                            <span class="text-muted small">Employee No:</span>
+                            <span class="fw-medium">{{ lecturer_profile.employee_number }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-muted small">Department:</span>
+                            <span class="fw-medium">{{ lecturer_profile.department.name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-muted small">Qualification:</span>
+                            <span class="fw-medium">{{ lecturer_profile.qualification }}</span>
+                        </div>
+                        
+                        {% elif user.role == 'hod' and department %}
+                        <div class="info-row">
+                            <span class="text-muted small">Department:</span>
+                            <span class="fw-medium">{{ department.name }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-muted small">School:</span>
+                            <span class="fw-medium">{{ department.school.name }}</span>
+                        </div>
+                        
+                        {% elif user.role in 'hos,dean' and school %}
+                        <div class="info-row">
+                            <span class="text-muted small">School:</span>
+                            <span class="fw-medium">{{ school.name }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="staff-footer">
+                    <button class="btn btn-primary w-100" onclick="window.location.href='#'">
+                        <i class="ri-edit-line me-2"></i> Edit Profile
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Recent Announcements Card (Common for all) -->
+            {% if recent_announcements %}
+            <div class="analytics-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Announcements</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="announcements-list">
+                        {% for announcement in recent_announcements %}
+                        <div class="announcement-item">
+                            <div class="announcement-info">
+                                <h6 class="mb-1">{{ announcement.title|truncatechars:50 }}</h6>
+                                <small class="text-muted">
+                                    <i class="ri-calendar-line me-1"></i>
+                                    {{ announcement.publish_date|date:"M d, Y" }}
+                                </small>
+                                <p class="mt-2 small">{{ announcement.content|truncatechars:80 }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Right Column: Role-Specific Content -->
+        <div class="col-xl-8">
+            {% if user.role == 'student' and student_profile %}
+            <!-- Student-Specific Content -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Current Semester Progress</h5>
+                    <div class="card-subtitle">{{ current_semester.name|default:"No active semester" }}</div>
+                </div>
+                <div class="card-body">
+                    {% if current_enrollments %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>Credits</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in current_enrollments %}
+                                <tr>
+                                    <td class="fw-medium">{{ enrollment.programme_unit.unit.code }}</td>
+                                    <td>{{ enrollment.programme_unit.unit.name|truncatechars:40 }}</td>
+                                    <td>{{ enrollment.programme_unit.unit.credit_hours }}</td>
+                                    <td>
+                                        <span class="badge bg-success-subtle text-success rounded-pill">
+                                            {{ enrollment.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="#" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-book-line display-1 text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No active enrollments for current semester</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Fee Balance -->
+            {% if fee_balance %}
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Fee Balance</h5>
+                    <div class="card-subtitle">{{ current_semester.name }}</div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Total Fees:</span>
+                                <span class="fw-medium">KES {{ fee_balance.total_fees }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Amount Paid:</span>
+                                <span class="fw-medium text-success">KES {{ fee_balance.amount_paid }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Balance:</span>
+                                <span class="fw-medium {% if fee_balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    KES {{ fee_balance.balance }}
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Status:</span>
+                                <span class="fw-medium">
+                                    {% if fee_balance.is_cleared %}
+                                    <span class="badge bg-success rounded-pill">Cleared</span>
+                                    {% else %}
+                                    <span class="badge bg-danger rounded-pill">Pending</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Hostel Allocation -->
+            {% if hostel_allocation %}
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Hostel Allocation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Hostel:</span>
+                                <span class="fw-medium">{{ hostel_allocation.bed.room.hostel.name }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Room:</span>
+                                <span class="fw-medium">Room {{ hostel_allocation.bed.room.room_number }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Bed:</span>
+                                <span class="fw-medium">Bed {{ hostel_allocation.bed.bed_number }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Status:</span>
+                                <span class="fw-medium">
+                                    {% if hostel_allocation.is_active %}
+                                    <span class="badge bg-success rounded-pill">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-danger rounded-pill">Inactive</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% elif user.role == 'lecturer' and lecturer_profile %}
+            <!-- Lecturer-Specific Content -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Current Semester Teaching Load</h5>
+                    <div class="card-subtitle">{{ current_semester.name|default:"No active semester" }} ({{ total_units_current|default:"0" }} units)</div>
+                </div>
+                <div class="card-body p-0">
+                    {% if current_allocations %}
+                    <div class="units-list">
+                        {% for allocation in current_allocations %}
+                        <div class="unit-item">
+                            <div class="unit-info">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ allocation.programme_unit.unit.code }} - {{ allocation.programme_unit.unit.name }}</h6>
+                                        <small class="text-muted">
+                                            {{ allocation.programme_unit.programme.name }} • Year {{ allocation.programme_unit.year_of_study }} Sem {{ allocation.programme_unit.semester_number }}
+                                        </small>
+                                    </div>
+                                    <span class="badge bg-primary-subtle text-primary">
+                                        {{ allocation.programme_unit.unit.credit_hours }} Credits
+                                    </span>
+                                </div>
+                                <div class="unit-status mt-2">
+                                    <span class="badge bg-{% if allocation.status == 'approved_dean' %}success{% else %}warning{% endif %}-subtle text-{% if allocation.status == 'approved_dean' %}success{% else %}warning{% endif %}">
+                                        {{ allocation.get_status_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="ri-book-line display-1 text-muted mb-3"></i>
+                        <h5 class="mb-3">No Current Teaching Load</h5>
+                        <p class="text-muted mb-0">You are not assigned to any units for {{ current_semester.name|default:"the current semester" }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Professional Information -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Professional Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Designation:</span>
+                                <span class="fw-medium">{{ lecturer_profile.get_designation_display }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Specialization:</span>
+                                <span class="fw-medium">{{ lecturer_profile.specialization|default:"Not specified" }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Hire Date:</span>
+                                <span class="fw-medium">{{ lecturer_profile.hire_date|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Contract End:</span>
+                                <span class="fw-medium">
+                                    {% if lecturer_profile.contract_end_date %}
+                                    {{ lecturer_profile.contract_end_date|date:"M d, Y" }}
+                                    {% else %}
+                                    Permanent
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% if lecturer_profile.consultation_hours %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="info-row">
+                                <span class="text-muted small">Consultation Hours:</span>
+                                <span class="fw-medium">{{ lecturer_profile.consultation_hours }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% elif user.role in 'hod,hos,dean' %}
+            <!-- HOD/HOS/Dean-Specific Content -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Management Overview</h5>
+                    <div class="card-subtitle">{{ current_semester.name|default:"No active semester" }}</div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="management-stat">
+                                <div class="stat-icon bg-primary-subtle text-primary">
+                                    <i class="ri-team-line"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value">
+                                        {% if user.role == 'hod' %}{{ lecturers_count|default:"0" }}
+                                        {% elif user.role == 'hos' %}{{ departments_count|default:"0" }}
+                                        {% elif user.role == 'dean' %}{{ programmes_count|default:"0" }}{% endif %}
+                                    </div>
+                                    <div class="stat-label">
+                                        {% if user.role == 'hod' %}Lecturers
+                                        {% elif user.role == 'hos' %}Departments
+                                        {% elif user.role == 'dean' %}Programmes{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="management-stat">
+                                <div class="stat-icon bg-success-subtle text-success">
+                                    <i class="ri-user-line"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value">{{ students_count|default:"0" }}</div>
+                                    <div class="stat-label">Students</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pending Actions -->
+                    {% if pending_allocations %}
+                    <div class="alert alert-warning mt-4">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-alarm-warning-line me-3 fs-4"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1">Pending Approvals Required</h6>
+                                <p class="mb-0">You have {{ pending_allocations }} unit allocation{{ pending_allocations|pluralize }} awaiting your approval.</p>
+                            </div>
+                            <a href="#" class="btn btn-sm btn-warning ms-auto">Review Now</a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-primary-subtle text-primary">
+                                    <i class="ri-team-line"></i>
+                                </div>
+                                <div class="action-title">Manage Staff</div>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-success-subtle text-success">
+                                    <i class="ri-book-line"></i>
+                                </div>
+                                <div class="action-title">Unit Allocations</div>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-info-subtle text-info">
+                                    <i class="ri-file-chart-line"></i>
+                                </div>
+                                <div class="action-title">Reports</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% elif user.role == 'hostel_warden' %}
+            <!-- Hostel Warden Content -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Hostel Management</h5>
+                    <div class="card-subtitle">{{ academic_year.name|default:"Current Academic Year" }}</div>
+                </div>
+                <div class="card-body">
+                    {% if hostels %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Hostel Name</th>
+                                    <th>Capacity</th>
+                                    <th>Allocated</th>
+                                    <th>Vacant</th>
+                                    <th>Occupancy</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for hostel in hostels %}
+                                <tr>
+                                    <td class="fw-medium">{{ hostel.name }}</td>
+                                    <td>{{ hostel.total_capacity }}</td>
+                                    <td>{{ hostel.allocations_count|default:"0" }}</td>
+                                    <td>{{ hostel.vacant_beds|default:"0" }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: {{ hostel.occupancy_rate|default:'0' }}%"></div>
+                                        </div>
+                                        <small class="text-muted">{{ hostel.occupancy_rate|default:"0" }}%</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="#" class="btn btn-sm btn-outline-primary">Manage</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-building-line display-1 text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No hostels assigned to manage</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% elif user.role == 'librarian' %}
+            <!-- Librarian Content -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Library Management</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="management-stat">
+                                <div class="stat-icon bg-primary-subtle text-primary">
+                                    <i class="ri-book-open-line"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value">{{ total_books|default:"0" }}</div>
+                                    <div class="stat-label">Total Books</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="management-stat">
+                                <div class="stat-icon bg-success-subtle text-success">
+                                    <i class="ri-book-read-line"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <div class="stat-value">{{ active_borrowings|default:"0" }}</div>
+                                    <div class="stat-label">Active Borrowings</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if overdue_books %}
+                    <div class="alert alert-danger mt-4">
+                        <div class="d-flex align-items-center">
+                            <i class="ri-alarm-warning-line me-3 fs-4"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1">Overdue Books Alert</h6>
+                                <p class="mb-0">There are {{ overdue_books }} overdue book{{ overdue_books|pluralize }} that require attention.</p>
+                            </div>
+                            <a href="#" class="btn btn-sm btn-danger ms-auto">View Details</a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Quick Actions for Librarian -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-primary-subtle text-primary">
+                                    <i class="ri-book-add-line"></i>
+                                </div>
+                                <div class="action-title">Add New Book</div>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-success-subtle text-success">
+                                    <i class="ri-book-read-line"></i>
+                                </div>
+                                <div class="action-title">Issue Book</div>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-info-subtle text-info">
+                                    <i class="ri-book-return-line"></i>
+                                </div>
+                                <div class="action-title">Return Book</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% else %}
+            <!-- General Staff Content -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Welcome, {{ user.get_full_name }}</h5>
+                    <div class="card-subtitle">{{ user.get_role_display }}</div>
+                </div>
+                <div class="card-body text-center py-5">
+                    <i class="ri-user-line display-1 text-muted mb-3"></i>
+                    <h5 class="mb-3">Profile Dashboard</h5>
+                    <p class="text-muted mb-0">
+                        You are logged in as {{ user.get_role_display }}. 
+                        {% if user.role in 'finance,procurement,store,ict_admin,registrar,vc' %}
+                        Use the navigation menu to access your specific management functions.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Quick Links for General Staff -->
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Links</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-primary-subtle text-primary">
+                                    <i class="ri-mail-line"></i>
+                                </div>
+                                <div class="action-title">Messages 
+                                    {% if unread_messages %}
+                                    <span class="badge bg-danger ms-1">{{ unread_messages }}</span>
+                                    {% endif %}
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="" class="quick-action-card">
+                                <div class="action-icon bg-success-subtle text-success">
+                                    <i class="ri-megaphone-line"></i>
+                                </div>
+                                <div class="action-title">Announcements</div>
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a href="#" class="quick-action-card">
+                                <div class="action-icon bg-info-subtle text-info">
+                                    <i class="ri-calendar-line"></i>
+                                </div>
+                                <div class="action-title">Calendar</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Designation Cards */
+    .designation-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .designation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+    
+    .designation-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .designation-info {
+        flex: 1;
+    }
+    
+    .designation-count {
+        font-size: 1.25rem;
+        line-height: 1;
+        font-weight: 600;
+    }
+    
+    .designation-name {
+        color: var(--color-gray-800);
+        font-weight: 500;
+        margin-top: 0.25rem;
+    }
+    
+    /* Staff Cards */
+    .staff-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .staff-header {
+        padding: 1.5rem 1.5rem 0;
+        position: relative;
+    }
+    
+    .staff-avatar {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1rem;
+    }
+    
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 600;
+        border: 4px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .staff-badges {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .staff-body {
+        padding: 1rem 1.5rem;
+    }
+    
+    .staff-name {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        font-size: 1.25rem;
+        text-align: center;
+    }
+    
+    .staff-info {
+        margin-top: 1rem;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .staff-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    /* Units List */
+    .units-list .unit-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s;
+    }
+    
+    .units-list .unit-item:last-child {
+        border-bottom: none;
+    }
+    
+    .units-list .unit-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    /* Management Stats */
+    .management-stat {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+    
+    .stat-info {
+        flex: 1;
+    }
+    
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+    
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: block;
+        padding: 1.5rem;
+        text-align: center;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        transition: all 0.2s;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .quick-action-card:hover {
+        background-color: var(--bs-primary-bg-subtle);
+        border-color: var(--bs-primary);
+        transform: translateY(-2px);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .action-icon {
+        width: 60px;
+        height: 60px;
+        margin: 0 auto;
+        border-radius: var(--radius-lg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+    }
+    
+    .action-title {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-top: 1rem;
+    }
+    
+    /* Announcements List */
+    .announcements-list .announcement-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s;
+    }
+    
+    .announcements-list .announcement-item:last-child {
+        border-bottom: none;
+    }
+    
+    .announcements-list .announcement-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .staff-avatar {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .avatar-placeholder {
+            font-size: 2rem;
+        }
+        
+        .designation-card {
+            padding: 0.75rem;
+        }
+        
+        .designation-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+        
+        .management-stat {
+            padding: 0.75rem;
+        }
+        
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            font-size: 1.5rem;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+        }
+        
+        .quick-action-card {
+            padding: 1rem;
+        }
+        
+        .action-icon {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5rem;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add hover effects to designation cards
+        document.querySelectorAll('.designation-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.transform = 'translateY(-2px)';
+                this.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0)';
+                this.style.boxShadow = 'none';
+            });
+        });
+        
+        // Add click handlers for quick action cards
+        document.querySelectorAll('.quick-action-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (this.getAttribute('href') === '#') {
+                    e.preventDefault();
+                    // Show notification or modal
+                    console.log('Quick action clicked:', this.querySelector('.action-title').textContent);
+                }
+            });
+        });
+        
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+    });
+</script>
+{% endblock %}

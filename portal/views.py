@@ -2758,15 +2758,285 @@ def procurement_dashboard(request):
     context = {'page_title': 'Procurement Dashboard'}
     return render(request, 'procurement/dashboard.html', context)
 
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from .models import (
+    User, Student, Lecturer, Department, School, Programme,
+    Semester, AcademicYear, SemesterResults, SemesterGPA,
+    UnitAllocation, UnitEnrollment, HostelAllocation,
+    BookBorrowing, FeeBalance, Announcement, Message
+)
 
 @login_required
 def profile_view(request):
-    """User profile view"""
+    """User profile view with role-specific data"""
+    user = request.user
     context = {
         'page_title': 'My Profile',
+        'user': user,
+        'current_semester': None,
+        'academic_year': None,
     }
+    
+    # Get current semester and academic year
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    if current_semester:
+        context['current_semester'] = current_semester
+        context['academic_year'] = current_semester.academic_year
+    
+    # ROLE-SPECIFIC DATA
+    if user.role == 'student':
+        try:
+            student_profile = Student.objects.get(user=user)
+            context['student_profile'] = student_profile
+            
+            # Student-specific data
+            context['programme'] = student_profile.programme
+            context['intake'] = student_profile.intake
+            
+            # Current semester results
+            if current_semester:
+                semester_results = SemesterResults.objects.filter(
+                    student=student_profile,
+                    semester=current_semester
+                ).select_related('programme_unit__unit')
+                context['semester_results'] = semester_results
+                
+                # Current semester GPA
+                semester_gpa = SemesterGPA.objects.filter(
+                    student=student_profile,
+                    semester=current_semester
+                ).first()
+                context['semester_gpa'] = semester_gpa
+                
+                # Current unit enrollments
+                enrollments = UnitEnrollment.objects.filter(
+                    student=student_profile,
+                    semester=current_semester,
+                    status='approved'
+                ).select_related('programme_unit__unit')
+                context['current_enrollments'] = enrollments
+                
+                # Current fee balance
+                fee_balance = FeeBalance.objects.filter(
+                    student=student_profile,
+                    semester=current_semester
+                ).first()
+                context['fee_balance'] = fee_balance
+            
+            # All-time data
+            all_results = SemesterResults.objects.filter(
+                student=student_profile
+            ).select_related('semester', 'programme_unit__unit').order_by('-semester__academic_year__start_date')
+            context['all_results'] = all_results
+            
+            # Hostel allocation
+            hostel_allocation = HostelAllocation.objects.filter(
+                student=student_profile,
+                is_active=True
+            ).select_related('bed__room__hostel').first()
+            context['hostel_allocation'] = hostel_allocation
+            
+            # Current book borrowings
+            current_borrowings = BookBorrowing.objects.filter(
+                student=student_profile,
+                status='active'
+            ).select_related('book')
+            context['current_borrowings'] = current_borrowings
+            
+            # Total credits earned
+            total_credits = all_results.filter(is_passed=True).aggregate(
+                total_credits=models.Sum('credit_hours')
+            )['total_credits'] or 0
+            context['total_credits_earned'] = total_credits
+            
+        except Student.DoesNotExist:
+            context['student_profile'] = None
+    
+    elif user.role == 'lecturer':
+        try:
+            lecturer_profile = Lecturer.objects.get(user=user)
+            context['lecturer_profile'] = lecturer_profile
+            context['department'] = lecturer_profile.department
+            
+            # Current semester unit allocations
+            if current_semester:
+                unit_allocations = UnitAllocation.objects.filter(
+                    lecturer=user,
+                    semester=current_semester,
+                    status__in=['approved_hod', 'approved_hos', 'approved_dean']
+                ).select_related(
+                    'programme_unit__unit',
+                    'programme_unit__programme',
+                    'semester'
+                )
+                context['current_allocations'] = unit_allocations
+                
+                # Calculate total units
+                total_units_current = unit_allocations.count()
+                context['total_units_current'] = total_units_current
+            
+            # All-time unit allocations
+            all_allocations = UnitAllocation.objects.filter(
+                lecturer=user
+            ).select_related(
+                'programme_unit__unit',
+                'programme_unit__programme',
+                'semester'
+            ).order_by('-semester__academic_year__start_date')
+            context['all_allocations'] = all_allocations
+            
+            # Total units all time
+            total_units_all_time = all_allocations.count()
+            context['total_units_all_time'] = total_units_all_time
+            
+        except Lecturer.DoesNotExist:
+            context['lecturer_profile'] = None
+    
+    elif user.role == 'hod':
+        try:
+            department = Department.objects.get(hod=user)
+            context['department'] = department
+            context['school'] = department.school
+            
+            # Department statistics
+            lecturers_count = Lecturer.objects.filter(
+                department=department,
+                is_active=True
+            ).count()
+            context['lecturers_count'] = lecturers_count
+            
+            students_count = Student.objects.filter(
+                programme__department=department,
+                student_status='active'
+            ).count()
+            context['students_count'] = students_count
+            
+            # Pending unit allocations for approval
+            if current_semester:
+                pending_allocations = UnitAllocation.objects.filter(
+                    programme_unit__unit__department=department,
+                    semester=current_semester,
+                    status='pending'
+                ).count()
+                context['pending_allocations'] = pending_allocations
+                
+        except Department.DoesNotExist:
+            context['department'] = None
+    
+    elif user.role == 'hos':
+        try:
+            school = School.objects.get(head_of_school=user)
+            context['school'] = school
+            
+            # School statistics
+            departments_count = Department.objects.filter(
+                school=school,
+                is_active=True
+            ).count()
+            context['departments_count'] = departments_count
+            
+            lecturers_count = Lecturer.objects.filter(
+                department__school=school,
+                is_active=True
+            ).count()
+            context['lecturers_count'] = lecturers_count
+            
+            # Pending approvals
+            if current_semester:
+                pending_allocations = UnitAllocation.objects.filter(
+                    programme_unit__unit__department__school=school,
+                    semester=current_semester,
+                    status='approved_hod'
+                ).count()
+                context['pending_allocations'] = pending_allocations
+                
+        except School.DoesNotExist:
+            context['school'] = None
+    
+    elif user.role == 'dean':
+        try:
+            school = School.objects.get(dean=user)
+            context['school'] = school
+            
+            # Dean statistics
+            programmes_count = Programme.objects.filter(
+                department__school=school,
+                is_active=True
+            ).count()
+            context['programmes_count'] = programmes_count
+            
+            students_count = Student.objects.filter(
+                programme__department__school=school,
+                student_status='active'
+            ).count()
+            context['students_count'] = students_count
+            
+            # Pending approvals
+            if current_semester:
+                pending_allocations = UnitAllocation.objects.filter(
+                    programme_unit__unit__department__school=school,
+                    semester=current_semester,
+                    status='approved_hos'
+                ).count()
+                context['pending_allocations'] = pending_allocations
+                
+        except School.DoesNotExist:
+            context['school'] = None
+    
+    elif user.role == 'hostel_warden':
+        # Get all hostels managed by this warden
+        hostels = Hostel.objects.filter(warden=user, is_active=True)
+        context['hostels'] = hostels
+        
+        # Hostel statistics
+        if current_academic_year:
+            total_capacity = sum(hostel.total_capacity for hostel in hostels)
+            context['total_capacity'] = total_capacity
+            
+            allocated_beds = HostelAllocation.objects.filter(
+                bed__room__hostel__in=hostels,
+                academic_year=current_academic_year,
+                is_active=True
+            ).count()
+            context['allocated_beds'] = allocated_beds
+            
+            occupancy_rate = (allocated_beds / total_capacity * 100) if total_capacity > 0 else 0
+            context['occupancy_rate'] = round(occupancy_rate, 2)
+    
+    elif user.role == 'librarian':
+        # Library statistics
+        total_books = Book.objects.filter(is_active=True).count()
+        context['total_books'] = total_books
+        
+        active_borrowings = BookBorrowing.objects.filter(
+            status='active'
+        ).count()
+        context['active_borrowings'] = active_borrowings
+        
+        overdue_books = BookBorrowing.objects.filter(
+            status='overdue'
+        ).count()
+        context['overdue_books'] = overdue_books
+    
+    # Common data for all roles
+    # Unread messages
+    unread_messages = Message.objects.filter(
+        recipient=user,
+        is_read=False
+    ).count()
+    context['unread_messages'] = unread_messages
+    
+    # Recent announcements
+    recent_announcements = Announcement.objects.filter(
+        is_published=True
+    ).order_by('-publish_date')[:5]
+    context['recent_announcements'] = recent_announcements
+    
     return render(request, 'profile/profile.html', context)
-
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required, permission_required
