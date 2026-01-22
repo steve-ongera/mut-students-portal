@@ -1,59 +1,811 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>School Profile - Dean Portal</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="../../static/css/dean.css">
-</head>
-<body>
-    <!-- Navigation will be included via template inheritance -->
-    
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar will be included -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">School Profile</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <!-- Page-specific actions will go here -->
-                    </div>
+﻿{% extends 'dean/dean_base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}School Profile - Dean Portal{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- School Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">School Profile - {{ school.name }}</h1>
+                <p class="text-muted mb-0">Comprehensive overview of school statistics and performance metrics</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_academic_year.name }} • {{ current_semester.name }}
                 </div>
-                
-                <!-- Page content will go here -->
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> 
-                    School Profile page is under development. Content will be loaded dynamically.
+                <p class="small text-muted mt-2">Dean: {{ school.dean.get_full_name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- School Information Card -->
+    <div class="row g-3 mb-5">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">School Information</h5>
+                    <div class="card-subtitle">{{ school.code }} - {{ school.name }}</div>
                 </div>
-                
-                <!-- Placeholder for dynamic content -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">School Overview</h5>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-item mb-3">
+                                        <span class="text-muted small">School Code:</span>
+                                        <div class="fw-medium">{{ school.code }}</div>
+                                    </div>
+                                    <div class="info-item mb-3">
+                                        <span class="text-muted small">Head of School:</span>
+                                        <div class="fw-medium">{{ school.head_of_school.get_full_name }}</div>
+                                    </div>
+                                    <div class="info-item mb-3">
+                                        <span class="text-muted small">Location:</span>
+                                        <div class="fw-medium">{{ school.location|default:"Not specified" }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-item mb-3">
+                                        <span class="text-muted small">Email:</span>
+                                        <div class="fw-medium">
+                                            <a href="mailto:{{ school.email }}" class="text-decoration-none">
+                                                {{ school.email|default:"Not specified" }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="info-item mb-3">
+                                        <span class="text-muted small">Phone:</span>
+                                        <div class="fw-medium">
+                                            <a href="tel:{{ school.phone_number }}" class="text-decoration-none">
+                                                {{ school.phone_number|default:"Not specified" }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="info-item mb-3">
+                                        <span class="text-muted small">Status:</span>
+                                        <span class="badge bg-success rounded-pill">Active</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-body">
-                                <p class="card-text">
-                                    This page will display School Profile information.
-                                    Data will be populated from the Django backend.
-                                </p>
+                            {% if school.description %}
+                            <div class="mt-4 pt-3 border-top">
+                                <h6 class="text-muted mb-2">Description</h6>
+                                <p class="mb-0">{{ school.description }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 border-start ps-4">
+                            <div class="text-center">
+                                <div class="mb-4">
+                                    <h6 class="text-muted mb-3">Current Academic Period</h6>
+                                    <h5 class="text-primary mb-2">{{ current_academic_year.name }}</h5>
+                                    <p class="text-muted small">{{ current_semester.name }}</p>
+                                </div>
+                                <div class="progress mb-3" style="height: 8px;">
+                                    <div class="progress-bar bg-success" id="semesterProgress" style="width: 60%;"></div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Start Date</small>
+                                        <div class="fw-medium">{{ current_semester.start_date|date:"M d, Y" }}</div>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">End Date</small>
+                                        <div class="fw-medium">{{ current_semester.end_date|date:"M d, Y" }}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </main>
+            </div>
         </div>
     </div>
+
+    <!-- Key Statistics -->
+    <div class="row g-3 mb-5">
+        <div class="col-12">
+            <h5 class="fw-semibold mb-3"><i class="ri-bar-chart-2-line me-2"></i>School Statistics</h5>
+        </div>
+        
+        <!-- Departments -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-building-2-line text-primary"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_departments }}</h3>
+                        <p class="metric-label mb-0">Departments</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <a href="{% url 'departments_list' %}" class="text-decoration-none small text-primary">
+                        <i class="ri-arrow-right-line me-1"></i> View all departments
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Programmes -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-book-open-line text-success"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_programmes }}</h3>
+                        <p class="metric-label mb-0">Programmes</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <a href="{% url 'programme_development' %}" class="text-decoration-none small text-success">
+                        <i class="ri-arrow-right-line me-1"></i> View all programmes
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Students -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-team-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_students|floatformat:0 }}</h3>
+                        <p class="metric-label mb-0">Students</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <a href="{% url 'student_population' %}" class="text-decoration-none small text-info">
+                        <i class="ri-arrow-right-line me-1"></i> View student population
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Lecturers -->
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-user-line text-warning"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_lecturers }}</h3>
+                        <p class="metric-label mb-0">Academic Staff</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <a href="{% url 'academic_staff' %}" class="text-decoration-none small text-warning">
+                        <i class="ri-arrow-right-line me-1"></i> View all staff
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme & Student Analytics -->
+    <div class="row g-4 mb-5">
+        <!-- Programme Breakdown -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Programme Breakdown by Type</h5>
+                    <div class="card-subtitle">Distribution of active programmes</div>
+                </div>
+                <div class="card-body">
+                    {% if programme_breakdown %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Count</th>
+                                    <th>Percentage</th>
+                                    <th class="text-end">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for programme in programme_breakdown %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="indicator-dot me-2" style="background-color: {% cycle '#2E7D32' '#4CAF50' '#2196F3' '#FF9800' '#9C27B0' as colors %}"></span>
+                                            {{ programme.programme_type|title }}
+                                        </div>
+                                    </td>
+                                    <td class="fw-medium">{{ programme.count }}</td>
+                                    <td>
+                                        {% with percentage=programme.count|divisibleby:total_programmes|mul:100 %}
+                                        <span class="badge bg-light text-dark">{{ percentage|floatformat:1 }}%</span>
+                                        {% endwith %}
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="badge bg-success-subtle text-success rounded-pill">Active</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4">
+                        <canvas id="programmeChart" height="150"></canvas>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="ri-pie-chart-line display-1 text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No programme data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Student Distribution -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Student Distribution by Year</h5>
+                    <div class="card-subtitle">Active student population breakdown</div>
+                </div>
+                <div class="card-body">
+                    {% if student_by_year %}
+                    <div class="row g-3">
+                        {% for year_data in student_by_year %}
+                        <div class="col-md-6">
+                            <div class="year-card">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <h6 class="mb-0">Year {{ year_data.current_year }}</h6>
+                                        <small class="text-muted">{{ year_data.count }} students</small>
+                                    </div>
+                                    <div class="display-6 text-primary fw-bold">{{ year_data.count }}</div>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    {% with percentage=year_data.count|divisibleby:total_students|mul:100 %}
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: {{ percentage|floatformat:0 }}%; background-color: {% cycle '#2E7D32' '#4CAF50' '#2196F3' '#FF9800' '#9C27B0' as colors %}">
+                                    </div>
+                                    {% endwith %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mt-4">
+                        <canvas id="studentYearChart" height="150"></canvas>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="ri-bar-chart-line display-1 text-muted mb-3"></i>
+                        <p class="text-muted mb-0">No student distribution data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Activities</h5>
+                    <div class="card-subtitle">Latest school events and updates</div>
+                </div>
+                <div class="card-body">
+                    {% if recent_activities %}
+                    <div class="timeline">
+                        {% for activity in recent_activities %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker bg-{{ activity.color }}"></div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ activity.title }}</h6>
+                                        <p class="text-muted small mb-2">{{ activity.description }}</p>
+                                    </div>
+                                    <small class="text-muted">{{ activity.date|date:"M d, Y" }}</small>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <i class="ri-{{ activity.icon }} me-2 text-{{ activity.color }}"></i>
+                                    <span class="badge bg-{{ activity.color }}-subtle text-{{ activity.color }} rounded-pill px-3">
+                                        {{ activity.type|title }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="ri-time-line display-1 text-muted mb-3"></i>
+                        <p class="text-muted mb-2">No recent activities to display</p>
+                        <p class="small text-muted">Check back later for updates on admissions, programme additions, and other activities</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Access Grid -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Access</h5>
+                    <div class="card-subtitle">Navigate to key school management sections</div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="{% url 'departments_list' %}" class="quick-access-card text-decoration-none">
+                                <div class="card-icon bg-primary-subtle text-primary">
+                                    <i class="ri-building-2-line"></i>
+                                </div>
+                                <div class="card-title mt-3">Departments</div>
+                                <div class="card-subtitle small">Manage departments</div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="{% url 'programme_development' %}" class="quick-access-card text-decoration-none">
+                                <div class="card-icon bg-success-subtle text-success">
+                                    <i class="ri-book-open-line"></i>
+                                </div>
+                                <div class="card-title mt-3">Programmes</div>
+                                <div class="card-subtitle small">Programme management</div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="{% url 'academic_staff' %}" class="quick-access-card text-decoration-none">
+                                <div class="card-icon bg-info-subtle text-info">
+                                    <i class="ri-user-line"></i>
+                                </div>
+                                <div class="card-title mt-3">Staff</div>
+                                <div class="card-subtitle small">Academic staff</div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="{% url 'student_population' %}" class="quick-access-card text-decoration-none">
+                                <div class="card-icon bg-warning-subtle text-warning">
+                                    <i class="ri-team-line"></i>
+                                </div>
+                                <div class="card-title mt-3">Students</div>
+                                <div class="card-subtitle small">Student population</div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="{% url 'school_calendar' %}" class="quick-access-card text-decoration-none">
+                                <div class="card-icon bg-danger-subtle text-danger">
+                                    <i class="ri-calendar-line"></i>
+                                </div>
+                                <div class="card-title mt-3">Calendar</div>
+                                <div class="card-subtitle small">Academic calendar</div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="{% url 'academic_standards' %}" class="quick-access-card text-decoration-none">
+                                <div class="card-icon bg-purple-subtle text-purple">
+                                    <i class="ri-line-chart-line"></i>
+                                </div>
+                                <div class="card-title mt-3">Standards</div>
+                                <div class="card-subtitle small">Academic standards</div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-purple: #9C27B0;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
     
-    <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <script src="../../static/js/dean.js"></script>
-</body>
-</html>
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+        transition: all 0.2s ease;
+    }
+    
+    .analytics-card:hover {
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-gray-300);
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Information Items */
+    .info-item {
+        padding: 0.5rem 0;
+    }
+    
+    .info-item span {
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Year Cards */
+    .year-card {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    /* Timeline */
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        left: 12px;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background-color: var(--color-gray-200);
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -2rem;
+        top: 6px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 3px solid white;
+        z-index: 1;
+    }
+    
+    .timeline-content {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border-left: 4px solid;
+        transition: all 0.2s ease;
+    }
+    
+    .timeline-content:hover {
+        transform: translateX(4px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Quick Access */
+    .quick-access-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.2s ease;
+        display: block;
+        height: 100%;
+    }
+    
+    .quick-access-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+        text-decoration: none;
+    }
+    
+    .card-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        margin: 0 auto;
+    }
+    
+    .quick-access-card .card-title {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .quick-access-card .card-subtitle {
+        color: var(--color-gray-600);
+        font-size: 0.8125rem;
+    }
+    
+    /* Table Styling */
+    .table-sm th,
+    .table-sm td {
+        padding: 0.75rem 0.5rem;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table-sm th {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        background: var(--color-gray-100);
+    }
+    
+    /* Indicator Dot */
+    .indicator-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    .bg-purple-subtle { background-color: rgba(156, 39, 176, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+    .text-purple { color: var(--color-purple); }
+    
+    .border-success-subtle { border-color: rgba(76, 175, 80, 0.2); }
+    .border-warning-subtle { border-color: rgba(255, 152, 0, 0.2); }
+    .border-info-subtle { border-color: rgba(33, 150, 243, 0.2); }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Chart.js Configuration
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = '#6c757d';
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        Chart.defaults.plugins.tooltip.padding = 10;
+        Chart.defaults.plugins.tooltip.cornerRadius = 6;
+        
+        const colors = {
+            primary: '#2E7D32',
+            success: '#4CAF50',
+            warning: '#FF9800',
+            info: '#2196F3',
+            danger: '#F44336',
+            purple: '#9C27B0'
+        };
+        
+        // Programme Chart
+        const programmeCtx = document.getElementById('programmeChart');
+        if (programmeCtx) {
+            {% if programme_breakdown %}
+            new Chart(programmeCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [
+                        {% for programme in programme_breakdown %}
+                        '{{ programme.programme_type|title }}',
+                        {% endfor %}
+                    ],
+                    datasets: [{
+                        data: [
+                            {% for programme in programme_breakdown %}
+                            {{ programme.count }},
+                            {% endfor %}
+                        ],
+                        backgroundColor: [
+                            '#2E7D32', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 15 }
+                        }
+                    }
+                }
+            });
+            {% endif %}
+        }
+        
+        // Student Year Chart
+        const studentYearCtx = document.getElementById('studentYearChart');
+        if (studentYearCtx) {
+            {% if student_by_year %}
+            new Chart(studentYearCtx, {
+                type: 'bar',
+                data: {
+                    labels: [
+                        {% for year_data in student_by_year %}
+                        'Year {{ year_data.current_year }}',
+                        {% endfor %}
+                    ],
+                    datasets: [{
+                        data: [
+                            {% for year_data in student_by_year %}
+                            {{ year_data.count }},
+                            {% endfor %}
+                        ],
+                        backgroundColor: '#2E7D32',
+                        borderRadius: 6,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.04)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+            {% endif %}
+        }
+        
+        // Update semester progress
+        function updateSemesterProgress() {
+            const startDate = new Date('{{ current_semester.start_date|date:"Y-m-d" }}');
+            const endDate = new Date('{{ current_semester.end_date|date:"Y-m-d" }}');
+            const today = new Date();
+            
+            const totalDuration = endDate - startDate;
+            const elapsedDuration = today - startDate;
+            
+            let percentage = (elapsedDuration / totalDuration) * 100;
+            percentage = Math.min(100, Math.max(0, percentage));
+            
+            const progressBar = document.getElementById('semesterProgress');
+            if (progressBar) {
+                progressBar.style.width = percentage.toFixed(2) + '%';
+                progressBar.innerText = percentage.toFixed(1) + '%';
+            }
+        }
+        
+        // Update progress on page load
+        updateSemesterProgress();
+    });
+</script>
+{% endblock %}
