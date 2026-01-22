@@ -18106,3 +18106,837 @@ def dean_disciplinary_matters_view(request):
     }
 
     return render(request, 'dean/hr/disciplinary_matters.html', context)
+
+
+# ============================================================================
+# FINANCIAL MANAGEMENT VIEWS
+# ============================================================================
+@login_required
+def dean_school_budget_view(request):
+    """Manage school budget"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    financial_year_id = request.GET.get('financial_year')
+    status = request.GET.get('status')
+
+    # Base queryset
+    budgets = SchoolBudget.objects.filter(
+        school=dean_school
+    ).select_related('financial_year').order_by('-financial_year__start_date')
+
+    # Apply filters
+    if financial_year_id:
+        budgets = budgets.filter(financial_year_id=financial_year_id)
+    if status:
+        budgets = budgets.filter(status=status)
+
+    # Current budget
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_budget = budgets.filter(financial_year=current_year).first() if current_year else None
+
+    # Statistics
+    if current_budget:
+        budget_stats = {
+            'total_allocation': current_budget.total_allocation,
+            'amount_spent': current_budget.amount_spent,
+            'balance': current_budget.balance,
+            'utilization_rate': (current_budget.amount_spent / current_budget.total_allocation * 100) if current_budget.total_allocation > 0 else 0,
+        }
+    else:
+        budget_stats = {
+            'total_allocation': 0,
+            'amount_spent': 0,
+            'balance': 0,
+            'utilization_rate': 0,
+        }
+
+    context = {
+        'budgets': budgets,
+        'current_budget': current_budget,
+        'budget_stats': budget_stats,
+        'financial_years': AcademicYear.objects.all().order_by('-start_date'),
+        'statuses': SchoolBudget.BUDGET_STATUS,
+    }
+
+    return render(request, 'dean/finance/school_budget.html', context)
+
+
+@login_required
+def dean_resource_allocation_view(request):
+    """Manage resource allocation to departments"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get current budget
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_budget = SchoolBudget.objects.filter(
+        school=dean_school,
+        financial_year=current_year
+    ).first() if current_year else None
+
+    # Get allocations
+    if current_budget:
+        allocations = BudgetAllocation.objects.filter(
+            school_budget=current_budget
+        ).select_related('department').order_by('department__name')
+    else:
+        allocations = BudgetAllocation.objects.none()
+
+    # Statistics
+    stats = {
+        'total_allocated': allocations.aggregate(Sum('allocation_amount'))['allocation_amount__sum'] or 0,
+        'total_utilized': allocations.aggregate(Sum('amount_utilized'))['amount_utilized__sum'] or 0,
+        'avg_utilization': allocations.aggregate(Avg('utilization_percentage'))['utilization_percentage__avg'] or 0,
+    }
+
+    context = {
+        'current_budget': current_budget,
+        'allocations': allocations,
+        'stats': stats,
+    }
+
+    return render(request, 'dean/finance/resource_allocation.html', context)
+
+
+@login_required
+def dean_expenditure_control_view(request):
+        """Monitor expenditure"""
+        dean_school = request.user.school_as_dean.first()
+        if not dean_school:
+            messages.error(request, "You are not assigned as a Dean.")
+            return redirect('dashboard')
+
+        # Get current budget and allocations
+        current_year = AcademicYear.objects.filter(is_current=True).first()
+        current_budget = SchoolBudget.objects.filter(
+            school=dean_school,
+            financial_year=current_year
+        ).first() if current_year else None
+
+        if current_budget:
+            allocations = BudgetAllocation.objects.filter(school_budget=current_budget)
+            
+            # Get expenditures
+            expenditures = ExpenditureTracking.objects.filter(
+                budget_allocation__in=allocations
+            ).select_related('budget_allocation__department').order_by('-transaction_date')
+            
+            # Filters
+            expenditure_type = request.GET.get('expenditure_type')
+            status = request.GET.get('status')
+            department_id = request.GET.get('department')
+            
+            if expenditure_type:
+                expenditures = expenditures.filter(expenditure_type=expenditure_type)
+            if status:
+                expenditures = expenditures.filter(status=status)
+            if department_id:
+                expenditures = expenditures.filter(budget_allocation__department_id=department_id)
+            
+            # Statistics
+            stats = {
+                'total_expenditures': expenditures.count(),
+                'total_amount': expenditures.filter(status='paid').aggregate(Sum('amount'))['amount__sum'] or 0,
+                'pending_approval': expenditures.filter(status='pending').count(),
+                'approved': expenditures.filter(status='approved').count(),
+            }
+            
+            # Pagination
+            paginator = Paginator(expenditures, 20)
+            page_number = request.GET.get('page')
+            expenditures_page = paginator.get_page(page_number)
+        else:
+            expenditures_page = []
+            stats = {
+                'total_expenditures': 0,
+                'total_amount': 0,
+                'pending_approval': 0,
+                'approved': 0,
+            }
+
+        context = {
+            'current_budget': current_budget,
+            'expenditures': expenditures_page,
+            'stats': stats,
+            'expenditure_types': ExpenditureTracking.EXPENDITURE_TYPE,
+            'statuses': ExpenditureTracking.PAYMENT_STATUS,
+            'departments': dean_school.departments.all(),
+        }
+
+        return render(request, 'dean/finance/expenditure_control.html', context)
+    
+@login_required
+def dean_revenue_generation_view(request):
+    """Track revenue sources"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    revenue_type = request.GET.get('revenue_type')
+    academic_year_id = request.GET.get('academic_year')
+
+    # Base queryset
+    revenues = RevenueSource.objects.filter(
+        school=dean_school
+    ).select_related('academic_year').order_by('-received_date')
+
+    # Apply filters
+    if revenue_type:
+        revenues = revenues.filter(revenue_type=revenue_type)
+    if academic_year_id:
+        revenues = revenues.filter(academic_year_id=academic_year_id)
+
+    # Statistics
+    stats = {
+        'total_revenue': revenues.aggregate(Sum('amount'))['amount__sum'] or 0,
+        'by_type': revenues.values('revenue_type').annotate(
+            total=Sum('amount')
+        ).order_by('-total'),
+    }
+
+    # Pagination
+    paginator = Paginator(revenues, 20)
+    page_number = request.GET.get('page')
+    revenues_page = paginator.get_page(page_number)
+
+    context = {
+        'revenues': revenues_page,
+        'stats': stats,
+        'revenue_types': RevenueSource.REVENUE_TYPE,
+        'academic_years': AcademicYear.objects.all().order_by('-start_date'),
+    }
+
+    return render(request, 'dean/finance/revenue_generation.html', context)
+
+
+@login_required
+def dean_financial_reports_view(request):
+    """Generate and view financial reports"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get current year
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    # Budget summary
+    budgets = SchoolBudget.objects.filter(school=dean_school)
+
+    # Revenue summary
+    revenues = RevenueSource.objects.filter(school=dean_school)
+    if current_year:
+        revenues = revenues.filter(academic_year=current_year)
+
+    # Expenditure summary
+    current_budget = budgets.filter(financial_year=current_year).first() if current_year else None
+    if current_budget:
+        allocations = BudgetAllocation.objects.filter(school_budget=current_budget)
+        expenditures = ExpenditureTracking.objects.filter(
+            budget_allocation__in=allocations,
+            status='paid'
+        )
+    else:
+        expenditures = ExpenditureTracking.objects.none()
+
+    # Financial summary
+    summary = {
+        'total_budget': current_budget.total_allocation if current_budget else 0,
+        'total_revenue': revenues.aggregate(Sum('amount'))['amount__sum'] or 0,
+        'total_expenditure': expenditures.aggregate(Sum('amount'))['amount__sum'] or 0,
+        'budget_balance': current_budget.balance if current_budget else 0,
+    }
+
+    # Expenditure by type
+    expenditure_by_type = expenditures.values('expenditure_type').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+
+    # Revenue by type
+    revenue_by_type = revenues.values('revenue_type').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+
+    context = {
+        'summary': summary,
+        'current_year': current_year,
+        'current_budget': current_budget,
+        'expenditure_by_type': expenditure_by_type,
+        'revenue_by_type': revenue_by_type,
+    }
+
+    return render(request, 'dean/finance/financial_reports.html', context)
+
+
+
+# ============================================================================
+# PARTNERSHIPS & LINKAGES VIEWS
+# ============================================================================
+
+
+@login_required
+def dean_industry_linkages_view(request):
+    """Manage industry partnerships"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    partnership_type = request.GET.get('partnership_type')
+    status = request.GET.get('status')
+
+    # Base queryset
+    partnerships = Partnership.objects.filter(
+        school=dean_school,
+        partnership_type='industry'
+    ).select_related('focal_person').order_by('partner_name')
+
+    # Apply filters
+    if partnership_type:
+        partnerships = partnerships.filter(partnership_type=partnership_type)
+    if status:
+        partnerships = partnerships.filter(status=status)
+
+    # Statistics
+    stats = {
+        'total_partners': partnerships.count(),
+        'active': partnerships.filter(status='active').count(),
+        'prospective': partnerships.filter(status='prospective').count(),
+    }
+
+    context = {
+        'partnerships': partnerships,
+        'stats': stats,
+        'partnership_types': Partnership.PARTNERSHIP_TYPE,
+        'statuses': Partnership.PARTNERSHIP_STATUS,
+    }
+
+    return render(request, 'dean/partnerships/industry_linkages.html', context)
+
+
+@login_required
+def dean_international_partners_view(request):
+    """Manage international partnerships"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get international partnerships
+    partnerships = Partnership.objects.filter(
+        school=dean_school,
+        partnership_type='international'
+    ).select_related('focal_person').order_by('partner_name')
+
+    # Statistics
+    stats = {
+        'total_partners': partnerships.count(),
+        'active': partnerships.filter(status='active').count(),
+        'countries': partnerships.values('country').distinct().count(),
+    }
+
+    # Group by country
+    by_country = partnerships.values('country').annotate(
+        count=Count('id')
+    ).order_by('-count')
+
+    context = {
+        'partnerships': partnerships,
+        'stats': stats,
+        'by_country': by_country,
+    }
+
+    return render(request, 'dean/partnerships/international_partners.html', context)
+
+
+@login_required
+def dean_mous_view(request):
+    """Manage MOUs"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    status = request.GET.get('status')
+
+    # Base queryset
+    mous = MOU.objects.filter(
+        partnership__school=dean_school
+    ).select_related('partnership').order_by('-signing_date')
+
+    # Apply filters
+    if status:
+        mous = mous.filter(status=status)
+
+    # Statistics
+    stats = {
+        'total_mous': mous.count(),
+        'active': mous.filter(status='active').count(),
+        'expiring_soon': mous.filter(
+            status='active',
+            expiry_date__lte=timezone.now().date() + timedelta(days=90)
+        ).count(),
+    }
+
+    # Pagination
+    paginator = Paginator(mous, 15)
+    page_number = request.GET.get('page')
+    mous_page = paginator.get_page(page_number)
+
+    context = {
+        'mous': mous_page,
+        'stats': stats,
+        'statuses': MOU.MOU_STATUS,
+    }
+
+    return render(request, 'dean/partnerships/mous.html', context)
+
+
+@login_required
+def dean_collaborative_projects_view(request):
+    """Manage collaborative projects"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    status = request.GET.get('status')
+
+    # Base queryset
+    projects = CollaborativeProject.objects.filter(
+        partnership__school=dean_school
+    ).select_related(
+        'partnership',
+        'project_leader__user'
+    ).prefetch_related('team_members').order_by('-start_date')
+
+    # Apply filters
+    if status:
+        projects = projects.filter(status=status)
+
+    # Statistics
+    stats = {
+        'total_projects': projects.count(),
+        'ongoing': projects.filter(status='ongoing').count(),
+        'completed': projects.filter(status='completed').count(),
+        'total_budget': projects.aggregate(Sum('total_budget'))['total_budget__sum'] or 0,
+        'total_publications': projects.aggregate(Sum('publications'))['publications__sum'] or 0,
+    }
+
+    # Pagination
+    paginator = Paginator(projects, 15)
+    page_number = request.GET.get('page')
+    projects_page = paginator.get_page(page_number)
+
+    context = {
+        'projects': projects_page,
+        'stats': stats,
+        'statuses': CollaborativeProject.PROJECT_STATUS,
+    }
+
+    return render(request, 'dean/partnerships/collaborative_projects.html', context)
+
+@login_required
+def dean_alumni_relations_view(request):
+    """Manage alumni engagement"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    engagement_type = request.GET.get('engagement_type')
+
+    # Base queryset
+    alumni_relations = AlumniRelation.objects.filter(
+        programme__department__school=dean_school
+    ).select_related('programme').order_by('-engagement_date')
+
+    # Apply filters
+    if engagement_type:
+        alumni_relations = alumni_relations.filter(engagement_type=engagement_type)
+
+    # Statistics
+    stats = {
+        'total_engagements': alumni_relations.count(),
+        'total_students_impacted': alumni_relations.aggregate(
+            Sum('students_impacted'))['students_impacted__sum'] or 0,
+        'total_contributions': alumni_relations.aggregate(
+            Sum('contribution_value'))['contribution_value__sum'] or 0,
+    }
+
+    # By engagement type
+    by_type = alumni_relations.values('engagement_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+
+    # Pagination
+    paginator = Paginator(alumni_relations, 15)
+    page_number = request.GET.get('page')
+    relations_page = paginator.get_page(page_number)
+
+    context = {
+        'relations': relations_page,
+        'stats': stats,
+        'by_type': by_type,
+        'engagement_types': AlumniRelation.ENGAGEMENT_TYPE,
+    }
+
+    return render(request, 'dean/partnerships/alumni_relations.html', context)
+
+
+# ============================================================================
+# STRATEGIC PLANNING VIEWS
+# ============================================================================
+@login_required
+def dean_strategic_goals_view(request):
+    """Manage strategic goals"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    category = request.GET.get('category')
+    status = request.GET.get('status')
+
+    # Base queryset
+    goals = StrategicGoal.objects.filter(
+        school=dean_school
+    ).select_related('start_year', 'target_year', 'champion').order_by('category')
+
+    # Apply filters
+    if category:
+        goals = goals.filter(category=category)
+    if status:
+        goals = goals.filter(status=status)
+
+    # Statistics
+    stats = {
+        'total_goals': goals.count(),
+        'active': goals.filter(status='active').count(),
+        'achieved': goals.filter(status='achieved').count(),
+        'avg_progress': goals.aggregate(Avg('progress_percentage'))['progress_percentage__avg'] or 0,
+    }
+
+    # Progress by category
+    by_category = goals.values('category').annotate(
+        count=Count('id'),
+        avg_progress=Avg('progress_percentage')
+    ).order_by('category')
+
+    context = {
+        'goals': goals,
+        'stats': stats,
+        'by_category': by_category,
+        'categories': StrategicGoal.GOAL_CATEGORY,
+        'statuses': StrategicGoal.GOAL_STATUS,
+    }
+
+    return render(request, 'dean/strategic/strategic_goals.html', context)
+
+
+@login_required
+def dean_performance_indicators_view(request):
+    """Manage performance indicators (KPIs)"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get all indicators
+    indicators = PerformanceIndicator.objects.filter(
+        strategic_goal__school=dean_school,
+        is_active=True
+    ).select_related('strategic_goal', 'baseline_year', 'responsible_person').order_by('indicator_code')
+
+    # Statistics
+    stats = {
+        'total_indicators': indicators.count(),
+        'targets_met': indicators.filter(achievement_percentage__gte=100).count(),
+        'on_track': indicators.filter(
+            achievement_percentage__gte=80,
+            achievement_percentage__lt=100
+        ).count(),
+        'behind': indicators.filter(achievement_percentage__lt=80).count(),
+        'avg_achievement': indicators.aggregate(Avg('achievement_percentage'))['achievement_percentage__avg'] or 0,
+    }
+
+    # By indicator type
+    by_type = indicators.values('indicator_type').annotate(
+        count=Count('id'),
+        avg_achievement=Avg('achievement_percentage')
+    ).order_by('indicator_type')
+
+    context = {
+        'indicators': indicators,
+        'stats': stats,
+        'by_type': by_type,
+    }
+
+    return render(request, 'dean/strategic/performance_indicators.html', context)
+
+
+@login_required
+def dean_annual_plans_view(request):
+    """Manage annual plans"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get all plans
+    plans = AnnualPlan.objects.filter(
+        school=dean_school
+    ).select_related('academic_year').order_by('-academic_year__start_date')
+
+    # Current plan
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_plan = plans.filter(academic_year=current_year).first() if current_year else None
+
+    # Statistics
+    stats = {
+        'total_plans': plans.count(),
+        'active': plans.filter(status='active').count(),
+        'completed': plans.filter(status='completed').count(),
+    }
+
+    if current_plan:
+        # Activities for current plan
+        activities = AnnualPlanActivity.objects.filter(annual_plan=current_plan)
+        stats['current_plan'] = {
+            'total_activities': activities.count(),
+            'completed': activities.filter(status='completed').count(),
+            'in_progress': activities.filter(status='in_progress').count(),
+            'delayed': activities.filter(status='delayed').count(),
+            'avg_completion': activities.aggregate(Avg('completion_percentage'))['completion_percentage__avg'] or 0,
+        }
+
+    context = {
+        'plans': plans,
+        'current_plan': current_plan,
+        'stats': stats,
+    }
+
+    return render(request, 'dean/strategic/annual_plans.html', context)
+
+
+
+@login_required
+def dean_progress_reports_view(request):
+    """View progress reports"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Filters
+    report_type = request.GET.get('report_type')
+    status = request.GET.get('status')
+
+    # Base queryset
+    reports = ProgressReport.objects.filter(
+        school=dean_school
+    ).select_related('academic_year', 'annual_plan').order_by('-reporting_period_end')
+
+    # Apply filters
+    if report_type:
+        reports = reports.filter(report_type=report_type)
+    if status:
+        reports = reports.filter(status=status)
+
+    # Statistics
+    stats = {
+        'total_reports': reports.count(),
+        'published': reports.filter(status='published').count(),
+        'draft': reports.filter(status='draft').count(),
+    }
+
+    # Pagination
+    paginator = Paginator(reports, 15)
+    page_number = request.GET.get('page')
+    reports_page = paginator.get_page(page_number)
+
+    context = {
+        'reports': reports_page,
+        'stats': stats,
+        'report_types': ProgressReport.REPORT_TYPE,
+        'statuses': ProgressReport.REPORT_STATUS,
+    }
+
+    return render(request, 'dean/strategic/progress_reports.html', context)
+
+
+@login_required
+def dean_future_planning_view(request):
+    """Future planning and forecasting"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get upcoming goals and plans
+    future_goals = StrategicGoal.objects.filter(
+        school=dean_school,
+        target_year__start_date__gt=timezone.now().date()
+    ).select_related('target_year').order_by('target_year__start_date')
+
+    # Budget projections
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    if current_year:
+        current_budget = SchoolBudget.objects.filter(
+            school=dean_school,
+            financial_year=current_year
+        ).first()
+    else:
+        current_budget = None
+
+    # Staffing projections
+    recruitments = StaffRecruitment.objects.filter(
+        school=dean_school,
+        status='open'
+    ).count()
+
+    # Research pipeline
+    research_proposals = ResearchProject.objects.filter(
+        school=dean_school,
+        status='proposal'
+    ).count()
+
+    context = {
+        'future_goals': future_goals,
+        'current_budget': current_budget,
+        'open_recruitments': recruitments,
+        'research_proposals': research_proposals,
+    }
+
+    return render(request, 'dean/strategic/future_planning.html', context)
+
+
+# ============================================================================
+# APPROVALS & AUTHORIZATIONS VIEWS
+# ============================================================================
+@login_required
+def dean_approvals_view(request):
+    """Main approvals dashboard"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get pending approvals
+    approvals = DeanApproval.objects.filter(
+        department__school=dean_school,
+        status='pending'
+    ).select_related('requested_by', 'department').order_by('-request_date')
+
+    # Group by approval type
+    by_type = approvals.values('approval_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+
+    # Priority items
+    urgent = approvals.filter(priority='urgent')
+    high = approvals.filter(priority='high')
+
+    # Statistics
+    stats = {
+        'total_pending': approvals.count(),
+        'urgent': urgent.count(),
+        'high': high.count(),
+        'medium': approvals.filter(priority='medium').count(),
+        'low': approvals.filter(priority='low').count(),
+    }
+
+    context = {
+        'approvals': approvals[:20],  # Latest 20
+        'urgent_items': urgent,
+        'high_priority': high,
+        'by_type': by_type,
+        'stats': stats,
+    }
+
+    return render(request, 'dean/approvals/dashboard.html', context)
+
+
+@login_required
+def dean_department_budgets_approval_view(request):
+    """Approve department budgets"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get current year budget
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    school_budget = SchoolBudget.objects.filter(
+        school=dean_school,
+        financial_year=current_year
+    ).first() if current_year else None
+
+    if school_budget:
+        # Get allocations needing approval
+        allocations = BudgetAllocation.objects.filter(
+            school_budget=school_budget
+        ).select_related('department').order_by('department__name')
+    else:
+        allocations = BudgetAllocation.objects.none()
+
+    context = {
+        'school_budget': school_budget,
+        'allocations': allocations,
+    }
+
+    return render(request, 'dean/approvals/department_budgets.html', context)
+
+@login_required
+def dean_staff_appointments_approval_view(request):
+    """Approve staff appointments"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get recruitments needing dean approval
+    recruitments = StaffRecruitment.objects.filter(
+        school=dean_school,
+        approved_by_dean__isnull=True
+    ).select_related('department').order_by('-advertised_date')
+
+    context = {
+        'recruitments': recruitments,
+    }
+
+    return render(request, 'dean/approvals/staff_appointments.html', context)
+    
+    
+@login_required
+def dean_research_grants_approval_view(request):
+    """Approve research grants"""
+    dean_school = request.user.school_as_dean.first()
+    if not dean_school:
+        messages.error(request, "You are not assigned as a Dean.")
+        return redirect('dashboard')
+
+    # Get grants needing review
+    grants = ResearchGrant.objects.filter(
+        school=dean_school,
+        status='under_review'
+    ).select_related('principal_applicant__user').order_by('-application_date')
+
+    context = {
+        'grants': grants,
+    }
+
+    return render(request, 'dean/approvals/research_grants.html', context) 

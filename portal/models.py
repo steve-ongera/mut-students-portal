@@ -4499,3 +4499,760 @@ class DisciplinaryCase(models.Model):
     class Meta:
         db_table = 'disciplinary_cases'
         ordering = ['-reported_date']
+        
+        
+        
+# ============= FINANCIAL MANAGEMENT MODELS =============
+
+class SchoolBudget(models.Model):
+    """Budget allocation for schools"""
+    BUDGET_STATUS = (
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('approved', 'Approved'),
+        ('active', 'Active'),
+        ('closed', 'Closed'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='budgets')
+    financial_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE, 
+                                       related_name='school_budgets')
+    
+    # Budget amounts
+    total_allocation = models.DecimalField(max_digits=15, decimal_places=2)
+    amount_spent = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    balance = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    # Budget breakdown
+    personnel_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    operations_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    development_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    research_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    status = models.CharField(max_length=20, choices=BUDGET_STATUS, default='draft')
+    
+    # Approval workflow
+    submitted_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='budgets_submitted')
+    submitted_date = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='budgets_approved')
+    approval_date = models.DateTimeField(null=True, blank=True)
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate balance
+        self.balance = self.total_allocation - self.amount_spent
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.school.code} - {self.financial_year.name}"
+
+    class Meta:
+        db_table = 'school_budgets'
+        unique_together = ('school', 'financial_year')
+        ordering = ['-financial_year__start_date']
+
+
+class BudgetAllocation(models.Model):
+    """Budget allocation to departments"""
+    school_budget = models.ForeignKey(SchoolBudget, on_delete=models.CASCADE, 
+                                     related_name='allocations')
+    department = models.ForeignKey('Department', on_delete=models.CASCADE, 
+                                  related_name='budget_allocations')
+    
+    # Allocation details
+    allocation_amount = models.DecimalField(max_digits=15, decimal_places=2)
+    amount_utilized = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    balance = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    utilization_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    
+    # Breakdown by category
+    personnel = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    operations = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    equipment = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    supplies = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    # CHANGED: Use different related_name to avoid clash
+    allocated_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                    related_name='budget_allocations_made')  # Changed from 'allocations_made'
+    allocation_date = models.DateField()
+    remarks = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate balance and utilization percentage
+        self.balance = self.allocation_amount - self.amount_utilized
+        if self.allocation_amount > 0:
+            self.utilization_percentage = (self.amount_utilized / self.allocation_amount) * 100
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.department.code} - {self.school_budget.financial_year.name}"
+
+    class Meta:
+        db_table = 'budget_allocations'
+        unique_together = ('school_budget', 'department')
+        ordering = ['department__name']
+
+
+class ExpenditureTracking(models.Model):
+    """Track department expenditures"""
+    EXPENDITURE_TYPE = (
+        ('personnel', 'Personnel'),
+        ('operations', 'Operations'),
+        ('equipment', 'Equipment'),
+        ('supplies', 'Supplies'),
+        ('travel', 'Travel'),
+        ('maintenance', 'Maintenance'),
+        ('utilities', 'Utilities'),
+        ('other', 'Other'),
+    )
+    
+    PAYMENT_STATUS = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('paid', 'Paid'),
+        ('rejected', 'Rejected'),
+    )
+    
+    budget_allocation = models.ForeignKey(BudgetAllocation, on_delete=models.CASCADE,
+                                         related_name='expenditures')
+    
+    # Transaction details
+    transaction_number = models.CharField(max_length=50, unique=True)
+    expenditure_type = models.CharField(max_length=20, choices=EXPENDITURE_TYPE)
+    description = models.TextField()
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    
+    # Vendor/Payee
+    payee_name = models.CharField(max_length=200)
+    invoice_number = models.CharField(max_length=100, blank=True)
+    invoice_date = models.DateField(null=True, blank=True)
+    
+    # Dates
+    transaction_date = models.DateField()
+    payment_date = models.DateField(null=True, blank=True)
+    
+    # Approval
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    requested_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                    related_name='expenditures_requested')
+    approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='expenditures_approved')
+    
+    # Supporting documents
+    supporting_document = models.FileField(upload_to='expenditures/', null=True, blank=True)
+    payment_voucher = models.CharField(max_length=100, blank=True)
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.transaction_number:
+            year = timezone.now().year
+            last_exp = ExpenditureTracking.objects.filter(
+                transaction_number__startswith=f'EXP-{year}-'
+            ).aggregate(Max('id'))
+            next_id = (last_exp['id__max'] or 0) + 1
+            self.transaction_number = f'EXP-{year}-{next_id:05d}'
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.transaction_number} - {self.description[:50]}"
+
+    class Meta:
+        db_table = 'expenditure_tracking'
+        ordering = ['-transaction_date']
+
+
+class RevenueSource(models.Model):
+    """Track revenue sources for schools"""
+    REVENUE_TYPE = (
+        ('government_grant', 'Government Grant'),
+        ('tuition_fees', 'Tuition Fees'),
+        ('research_grants', 'Research Grants'),
+        ('consultancy', 'Consultancy'),
+        ('donations', 'Donations'),
+        ('partnerships', 'Partnerships'),
+        ('short_courses', 'Short Courses'),
+        ('other', 'Other'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='revenues')
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE,
+                                     related_name='revenues')
+    
+    revenue_type = models.CharField(max_length=20, choices=REVENUE_TYPE)
+    source_name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    
+    received_date = models.DateField()
+    receipt_number = models.CharField(max_length=100, blank=True)
+    
+    recorded_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                   related_name='revenues_recorded')
+    supporting_document = models.FileField(upload_to='revenues/', null=True, blank=True)
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.school.code} - {self.revenue_type} - {self.amount}"
+
+    class Meta:
+        db_table = 'revenue_sources'
+        ordering = ['-received_date']
+        
+        
+# ============= PARTNERSHIPS & LINKAGES MODELS =============
+
+class Partnership(models.Model):
+    """University partnerships"""
+    PARTNERSHIP_TYPE = (
+        ('industry', 'Industry Partnership'),
+        ('international', 'International Partnership'),
+        ('research', 'Research Collaboration'),
+        ('community', 'Community Partnership'),
+        ('government', 'Government Agency'),
+    )
+    
+    PARTNERSHIP_STATUS = (
+        ('prospective', 'Prospective'),
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('terminated', 'Terminated'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='partnerships')
+    partner_name = models.CharField(max_length=300)
+    partnership_type = models.CharField(max_length=20, choices=PARTNERSHIP_TYPE)
+    
+    # Partner details
+    country = models.CharField(max_length=100)
+    contact_person = models.CharField(max_length=200)
+    contact_email = models.EmailField()
+    contact_phone = models.CharField(max_length=20, blank=True)
+    
+    # Partnership details
+    description = models.TextField()
+    areas_of_collaboration = models.TextField()
+    benefits = models.TextField(blank=True)
+    
+    # Management
+    focal_person = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                    related_name='partnerships_managed')
+    
+    # Timeline
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=PARTNERSHIP_STATUS, default='active')
+    
+    website = models.URLField(blank=True)
+    logo = models.ImageField(upload_to='partnerships/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.partner_name} - {self.partnership_type}"
+
+    class Meta:
+        db_table = 'partnerships'
+        ordering = ['partner_name']
+
+
+class MOU(models.Model):
+    """Memoranda of Understanding"""
+    MOU_STATUS = (
+        ('draft', 'Draft'),
+        ('active', 'Active'),
+        ('expired', 'Expired'),
+        ('terminated', 'Terminated'),
+        ('renewed', 'Renewed'),
+    )
+    
+    partnership = models.ForeignKey(Partnership, on_delete=models.CASCADE, related_name='mous')
+    
+    title = models.CharField(max_length=500)
+    mou_number = models.CharField(max_length=50, unique=True)
+    
+    # Dates
+    signing_date = models.DateField()
+    effective_date = models.DateField()
+    expiry_date = models.DateField()
+    
+    # Terms
+    scope = models.TextField()
+    deliverables = models.TextField()
+    responsibilities = models.TextField()
+    
+    status = models.CharField(max_length=20, choices=MOU_STATUS, default='active')
+    
+    # Signatories
+    university_signatory = models.CharField(max_length=200)
+    partner_signatory = models.CharField(max_length=200)
+    
+    # Documents
+    mou_document = models.FileField(upload_to='mous/')
+    
+    # Renewal tracking
+    renewal_notice_sent = models.BooleanField(default=False)
+    renewal_date = models.DateField(null=True, blank=True)
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.mou_number} - {self.title[:50]}"
+
+    class Meta:
+        db_table = 'mous'
+        ordering = ['-signing_date']
+        verbose_name = 'MOU'
+        verbose_name_plural = 'MOUs'
+
+
+class CollaborativeProject(models.Model):
+    """Projects under partnerships"""
+    PROJECT_STATUS = (
+        ('planning', 'Planning'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('suspended', 'Suspended'),
+    )
+    
+    partnership = models.ForeignKey(Partnership, on_delete=models.CASCADE,
+                                   related_name='projects')
+    
+    title = models.CharField(max_length=500)
+    description = models.TextField()
+    objectives = models.TextField()
+    
+    # Team
+    project_leader = models.ForeignKey('Lecturer', on_delete=models.SET_NULL, null=True,
+                                      related_name='collaborative_projects_led')
+    team_members = models.ManyToManyField('Lecturer', related_name='collaborative_projects', blank=True)
+    
+    # Timeline
+    start_date = models.DateField()
+    end_date = models.DateField()
+    
+    # Budget
+    total_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    university_contribution = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    partner_contribution = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    # Outputs
+    publications = models.IntegerField(default=0)
+    students_trained = models.IntegerField(default=0)
+    
+    status = models.CharField(max_length=20, choices=PROJECT_STATUS, default='planning')
+    
+    # Reports
+    progress_report = models.TextField(blank=True)
+    final_report = models.FileField(upload_to='collaborative_projects/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title[:100]
+
+    class Meta:
+        db_table = 'collaborative_projects'
+        ordering = ['-start_date']
+
+
+class AlumniRelation(models.Model):
+    """Alumni engagement tracking"""
+    ENGAGEMENT_TYPE = (
+        ('mentorship', 'Mentorship Program'),
+        ('guest_lecture', 'Guest Lecture'),
+        ('sponsorship', 'Sponsorship'),
+        ('recruitment', 'Student Recruitment'),
+        ('donation', 'Donation'),
+        ('project_collaboration', 'Project Collaboration'),
+        ('internship', 'Internship Placement'),
+        ('other', 'Other'),
+    )
+    
+    programme = models.ForeignKey('Programme', on_delete=models.CASCADE,
+                                 related_name='alumni_relations')
+    
+    # Alumni details
+    alumni_name = models.CharField(max_length=200)
+    graduation_year = models.IntegerField()
+    current_organization = models.CharField(max_length=300, blank=True)
+    current_position = models.CharField(max_length=200, blank=True)
+    
+    # Engagement
+    engagement_type = models.CharField(max_length=30, choices=ENGAGEMENT_TYPE)
+    engagement_date = models.DateField()
+    description = models.TextField()
+    
+    # Impact
+    students_impacted = models.IntegerField(default=0)
+    contribution_value = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    
+    # Contact
+    email = models.EmailField(blank=True)
+    phone_number = models.CharField(max_length=20, blank=True)
+    
+    coordinated_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                      related_name='alumni_relations_coordinated')
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.alumni_name} - {self.engagement_type}"
+
+    class Meta:
+        db_table = 'alumni_relations'
+        ordering = ['-engagement_date']
+        
+        
+# ============= STRATEGIC PLANNING MODELS =============
+
+class StrategicGoal(models.Model):
+    """Strategic goals for schools"""
+    GOAL_CATEGORY = (
+        ('academic_excellence', 'Academic Excellence'),
+        ('research_innovation', 'Research & Innovation'),
+        ('student_experience', 'Student Experience'),
+        ('infrastructure', 'Infrastructure Development'),
+        ('partnerships', 'Partnerships & Linkages'),
+        ('financial_sustainability', 'Financial Sustainability'),
+        ('quality_assurance', 'Quality Assurance'),
+    )
+    
+    GOAL_STATUS = (
+        ('draft', 'Draft'),
+        ('active', 'Active'),
+        ('achieved', 'Achieved'),
+        ('delayed', 'Delayed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='strategic_goals')
+    
+    category = models.CharField(max_length=30, choices=GOAL_CATEGORY)
+    title = models.CharField(max_length=500)
+    description = models.TextField()
+    
+    # Timeline
+    start_year = models.ForeignKey('AcademicYear', on_delete=models.PROTECT,
+                                  related_name='goals_starting')
+    target_year = models.ForeignKey('AcademicYear', on_delete=models.PROTECT,
+                                   related_name='goals_targeting')
+    
+    # Targets
+    target_metric = models.CharField(max_length=200)
+    baseline_value = models.DecimalField(max_digits=10, decimal_places=2)
+    target_value = models.DecimalField(max_digits=10, decimal_places=2)
+    current_value = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    
+    # Progress
+    progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    
+    # Responsibility
+    champion = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                related_name='strategic_goals_championed')
+    
+    status = models.CharField(max_length=20, choices=GOAL_STATUS, default='active')
+    
+    # Budget
+    estimated_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.school.code} - {self.title[:50]}"
+
+    class Meta:
+        db_table = 'strategic_goals'
+        ordering = ['category', 'start_year']
+
+
+class PerformanceIndicator(models.Model):
+    """Key Performance Indicators for strategic goals"""
+    INDICATOR_TYPE = (
+        ('quantitative', 'Quantitative'),
+        ('qualitative', 'Qualitative'),
+    )
+    
+    strategic_goal = models.ForeignKey(StrategicGoal, on_delete=models.CASCADE,
+                                      related_name='indicators')
+    
+    indicator_code = models.CharField(max_length=20)
+    indicator_name = models.CharField(max_length=300)
+    description = models.TextField()
+    indicator_type = models.CharField(max_length=20, choices=INDICATOR_TYPE)
+    
+    # Measurement
+    unit_of_measure = models.CharField(max_length=50)
+    baseline_year = models.ForeignKey('AcademicYear', on_delete=models.PROTECT,
+                                     related_name='indicators_baseline')
+    baseline_value = models.DecimalField(max_digits=10, decimal_places=2)
+    target_value = models.DecimalField(max_digits=10, decimal_places=2)
+    current_value = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    achievement_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    
+    # Data collection
+    data_source = models.CharField(max_length=200)
+    collection_frequency = models.CharField(max_length=100)
+    responsible_person = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                          related_name='indicators_managed')
+    
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate achievement percentage
+        if self.target_value > 0:
+            self.achievement_percentage = (self.current_value / self.target_value) * 100
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.indicator_code} - {self.indicator_name}"
+
+    class Meta:
+        db_table = 'performance_indicators'
+        ordering = ['indicator_code']
+
+
+class AnnualPlan(models.Model):
+    """Annual implementation plans"""
+    PLAN_STATUS = (
+        ('draft', 'Draft'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('rolled_over', 'Rolled Over'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='annual_plans')
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE,
+                                     related_name='annual_plans')
+    
+    title = models.CharField(max_length=300)
+    description = models.TextField()
+    
+    # Priorities
+    key_priorities = models.TextField()
+    
+    # Budget
+    total_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    allocated_budget = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    status = models.CharField(max_length=20, choices=PLAN_STATUS, default='draft')
+    
+    # Approval
+    prepared_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                   related_name='annual_plans_prepared')
+    approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='annual_plans_approved')
+    approval_date = models.DateField(null=True, blank=True)
+    
+    plan_document = models.FileField(upload_to='annual_plans/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.school.code} - {self.academic_year.name}"
+
+    class Meta:
+        db_table = 'annual_plans'
+        unique_together = ('school', 'academic_year')
+        ordering = ['-academic_year__start_date']
+
+
+class AnnualPlanActivity(models.Model):
+    """Activities under annual plans"""
+    ACTIVITY_STATUS = (
+        ('not_started', 'Not Started'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('delayed', 'Delayed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    annual_plan = models.ForeignKey(AnnualPlan, on_delete=models.CASCADE,
+                                   related_name='activities')
+    strategic_goal = models.ForeignKey(StrategicGoal, on_delete=models.SET_NULL,
+                                      null=True, blank=True, related_name='activities')
+    
+    activity_code = models.CharField(max_length=20)
+    activity_name = models.CharField(max_length=300)
+    description = models.TextField()
+    
+    # Timeline
+    start_date = models.DateField()
+    end_date = models.DateField()
+    
+    # Resources
+    budget_allocated = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    budget_utilized = models.DecimalField(max_digits=12, decimal_places=2, default=Decimal('0.00'))
+    
+    # Responsibility
+    responsible_person = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                          related_name='activities_responsible')
+    
+    # Progress
+    status = models.CharField(max_length=20, choices=ACTIVITY_STATUS, default='not_started')
+    completion_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    
+    # Deliverables
+    expected_output = models.TextField()
+    actual_output = models.TextField(blank=True)
+    
+    remarks = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.activity_code} - {self.activity_name}"
+
+    class Meta:
+        db_table = 'annual_plan_activities'
+        ordering = ['annual_plan', 'activity_code']
+        verbose_name_plural = 'Annual Plan Activities'
+
+
+class ProgressReport(models.Model):
+    """Progress reports for plans and goals"""
+    REPORT_TYPE = (
+        ('quarterly', 'Quarterly Report'),
+        ('semi_annual', 'Semi-Annual Report'),
+        ('annual', 'Annual Report'),
+        ('project', 'Project Report'),
+    )
+    
+    REPORT_STATUS = (
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('reviewed', 'Reviewed'),
+        ('published', 'Published'),
+    )
+    
+    school = models.ForeignKey('School', on_delete=models.CASCADE, related_name='progress_reports')
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE,
+                                     related_name='progress_reports')
+    annual_plan = models.ForeignKey(AnnualPlan, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='progress_reports')
+    
+    report_type = models.CharField(max_length=20, choices=REPORT_TYPE)
+    title = models.CharField(max_length=300)
+    
+    # Reporting period
+    reporting_period_start = models.DateField()
+    reporting_period_end = models.DateField()
+    
+    # Content
+    executive_summary = models.TextField()
+    achievements = models.TextField()
+    challenges = models.TextField()
+    recommendations = models.TextField()
+    
+    # Metrics
+    overall_progress_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    budget_utilization_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    
+    status = models.CharField(max_length=20, choices=REPORT_STATUS, default='draft')
+    
+    # Workflow
+    prepared_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True,
+                                   related_name='reports_prepared')
+    reviewed_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='reports_reviewed')
+    published_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                    related_name='reports_published')
+    published_date = models.DateTimeField(null=True, blank=True)
+    
+    report_document = models.FileField(upload_to='progress_reports/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} - {self.reporting_period_end}"
+
+    class Meta:
+        db_table = 'progress_reports'
+        ordering = ['-reporting_period_end']
+
+
+class DeanApproval(models.Model):
+    """Track items requiring dean approval"""
+    APPROVAL_TYPE = (
+        ('budget', 'Budget Approval'),
+        ('recruitment', 'Staff Recruitment'),
+        ('procurement', 'Procurement'),
+        ('research_grant', 'Research Grant'),
+        ('partnership', 'Partnership Agreement'),
+        ('programme_change', 'Programme Change'),
+        ('other', 'Other'),
+    )
+    
+    PRIORITY = (
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    )
+    
+    APPROVAL_STATUS = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejecte'),
+        ('deferred', 'Deferred'),
+        )
+    department = models.ForeignKey('Department', on_delete=models.CASCADE,
+                              related_name='dean_approvals')
+    approval_type = models.CharField(max_length=20, choices=APPROVAL_TYPE)
+
+    title = models.CharField(max_length=300)
+    description = models.TextField()
+
+    priority = models.CharField(max_length=10, choices=PRIORITY, default='medium')
+
+    # Request details
+    requested_by = models.ForeignKey('User', on_delete=models.CASCADE,
+                                    related_name='approval_requests')
+    request_date = models.DateTimeField(auto_now_add=True)
+
+    # Supporting documents
+    supporting_document = models.FileField(upload_to='dean_approvals/', null=True, blank=True)
+
+    # Approval
+    status = models.CharField(max_length=20, choices=APPROVAL_STATUS, default='pending')
+    approved_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True,
+                                related_name='dean_approvals_made')
+    decision_date = models.DateTimeField(null=True, blank=True)
+    decision_notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.approval_type} - {self.title[:50]}"
+
+    class Meta:
+        db_table = 'dean_approvals'
+        ordering = ['-request_date']
