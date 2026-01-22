@@ -1,0 +1,1019 @@
+{% extends 'dean/dean_base.html' %}
+{% load static %}
+
+{% block title %}Dean Dashboard - {{ school.name }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">{{ school.name }} - Dean Dashboard</h1>
+                <p class="text-muted mb-0">Welcome back, <span class="fw-medium">{{ user.get_full_name|default:user.username }}</span></p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_academic_year.name }} • {{ current_semester.name }}
+                </div>
+                <p class="small text-muted mt-2">Last login: {% now "F j, Y, g:i a" %}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-user-line text-primary"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_students|default:0 }}</h3>
+                        <p class="metric-label mb-0">Total Students</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-arrow-up-line text-success me-1"></i>
+                    <span class="small text-muted">Active enrollments</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-team-line text-success"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_lecturers|default:0 }}</h3>
+                        <p class="metric-label mb-0">Academic Staff</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Teaching faculty</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-book-open-line text-warning"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_programmes|default:0 }}</h3>
+                        <p class="metric-label mb-0">Active Programmes</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-info me-1"></i>
+                    <span class="small text-muted">All levels</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-trophy-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ avg_school_gpa|default:0 }}</h3>
+                        <p class="metric-label mb-0">Average School GPA</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-star-line text-success me-1"></i>
+                    <span class="small text-muted">Overall performance</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <div class="row g-4 mb-5">
+        <!-- Enrollment Trends -->
+        <div class="col-xl-8">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Student Enrollment Trends</h5>
+                    <div class="card-subtitle">Monthly admissions over the last 12 months</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="enrollmentTrendsChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gender Distribution -->
+        <div class="col-xl-4">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Gender Distribution</h5>
+                    <div class="card-subtitle">Student demographics</div>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="genderChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department & Programme Performance -->
+    <div class="row g-4 mb-5">
+        <!-- Department Ranking -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Department Performance Ranking</h5>
+                    <div class="card-subtitle">By average GPA</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ranking-list">
+                        {% for dept in dept_performance %}
+                        <div class="ranking-item">
+                            <div class="rank-number">{{ forloop.counter }}</div>
+                            <div class="rank-info">
+                                <h6 class="mb-0">{{ dept.department.name }}</h6>
+                                <small class="text-muted">{{ dept.department.code }} • {{ dept.student_count }} students</small>
+                            </div>
+                            <div class="rank-score">
+                                <span class="badge bg-primary rounded-pill px-3 py-1">{{ dept.avg_gpa }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No department data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Programme Ranking -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Top Programmes by Performance</h5>
+                    <div class="card-subtitle">Highest average GPA</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ranking-list">
+                        {% for prog in programme_performance %}
+                        <div class="ranking-item">
+                            <div class="rank-number">{{ forloop.counter }}</div>
+                            <div class="rank-info">
+                                <h6 class="mb-0">{{ prog.programme.name }}</h6>
+                                <small class="text-muted">{{ prog.programme.code }} • {{ prog.student_count }} students</small>
+                            </div>
+                            <div class="rank-score">
+                                <span class="badge bg-success rounded-pill px-3 py-1">{{ prog.avg_gpa }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No programme data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Performance -->
+    <div class="row g-4 mb-5">
+        <!-- Top Students -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Top 10 Performing Students</h5>
+                    <div class="card-subtitle">Highest cumulative GPA</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ranking-list">
+                        {% for student in top_students %}
+                        <div class="ranking-item">
+                            <div class="rank-number">{{ forloop.counter }}</div>
+                            <div class="rank-info">
+                                <h6 class="mb-0">{{ student.user.get_full_name }}</h6>
+                                <small class="text-muted">{{ student.registration_number }} • {{ student.programme.code }}</small>
+                            </div>
+                            <div class="rank-score">
+                                <span class="badge bg-primary rounded-pill px-3 py-1">{{ student.cumulative_gpa }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No student data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Year Distribution -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Year of Study Distribution</h5>
+                    <div class="card-subtitle">{{ current_academic_year.name }}</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="yearDistributionChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unit Performance Analysis -->
+    <div class="row g-4 mb-5">
+        <!-- Top Performing Units -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Top 5 Performing Units</h5>
+                    <div class="card-subtitle">Highest average marks - {{ current_semester.name }}</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="unit-performance-list">
+                        {% for unit in top_5_units %}
+                        <div class="unit-item">
+                            <div class="unit-info">
+                                <h6 class="mb-1">{{ unit.code }} - {{ unit.name|truncatechars:40 }}</h6>
+                                <div class="unit-stats">
+                                    <span class="badge bg-success-subtle text-success me-2">
+                                        <i class="ri-percent-line"></i> {{ unit.pass_rate }}% Pass Rate
+                                    </span>
+                                    <span class="badge bg-info-subtle text-info">
+                                        <i class="ri-user-line"></i> {{ unit.student_count }} Students
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="unit-score">
+                                <div class="score-circle bg-success-subtle text-success">
+                                    {{ unit.avg_marks }}%
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No unit data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Performing Units -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Bottom 5 Performing Units</h5>
+                    <div class="card-subtitle">Need attention - {{ current_semester.name }}</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="unit-performance-list">
+                        {% for unit in bottom_5_units %}
+                        <div class="unit-item">
+                            <div class="unit-info">
+                                <h6 class="mb-1">{{ unit.code }} - {{ unit.name|truncatechars:40 }}</h6>
+                                <div class="unit-stats">
+                                    <span class="badge bg-danger-subtle text-danger me-2">
+                                        <i class="ri-percent-line"></i> {{ unit.pass_rate }}% Pass Rate
+                                    </span>
+                                    <span class="badge bg-info-subtle text-info">
+                                        <i class="ri-user-line"></i> {{ unit.student_count }} Students
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="unit-score">
+                                <div class="score-circle bg-danger-subtle text-danger">
+                                    {{ unit.avg_marks }}%
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <p class="text-muted mb-0">No unit data available</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Comparison & Programme Types -->
+    <div class="row g-4 mb-5">
+        <!-- Radar Chart - Department Comparison -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Department Comparison</h5>
+                    <div class="card-subtitle">Multi-metric analysis</div>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="departmentRadarChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Programme Types Distribution -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Programme Type Distribution</h5>
+                    <div class="card-subtitle">By qualification level</div>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="programmeTypeChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance & Reporting Trends -->
+    <div class="row g-4 mb-5">
+        <!-- Academic Performance Trends -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Academic Performance Trends</h5>
+                    <div class="card-subtitle">Average GPA over last 5 semesters</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="performanceTrendsChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Semester Reporting Status -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Semester Reporting Status</h5>
+                    <div class="card-subtitle">{{ current_semester.name }}</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="reportingStatusChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fee Payment Analysis -->
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Fee Collection Analysis</h5>
+                    <div class="card-subtitle">Expected vs actual collection over semesters</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="feePaymentChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Ranking List */
+    .ranking-list {
+        padding: 0.5rem 0;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        padding: 0.875rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s ease;
+    }
+    
+    .ranking-item:last-child {
+        border-bottom: none;
+    }
+    
+    .ranking-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    .rank-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-success));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+        margin-right: 1rem;
+    }
+    
+    .rank-info {
+        flex: 1;
+    }
+    
+    .rank-info h6 {
+        font-size: 0.9375rem;
+        font-weight: 500;
+    }
+    
+    .rank-score .badge {
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+    
+    /* Unit Performance */
+    .unit-performance-list {
+        padding: 0.5rem 0;
+    }
+    
+    .unit-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s ease;
+    }
+    
+    .unit-item:last-child {
+        border-bottom: none;
+    }
+    
+    .unit-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    .unit-info {
+        flex: 1;
+    }
+    
+    .unit-info h6 {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+    
+    .unit-stats {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .unit-stats .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .score-circle {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#6c757d';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 6;
+    
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info: '#2196F3',
+        danger: '#F44336',
+        purple: '#9C27B0',
+        teal: '#009688',
+        male: '#2196F3',
+        female: '#E91E63',
+        other: '#9C27B0'
+    };
+    
+    // Chart 1: Enrollment Trends
+    const enrollmentCtx = document.getElementById('enrollmentTrendsChart');
+    if (enrollmentCtx) {
+        new Chart(enrollmentCtx, {
+            type: 'line',
+            data: {
+                labels: {{ enrollment_labels|safe }},
+                datasets: [{
+                    label: 'New Enrollments',
+                    data: {{ enrollment_counts|safe }},
+                    borderColor: colors.primary,
+                    backgroundColor: 'rgba(46, 125, 50, 0.05)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: colors.primary,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 2: Gender Distribution
+    const genderCtx = document.getElementById('genderChart');
+    if (genderCtx) {
+        new Chart(genderCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ gender_labels|safe }},
+                datasets: [{
+                    data: {{ gender_counts|safe }},
+                    backgroundColor: [colors.male, colors.female, colors.other],
+                    borderWidth: 3,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 20 }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 3: Year Distribution
+    const yearCtx = document.getElementById('yearDistributionChart');
+    if (yearCtx) {
+        new Chart(yearCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ year_labels|safe }},
+                datasets: [{
+                    data: {{ year_counts|safe }},
+                    backgroundColor: colors.primary,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 4: Department Radar
+    const radarCtx = document.getElementById('departmentRadarChart');
+    if (radarCtx) {
+        new Chart(radarCtx, {
+            type: 'radar',
+            data: {
+                labels: {{ radar_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Avg GPA',
+                        data: {{ dept_gpas|safe }},
+                        borderColor: colors.primary,
+                        backgroundColor: 'rgba(46, 125, 50, 0.2)',
+                        borderWidth: 2,
+                        pointBackgroundColor: colors.primary,
+                        pointBorderColor: '#fff',
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Student Count (Normalized)',
+                        data: {{ dept_student_counts|safe }},
+                        borderColor: colors.info,
+                        backgroundColor: 'rgba(33, 150, 243, 0.2)',
+                        borderWidth: 2,
+                        pointBackgroundColor: colors.info,
+                        pointBorderColor: '#fff',
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 4,
+                        ticks: { stepSize: 1 }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15 }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 5: Programme Type
+    const progTypeCtx = document.getElementById('programmeTypeChart');
+    if (progTypeCtx) {
+        new Chart(progTypeCtx, {
+            type: 'pie',
+            data: {
+                labels: {{ programme_type_labels|safe }},
+                datasets: [{
+                    data: {{ programme_type_counts|safe }},
+                    backgroundColor: [
+                        colors.primary,
+                        colors.info,
+                        colors.warning,
+                        colors.success,
+                        colors.purple
+                    ],
+                    borderWidth: 3,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { padding: 15 }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 6: Performance Trends
+    const perfCtx = document.getElementById('performanceTrendsChart');
+    if (perfCtx) {
+        new Chart(perfCtx, {
+            type: 'line',
+            data: {
+                labels: {{ performance_labels|safe }},
+                datasets: [{
+                    label: 'Average GPA',
+                    data: {{ performance_data|safe }},
+                    borderColor: colors.success,
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: colors.success,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 4,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 7: Reporting Status
+    const reportCtx = document.getElementById('reportingStatusChart');
+    if (reportCtx) {
+        new Chart(reportCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ reporting_labels|safe }},
+                datasets: [{
+                    data: {{ reporting_counts|safe }},
+                    backgroundColor: [
+                        colors.warning,
+                        colors.success,
+                        colors.danger,
+                        colors.info
+                    ],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 8: Fee Payment
+    const feeCtx = document.getElementById('feePaymentChart');
+    if (feeCtx) {
+        new Chart(feeCtx, {
+            type: 'bar',
+            data: {
+                labels: {{ fee_labels|safe }},
+                datasets: [
+                    {
+                        type: 'line',
+                        label: 'Collection Rate (%)',
+                        data: {{ fee_percentages|safe }},
+                        borderColor: colors.success,
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        tension: 0.3,
+                        yAxisID: 'y1',
+                        pointBackgroundColor: colors.success,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5
+                    },
+                    {
+                        label: 'Expected Revenue',
+                        data: {{ fee_expected|safe }},
+                        backgroundColor: 'rgba(33, 150, 243, 0.3)',
+                        borderColor: colors.info,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Actual Collection',
+                        data: {{ fee_paid|safe }},
+                        backgroundColor: colors.success,
+                        borderColor: colors.success,
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        borderRadius: 6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        position: 'left',
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                            callback: function(value) {
+                                return 'Ksh ' + (value / 1000000).toFixed(1) + 'M';
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        position: 'right',
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { drawOnChartArea: false },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: { padding: 16 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    if (context.datasetIndex === 0) {
+                                        label += context.parsed.y.toFixed(2) + '%';
+                                    } else {
+                                        label += 'Ksh ' + (context.parsed.y / 1000000).toFixed(2) + 'M';
+                                    }
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
