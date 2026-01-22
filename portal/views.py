@@ -16214,15 +16214,14 @@ def academic_staff(request):
 @login_required
 def staff_detail(request, lecturer_id):
     """Staff member detail view"""
-    
+
     # Get dean's school
     try:
-        dean_profile = request.user
-        school = School.objects.get(dean=dean_profile)
+        school = School.objects.get(dean=request.user)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
         return redirect('dean_dashboard')
-    
+
     # Get lecturer
     lecturer = get_object_or_404(
         Lecturer,
@@ -16230,36 +16229,43 @@ def staff_detail(request, lecturer_id):
         department__school=school,
         is_active=True
     )
-    
+
     # Get current semester
     current_semester = Semester.objects.filter(is_current=True).first()
-    
-    # Get current unit allocations
+
+    # Current unit allocations
     if current_semester:
         unit_allocations = UnitAllocation.objects.filter(
-            lecturer=lecturer,
+            lecturer=lecturer.user,   # ✅ FIX
             semester=current_semester
         ).select_related(
             'programme_unit__unit',
             'programme_unit__programme'
-        ).order_by('programme_unit__programme__name')
+        ).order_by(
+            'programme_unit__programme__name'
+        )
     else:
-        unit_allocations = []
-    
-    # Get teaching history (last 3 semesters)
+        unit_allocations = UnitAllocation.objects.none()
+
+    # Teaching history
     teaching_history = UnitAllocation.objects.filter(
-        lecturer=lecturer
+        lecturer=lecturer.user      # ✅ FIX
     ).select_related(
         'semester',
         'programme_unit__unit'
-    ).order_by('-semester__start_date')[:20]
-    
+    ).order_by(
+        '-semester__start_date'
+    )[:20]
+
     # Statistics
-    total_units_current = len(unit_allocations)
+    total_units_current = unit_allocations.count()
+
     total_units_all_time = UnitAllocation.objects.filter(
-        lecturer=lecturer
-    ).values('programme_unit__unit').distinct().count()
-    
+        lecturer=lecturer.user      # ✅ FIX
+    ).values(
+        'programme_unit__unit'
+    ).distinct().count()
+
     context = {
         'page_title': f'{lecturer.user.get_full_name()} - Staff Profile',
         'school': school,
@@ -16270,9 +16276,12 @@ def staff_detail(request, lecturer_id):
         'total_units_current': total_units_current,
         'total_units_all_time': total_units_all_time,
     }
-    
-    return render(request, 'dean/school_overview/staff_detail.html', context)
 
+    return render(
+        request,
+        'dean/school_overview/staff_detail.html',
+        context
+    )
 
 # ==================== STUDENT POPULATION ====================
 

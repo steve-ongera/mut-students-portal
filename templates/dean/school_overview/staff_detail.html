@@ -1,59 +1,933 @@
-﻿<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Profile - Dean Portal</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="../../static/css/dean.css">
-</head>
-<body>
-    <!-- Navigation will be included via template inheritance -->
-    
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar will be included -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">Staff Profile</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <!-- Page-specific actions will go here -->
+﻿{% extends 'dean/dean_base.html' %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{{ lecturer.user.get_full_name }} - Staff Profile{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block page_title %}{{ lecturer.user.get_full_name }}{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+        <i class="bi bi-download"></i> Export
+    </button>
+    <ul class="dropdown-menu">
+        <li><a class="dropdown-item" href="#"><i class="bi bi-file-pdf"></i> Profile PDF</a></li>
+        <li><a class="dropdown-item" href="#"><i class="bi bi-file-excel"></i> Teaching History</a></li>
+        <li><a class="dropdown-item" href="#"><i class="bi bi-printer"></i> Print</a></li>
+    </ul>
+    <button type="button" class="btn btn-primary">
+        <i class="bi bi-pencil"></i> Edit Profile
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Staff Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">{{ lecturer.user.get_full_name }}</h1>
+                <p class="text-muted mb-0">{{ lecturer.get_designation_display }} • {{ lecturer.department.name }}</p>
+            </div>
+            <div class="text-end">
+                {% if current_semester %}
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester.name }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-lg-6">
+            <div class="designation-card">
+                <div class="designation-icon bg-primary-subtle text-primary">
+                    <i class="ri-book-line"></i>
+                </div>
+                <div class="designation-info">
+                    <div class="designation-count fw-bold text-primary">{{ total_units_current }}</div>
+                    <div class="designation-name small">Current Units</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6">
+            <div class="designation-card">
+                <div class="designation-icon bg-success-subtle text-success">
+                    <i class="ri-history-line"></i>
+                </div>
+                <div class="designation-info">
+                    <div class="designation-count fw-bold text-success">{{ total_units_all_time }}</div>
+                    <div class="designation-name small">Total Units</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6">
+            <div class="designation-card">
+                <div class="designation-icon bg-info-subtle text-info">
+                    <i class="ri-user-star-line"></i>
+                </div>
+                <div class="designation-info">
+                    <div class="designation-count fw-bold text-info">
+                        {{ lecturer.get_designation_display|truncatechars:15 }}
+                    </div>
+                    <div class="designation-name small">Designation</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-lg-6">
+            <div class="designation-card">
+                <div class="designation-icon bg-warning-subtle text-warning">
+                    <i class="ri-calendar-line"></i>
+                </div>
+                <div class="designation-info">
+                    <div class="designation-count fw-bold text-warning">{{ lecturer.hire_date|date:"Y" }}</div>
+                    <div class="designation-name small">Years of Service</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row g-4 mb-5">
+        <!-- Left Column: Profile Info -->
+        <div class="col-xl-4">
+            <div class="staff-card">
+                <div class="staff-header">
+                    <!-- Avatar -->
+                    <div class="staff-avatar mb-3">
+                        {% if lecturer.user.profile_picture %}
+                        <img src="{{ lecturer.user.profile_picture.url }}" 
+                             alt="{{ lecturer.user.get_full_name }}" 
+                             class="avatar-img">
+                        {% else %}
+                        <div class="avatar-placeholder bg-primary-subtle text-primary">
+                            {{ lecturer.user.get_full_name|first|upper }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="staff-badges">
+                        <span class="badge bg-success-subtle text-success rounded-pill">
+                            {{ lecturer.department.name }}
+                        </span>
+                        {% if lecturer.is_active %}
+                        <span class="badge bg-success rounded-pill">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger rounded-pill">Inactive</span>
+                        {% endif %}
                     </div>
                 </div>
                 
-                <!-- Page content will go here -->
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i> 
-                    Staff Profile page is under development. Content will be loaded dynamically.
-                </div>
-                
-                <!-- Placeholder for dynamic content -->
-                <div class="row">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5 class="card-title mb-0">School Overview</h5>
+                <div class="staff-body">
+                    <h5 class="staff-name mb-2">{{ lecturer.user.get_full_name }}</h5>
+                    <p class="text-muted small mb-3">{{ lecturer.get_designation_display }}</p>
+                    
+                    <!-- Contact Info -->
+                    <div class="staff-info">
+                        <div class="info-row">
+                            <span class="text-muted small">Employee No:</span>
+                            <span class="fw-medium">{{ lecturer.employee_number }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="text-muted small">Email:</span>
+                            <span class="fw-medium">
+                                <a href="mailto:{{ lecturer.user.email }}" class="text-decoration-none">
+                                    {{ lecturer.user.email }}
+                                </a>
+                            </span>
+                        </div>
+                        {% if lecturer.user.phone_number %}
+                        <div class="info-row">
+                            <span class="text-muted small">Phone:</span>
+                            <span class="fw-medium">{{ lecturer.user.phone_number }}</span>
+                        </div>
+                        {% endif %}
+                        {% if lecturer.office_location %}
+                        <div class="info-row">
+                            <span class="text-muted small">Office:</span>
+                            <span class="fw-medium">{{ lecturer.office_location }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="text-muted small">Qualification:</span>
+                            <span class="fw-medium">{{ lecturer.qualification }}</span>
+                        </div>
+                        {% if lecturer.specialization %}
+                        <div class="info-row">
+                            <span class="text-muted small">Specialization:</span>
+                            <span class="fw-medium">{{ lecturer.specialization }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Quick Stats -->
+                    <div class="row g-2 mt-3">
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-value text-primary fw-bold">{{ total_units_current }}</div>
+                                <div class="stat-label small text-muted">Current Units</div>
                             </div>
-                            <div class="card-body">
-                                <p class="card-text">
-                                    This page will display Staff Profile information.
-                                    Data will be populated from the Django backend.
-                                </p>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-card">
+                                <div class="stat-value text-success fw-bold">{{ total_units_all_time }}</div>
+                                <div class="stat-label small text-muted">Total Units</div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </main>
+                
+                <div class="staff-footer">
+                    <button class="btn btn-primary w-100">
+                        <i class="ri-mail-line me-2"></i> Send Message
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Professional Details -->
+        <div class="col-xl-8">
+            <!-- Professional Information -->
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Professional Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Employee Number:</span>
+                                <span class="fw-medium">{{ lecturer.employee_number }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Qualification:</span>
+                                <span class="fw-medium">{{ lecturer.qualification }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Specialization:</span>
+                                <span class="fw-medium">{{ lecturer.specialization|default:"Not specified" }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <span class="text-muted small">Hire Date:</span>
+                                <span class="fw-medium">{{ lecturer.hire_date|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="text-muted small">Contract End:</span>
+                                <span class="fw-medium">
+                                    {% if lecturer.contract_end_date %}
+                                    {{ lecturer.contract_end_date|date:"M d, Y" }}
+                                    {% else %}
+                                    Permanent
+                                    {% endif %}
+                                </span>
+                            </div>
+                            {% if lecturer.consultation_hours %}
+                            <div class="info-row">
+                                <span class="text-muted small">Consultation Hours:</span>
+                                <span class="fw-medium">{{ lecturer.consultation_hours }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Current Unit Allocations -->
+            {% if current_semester and unit_allocations %}
+            <div class="analytics-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Current Semester Teaching Load</h5>
+                    <div class="card-subtitle">{{ current_semester.name }} ({{ total_units_current }} units)</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="units-list">
+                        {% for allocation in unit_allocations %}
+                        <div class="unit-item">
+                            <div class="unit-info">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ allocation.programme_unit.unit.code }} - {{ allocation.programme_unit.unit.name }}</h6>
+                                        <small class="text-muted">
+                                            {{ allocation.programme_unit.programme.name }} • Year {{ allocation.programme_unit.year_of_study }} Sem {{ allocation.programme_unit.semester_number }}
+                                        </small>
+                                    </div>
+                                    <span class="badge bg-primary-subtle text-primary">
+                                        {{ allocation.programme_unit.unit.credit_hours }} Credits
+                                    </span>
+                                </div>
+                                {% if allocation.status %}
+                                <div class="unit-status mt-2">
+                                    <span class="badge bg-{% if allocation.status == 'approved_dean' %}success{% else %}warning{% endif %}-subtle text-{% if allocation.status == 'approved_dean' %}success{% else %}warning{% endif %} rounded-pill">
+                                        {{ allocation.get_status_display }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% elif current_semester %}
+            <div class="analytics-card mb-4">
+                <div class="card-body text-center py-5">
+                    <i class="ri-book-line display-1 text-muted mb-3"></i>
+                    <h5 class="mb-3">No Current Teaching Load</h5>
+                    <p class="text-muted mb-0">{{ lecturer.user.get_full_name }} is not assigned to any units for {{ current_semester.name }}</p>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
+
+    <!-- Teaching History with DataTables Pagination -->
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Teaching History</h5>
+                    <div class="card-subtitle">Complete unit allocation history</div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="teachingHistoryTable" class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Semester</th>
+                                    <th>Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>Programme</th>
+                                    <th>Year/Sem</th>
+                                    <th>Credits</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allocation in teaching_history %}
+                                <tr>
+                                    <td class="fw-medium">{{ allocation.semester.name }}</td>
+                                    <td>{{ allocation.programme_unit.unit.code }}</td>
+                                    <td>{{ allocation.programme_unit.unit.name }}</td>
+                                    <td>{{ allocation.programme_unit.programme.code }}</td>
+                                    <td>Y{{ allocation.programme_unit.year_of_study }} S{{ allocation.programme_unit.semester_number }}</td>
+                                    <td>{{ allocation.programme_unit.unit.credit_hours }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if allocation.status == 'approved_dean' %}success{% else %}warning{% endif %}-subtle text-{% if allocation.status == 'approved_dean' %}success{% else %}warning{% endif %} rounded-pill">
+                                            {{ allocation.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="#" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Staff Management</h5>
+                    <div class="card-subtitle">Quick actions for {{ lecturer.user.get_full_name }}</div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="#" class="designation-card text-decoration-none">
+                                <div class="designation-icon bg-primary-subtle text-primary">
+                                    <i class="ri-calendar-line"></i>
+                                </div>
+                                <div class="designation-info">
+                                    <div class="designation-name">Timetable</div>
+                                    <div class="designation-count small">View schedule</div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="#" class="designation-card text-decoration-none">
+                                <div class="designation-icon bg-success-subtle text-success">
+                                    <i class="ri-book-line"></i>
+                                </div>
+                                <div class="designation-info">
+                                    <div class="designation-name">Units</div>
+                                    <div class="designation-count small">Manage teaching</div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="#" class="designation-card text-decoration-none" data-bs-toggle="modal" data-bs-target="#performanceModal">
+                                <div class="designation-icon bg-info-subtle text-info">
+                                    <i class="ri-line-chart-line"></i>
+                                </div>
+                                <div class="designation-info">
+                                    <div class="designation-name">Performance</div>
+                                    <div class="designation-count small">View ratings</div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="#" class="designation-card text-decoration-none">
+                                <div class="designation-icon bg-warning-subtle text-warning">
+                                    <i class="ri-chat-3-line"></i>
+                                </div>
+                                <div class="designation-info">
+                                    <div class="designation-name">Feedback</div>
+                                    <div class="designation-count small">Student reviews</div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="#" class="designation-card text-decoration-none">
+                                <div class="designation-icon bg-danger-subtle text-danger">
+                                    <i class="ri-file-paper-line"></i>
+                                </div>
+                                <div class="designation-info">
+                                    <div class="designation-name">Reports</div>
+                                    <div class="designation-count small">Generate reports</div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-xl-2 col-lg-4 col-md-4 col-sm-6">
+                            <a href="#" class="designation-card text-decoration-none">
+                                <div class="designation-icon bg-dark-subtle text-dark">
+                                    <i class="ri-settings-3-line"></i>
+                                </div>
+                                <div class="designation-info">
+                                    <div class="designation-name">Settings</div>
+                                    <div class="designation-count small">Edit profile</div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Modal -->
+<div class="modal fade" id="performanceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Teaching Performance Analytics</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="text-center">
+                            <canvas id="performanceChart" height="250"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="fw-semibold mb-3">Key Metrics</h6>
+                        <div class="performance-metrics">
+                            <div class="metric-item mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Average Rating</span>
+                                    <span class="fw-bold text-success">4.2/5.0</span>
+                                </div>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: 84%"></div>
+                                </div>
+                            </div>
+                            <div class="metric-item mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Student Satisfaction</span>
+                                    <span class="fw-bold text-primary">92%</span>
+                                </div>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar bg-primary" style="width: 92%"></div>
+                                </div>
+                            </div>
+                            <div class="metric-item mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <span class="text-muted">Completion Rate</span>
+                                    <span class="fw-bold text-info">98%</span>
+                                </div>
+                                <div class="progress mt-1" style="height: 6px;">
+                                    <div class="progress-bar bg-info" style="width: 98%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include DataTables -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<style>
+    /* Base Styles from second HTML */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
     
-    <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Custom JS -->
-    <script src="../../static/js/dean.js"></script>
-</body>
-</html>
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Designation Cards */
+    .designation-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .designation-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+        text-decoration: none;
+        color: inherit;
+    }
+    
+    .designation-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .designation-info {
+        flex: 1;
+    }
+    
+    .designation-count {
+        font-size: 1.25rem;
+        line-height: 1;
+        font-weight: 600;
+    }
+    
+    .designation-name {
+        color: var(--color-gray-800);
+        font-weight: 500;
+        margin-top: 0.25rem;
+    }
+    
+    /* Staff Cards */
+    .staff-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        
+    }
+    
+    .staff-header {
+        padding: 1.5rem 1.5rem 0;
+        position: relative;
+    }
+    
+    .staff-avatar {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 1rem;
+    }
+    
+    .avatar-img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.5rem;
+        font-weight: 600;
+        border: 4px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .staff-badges {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .staff-body {
+        padding: 1rem 1.5rem;
+    }
+    
+    .staff-name {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        font-size: 1.25rem;
+        text-align: center;
+    }
+    
+    .staff-info {
+        margin-top: 1rem;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .staff-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    /* Units List */
+    .units-list .unit-item {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s;
+    }
+    
+    .units-list .unit-item:last-child {
+        border-bottom: none;
+    }
+    
+    .units-list .unit-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    /* Stat Cards */
+    .stat-card {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 0.75rem;
+        text-align: center;
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        margin-top: 0.25rem;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    .bg-dark-subtle { background-color: rgba(52, 58, 64, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+    
+    /* Table Styles */
+    #teachingHistoryTable {
+        width: 100%;
+    }
+    
+    .dataTables_wrapper {
+        margin-top: 1rem;
+    }
+    
+    .dataTables_paginate .paginate_button {
+        border: 1px solid var(--color-gray-200) !important;
+        border-radius: var(--radius-sm) !important;
+        margin-left: 2px !important;
+    }
+    
+    .dataTables_paginate .paginate_button.current {
+        background: var(--color-primary) !important;
+        border-color: var(--color-primary) !important;
+        color: white !important;
+    }
+    
+    /* Modal Styles */
+    .performance-metrics .metric-item {
+        background: var(--color-gray-100);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    @media (max-width: 768px) {
+        .staff-avatar {
+            width: 80px;
+            height: 80px;
+        }
+        
+        .avatar-placeholder {
+            font-size: 2rem;
+        }
+        
+        .designation-card {
+            padding: 0.75rem;
+        }
+        
+        .designation-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 1.25rem;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize DataTable for Teaching History
+        $('#teachingHistoryTable').DataTable({
+            pageLength: 10,
+            lengthMenu: [[5, 10, 25, 50, -1], [5, 10, 25, 50, "All"]],
+            language: {
+                search: "Search history:",
+                lengthMenu: "Show _MENU_ entries",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries",
+                paginate: {
+                    previous: '<i class="ri-arrow-left-s-line"></i>',
+                    next: '<i class="ri-arrow-right-s-line"></i>'
+                }
+            },
+            order: [[0, 'desc']],
+            responsive: true
+        });
+        
+        // Performance chart initialization
+        const ctx = document.getElementById('performanceChart');
+        if (ctx) {
+            const performanceData = {
+                labels: ['Teaching Quality', 'Student Engagement', 'Assessment Quality', 'Communication', 'Availability', 'Feedback'],
+                datasets: [{
+                    label: 'Performance Score',
+                    data: [4.5, 4.2, 4.0, 4.3, 4.1, 4.4],
+                    fill: true,
+                    backgroundColor: 'rgba(46, 125, 50, 0.2)',
+                    borderColor: 'rgb(46, 125, 50)',
+                    pointBackgroundColor: 'rgb(46, 125, 50)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(46, 125, 50)',
+                    tension: 0.4
+                }]
+            };
+            
+            new Chart(ctx.getContext('2d'), {
+                type: 'radar',
+                data: performanceData,
+                options: {
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            max: 5,
+                            ticks: {
+                                stepSize: 1,
+                                backdropColor: 'transparent'
+                            },
+                            pointLabels: {
+                                font: {
+                                    size: 11,
+                                    family: "'Inter', sans-serif"
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    elements: {
+                        line: {
+                            borderWidth: 2
+                        },
+                        point: {
+                            radius: 4,
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Export functionality
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                const icon = this.querySelector('i');
+                let type = 'Print';
+                let action = 'printing';
+                
+                if (icon.className.includes('pdf')) {
+                    type = 'PDF';
+                    action = 'generating PDF';
+                } else if (icon.className.includes('excel')) {
+                    type = 'Excel';
+                    action = 'exporting to Excel';
+                }
+                
+                // Show loading state
+                const originalText = this.innerHTML;
+                this.innerHTML = `<i class="ri-loader-4-line animate-spin me-2"></i> ${action}...`;
+                
+                // Simulate export process
+                setTimeout(() => {
+                    this.innerHTML = originalText;
+                    alert(`${type} export completed!`);
+                }, 1500);
+                
+                e.preventDefault();
+            });
+        });
+        
+        // Edit profile button
+        document.querySelector('.btn-primary[type="button"]').addEventListener('click', function() {
+            window.location.href = `#`;
+        });
+        
+        // Send message button
+        document.querySelector('.staff-footer .btn').addEventListener('click', function() {
+            const email = `{{ lecturer.user.email }}`;
+            window.location.href = `mailto:${email}?subject=Message from Dean Portal`;
+        });
+        
+        // Quick action cards hover effect
+        document.querySelectorAll('.designation-card[href="#"]').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (this.getAttribute('href') === '#') {
+                    e.preventDefault();
+                    const title = this.querySelector('.designation-name').textContent;
+                    alert(`${title} feature coming soon!`);
+                }
+            });
+        });
+        
+        // Add CSS for loading animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            .animate-spin {
+                animation: spin 1s linear infinite;
+                display: inline-block;
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+{% endblock %}
