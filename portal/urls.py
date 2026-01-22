@@ -386,8 +386,8 @@ urlpatterns = [
     
     # School Overview
     path('school-profile/', views.school_profile, name='school_profile'),
-    path('departments/', views.departments_list, name='departments_list'),
-    path('departments/<int:department_id>/', views.department_detail, name='department_detail'),
+    path('dean/departments/', views.departments_list, name='departments_list'),
+    path('dean/departments/<int:department_id>/', views.dean_department_detail, name='dean_department_detail'),
     path('academic-staff/', views.academic_staff, name='academic_staff'),
     path('academic-staff/<int:lecturer_id>/', views.staff_detail, name='staff_detail'),
     path('student-population/', views.student_population, name='student_population'),

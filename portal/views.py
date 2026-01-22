@@ -16027,7 +16027,7 @@ def departments_list(request):
 
 
 @login_required
-def department_detail(request, department_id):
+def dean_department_detail(request, department_id):
     """Department detail view with statistics"""
     
     # Get dean's school
