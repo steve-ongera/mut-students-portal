@@ -15847,3 +15847,1429 @@ def check_book_availability(request, book_id):
 
 # Add missing import
 from django.db.models import Sum
+
+# ==================== VIEWS.PY ====================
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Sum, Avg, Q, F, Max, Min
+from django.utils import timezone
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+
+# ==================== SCHOOL PROFILE ====================
+
+@login_required
+def school_profile(request):
+    """School profile and overview information"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current academic period
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get school statistics
+    total_departments = Department.objects.filter(school=school, is_active=True).count()
+    total_programmes = Programme.objects.filter(
+        department__school=school, 
+        is_active=True
+    ).count()
+    total_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).count()
+    total_lecturers = Lecturer.objects.filter(
+        department__school=school,
+        is_active=True
+    ).count()
+    
+    # Programme breakdown by type
+    programme_breakdown = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    ).values('programme_type').annotate(
+        count=Count('id')
+    ).order_by('programme_type')
+    
+    # Student breakdown by year
+    student_by_year = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).values('current_year').annotate(
+        count=Count('id')
+    ).order_by('current_year')
+    
+    # Recent activities
+    recent_activities = []
+    
+    # Recent student admissions
+    recent_admissions = Student.objects.filter(
+        programme__department__school=school,
+        admission_date__gte=timezone.now() - timedelta(days=30)
+    ).count()
+    
+    if recent_admissions > 0:
+        recent_activities.append({
+            'type': 'admission',
+            'title': f'{recent_admissions} New Student Admissions',
+            'description': 'In the last 30 days',
+            'date': timezone.now(),
+            'icon': 'ri-user-add-line',
+            'color': 'success'
+        })
+    
+    # Recent programme additions
+    recent_programmes = Programme.objects.filter(
+        department__school=school,
+        created_at__gte=timezone.now() - timedelta(days=90)
+    ).count()
+    
+    if recent_programmes > 0:
+        recent_activities.append({
+            'type': 'programme',
+            'title': f'{recent_programmes} New Programmes Added',
+            'description': 'In the last 90 days',
+            'date': timezone.now(),
+            'icon': 'ri-book-line',
+            'color': 'info'
+        })
+    
+    context = {
+        'page_title': 'School Profile',
+        'school': school,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'total_departments': total_departments,
+        'total_programmes': total_programmes,
+        'total_students': total_students,
+        'total_lecturers': total_lecturers,
+        'programme_breakdown': programme_breakdown,
+        'student_by_year': student_by_year,
+        'recent_activities': recent_activities,
+    }
+    
+    return render(request, 'dean/school_overview/school_profile.html', context)
+
+
+# ==================== DEPARTMENTS ====================
+
+@login_required
+def departments_list(request):
+    """List all departments in the school"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get all departments with related data
+    departments = Department.objects.filter(
+        school=school,
+        is_active=True
+    ).annotate(
+        student_count=Count(
+            'programmes__students',
+            filter=Q(programmes__students__student_status='active'),
+            distinct=True
+        ),
+        lecturer_count=Count(
+            'lecturers',
+            filter=Q(lecturers__is_active=True),
+            distinct=True
+        ),
+        programme_count=Count(
+            'programmes',
+            filter=Q(programmes__is_active=True),
+            distinct=True
+        ),
+        avg_gpa=Avg(
+            'programmes__students__cumulative_gpa',
+            filter=Q(programmes__students__student_status='active')
+        )
+    ).order_by('name')
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        departments = departments.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(departments, 10)
+    page_number = request.GET.get('page')
+    departments_page = paginator.get_page(page_number)
+    
+    context = {
+        'page_title': 'Departments',
+        'school': school,
+        'departments': departments_page,
+        'search_query': search_query,
+        'total_departments': departments.count(),
+    }
+    
+    return render(request, 'dean/school_overview/departments_list.html', context)
+
+
+@login_required
+def department_detail(request, department_id):
+    """Department detail view with statistics"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get department
+    department = get_object_or_404(
+        Department,
+        id=department_id,
+        school=school,
+        is_active=True
+    )
+    
+    # Get current academic period
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Department statistics
+    total_programmes = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).count()
+    
+    total_students = Student.objects.filter(
+        programme__department=department,
+        student_status='active'
+    ).count()
+    
+    total_lecturers = Lecturer.objects.filter(
+        department=department,
+        is_active=True
+    ).count()
+    
+    avg_gpa = Student.objects.filter(
+        programme__department=department,
+        student_status='active'
+    ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+    
+    # Get programmes with student count
+    programmes = Programme.objects.filter(
+        department=department,
+        is_active=True
+    ).annotate(
+        student_count=Count(
+            'students',
+            filter=Q(students__student_status='active')
+        )
+    ).order_by('name')
+    
+    # Get lecturers
+    lecturers = Lecturer.objects.filter(
+        department=department,
+        is_active=True
+    ).select_related('user').order_by('user__first_name')[:10]
+    
+    # Student distribution by year
+    students_by_year = Student.objects.filter(
+        programme__department=department,
+        student_status='active'
+    ).values('current_year').annotate(
+        count=Count('id')
+    ).order_by('current_year')
+    
+    # Gender distribution
+    students_by_gender = Student.objects.filter(
+        programme__department=department,
+        student_status='active'
+    ).values('gender').annotate(
+        count=Count('id')
+    )
+    
+    context = {
+        'page_title': f'{department.name} - Department Details',
+        'school': school,
+        'department': department,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'total_programmes': total_programmes,
+        'total_students': total_students,
+        'total_lecturers': total_lecturers,
+        'avg_gpa': round(avg_gpa, 2),
+        'programmes': programmes,
+        'lecturers': lecturers,
+        'students_by_year': students_by_year,
+        'students_by_gender': students_by_gender,
+    }
+    
+    return render(request, 'dean/school_overview/department_detail.html', context)
+
+
+# ==================== ACADEMIC STAFF ====================
+
+@login_required
+def academic_staff(request):
+    """List all academic staff in the school"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all lecturers with teaching load
+    lecturers = Lecturer.objects.filter(
+        department__school=school,
+        is_active=True
+    ).select_related('user', 'department').annotate(
+        unit_count=Count(
+            'unit_allocations',
+            filter=Q(unit_allocations__semester=current_semester),
+            distinct=True
+        ) if current_semester else Count('id') * 0
+    ).order_by('department__name', 'user__first_name')
+    
+    # Filter by department
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        lecturers = lecturers.filter(department_id=department_filter)
+    
+    # Filter by designation
+    designation_filter = request.GET.get('designation', '')
+    if designation_filter:
+        lecturers = lecturers.filter(designation=designation_filter)
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        lecturers = lecturers.filter(
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(employee_number__icontains=search_query) |
+            Q(department__name__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(lecturers, 20)
+    page_number = request.GET.get('page')
+    lecturers_page = paginator.get_page(page_number)
+    
+    # Get departments for filter
+    departments = Department.objects.filter(
+        school=school,
+        is_active=True
+    ).order_by('name')
+    
+    # Statistics
+    total_lecturers = lecturers.count()
+    lecturers_by_designation = Lecturer.objects.filter(
+        department__school=school,
+        is_active=True
+    ).values('designation').annotate(
+        count=Count('id')
+    ).order_by('designation')
+    
+    context = {
+        'page_title': 'Academic Staff',
+        'school': school,
+        'lecturers': lecturers_page,
+        'departments': departments,
+        'current_semester': current_semester,
+        'search_query': search_query,
+        'department_filter': department_filter,
+        'designation_filter': designation_filter,
+        'total_lecturers': total_lecturers,
+        'lecturers_by_designation': lecturers_by_designation,
+    }
+    
+    return render(request, 'dean/school_overview/academic_staff.html', context)
+
+
+@login_required
+def staff_detail(request, lecturer_id):
+    """Staff member detail view"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get lecturer
+    lecturer = get_object_or_404(
+        Lecturer,
+        id=lecturer_id,
+        department__school=school,
+        is_active=True
+    )
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get current unit allocations
+    if current_semester:
+        unit_allocations = UnitAllocation.objects.filter(
+            lecturer=lecturer,
+            semester=current_semester
+        ).select_related(
+            'programme_unit__unit',
+            'programme_unit__programme'
+        ).order_by('programme_unit__programme__name')
+    else:
+        unit_allocations = []
+    
+    # Get teaching history (last 3 semesters)
+    teaching_history = UnitAllocation.objects.filter(
+        lecturer=lecturer
+    ).select_related(
+        'semester',
+        'programme_unit__unit'
+    ).order_by('-semester__start_date')[:20]
+    
+    # Statistics
+    total_units_current = len(unit_allocations)
+    total_units_all_time = UnitAllocation.objects.filter(
+        lecturer=lecturer
+    ).values('programme_unit__unit').distinct().count()
+    
+    context = {
+        'page_title': f'{lecturer.user.get_full_name()} - Staff Profile',
+        'school': school,
+        'lecturer': lecturer,
+        'current_semester': current_semester,
+        'unit_allocations': unit_allocations,
+        'teaching_history': teaching_history,
+        'total_units_current': total_units_current,
+        'total_units_all_time': total_units_all_time,
+    }
+    
+    return render(request, 'dean/school_overview/staff_detail.html', context)
+
+
+# ==================== STUDENT POPULATION ====================
+
+@login_required
+def student_population(request):
+    """Student population overview and analytics"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current academic period
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Overall statistics
+    total_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).count()
+    
+    male_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active',
+        gender='M'
+    ).count()
+    
+    female_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active',
+        gender='F'
+    ).count()
+    
+    avg_gpa = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+    
+    # Students by department
+    students_by_department = Department.objects.filter(
+        school=school,
+        is_active=True
+    ).annotate(
+        student_count=Count(
+            'programmes__students',
+            filter=Q(programmes__students__student_status='active')
+        )
+    ).order_by('-student_count')
+    
+    # Students by programme
+    students_by_programme = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    ).annotate(
+        student_count=Count(
+            'students',
+            filter=Q(students__student_status='active')
+        )
+    ).order_by('-student_count')[:10]
+    
+    # Students by year of study
+    students_by_year = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).values('current_year').annotate(
+        count=Count('id')
+    ).order_by('current_year')
+    
+    # Students by intake
+    students_by_intake = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).values(
+        'intake__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-intake__start_date')[:5]
+    
+    # Students by status
+    students_by_status = Student.objects.filter(
+        programme__department__school=school
+    ).values('student_status').annotate(
+        count=Count('id')
+    ).order_by('student_status')
+    
+    # Recent admissions (last 30 days)
+    recent_admissions = Student.objects.filter(
+        programme__department__school=school,
+        admission_date__gte=timezone.now() - timedelta(days=30)
+    ).select_related(
+        'user',
+        'programme'
+    ).order_by('-admission_date')[:10]
+    
+    # Search students
+    search_query = request.GET.get('search', '')
+    if search_query:
+        students = Student.objects.filter(
+            programme__department__school=school
+        ).filter(
+            Q(registration_number__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(programme__name__icontains=search_query)
+        ).select_related('user', 'programme')[:20]
+    else:
+        students = []
+    
+    context = {
+        'page_title': 'Student Population',
+        'school': school,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'total_students': total_students,
+        'male_students': male_students,
+        'female_students': female_students,
+        'avg_gpa': round(avg_gpa, 2),
+        'students_by_department': students_by_department,
+        'students_by_programme': students_by_programme,
+        'students_by_year': students_by_year,
+        'students_by_intake': students_by_intake,
+        'students_by_status': students_by_status,
+        'recent_admissions': recent_admissions,
+        'search_query': search_query,
+        'students': students,
+    }
+    
+    return render(request, 'dean/school_overview/student_population.html', context)
+
+
+# ==================== SCHOOL CALENDAR ====================
+
+@login_required
+def school_calendar(request):
+    """School calendar with events and important dates"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all academic years
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    
+    # Get semesters for current academic year
+    if current_academic_year:
+        semesters = Semester.objects.filter(
+            academic_year=current_academic_year
+        ).order_by('semester_number')
+    else:
+        semesters = []
+    
+    # Get intakes
+    intakes = Intake.objects.filter(
+        academic_year=current_academic_year,
+        is_active=True
+    ).order_by('-start_date') if current_academic_year else []
+    
+    # Get upcoming events
+    upcoming_events = Event.objects.filter(
+        academic_year=current_academic_year,
+        is_published=True,
+        start_date__gte=timezone.now()
+    ).order_by('start_date')[:10] if current_academic_year else []
+    
+    # Get recent events
+    recent_events = Event.objects.filter(
+        academic_year=current_academic_year,
+        is_published=True,
+        end_date__lt=timezone.now()
+    ).order_by('-start_date')[:5] if current_academic_year else []
+    
+    # Important dates
+    important_dates = []
+    
+    if current_academic_year:
+        important_dates.append({
+            'title': 'Academic Year Start',
+            'date': current_academic_year.start_date,
+            'type': 'academic_year',
+            'color': 'primary'
+        })
+        important_dates.append({
+            'title': 'Academic Year End',
+            'date': current_academic_year.end_date,
+            'type': 'academic_year',
+            'color': 'primary'
+        })
+    
+    for semester in semesters:
+        important_dates.append({
+            'title': f'{semester.name} - Start',
+            'date': semester.start_date,
+            'type': 'semester',
+            'color': 'success'
+        })
+        important_dates.append({
+            'title': f'{semester.name} - End',
+            'date': semester.end_date,
+            'type': 'semester',
+            'color': 'success'
+        })
+        important_dates.append({
+            'title': f'{semester.name} - Registration Opens',
+            'date': semester.registration_start_date,
+            'type': 'registration',
+            'color': 'warning'
+        })
+        important_dates.append({
+            'title': f'{semester.name} - Registration Closes',
+            'date': semester.registration_end_date,
+            'type': 'registration',
+            'color': 'danger'
+        })
+    
+    # Sort important dates
+    important_dates.sort(key=lambda x: x['date'])
+    
+    context = {
+        'page_title': 'School Calendar',
+        'school': school,
+        'current_academic_year': current_academic_year,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'intakes': intakes,
+        'upcoming_events': upcoming_events,
+        'recent_events': recent_events,
+        'important_dates': important_dates,
+    }
+    
+    return render(request, 'dean/school_overview/school_calendar.html', context)
+
+
+# ==================== VIEWS.PY - ACADEMIC MANAGEMENT ====================
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Count, Sum, Avg, Q, F, Max, Min
+from django.utils import timezone
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+
+# ==================== PROGRAMME DEVELOPMENT ====================
+
+@login_required
+def programme_development(request):
+    """Programme development and management overview"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all programmes
+    programmes = Programme.objects.filter(
+        department__school=school
+    ).select_related('department').annotate(
+        student_count=Count(
+            'students',
+            filter=Q(students__student_status='active')
+        ),
+        unit_count=Count(
+            'programme_units',
+            distinct=True
+        ),
+        avg_gpa=Avg(
+            'students__cumulative_gpa',
+            filter=Q(students__student_status='active')
+        )
+    ).order_by('-is_active', 'department__name', 'name')
+    
+    # Filter by department
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        programmes = programmes.filter(department_id=department_filter)
+    
+    # Filter by programme type
+    type_filter = request.GET.get('type', '')
+    if type_filter:
+        programmes = programmes.filter(programme_type=type_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        if status_filter == 'active':
+            programmes = programmes.filter(is_active=True)
+        elif status_filter == 'inactive':
+            programmes = programmes.filter(is_active=False)
+    
+    # Search
+    search_query = request.GET.get('search', '')
+    if search_query:
+        programmes = programmes.filter(
+            Q(name__icontains=search_query) |
+            Q(code__icontains=search_query) |
+            Q(department__name__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(programmes, 15)
+    page_number = request.GET.get('page')
+    programmes_page = paginator.get_page(page_number)
+    
+    # Statistics
+    total_programmes = Programme.objects.filter(
+        department__school=school
+    ).count()
+    
+    active_programmes = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    ).count()
+    
+    programmes_by_type = Programme.objects.filter(
+        department__school=school
+    ).values('programme_type').annotate(
+        count=Count('id')
+    ).order_by('programme_type')
+    
+    programmes_by_department = Department.objects.filter(
+        school=school
+    ).annotate(
+        programme_count=Count('programmes')
+    ).order_by('-programme_count')[:5]
+    
+    # Get departments for filter
+    departments = Department.objects.filter(
+        school=school,
+        is_active=True
+    ).order_by('name')
+    
+    context = {
+        'page_title': 'Programme Development',
+        'school': school,
+        'programmes': programmes_page,
+        'departments': departments,
+        'current_academic_year': current_academic_year,
+        'search_query': search_query,
+        'department_filter': department_filter,
+        'type_filter': type_filter,
+        'status_filter': status_filter,
+        'total_programmes': total_programmes,
+        'active_programmes': active_programmes,
+        'programmes_by_type': programmes_by_type,
+        'programmes_by_department': programmes_by_department,
+    }
+    
+    return render(request, 'dean/academic_management/programme_development.html', context)
+
+
+@login_required
+def programme_detail(request, programme_id):
+    """Detailed view of a programme"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get programme
+    programme = get_object_or_404(
+        Programme,
+        id=programme_id,
+        department__school=school
+    )
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Statistics
+    total_students = Student.objects.filter(
+        programme=programme,
+        student_status='active'
+    ).count()
+    
+    students_by_year = Student.objects.filter(
+        programme=programme,
+        student_status='active'
+    ).values('current_year').annotate(
+        count=Count('id')
+    ).order_by('current_year')
+    
+    avg_gpa = Student.objects.filter(
+        programme=programme,
+        student_status='active'
+    ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+    
+    # Get programme units by year and semester
+    programme_units = ProgrammeUnit.objects.filter(
+        programme=programme,
+        academic_year=current_academic_year,
+        is_active=True
+    ).select_related('unit').order_by(
+        'year_of_study',
+        'semester_number',
+        'unit__code'
+    ) if current_academic_year else []
+    
+    # Organize units by year and semester
+    units_structure = {}
+    for pu in programme_units:
+        year_key = f"Year {pu.year_of_study}"
+        sem_key = f"Semester {pu.semester_number}"
+        
+        if year_key not in units_structure:
+            units_structure[year_key] = {}
+        if sem_key not in units_structure[year_key]:
+            units_structure[year_key][sem_key] = []
+        
+        units_structure[year_key][sem_key].append(pu)
+    
+    # Get recent graduates
+    recent_graduates = Student.objects.filter(
+        programme=programme,
+        student_status='graduated'
+    ).select_related('user').order_by('-updated_at')[:10]
+    
+    # Employment/progression data (if available)
+    total_graduates = Student.objects.filter(
+        programme=programme,
+        student_status='graduated'
+    ).count()
+    
+    context = {
+        'page_title': f'{programme.name} - Programme Details',
+        'school': school,
+        'programme': programme,
+        'current_academic_year': current_academic_year,
+        'total_students': total_students,
+        'students_by_year': students_by_year,
+        'avg_gpa': round(avg_gpa, 2),
+        'units_structure': units_structure,
+        'recent_graduates': recent_graduates,
+        'total_graduates': total_graduates,
+    }
+    
+    return render(request, 'dean/academic_management/programme_detail.html', context)
+
+
+# ==================== CURRICULUM REVIEW ====================
+
+@login_required
+def curriculum_review(request):
+    """Curriculum review and unit management"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all units in the school
+    units = Unit.objects.filter(
+        department__school=school,
+        is_active=True
+    ).select_related('department').annotate(
+        programme_count=Count(
+            'programme_assignments',
+            filter=Q(programme_assignments__is_active=True),
+            distinct=True
+        ),
+        student_count=Count(
+            'programme_assignments__programme__students',
+            filter=Q(programme_assignments__programme__students__student_status='active'),
+            distinct=True
+        )
+    ).order_by('department__name', 'unit_level', 'code')
+    
+    # Filters
+    department_filter = request.GET.get('department', '')
+    if department_filter:
+        units = units.filter(department_id=department_filter)
+    
+    level_filter = request.GET.get('level', '')
+    if level_filter:
+        units = units.filter(unit_level=level_filter)
+    
+    search_query = request.GET.get('search', '')
+    if search_query:
+        units = units.filter(
+            Q(code__icontains=search_query) |
+            Q(name__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(units, 20)
+    page_number = request.GET.get('page')
+    units_page = paginator.get_page(page_number)
+    
+    # Statistics
+    total_units = Unit.objects.filter(
+        department__school=school,
+        is_active=True
+    ).count()
+    
+    units_by_level = Unit.objects.filter(
+        department__school=school,
+        is_active=True
+    ).values('unit_level').annotate(
+        count=Count('id')
+    ).order_by('unit_level')
+    
+    units_by_department = Department.objects.filter(
+        school=school,
+        is_active=True
+    ).annotate(
+        unit_count=Count('units', filter=Q(units__is_active=True))
+    ).order_by('-unit_count')
+    
+    # Unit performance analysis (if current semester exists)
+    if current_semester:
+        unit_performance = SemesterResults.objects.filter(
+            programme_unit__programme__department__school=school,
+            semester=current_semester,
+            is_published=True
+        ).values(
+            'programme_unit__unit__code',
+            'programme_unit__unit__name'
+        ).annotate(
+            avg_marks=Avg('total_marks'),
+            pass_rate=Avg('is_passed') * 100,
+            student_count=Count('id')
+        ).order_by('-avg_marks')[:10]
+    else:
+        unit_performance = []
+    
+    # Get departments for filter
+    departments = Department.objects.filter(
+        school=school,
+        is_active=True
+    ).order_by('name')
+    
+    context = {
+        'page_title': 'Curriculum Review',
+        'school': school,
+        'units': units_page,
+        'departments': departments,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'search_query': search_query,
+        'department_filter': department_filter,
+        'level_filter': level_filter,
+        'total_units': total_units,
+        'units_by_level': units_by_level,
+        'units_by_department': units_by_department,
+        'unit_performance': unit_performance,
+    }
+    
+    return render(request, 'dean/academic_management/curriculum_review.html', context)
+
+
+@login_required
+def unit_detail(request, unit_id):
+    """Detailed view of a unit"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get unit
+    unit = get_object_or_404(
+        Unit,
+        id=unit_id,
+        department__school=school
+    )
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get programmes offering this unit
+    programme_units = ProgrammeUnit.objects.filter(
+        unit=unit,
+        is_active=True
+    ).select_related('programme', 'academic_year')
+    
+    # Get current allocations
+    if current_semester:
+        allocations = UnitAllocation.objects.filter(
+            programme_unit__unit=unit,
+            semester=current_semester
+        ).select_related(
+            'lecturer__user',
+            'programme_unit__programme'
+        )
+    else:
+        allocations = []
+    
+    # Performance statistics
+    if current_semester:
+        performance_stats = SemesterResults.objects.filter(
+            programme_unit__unit=unit,
+            semester=current_semester,
+            is_published=True
+        ).aggregate(
+            avg_marks=Avg('total_marks'),
+            max_marks=Max('total_marks'),
+            min_marks=Min('total_marks'),
+            pass_count=Count('id', filter=Q(is_passed=True)),
+            total_count=Count('id')
+        )
+        
+        if performance_stats['total_count'] > 0:
+            pass_rate = (performance_stats['pass_count'] / performance_stats['total_count']) * 100
+        else:
+            pass_rate = 0
+    else:
+        performance_stats = None
+        pass_rate = 0
+    
+    # Grade distribution
+    if current_semester:
+        grade_distribution = SemesterResults.objects.filter(
+            programme_unit__unit=unit,
+            semester=current_semester,
+            is_published=True
+        ).values('grade').annotate(
+            count=Count('id')
+        ).order_by('grade')
+    else:
+        grade_distribution = []
+    
+    # Prerequisites
+    prerequisites = unit.prerequisites.all()
+    required_for = unit.required_for.all()
+    
+    context = {
+        'page_title': f'{unit.code} - {unit.name}',
+        'school': school,
+        'unit': unit,
+        'current_semester': current_semester,
+        'programme_units': programme_units,
+        'allocations': allocations,
+        'performance_stats': performance_stats,
+        'pass_rate': round(pass_rate, 2),
+        'grade_distribution': grade_distribution,
+        'prerequisites': prerequisites,
+        'required_for': required_for,
+    }
+    
+    return render(request, 'dean/academic_management/unit_detail.html', context)
+
+
+# ==================== ACADEMIC STANDARDS ====================
+
+@login_required
+def academic_standards(request):
+    """Academic standards monitoring and quality assurance"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Overall school performance
+    avg_school_gpa = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).aggregate(avg_gpa=Avg('cumulative_gpa'))['avg_gpa'] or 0
+    
+    # Department performance comparison
+    department_performance = Department.objects.filter(
+        school=school,
+        is_active=True
+    ).annotate(
+        avg_gpa=Avg(
+            'programmes__students__cumulative_gpa',
+            filter=Q(programmes__students__student_status='active')
+        ),
+        student_count=Count(
+            'programmes__students',
+            filter=Q(programmes__students__student_status='active'),
+            distinct=True
+        )
+    ).order_by('-avg_gpa')
+    
+    # Programme performance
+    programme_performance = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    ).annotate(
+        avg_gpa=Avg(
+            'students__cumulative_gpa',
+            filter=Q(students__student_status='active')
+        ),
+        student_count=Count(
+            'students',
+            filter=Q(students__student_status='active')
+        )
+    ).order_by('-avg_gpa')[:10]
+    
+    # Pass rate analysis
+    if current_semester:
+        pass_rate_by_unit = SemesterResults.objects.filter(
+            programme_unit__programme__department__school=school,
+            semester=current_semester,
+            is_published=True
+        ).values(
+            'programme_unit__unit__code',
+            'programme_unit__unit__name'
+        ).annotate(
+            pass_count=Count('id', filter=Q(is_passed=True)),
+            total_count=Count('id'),
+            avg_marks=Avg('total_marks')
+        ).order_by('pass_count')[:15]
+        
+        # Calculate pass rates
+        for item in pass_rate_by_unit:
+            if item['total_count'] > 0:
+                item['pass_rate'] = (item['pass_count'] / item['total_count']) * 100
+            else:
+                item['pass_rate'] = 0
+    else:
+        pass_rate_by_unit = []
+    
+    # Grade distribution across school
+    if current_semester:
+        grade_distribution = SemesterResults.objects.filter(
+            programme_unit__programme__department__school=school,
+            semester=current_semester,
+            is_published=True
+        ).values('grade').annotate(
+            count=Count('id')
+        ).order_by('grade')
+    else:
+        grade_distribution = []
+    
+    # Student progression rates
+    progression_stats = {
+        'year_1_to_2': 0,
+        'year_2_to_3': 0,
+        'year_3_to_4': 0,
+        'graduation_rate': 0
+    }
+    
+    # Top performing students
+    top_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active'
+    ).order_by('-cumulative_gpa')[:20]
+    
+    # At-risk students (GPA < 2.0)
+    at_risk_students = Student.objects.filter(
+        programme__department__school=school,
+        student_status='active',
+        cumulative_gpa__lt=2.0
+    ).select_related('user', 'programme').order_by('cumulative_gpa')[:20]
+    
+    # Graduation statistics
+    graduation_stats = Student.objects.filter(
+        programme__department__school=school,
+        student_status='graduated'
+    ).aggregate(
+        total_graduated=Count('id'),
+        avg_final_gpa=Avg('cumulative_gpa')
+    )
+    
+    # Recent semester GPA trends (last 5 semesters)
+    recent_semesters = Semester.objects.all().order_by('-start_date')[:5]
+    semester_trends = []
+    
+    for sem in reversed(list(recent_semesters)):
+        avg_gpa = SemesterGPA.objects.filter(
+            student__programme__department__school=school,
+            semester=sem
+        ).aggregate(avg_gpa=Avg('semester_gpa'))['avg_gpa'] or 0
+        
+        semester_trends.append({
+            'semester': sem.name,
+            'avg_gpa': round(avg_gpa, 2)
+        })
+    
+    context = {
+        'page_title': 'Academic Standards',
+        'school': school,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'avg_school_gpa': round(avg_school_gpa, 2),
+        'department_performance': department_performance,
+        'programme_performance': programme_performance,
+        'pass_rate_by_unit': pass_rate_by_unit,
+        'grade_distribution': grade_distribution,
+        'progression_stats': progression_stats,
+        'top_students': top_students,
+        'at_risk_students': at_risk_students,
+        'graduation_stats': graduation_stats,
+        'semester_trends': semester_trends,
+    }
+    
+    return render(request, 'dean/academic_management/academic_standards.html', context)
+
+
+# ==================== ACCREDITATION ====================
+
+@login_required
+def accreditation(request):
+    """Accreditation status and compliance tracking"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get programmes with accreditation info
+    programmes = Programme.objects.filter(
+        department__school=school
+    ).select_related('department').annotate(
+        student_count=Count(
+            'students',
+            filter=Q(students__student_status='active')
+        )
+    ).order_by('department__name', 'name')
+    
+    # Filter by accreditation status
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        programmes = programmes.filter(accreditation_status__icontains=status_filter)
+    
+    # Statistics
+    total_programmes = programmes.count()
+    accredited_programmes = programmes.exclude(
+        Q(accreditation_status='') | Q(accreditation_status__isnull=True)
+    ).count()
+    
+    # Group by accreditation body
+    accreditation_bodies = programmes.exclude(
+        Q(accreditation_body='') | Q(accreditation_body__isnull=True)
+    ).values('accreditation_body').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Accreditation status breakdown
+    accreditation_statuses = programmes.exclude(
+        Q(accreditation_status='') | Q(accreditation_status__isnull=True)
+    ).values('accreditation_status').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Compliance checklist (sample data structure)
+    compliance_areas = [
+        {
+            'area': 'Faculty Qualifications',
+            'status': 'compliant',
+            'details': 'All lecturers meet minimum qualification requirements',
+            'last_review': timezone.now() - timedelta(days=90)
+        },
+        {
+            'area': 'Infrastructure & Facilities',
+            'status': 'under_review',
+            'details': 'Laboratory equipment upgrade in progress',
+            'last_review': timezone.now() - timedelta(days=45)
+        },
+        {
+            'area': 'Curriculum Standards',
+            'status': 'compliant',
+            'details': 'All programmes meet industry standards',
+            'last_review': timezone.now() - timedelta(days=60)
+        },
+        {
+            'area': 'Student Support Services',
+            'status': 'compliant',
+            'details': 'Adequate support systems in place',
+            'last_review': timezone.now() - timedelta(days=120)
+        },
+        {
+            'area': 'Quality Assurance Systems',
+            'status': 'action_required',
+            'details': 'Internal audit procedures need updating',
+            'last_review': timezone.now() - timedelta(days=180)
+        },
+    ]
+    
+    context = {
+        'page_title': 'Accreditation',
+        'school': school,
+        'programmes': programmes,
+        'total_programmes': total_programmes,
+        'accredited_programmes': accredited_programmes,
+        'accreditation_bodies': accreditation_bodies,
+        'accreditation_statuses': accreditation_statuses,
+        'compliance_areas': compliance_areas,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'dean/academic_management/accreditation.html', context)
+
+
+# ==================== EXTERNAL EXAMINERS ====================
+
+@login_required
+def external_examiners(request):
+    """External examiners management and reports"""
+    
+    # Get dean's school
+    try:
+        dean_profile = request.user
+        school = School.objects.get(dean=dean_profile)
+    except School.DoesNotExist:
+        messages.error(request, 'No school assigned to your account')
+        return redirect('dean:dashboard')
+    
+    # Get current academic year
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Note: External Examiners model doesn't exist in your schema
+    # This is a placeholder structure showing what data would be displayed
+    
+    # Sample external examiner data structure
+    external_examiners_data = [
+        {
+            'id': 1,
+            'name': 'Prof. John Smith',
+            'institution': 'University of Nairobi',
+            'specialization': 'Computer Science',
+            'programmes': ['BSc Computer Science', 'BSc IT'],
+            'appointment_date': timezone.now() - timedelta(days=730),
+            'contract_end': timezone.now() + timedelta(days=365),
+            'status': 'active',
+            'reports_submitted': 3,
+            'last_visit': timezone.now() - timedelta(days=60)
+        },
+        # Add more sample data as needed
+    ]
+    
+    # Statistics
+    total_examiners = len(external_examiners_data)
+    active_examiners = len([e for e in external_examiners_data if e['status'] == 'active'])
+    
+    # Programmes requiring external examiners
+    programmes = Programme.objects.filter(
+        department__school=school,
+        is_active=True
+    ).select_related('department').order_by('department__name', 'name')
+    
+    # External examiner reports (sample structure)
+    recent_reports = [
+        {
+            'examiner': 'Prof. John Smith',
+            'programme': 'BSc Computer Science',
+            'report_date': timezone.now() - timedelta(days=30),
+            'semester': 'Semester 1 - 2024/2025',
+            'status': 'submitted',
+            'recommendations': 3,
+            'rating': 'excellent'
+        },
+        # Add more sample reports
+    ]
+    
+    context = {
+        'page_title': 'External Examiners',
+        'school': school,
+        'current_academic_year': current_academic_year,
+        'external_examiners': external_examiners_data,
+        'total_examiners': total_examiners,
+        'active_examiners': active_examiners,
+        'programmes': programmes,
+        'recent_reports': recent_reports,
+    }
+    
+    return render(request, 'dean/academic_management/external_examiners.html', context)
+

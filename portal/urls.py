@@ -384,4 +384,22 @@ urlpatterns = [
     # AJAX endpoints
     path('api/book/<int:book_id>/availability/', views.check_book_availability, name='check_book_availability'),
     
+    # School Overview
+    path('school-profile/', views.school_profile, name='school_profile'),
+    path('departments/', views.departments_list, name='departments_list'),
+    path('departments/<int:department_id>/', views.department_detail, name='department_detail'),
+    path('academic-staff/', views.academic_staff, name='academic_staff'),
+    path('academic-staff/<int:lecturer_id>/', views.staff_detail, name='staff_detail'),
+    path('student-population/', views.student_population, name='student_population'),
+    path('school-calendar/', views.school_calendar, name='school_calendar'),
+    
+    # Academic Management
+    path('programme-development/', views.programme_development, name='programme_development'),
+    path('programme-development/<int:programme_id>/', views.programme_detail, name='programme_detail'),
+    path('curriculum-review/', views.curriculum_review, name='curriculum_review'),
+    path('curriculum-review/unit/<int:unit_id>/', views.unit_detail, name='unit_detail'),
+    path('academic-standards/', views.academic_standards, name='academic_standards'),
+    path('accreditation/', views.accreditation, name='accreditation'),
+    path('external-examiners/', views.external_examiners, name='external_examiners'),
+    
 ]
