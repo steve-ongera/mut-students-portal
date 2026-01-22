@@ -15873,7 +15873,7 @@ def school_profile(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current academic period
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
@@ -15974,7 +15974,7 @@ def departments_list(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get all departments with related data
     departments = Department.objects.filter(
@@ -16036,7 +16036,7 @@ def department_detail(request, department_id):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get department
     department = get_object_or_404(
@@ -16135,7 +16135,7 @@ def academic_staff(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current semester
     current_semester = Semester.objects.filter(is_current=True).first()
@@ -16218,7 +16218,7 @@ def staff_detail(request, lecturer_id):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get lecturer
     lecturer = get_object_or_404(
@@ -16283,7 +16283,7 @@ def student_population(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current academic period
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
@@ -16416,7 +16416,7 @@ def school_calendar(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current academic year
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
@@ -16538,7 +16538,7 @@ def programme_development(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current academic year
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
@@ -16650,7 +16650,7 @@ def programme_detail(request, programme_id):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get programme
     programme = get_object_or_404(
@@ -16744,7 +16744,7 @@ def curriculum_review(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current academic year and semester
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
@@ -16860,7 +16860,7 @@ def unit_detail(request, unit_id):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get unit
     unit = get_object_or_404(
@@ -16957,7 +16957,7 @@ def academic_standards(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current academic year and semester
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
@@ -17113,7 +17113,7 @@ def accreditation(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get programmes with accreditation info
     programmes = Programme.objects.filter(
@@ -17211,7 +17211,7 @@ def external_examiners(request):
         school = School.objects.get(dean=dean_profile)
     except School.DoesNotExist:
         messages.error(request, 'No school assigned to your account')
-        return redirect('dean:dashboard')
+        return redirect('dean_dashboard')
     
     # Get current academic year
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
