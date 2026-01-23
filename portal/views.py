@@ -19221,4 +19221,4 @@ def dean_research_grants_approval_view(request):
         'grants': grants,
     }
 
-    return render(request, 'dean/approvals/research_grants.html', context) 
+    return render(request, 'dean/approvals/research_grants.html', context)     
