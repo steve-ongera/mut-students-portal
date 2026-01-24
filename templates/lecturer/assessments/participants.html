@@ -1,0 +1,104 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Assessment Participants{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_assessments' %}">Assessments</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.id %}">{{ assessment.title }}</a></li>
+            <li class="breadcrumb-item active">Participants</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Assessment Participants</h1>
+        <p class="text-muted">{{ assessment.title }} - {{ assessment.unit_allocation.programme_unit.unit.code }}</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-5">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Search by name or registration number..." 
+                           value="{{ search_query }}">
+                </div>
+                <div class="col-md-3">
+                    <select name="status" class="form-select">
+                        <option value="">All Students</option>
+                        <option value="attended" {% if status_filter == 'attended' %}selected{% endif %}>Attended</option>
+                        <option value="not_attended" {% if status_filter == 'not_attended' %}selected{% endif %}>Not Attended</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="ri-search-line me-1"></i> Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{% url 'assessment_participants' assessment.id %}" class="btn btn-outline-secondary w-100">
+                        Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Reg. No.</th>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Programme</th>
+                            <th>Year/Sem</th>
+                            <th>Status</th>
+                            <th>Marks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mark in student_marks %}
+                        <tr>
+                            <td>{{ mark.student.registration_number }}</td>
+                            <td>{{ mark.student.user.get_full_name }}</td>
+                            <td>{{ mark.student.user.email }}</td>
+                            <td>{{ mark.student.programme.code }}</td>
+                            <td>Y{{ mark.student.current_year }} S{{ mark.student.current_semester }}</td>
+                            <td>
+                                {% if mark.attendance %}
+                                <span class="badge bg-success">Attended</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Not Attended</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if mark.marks_obtained > 0 %}
+                                <span class="fw-medium">{{ mark.marks_obtained }}/{{ assessment.max_marks }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                No students found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

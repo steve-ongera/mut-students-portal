@@ -1,0 +1,170 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Create Assessment{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_assessments' %}">Assessments</a></li>
+            <li class="breadcrumb-item active">Create</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Create New Assessment</h1>
+        <p class="text-muted">Set up a new CAT, Assignment, or Exam</p>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Unit Selection -->
+                        <div class="mb-4">
+                            <label class="form-label">Select Unit <span class="text-danger">*</span></label>
+                            <select name="unit_allocation" class="form-select" required>
+                                <option value="">Choose a unit...</option>
+                                {% for allocation in unit_allocations %}
+                                <option value="{{ allocation.id }}">
+                                    {{ allocation.programme_unit.unit.code }} - {{ allocation.programme_unit.unit.name }}
+                                    ({{ allocation.programme_unit.programme.code }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Assessment Type -->
+                        <div class="mb-4">
+                            <label class="form-label">Assessment Type <span class="text-danger">*</span></label>
+                            <select name="assessment_type" class="form-select" required>
+                                <option value="">Choose type...</option>
+                                <option value="cat1">CAT 1</option>
+                                <option value="cat2">CAT 2</option>
+                                <option value="cat3">CAT 3</option>
+                                <option value="assignment">Assignment</option>
+                                <option value="practical">Practical</option>
+                                <option value="final">Final Exam</option>
+                            </select>
+                        </div>
+
+                        <!-- Title -->
+                        <div class="mb-4">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" 
+                                   placeholder="e.g., Mid-Semester CAT 1" required>
+                        </div>
+
+                        <!-- Marks and Weight -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Maximum Marks <span class="text-danger">*</span></label>
+                                <input type="number" name="max_marks" class="form-control" 
+                                       min="1" max="100" value="30" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Weight (%) <span class="text-danger">*</span></label>
+                                <input type="number" name="weight_percentage" class="form-control" 
+                                       min="1" max="100" step="0.01" value="30" required>
+                            </div>
+                        </div>
+
+                        <!-- Date and Duration -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Assessment Date <span class="text-danger">*</span></label>
+                                <input type="date" name="date" class="form-control" 
+                                       min="{{ today|date:'Y-m-d' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Duration (minutes)</label>
+                                <input type="number" name="duration_minutes" class="form-control" 
+                                       min="15" max="240" placeholder="e.g., 60">
+                            </div>
+                        </div>
+
+                        <!-- Online CAT Options -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" 
+                                       id="is_online" name="is_online">
+                                <label class="form-check-label" for="is_online">
+                                    This is an online assessment (with specific start/end times)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="onlineOptions" style="display: none;" class="mb-4">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Start Time</label>
+                                    <input type="time" name="start_time" class="form-control">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">End Time</label>
+                                    <input type="time" name="end_time" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Venue -->
+                        <div class="mb-4">
+                            <label class="form-label">Venue</label>
+                            <input type="text" name="venue" class="form-control" 
+                                   placeholder="e.g., Room 301 or Online Platform">
+                        </div>
+
+                        <!-- Instructions -->
+                        <div class="mb-4">
+                            <label class="form-label">Instructions</label>
+                            <textarea name="instructions" class="form-control" rows="5"
+                                      placeholder="Enter assessment instructions, requirements, or any special notes..."></textarea>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-save-line me-1"></i> Create Assessment
+                            </button>
+                            <a href="{% url 'lecturer_assessments' %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">Tips for Creating Assessments</h6>
+                    <ul class="small mb-0">
+                        <li>Ensure the assessment date is within the semester period</li>
+                        <li>Weight percentage should align with your unit's grading structure</li>
+                        <li>For online CATs, set clear start and end times</li>
+                        <li>Provide detailed instructions to avoid student confusion</li>
+                        <li>Students enrolled in the unit will automatically be added</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const isOnlineCheckbox = document.getElementById('is_online');
+    const onlineOptions = document.getElementById('onlineOptions');
+    
+    isOnlineCheckbox.addEventListener('change', function() {
+        onlineOptions.style.display = this.checked ? 'block' : 'none';
+    });
+});
+</script>
+{% endblock %}
