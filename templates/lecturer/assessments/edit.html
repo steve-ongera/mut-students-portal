@@ -1,0 +1,171 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Edit Assessment{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_assessments' %}">Assessments</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.id %}">{{ assessment.title }}</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Edit Assessment</h1>
+        <p class="text-muted">Modify assessment details for {{ assessment.unit_allocation.programme_unit.unit.code }}</p>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Assessment Information</h5>
+                </div>
+                <div class="card-body">
+                    {% if assessment.is_published %}
+                    <div class="alert alert-warning">
+                        <i class="ri-alert-line me-2"></i>
+                        <strong>Warning:</strong> This assessment has been published. Some changes may affect student records.
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Unit and Type (Read-only) -->
+                        <div class="mb-4">
+                            <label class="form-label">Unit</label>
+                            <input type="text" class="form-control" 
+                                   value="{{ assessment.unit_allocation.programme_unit.unit.code }} - {{ assessment.unit_allocation.programme_unit.unit.name }}" 
+                                   readonly>
+                            <small class="text-muted">Cannot change unit after creation</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Assessment Type</label>
+                            <input type="text" class="form-control" 
+                                   value="{{ assessment.get_assessment_type_display }}" 
+                                   readonly>
+                            <small class="text-muted">Cannot change assessment type after creation</small>
+                        </div>
+
+                        <!-- Editable Fields -->
+                        <div class="mb-4">
+                            <label class="form-label">Title <span class="text-danger">*</span></label>
+                            <input type="text" name="title" class="form-control" 
+                                   value="{{ assessment.title }}" required>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Maximum Marks <span class="text-danger">*</span></label>
+                                <input type="number" name="max_marks" class="form-control" 
+                                       min="1" max="100" value="{{ assessment.max_marks }}" required>
+                                {% if assessment.is_published %}
+                                <small class="text-warning">
+                                    <i class="ri-alert-line"></i> Changing this may affect existing grades
+                                </small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Weight (%) <span class="text-danger">*</span></label>
+                                <input type="number" name="weight_percentage" class="form-control" 
+                                       min="1" max="100" step="0.01" value="{{ assessment.weight_percentage }}" required>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Assessment Date <span class="text-danger">*</span></label>
+                                <input type="date" name="date" class="form-control" 
+                                       value="{{ assessment.date|date:'Y-m-d' }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Duration (minutes)</label>
+                                <input type="number" name="duration_minutes" class="form-control" 
+                                       min="15" max="240" value="{{ assessment.duration_minutes|default:'' }}" 
+                                       placeholder="e.g., 60">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Venue</label>
+                            <input type="text" name="venue" class="form-control" 
+                                   value="{{ assessment.venue }}" 
+                                   placeholder="e.g., Room 301 or Online Platform">
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Instructions</label>
+                            <textarea name="instructions" class="form-control" rows="6"
+                                      placeholder="Enter assessment instructions, requirements, or any special notes...">{{ assessment.instructions }}</textarea>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-save-line me-1"></i> Save Changes
+                            </button>
+                            <a href="{% url 'assessment_detail' assessment.id %}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Current Assessment Info -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Current Details</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tr>
+                            <td class="text-muted">Created:</td>
+                            <td>{{ assessment.created_at|date:"d M Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Last Updated:</td>
+                            <td>{{ assessment.updated_at|date:"d M Y H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Students Enrolled:</td>
+                            <td class="fw-medium">{{ assessment.student_marks.count }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Status:</td>
+                            <td>
+                                {% if assessment.is_published %}
+                                <span class="badge bg-success">Published</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Draft</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Edit Guidelines -->
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">Edit Guidelines</h6>
+                    <ul class="small mb-0">
+                        <li class="mb-2">Unit and assessment type cannot be changed once created</li>
+                        <li class="mb-2">Changing max marks will require re-grading if already graded</li>
+                        <li class="mb-2">Date changes will be visible to all enrolled students</li>
+                        <li class="mb-2">Changes are saved immediately and cannot be undone</li>
+                        <li>Consider extending the assessment instead if you only need to change the date</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

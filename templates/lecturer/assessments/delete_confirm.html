@@ -1,0 +1,261 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Delete Assessment{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_assessments' %}">Assessments</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'assessment_detail' assessment.id %}">{{ assessment.title }}</a></li>
+            <li class="breadcrumb-item active">Delete</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="ri-alert-line me-2"></i>
+                        Confirm Assessment Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Warning Message -->
+                    <div class="alert alert-danger mb-4">
+                        <h6 class="alert-heading">
+                            <i class="ri-error-warning-line me-2"></i>
+                            Warning: This action cannot be undone!
+                        </h6>
+                        <p class="mb-0">
+                            You are about to permanently delete this assessment and all associated data. 
+                            This operation is irreversible.
+                        </p>
+                    </div>
+
+                    <!-- Assessment Details -->
+                    <div class="card bg-light mb-4">
+                        <div class="card-body">
+                            <h6 class="text-muted mb-3">Assessment to be Deleted:</h6>
+                            <table class="table table-sm mb-0">
+                                <tr>
+                                    <td class="text-muted" width="40%">Title:</td>
+                                    <td class="fw-medium">{{ assessment.title }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Unit:</td>
+                                    <td class="fw-medium">
+                                        {{ assessment.unit_allocation.programme_unit.unit.code }} - 
+                                        {{ assessment.unit_allocation.programme_unit.unit.name }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Programme:</td>
+                                    <td class="fw-medium">{{ assessment.unit_allocation.programme_unit.programme.code }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Type:</td>
+                                    <td class="fw-medium">{{ assessment.get_assessment_type_display }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Date:</td>
+                                    <td class="fw-medium">{{ assessment.date|date:"l, d F Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Max Marks:</td>
+                                    <td class="fw-medium">{{ assessment.max_marks }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Weight:</td>
+                                    <td class="fw-medium">{{ assessment.weight_percentage }}%</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Enrolled Students:</td>
+                                    <td class="fw-medium">{{ assessment.student_marks.count }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Status:</td>
+                                    <td>
+                                        {% if assessment.is_published %}
+                                        <span class="badge bg-success">Published</span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark">Draft</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Cannot Delete Published -->
+                    {% if assessment.is_published %}
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">
+                            <i class="ri-lock-line me-2"></i>
+                            Cannot Delete Published Assessment
+                        </h6>
+                        <p class="mb-2">
+                            This assessment has already been published and may contain student grades. 
+                            Published assessments cannot be deleted to maintain data integrity.
+                        </p>
+                        <p class="mb-0">
+                            <strong>What you can do:</strong>
+                        </p>
+                        <ul class="mb-0">
+                            <li>Contact the system administrator if deletion is absolutely necessary</li>
+                            <li>Keep the assessment but update its details instead</li>
+                            <li>Archive the assessment (if archiving feature is available)</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'assessment_detail' assessment.id %}" class="btn btn-primary">
+                            <i class="ri-arrow-left-line me-1"></i> Back to Assessment
+                        </a>
+                    </div>
+                    {% else %}
+                    <!-- What will be deleted -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading">The following will be permanently deleted:</h6>
+                        <ul class="mb-0">
+                            <li>The assessment record</li>
+                            <li>All student marks/grades for this assessment ({{ assessment.student_marks.count }} records)</li>
+                            <li>Assessment instructions and settings</li>
+                            <li>All related metadata and tracking information</li>
+                        </ul>
+                    </div>
+
+                    <!-- Confirmation Form -->
+                    <form method="post" id="deleteForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                                <label class="form-check-label" for="confirmDelete">
+                                    I understand that this action is permanent and cannot be reversed
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">
+                                Type <strong class="text-danger">DELETE</strong> to confirm:
+                            </label>
+                            <input type="text" id="confirmText" class="form-control" 
+                                   placeholder="Type DELETE here" required>
+                            <small class="text-muted">This confirmation helps prevent accidental deletions</small>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                                <i class="ri-delete-bin-line me-1"></i> Delete Assessment Permanently
+                            </button>
+                            <a href="{% url 'assessment_detail' assessment.id %}" class="btn btn-outline-secondary">
+                                <i class="ri-close-line me-1"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="card mt-3 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">Need Help?</h6>
+                    <p class="small mb-2">
+                        If you're unsure about deleting this assessment, consider these alternatives:
+                    </p>
+                    <ul class="small mb-0">
+                        <li class="mb-1">
+                            <strong>Edit:</strong> Modify the assessment details instead of deleting
+                        </li>
+                        <li class="mb-1">
+                            <strong>Extend:</strong> Change the date if the assessment hasn't been completed
+                        </li>
+                        <li class="mb-1">
+                            <strong>Contact Admin:</strong> Request assistance from the system administrator
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmDelete');
+    const confirmText = document.getElementById('confirmText');
+    const deleteButton = document.getElementById('deleteButton');
+    const deleteForm = document.getElementById('deleteForm');
+
+    function checkConfirmation() {
+        const isChecked = confirmCheckbox && confirmCheckbox.checked;
+        const isTextCorrect = confirmText && confirmText.value.trim() === 'DELETE';
+        
+        if (deleteButton) {
+            deleteButton.disabled = !(isChecked && isTextCorrect);
+        }
+    }
+
+    if (confirmCheckbox) {
+        confirmCheckbox.addEventListener('change', checkConfirmation);
+    }
+
+    if (confirmText) {
+        confirmText.addEventListener('input', checkConfirmation);
+    }
+
+    // Extra confirmation on form submit
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function(e) {
+            const confirmed = confirm(
+                'This is your final warning!\n\n' +
+                'Are you absolutely sure you want to delete this assessment?\n\n' +
+                'This action CANNOT be undone and will permanently remove:\n' +
+                '- The assessment record\n' +
+                '- All student marks ({{ assessment.student_marks.count }} records)\n' +
+                '- All related data\n\n' +
+                'Click OK to proceed with deletion or Cancel to go back.'
+            );
+            
+            if (!confirmed) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+});
+</script>
+
+<style>
+.card.border-danger {
+    border-width: 2px;
+}
+
+.alert-heading {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.form-check-input:checked {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+#confirmText:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+.btn-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}
