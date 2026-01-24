@@ -465,4 +465,15 @@ urlpatterns = [
     path('approvals/staff-appointments/', views.dean_staff_appointments_approval_view, name='staff_appointments_approval'),
     path('approvals/research-grants/', views.dean_research_grants_approval_view, name='research_grants_approval'),
     
+    
+    # Assessment Management URLs
+    path('lecturer/assessments/', views.lecturer_assessments, name='lecturer_assessments'),
+    path('lecturer/assessments/create/', views.create_assessment, name='create_assessment'),
+    path('lecturer/assessments/<int:assessment_id>/edit/', views.edit_assessment, name='edit_assessment'),
+    path('lecturer/assessments/<int:assessment_id>/detail/', views.assessment_detail, name='assessment_detail'),
+    path('lecturer/assessments/<int:assessment_id>/delete/', views.delete_assessment, name='delete_assessment'),
+    path('lecturer/assessments/<int:assessment_id>/extend/', views.extend_assessment, name='extend_assessment'),
+    path('lecturer/assessments/<int:assessment_id>/participants/', views.assessment_participants, name='assessment_participants'),
+
+    
 ]
