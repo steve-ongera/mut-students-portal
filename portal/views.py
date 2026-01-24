@@ -19222,3 +19222,379 @@ def dean_research_grants_approval_view(request):
     }
 
     return render(request, 'dean/approvals/research_grants.html', context)     
+
+
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Count, Q
+from datetime import datetime, timedelta
+from .models import (
+    Lecturer, UnitAllocation, Assessment, UnitEnrollment, 
+    Student, Semester, AcademicYear
+)
+
+@login_required
+def lecturer_assessments(request):
+    """View all assessments for lecturer's allocated units"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get lecturer's unit allocations for current semester
+    unit_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'semester'
+    )
+    
+    # Get all assessments for these allocations
+    assessments = Assessment.objects.filter(
+        unit_allocation__in=unit_allocations
+    ).annotate(
+        total_students=Count('student_marks', distinct=True),
+        submitted_count=Count('student_marks', filter=Q(student_marks__attendance=True), distinct=True)
+    ).order_by('-created_at')
+    
+    # Filter by unit if specified
+    unit_filter = request.GET.get('unit')
+    if unit_filter:
+        assessments = assessments.filter(unit_allocation__id=unit_filter)
+    
+    # Filter by assessment type
+    type_filter = request.GET.get('type')
+    if type_filter:
+        assessments = assessments.filter(assessment_type=type_filter)
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter == 'upcoming':
+        assessments = assessments.filter(date__gt=timezone.now().date())
+    elif status_filter == 'ongoing':
+        assessments = assessments.filter(
+            date__lte=timezone.now().date(),
+            is_published=False
+        )
+    elif status_filter == 'completed':
+        assessments = assessments.filter(is_published=True)
+    
+    context = {
+        'assessments': assessments,
+        'unit_allocations': unit_allocations,
+        'current_semester': current_semester,
+        'unit_filter': unit_filter,
+        'type_filter': type_filter,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'lecturer/assessments/list.html', context)
+
+
+@login_required
+def create_assessment(request):
+    """Create a new assessment (CAT/Assignment)"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get lecturer's unit allocations
+    unit_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related('programme_unit__unit', 'programme_unit__programme')
+    
+    if request.method == 'POST':
+        unit_allocation_id = request.POST.get('unit_allocation')
+        assessment_type = request.POST.get('assessment_type')
+        title = request.POST.get('title')
+        max_marks = request.POST.get('max_marks')
+        weight_percentage = request.POST.get('weight_percentage')
+        date = request.POST.get('date')
+        duration_minutes = request.POST.get('duration_minutes')
+        venue = request.POST.get('venue')
+        instructions = request.POST.get('instructions')
+        
+        # Online CAT specific fields
+        is_online = request.POST.get('is_online') == 'on'
+        start_time = request.POST.get('start_time') if is_online else None
+        end_time = request.POST.get('end_time') if is_online else None
+        
+        # Validation
+        if not all([unit_allocation_id, assessment_type, title, max_marks, weight_percentage, date]):
+            messages.error(request, 'Please fill in all required fields.')
+            return redirect('create_assessment')
+        
+        try:
+            unit_allocation = UnitAllocation.objects.get(
+                id=unit_allocation_id,
+                lecturer=request.user
+            )
+            
+            # Check if assessment already exists
+            existing = Assessment.objects.filter(
+                unit_allocation=unit_allocation,
+                assessment_type=assessment_type
+            ).exists()
+            
+            if existing:
+                messages.warning(request, f'A {assessment_type} assessment already exists for this unit.')
+                return redirect('create_assessment')
+            
+            # Create assessment
+            assessment = Assessment.objects.create(
+                unit_allocation=unit_allocation,
+                assessment_type=assessment_type,
+                title=title,
+                max_marks=max_marks,
+                weight_percentage=weight_percentage,
+                date=date,
+                duration_minutes=duration_minutes or None,
+                venue=venue or '',
+                instructions=instructions or ''
+            )
+            
+            # Get enrolled students for this unit
+            enrolled_students = UnitEnrollment.objects.filter(
+                programme_unit=unit_allocation.programme_unit,
+                semester=current_semester,
+                status='approved'
+            ).select_related('student')
+            
+            # Create StudentMarks entries for enrolled students
+            from .models import StudentMarks
+            for enrollment in enrolled_students:
+                StudentMarks.objects.create(
+                    assessment=assessment,
+                    student=enrollment.student,
+                    marks_obtained=0,
+                    attendance=False,
+                    status='draft'
+                )
+            
+            messages.success(
+                request, 
+                f'{assessment_type.upper()} created successfully! {enrolled_students.count()} students enrolled.'
+            )
+            return redirect('assessment_detail', assessment_id=assessment.id)
+            
+        except UnitAllocation.DoesNotExist:
+            messages.error(request, 'Invalid unit allocation.')
+            return redirect('create_assessment')
+        except Exception as e:
+            messages.error(request, f'Error creating assessment: {str(e)}')
+            return redirect('create_assessment')
+    
+    context = {
+        'unit_allocations': unit_allocations,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'lecturer/assessments/create.html', context)
+
+
+@login_required
+def edit_assessment(request, assessment_id):
+    """Edit an existing assessment"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    if request.method == 'POST':
+        assessment.title = request.POST.get('title')
+        assessment.max_marks = request.POST.get('max_marks')
+        assessment.weight_percentage = request.POST.get('weight_percentage')
+        assessment.date = request.POST.get('date')
+        assessment.duration_minutes = request.POST.get('duration_minutes') or None
+        assessment.venue = request.POST.get('venue', '')
+        assessment.instructions = request.POST.get('instructions', '')
+        
+        try:
+            assessment.save()
+            messages.success(request, 'Assessment updated successfully!')
+            return redirect('assessment_detail', assessment_id=assessment.id)
+        except Exception as e:
+            messages.error(request, f'Error updating assessment: {str(e)}')
+    
+    context = {
+        'assessment': assessment,
+    }
+    
+    return render(request, 'lecturer/assessments/edit.html', context)
+
+
+@login_required
+def assessment_detail(request, assessment_id):
+    """View detailed information about an assessment"""
+    assessment = get_object_or_404(
+        Assessment.objects.select_related(
+            'unit_allocation__programme_unit__unit',
+            'unit_allocation__programme_unit__programme',
+            'unit_allocation__semester'
+        ).annotate(
+            total_students=Count('student_marks', distinct=True),
+            attended_count=Count('student_marks', filter=Q(student_marks__attendance=True), distinct=True),
+            submitted_count=Count('student_marks', filter=Q(student_marks__status='submitted'), distinct=True)
+        ),
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    # Get student marks
+    student_marks = assessment.student_marks.select_related(
+        'student__user',
+        'student__programme'
+    ).order_by('student__registration_number')
+    
+    # Calculate statistics
+    total_students = assessment.total_students
+    attended = assessment.attended_count
+    not_attended = total_students - attended
+    attendance_rate = (attended / total_students * 100) if total_students > 0 else 0
+    
+    # Check if assessment is still editable (before date or not published)
+    is_editable = assessment.date >= timezone.now().date() and not assessment.is_published
+    
+    context = {
+        'assessment': assessment,
+        'student_marks': student_marks,
+        'total_students': total_students,
+        'attended': attended,
+        'not_attended': not_attended,
+        'attendance_rate': round(attendance_rate, 1),
+        'is_editable': is_editable,
+    }
+    
+    return render(request, 'lecturer/assessments/detail.html', context)
+
+
+@login_required
+def extend_assessment(request, assessment_id):
+    """Extend assessment date/time"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    if request.method == 'POST':
+        new_date = request.POST.get('new_date')
+        new_duration = request.POST.get('new_duration')
+        reason = request.POST.get('reason', '')
+        
+        if new_date:
+            old_date = assessment.date
+            assessment.date = new_date
+            
+            if new_duration:
+                assessment.duration_minutes = new_duration
+            
+            try:
+                assessment.save()
+                messages.success(
+                    request,
+                    f'Assessment extended from {old_date} to {new_date}. Reason: {reason}'
+                )
+                return redirect('assessment_detail', assessment_id=assessment.id)
+            except Exception as e:
+                messages.error(request, f'Error extending assessment: {str(e)}')
+        else:
+            messages.error(request, 'Please provide a new date.')
+    
+    context = {
+        'assessment': assessment,
+    }
+    
+    return render(request, 'lecturer/assessments/extend.html', context)
+
+
+@login_required
+def assessment_participants(request, assessment_id):
+    """View all students enrolled for this assessment"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    # Get enrolled students
+    student_marks = assessment.student_marks.select_related(
+        'student__user',
+        'student__programme'
+    ).order_by('student__registration_number')
+    
+    # Filter by attendance status
+    status_filter = request.GET.get('status')
+    if status_filter == 'attended':
+        student_marks = student_marks.filter(attendance=True)
+    elif status_filter == 'not_attended':
+        student_marks = student_marks.filter(attendance=False)
+    
+    # Search functionality
+    search_query = request.GET.get('search')
+    if search_query:
+        student_marks = student_marks.filter(
+            Q(student__registration_number__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query)
+        )
+    
+    context = {
+        'assessment': assessment,
+        'student_marks': student_marks,
+        'status_filter': status_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'lecturer/assessments/participants.html', context)
+
+
+@login_required
+def delete_assessment(request, assessment_id):
+    """Delete an assessment"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    if request.method == 'POST':
+        # Only allow deletion if not published
+        if assessment.is_published:
+            messages.error(request, 'Cannot delete a published assessment.')
+            return redirect('assessment_detail', assessment_id=assessment.id)
+        
+        unit_name = assessment.unit_allocation.programme_unit.unit.name
+        assessment_type = assessment.get_assessment_type_display()
+        
+        try:
+            assessment.delete()
+            messages.success(request, f'{assessment_type} for {unit_name} deleted successfully!')
+            return redirect('lecturer_assessments')
+        except Exception as e:
+            messages.error(request, f'Error deleting assessment: {str(e)}')
+            return redirect('assessment_detail', assessment_id=assessment.id)
+    
+    context = {
+        'assessment': assessment,
+    }
+    
+    return render(request, 'lecturer/assessments/delete_confirm.html', context)
