@@ -21814,3 +21814,625 @@ def annual_report(request):
     }
     
     return render(request, 'lecturer/reports/annual_report.html', context)
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.db.models import Q, Count, Sum, F, Case, When, DecimalField
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from decimal import Decimal
+import json
+
+from .models import (
+    SemesterReport, Student, Semester, AcademicYear, 
+    Programme, FeeBalance, SemesterResults
+)
+
+
+def is_admin_or_registrar(user):
+    """Check if user is admin or registrar"""
+    return user.is_staff or user.role in ['registrar', 'finance', 'dean', 'hos']
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+def semester_reporting_management(request):
+    """Main semester reporting management view"""
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get filter parameters
+    semester_id = request.GET.get('semester', current_semester.id if current_semester else None)
+    programme_id = request.GET.get('programme', '')
+    year_of_study = request.GET.get('year', '')
+    status = request.GET.get('status', '')
+    search_query = request.GET.get('search', '')
+    financial_status = request.GET.get('financial_status', '')
+    eligibility_filter = request.GET.get('eligibility', '')
+    
+    # Base queryset
+    reports = SemesterReport.objects.select_related(
+        'student__user',
+        'student__programme__department__school',
+        'to_semester',
+        'to_academic_year',
+        'approved_by'
+    ).all()
+    
+    # Apply filters
+    if semester_id:
+        reports = reports.filter(to_semester_id=semester_id)
+    
+    if programme_id:
+        reports = reports.filter(student__programme_id=programme_id)
+    
+    if year_of_study:
+        reports = reports.filter(to_year_of_study=year_of_study)
+    
+    if status:
+        reports = reports.filter(status=status)
+    
+    if financial_status:
+        if financial_status == 'cleared':
+            reports = reports.filter(is_financially_cleared=True)
+        elif financial_status == 'not_cleared':
+            reports = reports.filter(is_financially_cleared=False)
+    
+    if eligibility_filter:
+        if eligibility_filter == 'eligible':
+            reports = reports.filter(is_eligible=True)
+        elif eligibility_filter == 'not_eligible':
+            reports = reports.filter(is_eligible=False)
+    
+    if search_query:
+        reports = reports.filter(
+            Q(student__registration_number__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(student__user__email__icontains=search_query)
+        )
+    
+    # Order by most recent first
+    reports = reports.order_by('-report_date')
+    
+    # Calculate statistics
+    total_reports = reports.count()
+    pending_reports = reports.filter(status='pending').count()
+    approved_reports = reports.filter(status='approved').count()
+    rejected_reports = reports.filter(status='rejected').count()
+    
+    # Financial statistics
+    financially_cleared = reports.filter(is_financially_cleared=True).count()
+    financially_pending = reports.filter(is_financially_cleared=False).count()
+    
+    # Eligibility statistics
+    eligible_students = reports.filter(is_eligible=True).count()
+    ineligible_students = reports.filter(is_eligible=False).count()
+    
+    # Aggregate by programme
+    programme_stats = reports.values(
+        'student__programme__name',
+        'student__programme__code',
+        'student__programme_id'
+    ).annotate(
+        total=Count('id'),
+        pending=Count(Case(When(status='pending', then=1))),
+        approved=Count(Case(When(status='approved', then=1))),
+        rejected=Count(Case(When(status='rejected', then=1)))
+    ).order_by('-total')
+    
+    # Pagination
+    paginator = Paginator(reports, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    semesters = Semester.objects.filter(is_active=True).order_by('-academic_year__start_date')
+    programmes = Programme.objects.filter(is_active=True).select_related('department__school')
+    years = range(1, 8)
+    
+    context = {
+        'reports': page_obj,
+        'current_semester': current_semester,
+        'semesters': semesters,
+        'programmes': programmes,
+        'years': years,
+        'total_reports': total_reports,
+        'pending_reports': pending_reports,
+        'approved_reports': approved_reports,
+        'rejected_reports': rejected_reports,
+        'financially_cleared': financially_cleared,
+        'financially_pending': financially_pending,
+        'eligible_students': eligible_students,
+        'ineligible_students': ineligible_students,
+        'programme_stats': programme_stats,
+        'search_query': search_query,
+        'semester_id': semester_id,
+        'programme_id': programme_id,
+        'year_of_study': year_of_study,
+        'status': status,
+        'financial_status': financial_status,
+        'eligibility_filter': eligibility_filter,
+        'status_choices': SemesterReport.REPORT_STATUS,
+    }
+    
+    return render(request, 'admin/semester_reporting_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def bulk_approve_reports(request):
+    """API endpoint for bulk approval of semester reports"""
+    
+    try:
+        data = json.loads(request.body)
+        report_ids = data.get('report_ids', [])
+        bypass_fee_check = data.get('bypass_fee_check', False)
+        bypass_eligibility_check = data.get('bypass_eligibility_check', False)
+        
+        if not report_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No reports selected'
+            }, status=400)
+        
+        # Get reports
+        reports = SemesterReport.objects.filter(id__in=report_ids)
+        
+        if not reports.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'No valid reports found'
+            }, status=404)
+        
+        approved_count = 0
+        failed_count = 0
+        errors = []
+        
+        for report in reports:
+            # Check if already approved
+            if report.status == 'approved':
+                failed_count += 1
+                errors.append({
+                    'student': report.student.registration_number,
+                    'reason': 'Already approved'
+                })
+                continue
+            
+            # Check financial clearance unless bypassed
+            if not bypass_fee_check and not report.is_financially_cleared:
+                failed_count += 1
+                errors.append({
+                    'student': report.student.registration_number,
+                    'reason': f'Fee balance: {report.fee_balance}'
+                })
+                continue
+            
+            # Check eligibility unless bypassed
+            if not bypass_eligibility_check and not report.is_eligible:
+                failed_count += 1
+                errors.append({
+                    'student': report.student.registration_number,
+                    'reason': f'Not eligible: {report.failed_units_count} failed units'
+                })
+                continue
+            
+            # Approve the report
+            report.status = 'approved'
+            report.approved_by = request.user
+            report.approval_date = timezone.now()
+            report.remarks = f"Bulk approved by {request.user.get_full_name()}"
+            
+            if bypass_fee_check:
+                report.remarks += " (Fee check bypassed)"
+            if bypass_eligibility_check:
+                report.remarks += " (Eligibility check bypassed)"
+            
+            report.save()
+            
+            # Update student's current year and semester
+            student = report.student
+            student.current_year = report.to_year_of_study
+            student.current_semester = report.to_semester_number
+            student.save()
+            
+            approved_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully approved {approved_count} report(s)',
+            'approved_count': approved_count,
+            'failed_count': failed_count,
+            'errors': errors
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def bulk_reject_reports(request):
+    """API endpoint for bulk rejection of semester reports"""
+    
+    try:
+        data = json.loads(request.body)
+        report_ids = data.get('report_ids', [])
+        rejection_reason = data.get('rejection_reason', '')
+        
+        if not report_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No reports selected'
+            }, status=400)
+        
+        if not rejection_reason:
+            return JsonResponse({
+                'success': False,
+                'message': 'Rejection reason is required'
+            }, status=400)
+        
+        # Get reports
+        reports = SemesterReport.objects.filter(
+            id__in=report_ids,
+            status='pending'
+        )
+        
+        if not reports.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'No pending reports found'
+            }, status=404)
+        
+        # Reject reports
+        updated_count = reports.update(
+            status='rejected',
+            rejection_reason=rejection_reason,
+            remarks=f"Bulk rejected by {request.user.get_full_name()}: {rejection_reason}"
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully rejected {updated_count} report(s)',
+            'rejected_count': updated_count
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def approve_programme_reports(request):
+    """API endpoint to approve all reports for a specific programme and year"""
+    
+    try:
+        data = json.loads(request.body)
+        semester_id = data.get('semester_id')
+        programme_id = data.get('programme_id')
+        year_of_study = data.get('year_of_study')
+        bypass_fee_check = data.get('bypass_fee_check', False)
+        bypass_eligibility_check = data.get('bypass_eligibility_check', False)
+        
+        if not all([semester_id, programme_id, year_of_study]):
+            return JsonResponse({
+                'success': False,
+                'message': 'Semester, programme, and year are required'
+            }, status=400)
+        
+        # Build query
+        query = Q(
+            to_semester_id=semester_id,
+            student__programme_id=programme_id,
+            to_year_of_study=year_of_study,
+            status='pending'
+        )
+        
+        # Add financial and eligibility filters if not bypassed
+        if not bypass_fee_check:
+            query &= Q(is_financially_cleared=True)
+        
+        if not bypass_eligibility_check:
+            query &= Q(is_eligible=True)
+        
+        # Get reports
+        reports = SemesterReport.objects.filter(query)
+        
+        if not reports.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'No eligible reports found for approval'
+            }, status=404)
+        
+        approved_count = 0
+        
+        for report in reports:
+            report.status = 'approved'
+            report.approved_by = request.user
+            report.approval_date = timezone.now()
+            report.remarks = f"Programme-wide approval by {request.user.get_full_name()}"
+            
+            if bypass_fee_check:
+                report.remarks += " (Fee check bypassed)"
+            if bypass_eligibility_check:
+                report.remarks += " (Eligibility check bypassed)"
+            
+            report.save()
+            
+            # Update student
+            student = report.student
+            student.current_year = report.to_year_of_study
+            student.current_semester = report.to_semester_number
+            student.save()
+            
+            approved_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully approved {approved_count} report(s)',
+            'approved_count': approved_count
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["GET"])
+def get_report_details(request, report_id):
+    """API endpoint to get detailed information about a report"""
+    
+    try:
+        report = get_object_or_404(
+            SemesterReport.objects.select_related(
+                'student__user',
+                'student__programme',
+                'to_semester',
+                'to_academic_year',
+                'from_semester',
+                'from_academic_year',
+                'approved_by'
+            ),
+            id=report_id
+        )
+        
+        # Get fee balance
+        fee_balance = None
+        if report.to_semester:
+            try:
+                balance = FeeBalance.objects.get(
+                    student=report.student,
+                    semester=report.to_semester
+                )
+                fee_balance = {
+                    'total_fees': float(balance.total_fees),
+                    'amount_paid': float(balance.amount_paid),
+                    'balance': float(balance.balance),
+                    'is_cleared': balance.is_cleared
+                }
+            except FeeBalance.DoesNotExist:
+                pass
+        
+        # Get failed units
+        failed_units = []
+        if report.from_semester:
+            failed_results = SemesterResults.objects.filter(
+                student=report.student,
+                semester=report.from_semester,
+                is_passed=False
+            ).select_related('programme_unit__unit')
+            
+            failed_units = [{
+                'unit_code': result.programme_unit.unit.code,
+                'unit_name': result.programme_unit.unit.name,
+                'grade': result.grade,
+                'total_marks': float(result.total_marks)
+            } for result in failed_results]
+        
+        data = {
+            'id': report.id,
+            'student': {
+                'registration_number': report.student.registration_number,
+                'name': report.student.user.get_full_name(),
+                'email': report.student.user.email,
+                'phone': report.student.user.phone_number,
+                'programme': report.student.programme.name,
+                'programme_code': report.student.programme.code,
+            },
+            'progression': {
+                'from_year': report.from_year_of_study,
+                'from_semester': report.from_semester_number,
+                'to_year': report.to_year_of_study,
+                'to_semester': report.to_semester_number,
+            },
+            'academic_info': {
+                'previous_gpa': float(report.previous_semester_gpa) if report.previous_semester_gpa else None,
+                'cumulative_gpa': float(report.cumulative_gpa) if report.cumulative_gpa else None,
+                'total_credits': report.total_credits_earned,
+                'failed_units_count': report.failed_units_count,
+                'failed_units': failed_units,
+            },
+            'financial_info': {
+                'fee_balance': float(report.fee_balance),
+                'is_cleared': report.is_financially_cleared,
+                'clearance_date': report.financial_clearance_date.isoformat() if report.financial_clearance_date else None,
+                'details': fee_balance,
+            },
+            'eligibility': {
+                'is_eligible': report.is_eligible,
+                'eligibility_remarks': report.eligibility_remarks,
+                'checked_at': report.eligibility_checked_at.isoformat() if report.eligibility_checked_at else None,
+            },
+            'status': {
+                'status': report.status,
+                'status_display': report.get_status_display(),
+                'report_date': report.report_date.isoformat(),
+                'approved_by': report.approved_by.get_full_name() if report.approved_by else None,
+                'approval_date': report.approval_date.isoformat() if report.approval_date else None,
+                'rejection_reason': report.rejection_reason,
+                'remarks': report.remarks,
+            },
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'data': data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def individual_approve_report(request, report_id):
+    """API endpoint to approve individual report"""
+    
+    try:
+        data = json.loads(request.body)
+        bypass_fee_check = data.get('bypass_fee_check', False)
+        bypass_eligibility_check = data.get('bypass_eligibility_check', False)
+        remarks = data.get('remarks', '')
+        
+        report = get_object_or_404(SemesterReport, id=report_id)
+        
+        # Validation
+        if report.status == 'approved':
+            return JsonResponse({
+                'success': False,
+                'message': 'Report is already approved'
+            }, status=400)
+        
+        if not bypass_fee_check and not report.is_financially_cleared:
+            return JsonResponse({
+                'success': False,
+                'message': f'Student has fee balance of {report.fee_balance}. Use bypass option to approve anyway.'
+            }, status=400)
+        
+        if not bypass_eligibility_check and not report.is_eligible:
+            return JsonResponse({
+                'success': False,
+                'message': f'Student is not eligible: {report.eligibility_remarks}. Use bypass option to approve anyway.'
+            }, status=400)
+        
+        # Approve
+        report.status = 'approved'
+        report.approved_by = request.user
+        report.approval_date = timezone.now()
+        
+        report_remarks = f"Approved by {request.user.get_full_name()}"
+        if bypass_fee_check:
+            report_remarks += " (Fee check bypassed)"
+        if bypass_eligibility_check:
+            report_remarks += " (Eligibility check bypassed)"
+        if remarks:
+            report_remarks += f" - {remarks}"
+        
+        report.remarks = report_remarks
+        report.save()
+        
+        # Update student
+        student = report.student
+        student.current_year = report.to_year_of_study
+        student.current_semester = report.to_semester_number
+        student.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Report approved successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def individual_reject_report(request, report_id):
+    """API endpoint to reject individual report"""
+    
+    try:
+        data = json.loads(request.body)
+        rejection_reason = data.get('rejection_reason', '')
+        
+        if not rejection_reason:
+            return JsonResponse({
+                'success': False,
+                'message': 'Rejection reason is required'
+            }, status=400)
+        
+        report = get_object_or_404(SemesterReport, id=report_id)
+        
+        if report.status == 'rejected':
+            return JsonResponse({
+                'success': False,
+                'message': 'Report is already rejected'
+            }, status=400)
+        
+        # Reject
+        report.status = 'rejected'
+        report.rejection_reason = rejection_reason
+        report.remarks = f"Rejected by {request.user.get_full_name()}: {rejection_reason}"
+        report.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Report rejected successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)

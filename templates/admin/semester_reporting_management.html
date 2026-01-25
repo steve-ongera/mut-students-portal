@@ -1,0 +1,1439 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Semester Reporting Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Semester Reporting Management{% endblock %}
+{% block page_subtitle %}Manage student semester reporting, approve registrations, and track progression{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Semester Reporting</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Semester Reporting Management</h1>
+                <p class="text-muted mb-0">Manage student semester reporting and approve registrations</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-file-list-line me-2"></i>
+                    {{ total_reports }} report(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card stat-pending">
+                <div class="stat-icon">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ pending_reports }}</div>
+                    <div class="stat-label">Pending Approval</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-approved">
+                <div class="stat-icon">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ approved_reports }}</div>
+                    <div class="stat-label">Approved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-financial">
+                <div class="stat-icon">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ financially_cleared }}</div>
+                    <div class="stat-label">Fee Cleared</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-eligible">
+                <div class="stat-icon">
+                    <i class="ri-user-star-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ eligible_students }}</div>
+                    <div class="stat-label">Eligible</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Actions</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number, name, or email..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#filterModal">
+                        <i class="ri-filter-line fs-5"></i>
+                        <span>Advanced Filters</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#bulkApproveModal"
+                            id="bulkApproveBtn"
+                            disabled>
+                        <i class="ri-checkbox-multiple-line fs-5"></i>
+                        <span>Bulk Approve</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#bulkRejectModal"
+                            id="bulkRejectBtn"
+                            disabled>
+                        <i class="ri-close-circle-line fs-5"></i>
+                        <span>Bulk Reject</span>
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-success d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#programmeApprovalModal">
+                        <i class="ri-shield-check-line fs-5"></i>
+                        <span>Programme-Wide Approval</span>
+                    </button>
+                    <button class="btn btn-sm btn-info d-flex align-items-center gap-1"
+                            onclick="window.location.reload()">
+                        <i class="ri-refresh-line fs-5"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Statistics -->
+    {% if programme_stats %}
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Programme Statistics</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Programme</th>
+                            <th class="text-center">Total</th>
+                            <th class="text-center">Pending</th>
+                            <th class="text-center">Approved</th>
+                            <th class="text-center">Rejected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in programme_stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ stat.student__programme__code }}</strong>
+                                <small class="text-muted d-block">{{ stat.student__programme__name|truncatechars:40 }}</small>
+                            </td>
+                            <td class="text-center"><span class="badge bg-secondary">{{ stat.total }}</span></td>
+                            <td class="text-center"><span class="badge bg-warning">{{ stat.pending }}</span></td>
+                            <td class="text-center"><span class="badge bg-success">{{ stat.approved }}</span></td>
+                            <td class="text-center"><span class="badge bg-danger">{{ stat.rejected }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Reports Table Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Semester Reports</h5>
+            <div class="card-subtitle">Showing {{ reports|length }} of {{ total_reports }} reports</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="reportsTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4" width="50">
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            <th>Student Details</th>
+                            <th>Programme</th>
+                            <th>Progression</th>
+                            <th>Academic</th>
+                            <th>Fees</th>
+                            <th>Eligibility</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr data-report-id="{{ report.id }}">
+                            <td class="ps-4">
+                                <input type="checkbox" 
+                                       name="report_ids" 
+                                       value="{{ report.id }}" 
+                                       class="form-check-input report-checkbox"
+                                       {% if report.status == 'approved' %}disabled{% endif %}>
+                            </td>
+                            <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-3">
+                                            <img src="{% if report.student.user.profile_picture %}{{ report.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ report.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ report.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ report.student.registration_number }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ report.student.programme.code }}</strong>
+                                    <small class="text-muted">{{ report.student.programme.name|truncatechars:25 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="progression-info">
+                                    <div class="d-flex align-items-center gap-2">
+                                        {% if report.from_year_of_study %}
+                                        <span class="badge bg-light text-dark">Y{{ report.from_year_of_study }}S{{ report.from_semester_number }}</span>
+                                        <i class="ri-arrow-right-line text-muted"></i>
+                                        {% endif %}
+                                        <span class="badge bg-info">Y{{ report.to_year_of_study }}S{{ report.to_semester_number }}</span>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">{{ report.report_date|date:"M d, Y" }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="academic-info">
+                                    {% if report.cumulative_gpa %}
+                                    <div class="gpa-display mb-1">
+                                        <span class="gpa-value {% if report.cumulative_gpa >= 3.0 %}text-success{% elif report.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ report.cumulative_gpa }}
+                                        </span>
+                                        <small class="text-muted">GPA</small>
+                                    </div>
+                                    {% endif %}
+                                    {% if report.failed_units_count > 0 %}
+                                    <span class="badge bg-danger-subtle text-danger">
+                                        {{ report.failed_units_count }} failed unit(s)
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if report.is_financially_cleared %}
+                                <span class="badge bg-success-subtle text-success">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Cleared
+                                </span>
+                                {% else %}
+                                <span class="badge bg-danger-subtle text-danger">
+                                    <i class="ri-error-warning-fill me-1"></i>
+                                    KES {{ report.fee_balance|floatformat:2 }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if report.is_eligible %}
+                                <span class="badge bg-success-subtle text-success">
+                                    <i class="ri-shield-check-fill me-1"></i>
+                                    Eligible
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning">
+                                    <i class="ri-alert-fill me-1"></i>
+                                    Not Eligible
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if report.status == 'pending' %}
+                                <span class="status-badge status-pending">
+                                    <i class="ri-time-fill me-1"></i>
+                                    Pending
+                                </span>
+                                {% elif report.status == 'approved' %}
+                                <span class="status-badge status-approved">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Approved
+                                </span>
+                                {% elif report.status == 'rejected' %}
+                                <span class="status-badge status-rejected">
+                                    <i class="ri-close-circle-fill me-1"></i>
+                                    Rejected
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-other">
+                                    {{ report.get_status_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-icon btn-outline-info btn-sm view-details-btn" 
+                                                title="View Details"
+                                                data-report-id="{{ report.id }}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                        
+                                        {% if report.status == 'pending' %}
+                                        <button class="btn btn-icon btn-outline-success btn-sm approve-btn" 
+                                                title="Approve"
+                                                data-report-id="{{ report.id }}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-check-line"></i>
+                                        </button>
+                                        
+                                        <button class="btn btn-icon btn-outline-danger btn-sm reject-btn" 
+                                                title="Reject"
+                                                data-report-id="{{ report.id }}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-close-line"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-search-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No reports found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your search or filter criteria</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if reports.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if reports.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ reports.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in reports.paginator.page_range %}
+                    {% if reports.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > reports.number|add:'-3' and i < reports.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if reports.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ reports.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Advanced Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Advanced Filters</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Semester</label>
+                            <select name="semester" class="form-select">
+                                {% for sem in semesters %}
+                                <option value="{{ sem.id }}" {% if semester_id == sem.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ sem.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Programme</label>
+                            <select name="programme" class="form-select">
+                                <option value="">All Programmes</option>
+                                {% for prog in programmes %}
+                                <option value="{{ prog.id }}" {% if programme_id == prog.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ prog.code }} - {{ prog.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Year of Study</label>
+                            <select name="year" class="form-select">
+                                <option value="">All Years</option>
+                                {% for year in years %}
+                                <option value="{{ year }}" {% if year_of_study == year|stringformat:"i" %}selected{% endif %}>
+                                    Year {{ year }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                {% for status_code, status_name in status_choices %}
+                                <option value="{{ status_code }}" {% if status == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Financial Status</label>
+                            <select name="financial_status" class="form-select">
+                                <option value="">All</option>
+                                <option value="cleared" {% if financial_status == 'cleared' %}selected{% endif %}>Fee Cleared</option>
+                                <option value="not_cleared" {% if financial_status == 'not_cleared' %}selected{% endif %}>Pending Fees</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Eligibility</label>
+                            <select name="eligibility" class="form-select">
+                                <option value="">All</option>
+                                <option value="eligible" {% if eligibility_filter == 'eligible' %}selected{% endif %}>Eligible Only</option>
+                                <option value="not_eligible" {% if eligibility_filter == 'not_eligible' %}selected{% endif %}>Not Eligible</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="?" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Approve Modal -->
+<div class="modal fade" id="bulkApproveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Approve Reports</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-start">
+                        <i class="ri-information-line fs-5 me-2 mt-1"></i>
+                        <div>
+                            <p class="mb-2">You are about to approve <strong id="bulkApproveCount">0</strong> report(s).</p>
+                            <p class="mb-0 small">This will update the students' current year and semester.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="bypassFeeCheckBulk">
+                    <label class="form-check-label" for="bypassFeeCheckBulk">
+                        <strong>Bypass fee clearance requirement</strong>
+                        <small class="text-muted d-block">Approve even if students have outstanding fees</small>
+                    </label>
+                </div>
+                
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="bypassEligibilityCheckBulk">
+                    <label class="form-check-label" for="bypassEligibilityCheckBulk">
+                        <strong>Bypass eligibility requirement</strong>
+                        <small class="text-muted d-block">Approve even if students have >2 failed units</small>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmBulkApprove">
+                    <i class="ri-checkbox-multiple-line me-1"></i>
+                    Approve Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Reject Modal -->
+<div class="modal fade" id="bulkRejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Reject Reports</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <div class="d-flex align-items-start">
+                        <i class="ri-alert-line fs-5 me-2 mt-1"></i>
+                        <div>
+                            <p class="mb-0">You are about to reject <strong id="bulkRejectCount">0</strong> report(s).</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="bulkRejectionReason" rows="3" required placeholder="Enter reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkReject">
+                    <i class="ri-close-circle-line me-1"></i>
+                    Reject Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Programme-Wide Approval Modal -->
+<div class="modal fade" id="programmeApprovalModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Programme-Wide Approval</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="ri-information-line me-2"></i>
+                    Approve all pending reports for a specific programme and year
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Semester <span class="text-danger">*</span></label>
+                        <select class="form-select" id="progSemester" required>
+                            {% for sem in semesters %}
+                            <option value="{{ sem.id }}" {% if current_semester and sem.id == current_semester.id %}selected{% endif %}>
+                                {{ sem.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Programme <span class="text-danger">*</span></label>
+                        <select class="form-select" id="progProgramme" required>
+                            <option value="">Select Programme</option>
+                            {% for prog in programmes %}
+                            <option value="{{ prog.id }}">{{ prog.code }} - {{ prog.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Year of Study <span class="text-danger">*</span></label>
+                        <select class="form-select" id="progYear" required>
+                            <option value="">Select Year</option>
+                            {% for year in years %}
+                            <option value="{{ year }}">Year {{ year }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="bypassFeeCheckProg">
+                            <label class="form-check-label" for="bypassFeeCheckProg">
+                                Bypass fee clearance requirement
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="bypassEligibilityCheckProg">
+                            <label class="form-check-label" for="bypassEligibilityCheckProg">
+                                Bypass eligibility requirement
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmProgrammeApproval">
+                    <i class="ri-shield-check-line me-1"></i>
+                    Approve Programme
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Details Modal -->
+<div class="modal fade" id="reportDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Report Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="reportDetailsContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Individual Approve Modal -->
+<div class="modal fade" id="individualApproveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Approve Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success">
+                    <i class="ri-checkbox-circle-line me-2"></i>
+                    Approve this semester report?
+                </div>
+                
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="bypassFeeCheckIndiv">
+                    <label class="form-check-label" for="bypassFeeCheckIndiv">
+                        Bypass fee clearance requirement
+                    </label>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="bypassEligibilityCheckIndiv">
+                    <label class="form-check-label" for="bypassEligibilityCheckIndiv">
+                        Bypass eligibility requirement
+                    </label>
+                </div>
+                
+                <div class="mb-0">
+                    <label class="form-label">Remarks (Optional)</label>
+                    <textarea class="form-control" id="individualApproveRemarks" rows="2" placeholder="Add any remarks..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmIndividualApprove">
+                    <i class="ri-check-line me-1"></i>
+                    Approve
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Individual Reject Modal -->
+<div class="modal fade" id="individualRejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="ri-close-circle-line me-2"></i>
+                    Reject this semester report?
+                </div>
+                
+                <div class="mb-0">
+                    <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="individualRejectionReason" rows="3" required placeholder="Enter reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmIndividualReject">
+                    <i class="ri-close-line me-1"></i>
+                    Reject
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Statistics Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md);
+        font-size: 1.5rem;
+    }
+    
+    .stat-pending .stat-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .stat-approved .stat-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .stat-financial .stat-icon {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .stat-eligible .stat-icon {
+        background: rgba(156, 39, 176, 0.1);
+        color: #9C27B0;
+    }
+    
+    .stat-details {
+        flex: 1;
+    }
+    
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Action Buttons */
+    .action-buttons .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .action-buttons .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .action-buttons .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Student Avatar */
+    .student-avatar {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-approved {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-rejected {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* GPA Display */
+    .gpa-display {
+        display: inline-block;
+    }
+    
+    .gpa-value {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-right: 0.25rem;
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Pagination */
+    .pagination-container {
+        padding: 1rem 0;
+    }
+    
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Checkbox Styles */
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+        border-color: var(--color-primary);
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Get CSRF token
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+               document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+    }
+    
+    // Select all functionality
+    const selectAll = document.getElementById('selectAll');
+    const reportCheckboxes = document.querySelectorAll('.report-checkbox:not(:disabled)');
+    
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            reportCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkButtons();
+        });
+    }
+    
+    // Update bulk buttons
+    function updateBulkButtons() {
+        const selectedCount = document.querySelectorAll('.report-checkbox:checked').length;
+        const bulkApproveBtn = document.getElementById('bulkApproveBtn');
+        const bulkRejectBtn = document.getElementById('bulkRejectBtn');
+        const bulkApproveCount = document.getElementById('bulkApproveCount');
+        const bulkRejectCount = document.getElementById('bulkRejectCount');
+        
+        if (bulkApproveBtn) bulkApproveBtn.disabled = selectedCount === 0;
+        if (bulkRejectBtn) bulkRejectBtn.disabled = selectedCount === 0;
+        if (bulkApproveCount) bulkApproveCount.textContent = selectedCount;
+        if (bulkRejectCount) bulkRejectCount.textContent = selectedCount;
+    }
+    
+    reportCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkButtons);
+    });
+    
+    // View Details
+    document.querySelectorAll('.view-details-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const reportId = this.dataset.reportId;
+            viewReportDetails(reportId);
+        });
+    });
+    
+    function viewReportDetails(reportId) {
+        const modal = new bootstrap.Modal(document.getElementById('reportDetailsModal'));
+        const contentDiv = document.getElementById('reportDetailsContent');
+        
+        contentDiv.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        modal.show();
+        
+        fetch(`/api/semester-reports/${reportId}/details/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                const data = result.data;
+                contentDiv.innerHTML = `
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <h6 class="fw-bold mb-3">Student Information</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Name:</strong> ${data.student.name}</p>
+                                    <p class="mb-1"><strong>Registration:</strong> ${data.student.registration_number}</p>
+                                    <p class="mb-1"><strong>Email:</strong> ${data.student.email}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Programme:</strong> ${data.student.programme_code}</p>
+                                    <p class="mb-1"><small class="text-muted">${data.student.programme}</small></p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12"><hr></div>
+                        
+                        <div class="col-12">
+                            <h6 class="fw-bold mb-3">Progression Details</h6>
+                            <div class="d-flex align-items-center gap-3">
+                                ${data.progression.from_year ? `
+                                    <span class="badge bg-light text-dark">
+                                        Year ${data.progression.from_year} Semester ${data.progression.from_semester}
+                                    </span>
+                                    <i class="ri-arrow-right-line"></i>
+                                ` : ''}
+                                <span class="badge bg-primary">
+                                    Year ${data.progression.to_year} Semester ${data.progression.to_semester}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12"><hr></div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Academic Performance</h6>
+                            <p class="mb-1"><strong>Cumulative GPA:</strong> 
+                                <span class="${data.academic_info.cumulative_gpa >= 3.0 ? 'text-success' : data.academic_info.cumulative_gpa >= 2.0 ? 'text-warning' : 'text-danger'}">
+                                    ${data.academic_info.cumulative_gpa || 'N/A'}
+                                </span>
+                            </p>
+                            <p class="mb-1"><strong>Previous Semester GPA:</strong> ${data.academic_info.previous_gpa || 'N/A'}</p>
+                            <p class="mb-1"><strong>Total Credits:</strong> ${data.academic_info.total_credits}</p>
+                            <p class="mb-1"><strong>Failed Units:</strong> 
+                                <span class="${data.academic_info.failed_units_count > 2 ? 'text-danger' : 'text-success'}">
+                                    ${data.academic_info.failed_units_count}
+                                </span>
+                            </p>
+                            
+                            ${data.academic_info.failed_units && data.academic_info.failed_units.length > 0 ? `
+                                <div class="mt-2">
+                                    <strong>Failed Units:</strong>
+                                    <ul class="list-unstyled small mt-1">
+                                        ${data.academic_info.failed_units.map(unit => `
+                                            <li>• ${unit.unit_code} - ${unit.unit_name} (${unit.grade})</li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Financial Status</h6>
+                            <p class="mb-1"><strong>Fee Balance:</strong> 
+                                <span class="${data.financial_info.is_cleared ? 'text-success' : 'text-danger'}">
+                                    KES ${parseFloat(data.financial_info.fee_balance).toFixed(2)}
+                                </span>
+                            </p>
+                            <p class="mb-1"><strong>Status:</strong> 
+                                ${data.financial_info.is_cleared ? 
+                                    '<span class="badge bg-success-subtle text-success">Cleared</span>' : 
+                                    '<span class="badge bg-danger-subtle text-danger">Pending</span>'}
+                            </p>
+                            ${data.financial_info.clearance_date ? `
+                                <p class="mb-1"><strong>Cleared On:</strong> ${new Date(data.financial_info.clearance_date).toLocaleDateString()}</p>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="col-12"><hr></div>
+                        
+                        <div class="col-12">
+                            <h6 class="fw-bold mb-3">Eligibility & Status</h6>
+                            <p class="mb-1"><strong>Eligible:</strong> 
+                                ${data.eligibility.is_eligible ? 
+                                    '<span class="badge bg-success-subtle text-success">Yes</span>' : 
+                                    '<span class="badge bg-warning-subtle text-warning">No</span>'}
+                            </p>
+                            ${data.eligibility.eligibility_remarks ? `
+                                <p class="mb-1"><strong>Remarks:</strong> <span class="text-danger">${data.eligibility.eligibility_remarks}</span></p>
+                            ` : ''}
+                            <p class="mb-1"><strong>Report Status:</strong> 
+                                <span class="badge bg-${data.status.status === 'approved' ? 'success' : data.status.status === 'pending' ? 'warning' : 'danger'}">
+                                    ${data.status.status_display}
+                                </span>
+                            </p>
+                            <p class="mb-1"><strong>Report Date:</strong> ${new Date(data.status.report_date).toLocaleDateString()}</p>
+                            ${data.status.approved_by ? `
+                                <p class="mb-1"><strong>Approved By:</strong> ${data.status.approved_by}</p>
+                                <p class="mb-1"><strong>Approval Date:</strong> ${new Date(data.status.approval_date).toLocaleDateString()}</p>
+                            ` : ''}
+                            ${data.status.rejection_reason ? `
+                                <p class="mb-1"><strong>Rejection Reason:</strong> <span class="text-danger">${data.status.rejection_reason}</span></p>
+                            ` : ''}
+                            ${data.status.remarks ? `
+                                <p class="mb-1"><strong>Remarks:</strong> ${data.status.remarks}</p>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="ri-error-warning-line me-2"></i>
+                        ${result.message}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            contentDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>
+                    Error loading report details
+                </div>
+            `;
+        });
+    }
+    
+    // Individual Approve
+    let currentReportId = null;
+    
+    document.querySelectorAll('.approve-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentReportId = this.dataset.reportId;
+            const modal = new bootstrap.Modal(document.getElementById('individualApproveModal'));
+            modal.show();
+        });
+    });
+    
+    document.getElementById('confirmIndividualApprove')?.addEventListener('click', function() {
+        const bypassFee = document.getElementById('bypassFeeCheckIndiv').checked;
+        const bypassEligibility = document.getElementById('bypassEligibilityCheckIndiv').checked;
+        const remarks = document.getElementById('individualApproveRemarks').value;
+        
+        fetch(`/api/semester-reports/${currentReportId}/approve/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                bypass_fee_check: bypassFee,
+                bypass_eligibility_check: bypassEligibility,
+                remarks: remarks
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('success', result.message);
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('danger', result.message);
+            }
+            bootstrap.Modal.getInstance(document.getElementById('individualApproveModal')).hide();
+        })
+        .catch(error => {
+            showAlert('danger', 'Error approving report');
+            bootstrap.Modal.getInstance(document.getElementById('individualApproveModal')).hide();
+        });
+    });
+    
+    // Individual Reject
+    document.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentReportId = this.dataset.reportId;
+            document.getElementById('individualRejectionReason').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('individualRejectModal'));
+            modal.show();
+        });
+    });
+    
+    document.getElementById('confirmIndividualReject')?.addEventListener('click', function() {
+        const reason = document.getElementById('individualRejectionReason').value.trim();
+        
+        if (!reason) {
+            showAlert('warning', 'Please enter a rejection reason');
+            return;
+        }
+        
+        fetch(`/api/semester-reports/${currentReportId}/reject/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                rejection_reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('success', result.message);
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('danger', result.message);
+            }
+            bootstrap.Modal.getInstance(document.getElementById('individualRejectModal')).hide();
+        })
+        .catch(error => {
+            showAlert('danger', 'Error rejecting report');
+            bootstrap.Modal.getInstance(document.getElementById('individualRejectModal')).hide();
+        });
+    });
+    
+    // Bulk Approve
+    document.getElementById('confirmBulkApprove')?.addEventListener('click', function() {
+        const selectedCheckboxes = document.querySelectorAll('.report-checkbox:checked');
+        const reportIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+        const bypassFee = document.getElementById('bypassFeeCheckBulk').checked;
+        const bypassEligibility = document.getElementById('bypassEligibilityCheckBulk').checked;
+        
+        if (reportIds.length === 0) {
+            showAlert('warning', 'No reports selected');
+            return;
+        }
+        
+        fetch('/api/semester-reports/bulk-approve/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF
