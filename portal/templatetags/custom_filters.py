@@ -33,3 +33,13 @@ def mul(value, arg):
         return float(value) * float(arg)
     except ValueError:
         return 0
+
+@register.filter
+def filter_passed(queryset):
+    """Filter passed results"""
+    return queryset.filter(is_passed=True)
+
+@register.filter
+def filter_failed(queryset):
+    """Filter failed results"""
+    return queryset.filter(is_passed=False)
