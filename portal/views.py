@@ -19598,3 +19598,759 @@ def delete_assessment(request, assessment_id):
     }
     
     return render(request, 'lecturer/assessments/delete_confirm.html', context)
+
+
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Count, Q, Avg, Sum, F
+from django.http import HttpResponse, JsonResponse
+from datetime import datetime
+import csv
+from decimal import Decimal
+from .models import (
+    Lecturer, UnitAllocation, Assessment, StudentMarks, 
+    UnitEnrollment, Student, Semester, AcademicYear,
+    SemesterResults, UnitGradingSystem
+)
+
+# ============= GRADING VIEWS =============
+
+@login_required
+def grading_dashboard(request):
+    """Dashboard showing all assessments that need grading"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all assessments for current semester
+    assessments = Assessment.objects.filter(
+        unit_allocation__lecturer=request.user,
+        unit_allocation__semester=current_semester,
+        unit_allocation__status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related(
+        'unit_allocation__programme_unit__unit',
+        'unit_allocation__programme_unit__programme'
+    ).annotate(
+        total_students=Count('student_marks'),
+        graded_count=Count('student_marks', filter=Q(student_marks__marks_obtained__gt=0)),
+        submitted_count=Count('student_marks', filter=Q(student_marks__status='submitted'))
+    ).order_by('date')
+    
+    # Categorize assessments
+    pending_grading = assessments.filter(
+        date__lte=timezone.now().date(),
+        is_published=False
+    ).exclude(graded_count=F('total_students'))
+    
+    graded_not_submitted = assessments.filter(
+        graded_count=F('total_students'),
+        is_published=False
+    )
+    
+    submitted_to_hod = assessments.filter(
+        student_marks__status='submitted'
+    ).distinct()
+    
+    context = {
+        'current_semester': current_semester,
+        'pending_grading': pending_grading,
+        'graded_not_submitted': graded_not_submitted,
+        'submitted_to_hod': submitted_to_hod,
+        'total_assessments': assessments.count(),
+    }
+    
+    return render(request, 'lecturer/grading/dashboard.html', context)
+
+
+@login_required
+def grade_students(request, assessment_id):
+    """Grade individual students for an assessment"""
+    assessment = get_object_or_404(
+        Assessment.objects.select_related(
+            'unit_allocation__programme_unit__unit',
+            'unit_allocation__programme_unit__programme'
+        ),
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    if request.method == 'POST':
+        # Process individual grade submission
+        student_mark_id = request.POST.get('student_mark_id')
+        marks_obtained = request.POST.get('marks_obtained')
+        attendance = request.POST.get('attendance') == 'on'
+        remarks = request.POST.get('remarks', '')
+        
+        try:
+            student_mark = StudentMarks.objects.get(
+                id=student_mark_id,
+                assessment=assessment
+            )
+            
+            # Validate marks
+            marks_obtained = Decimal(marks_obtained) if marks_obtained else Decimal('0')
+            if marks_obtained > assessment.max_marks:
+                messages.error(request, f'Marks cannot exceed {assessment.max_marks}')
+                return redirect('grade_students', assessment_id=assessment_id)
+            
+            student_mark.marks_obtained = marks_obtained
+            student_mark.attendance = attendance
+            student_mark.remarks = remarks
+            student_mark.status = 'draft'
+            student_mark.submitted_by = request.user
+            student_mark.save()
+            
+            messages.success(request, f'Marks saved for {student_mark.student.user.get_full_name()}')
+            
+        except StudentMarks.DoesNotExist:
+            messages.error(request, 'Invalid student mark record.')
+        except Exception as e:
+            messages.error(request, f'Error saving marks: {str(e)}')
+        
+        return redirect('grade_students', assessment_id=assessment_id)
+    
+    # Get all student marks
+    student_marks = assessment.student_marks.select_related(
+        'student__user',
+        'student__programme'
+    ).order_by('student__registration_number')
+    
+    # Calculate statistics
+    total_students = student_marks.count()
+    graded_count = student_marks.filter(marks_obtained__gt=0).count()
+    avg_marks = student_marks.aggregate(Avg('marks_obtained'))['marks_obtained__avg'] or 0
+    
+    context = {
+        'assessment': assessment,
+        'student_marks': student_marks,
+        'total_students': total_students,
+        'graded_count': graded_count,
+        'avg_marks': round(avg_marks, 2),
+        'grading_progress': round((graded_count / total_students * 100), 1) if total_students > 0 else 0,
+    }
+    
+    return render(request, 'lecturer/grading/grade_students.html', context)
+
+
+@login_required
+def bulk_upload_marks(request, assessment_id):
+    """Bulk upload marks via CSV"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    if request.method == 'POST' and request.FILES.get('marks_file'):
+        csv_file = request.FILES['marks_file']
+        
+        if not csv_file.name.endswith('.csv'):
+            messages.error(request, 'Please upload a CSV file.')
+            return redirect('grade_students', assessment_id=assessment_id)
+        
+        try:
+            # Read CSV file
+            decoded_file = csv_file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
+            
+            updated_count = 0
+            error_count = 0
+            errors = []
+            
+            for row in reader:
+                try:
+                    reg_number = row.get('registration_number', '').strip()
+                    marks = row.get('marks', '').strip()
+                    attendance = row.get('attendance', '').strip().upper() in ['YES', 'Y', '1', 'TRUE']
+                    remarks = row.get('remarks', '').strip()
+                    
+                    if not reg_number or not marks:
+                        continue
+                    
+                    # Get student mark
+                    student_mark = StudentMarks.objects.filter(
+                        assessment=assessment,
+                        student__registration_number=reg_number
+                    ).first()
+                    
+                    if not student_mark:
+                        errors.append(f"Student {reg_number} not found")
+                        error_count += 1
+                        continue
+                    
+                    # Validate marks
+                    marks_value = Decimal(marks)
+                    if marks_value > assessment.max_marks:
+                        errors.append(f"{reg_number}: Marks exceed maximum ({assessment.max_marks})")
+                        error_count += 1
+                        continue
+                    
+                    # Update marks
+                    student_mark.marks_obtained = marks_value
+                    student_mark.attendance = attendance
+                    student_mark.remarks = remarks
+                    student_mark.status = 'draft'
+                    student_mark.submitted_by = request.user
+                    student_mark.save()
+                    
+                    updated_count += 1
+                    
+                except Exception as e:
+                    errors.append(f"{reg_number}: {str(e)}")
+                    error_count += 1
+            
+            if updated_count > 0:
+                messages.success(request, f'Successfully uploaded marks for {updated_count} student(s).')
+            
+            if error_count > 0:
+                messages.warning(request, f'{error_count} error(s) occurred. Check details below.')
+                for error in errors[:10]:  # Show first 10 errors
+                    messages.error(request, error)
+            
+        except Exception as e:
+            messages.error(request, f'Error processing file: {str(e)}')
+        
+        return redirect('grade_students', assessment_id=assessment_id)
+    
+    return redirect('grade_students', assessment_id=assessment_id)
+
+
+@login_required
+def download_grading_template(request, assessment_id):
+    """Download CSV template for bulk grading"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="grading_template_{assessment_id}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['registration_number', 'student_name', 'marks', 'attendance', 'remarks'])
+    
+    # Add student data
+    student_marks = assessment.student_marks.select_related('student__user').order_by('student__registration_number')
+    
+    for mark in student_marks:
+        writer.writerow([
+            mark.student.registration_number,
+            mark.student.user.get_full_name(),
+            '',  # Empty for marks to be filled
+            '',  # Empty for attendance
+            ''   # Empty for remarks
+        ])
+    
+    return response
+
+
+# ============= FINAL EXAMS VIEWS =============
+
+@login_required
+def final_exams(request):
+    """View and manage final exams"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all final exams
+    final_exams = Assessment.objects.filter(
+        unit_allocation__lecturer=request.user,
+        unit_allocation__semester=current_semester,
+        assessment_type='final'
+    ).select_related(
+        'unit_allocation__programme_unit__unit',
+        'unit_allocation__programme_unit__programme'
+    ).annotate(
+        total_students=Count('student_marks'),
+        graded_count=Count('student_marks', filter=Q(student_marks__marks_obtained__gt=0))
+    )
+    
+    # Get units without final exams
+    unit_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).exclude(
+        assessments__assessment_type='final'
+    ).select_related('programme_unit__unit', 'programme_unit__programme')
+    
+    context = {
+        'current_semester': current_semester,
+        'final_exams': final_exams,
+        'unit_allocations': unit_allocations,
+    }
+    
+    return render(request, 'lecturer/grading/final_exams.html', context)
+
+
+@login_required
+def create_final_exam(request):
+    """Create final exam assessment"""
+    if request.method == 'POST':
+        unit_allocation_id = request.POST.get('unit_allocation')
+        title = request.POST.get('title')
+        max_marks = request.POST.get('max_marks', 70)
+        weight_percentage = request.POST.get('weight_percentage', 70)
+        date = request.POST.get('date')
+        duration_minutes = request.POST.get('duration_minutes')
+        venue = request.POST.get('venue', '')
+        instructions = request.POST.get('instructions', '')
+        
+        try:
+            unit_allocation = UnitAllocation.objects.get(
+                id=unit_allocation_id,
+                lecturer=request.user
+            )
+            
+            # Check if final exam already exists
+            if Assessment.objects.filter(
+                unit_allocation=unit_allocation,
+                assessment_type='final'
+            ).exists():
+                messages.error(request, 'Final exam already exists for this unit.')
+                return redirect('final_exams')
+            
+            # Create final exam
+            exam = Assessment.objects.create(
+                unit_allocation=unit_allocation,
+                assessment_type='final',
+                title=title,
+                max_marks=max_marks,
+                weight_percentage=weight_percentage,
+                date=date,
+                duration_minutes=duration_minutes,
+                venue=venue,
+                instructions=instructions
+            )
+            
+            # Create student marks entries
+            current_semester = unit_allocation.semester
+            enrolled_students = UnitEnrollment.objects.filter(
+                programme_unit=unit_allocation.programme_unit,
+                semester=current_semester,
+                status='approved'
+            ).select_related('student')
+            
+            for enrollment in enrolled_students:
+                StudentMarks.objects.create(
+                    assessment=exam,
+                    student=enrollment.student,
+                    marks_obtained=0,
+                    attendance=False,
+                    status='draft'
+                )
+            
+            messages.success(request, f'Final exam created successfully! {enrolled_students.count()} students enrolled.')
+            return redirect('grade_final_exam', exam_id=exam.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating final exam: {str(e)}')
+            return redirect('final_exams')
+    
+    return redirect('final_exams')
+
+
+@login_required
+def grade_final_exam(request, exam_id):
+    """Grade final exam - same as grade_students but with final exam context"""
+    return grade_students(request, exam_id)
+
+
+# ============= MODERATION VIEWS =============
+
+@login_required
+def moderation_dashboard(request):
+    """Dashboard for moderation activities"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get assessments pending moderation (graded but not submitted)
+    assessments = Assessment.objects.filter(
+        unit_allocation__lecturer=request.user,
+        unit_allocation__semester=current_semester
+    ).annotate(
+        total_students=Count('student_marks'),
+        graded_count=Count('student_marks', filter=Q(student_marks__marks_obtained__gt=0))
+    ).filter(
+        graded_count=F('total_students'),
+        is_published=False
+    ).select_related(
+        'unit_allocation__programme_unit__unit',
+        'unit_allocation__programme_unit__programme'
+    )
+    
+    # Get assessments under moderation
+    under_moderation = StudentMarks.objects.filter(
+        assessment__unit_allocation__lecturer=request.user,
+        status__in=['submitted', 'approved_hod']
+    ).values(
+        'assessment__id',
+        'assessment__title',
+        'assessment__unit_allocation__programme_unit__unit__code',
+        'status'
+    ).annotate(
+        count=Count('id')
+    )
+    
+    context = {
+        'current_semester': current_semester,
+        'assessments': assessments,
+        'under_moderation': under_moderation,
+    }
+    
+    return render(request, 'lecturer/grading/moderation_dashboard.html', context)
+
+
+@login_required
+def request_moderation(request, assessment_id):
+    """Request moderation for assessment"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    if request.method == 'POST':
+        # Check if all students are graded
+        total_students = assessment.student_marks.count()
+        graded_students = assessment.student_marks.filter(marks_obtained__gt=0).count()
+        
+        if graded_students < total_students:
+            messages.error(request, f'Please grade all students before requesting moderation. {total_students - graded_students} student(s) pending.')
+            return redirect('grade_students', assessment_id=assessment_id)
+        
+        # Update all student marks to submitted status
+        assessment.student_marks.update(
+            status='submitted',
+            submitted_by=request.user
+        )
+        
+        messages.success(request, 'Marks submitted for moderation successfully.')
+        return redirect('moderation_dashboard')
+    
+    return redirect('grade_students', assessment_id=assessment_id)
+
+
+@login_required
+def view_moderation(request, assessment_id):
+    """View moderation status and comments"""
+    assessment = get_object_or_404(
+        Assessment,
+        id=assessment_id,
+        unit_allocation__lecturer=request.user
+    )
+    
+    student_marks = assessment.student_marks.select_related(
+        'student__user',
+        'approved_by_hod',
+        'approved_by_hos',
+        'approved_by_dean'
+    ).order_by('student__registration_number')
+    
+    # Get moderation statistics
+    moderation_stats = {
+        'total': student_marks.count(),
+        'submitted': student_marks.filter(status='submitted').count(),
+        'approved_hod': student_marks.filter(status='approved_hod').count(),
+        'approved_hos': student_marks.filter(status='approved_hos').count(),
+        'approved_dean': student_marks.filter(status='approved_dean').count(),
+        'published': student_marks.filter(status='published').count(),
+        'rejected': student_marks.filter(status='rejected').count(),
+    }
+    
+    context = {
+        'assessment': assessment,
+        'student_marks': student_marks,
+        'moderation_stats': moderation_stats,
+    }
+    
+    return render(request, 'lecturer/grading/view_moderation.html', context)
+
+
+# ============= RESULT SUBMISSION VIEWS =============
+
+@login_required
+def results_dashboard(request):
+    """Dashboard for result submission"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get unit allocations with assessment completion status
+    unit_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme'
+    ).annotate(
+        total_assessments=Count('assessments'),
+        completed_assessments=Count('assessments', filter=Q(assessments__is_published=True))
+    )
+    
+    # Check if results exist
+    for allocation in unit_allocations:
+        allocation.results_exist = SemesterResults.objects.filter(
+            programme_unit=allocation.programme_unit,
+            semester=current_semester
+        ).exists()
+    
+    context = {
+        'current_semester': current_semester,
+        'unit_allocations': unit_allocations,
+    }
+    
+    return render(request, 'lecturer/grading/results_dashboard.html', context)
+
+
+@login_required
+def submit_results(request, unit_allocation_id):
+    """Submit final results for a unit"""
+    unit_allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester'
+        ),
+        id=unit_allocation_id,
+        lecturer=request.user
+    )
+    
+    if request.method == 'POST':
+        try:
+            # Get all assessments for this unit
+            assessments = Assessment.objects.filter(
+                unit_allocation=unit_allocation
+            )
+            
+            # Get enrolled students
+            enrollments = UnitEnrollment.objects.filter(
+                programme_unit=unit_allocation.programme_unit,
+                semester=unit_allocation.semester,
+                status='approved'
+            ).select_related('student')
+            
+            results_created = 0
+            
+            for enrollment in enrollments:
+                # Calculate total marks
+                student_marks = StudentMarks.objects.filter(
+                    assessment__in=assessments,
+                    student=enrollment.student
+                )
+                
+                # Calculate weighted marks
+                cat_total = Decimal('0')
+                assignment_total = Decimal('0')
+                exam_total = Decimal('0')
+                total_marks = Decimal('0')
+                
+                for mark in student_marks:
+                    weighted_mark = (mark.marks_obtained / mark.assessment.max_marks) * mark.assessment.weight_percentage
+                    
+                    if mark.assessment.assessment_type in ['cat1', 'cat2', 'cat3']:
+                        cat_total += weighted_mark
+                    elif mark.assessment.assessment_type == 'assignment':
+                        assignment_total += weighted_mark
+                    elif mark.assessment.assessment_type == 'final':
+                        exam_total += weighted_mark
+                    
+                    total_marks += weighted_mark
+                
+                # Get grade from grading system
+                grading = UnitGradingSystem.objects.filter(
+                    unit=unit_allocation.programme_unit.unit,
+                    min_marks__lte=total_marks,
+                    max_marks__gte=total_marks
+                ).first()
+                
+                if not grading:
+                    # Default grading if not found
+                    if total_marks >= 70:
+                        grade, grade_point = 'A', Decimal('4.00')
+                    elif total_marks >= 60:
+                        grade, grade_point = 'B', Decimal('3.00')
+                    elif total_marks >= 50:
+                        grade, grade_point = 'C', Decimal('2.00')
+                    elif total_marks >= 40:
+                        grade, grade_point = 'D', Decimal('1.00')
+                    else:
+                        grade, grade_point = 'F', Decimal('0.00')
+                else:
+                    grade = grading.grade
+                    grade_point = grading.grade_point
+                
+                # Calculate quality points
+                credit_hours = unit_allocation.programme_unit.unit.credit_hours
+                quality_points = grade_point * credit_hours
+                
+                # Create or update semester result
+                SemesterResults.objects.update_or_create(
+                    student=enrollment.student,
+                    programme_unit=unit_allocation.programme_unit,
+                    semester=unit_allocation.semester,
+                    defaults={
+                        'academic_year': unit_allocation.semester.academic_year,
+                        'cat_marks': cat_total,
+                        'assignment_marks': assignment_total,
+                        'exam_marks': exam_total,
+                        'total_marks': total_marks,
+                        'grade': grade,
+                        'grade_point': grade_point,
+                        'credit_hours': credit_hours,
+                        'quality_points': quality_points,
+                        'is_passed': grade_point >= Decimal('2.00'),
+                    }
+                )
+                
+                results_created += 1
+            
+            messages.success(request, f'Results submitted successfully for {results_created} student(s).')
+            return redirect('results_dashboard')
+            
+        except Exception as e:
+            messages.error(request, f'Error submitting results: {str(e)}')
+            return redirect('preview_results', unit_allocation_id=unit_allocation_id)
+    
+    return redirect('preview_results', unit_allocation_id=unit_allocation_id)
+
+
+@login_required
+def preview_results(request, unit_allocation_id):
+    """Preview results before submission"""
+    unit_allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester'
+        ),
+        id=unit_allocation_id,
+        lecturer=request.user
+    )
+    
+    # Get all assessments
+    assessments = Assessment.objects.filter(
+        unit_allocation=unit_allocation
+    ).order_by('assessment_type')
+    
+    # Get enrolled students with calculated results
+    enrollments = UnitEnrollment.objects.filter(
+        programme_unit=unit_allocation.programme_unit,
+        semester=unit_allocation.semester,
+        status='approved'
+    ).select_related('student__user')
+    
+    # Calculate preview results
+    preview_data = []
+    
+    for enrollment in enrollments:
+        student_data = {
+            'student': enrollment.student,
+            'assessments': {},
+            'totals': {
+                'cat': Decimal('0'),
+                'assignment': Decimal('0'),
+                'exam': Decimal('0'),
+                'total': Decimal('0')
+            }
+        }
+        
+        # Get marks for each assessment
+        for assessment in assessments:
+            mark = StudentMarks.objects.filter(
+                assessment=assessment,
+                student=enrollment.student
+            ).first()
+            
+            if mark:
+                weighted_mark = (mark.marks_obtained / assessment.max_marks) * assessment.weight_percentage
+                student_data['assessments'][assessment.id] = {
+                    'marks': mark.marks_obtained,
+                    'max_marks': assessment.max_marks,
+                    'weighted': weighted_mark
+                }
+                
+                # Add to totals
+                if assessment.assessment_type in ['cat1', 'cat2', 'cat3']:
+                    student_data['totals']['cat'] += weighted_mark
+                elif assessment.assessment_type == 'assignment':
+                    student_data['totals']['assignment'] += weighted_mark
+                elif assessment.assessment_type == 'final':
+                    student_data['totals']['exam'] += weighted_mark
+                
+                student_data['totals']['total'] += weighted_mark
+        
+        # Calculate grade
+        total_marks = student_data['totals']['total']
+        if total_marks >= 70:
+            student_data['grade'] = 'A'
+        elif total_marks >= 60:
+            student_data['grade'] = 'B'
+        elif total_marks >= 50:
+            student_data['grade'] = 'C'
+        elif total_marks >= 40:
+            student_data['grade'] = 'D'
+        else:
+            student_data['grade'] = 'F'
+        
+        preview_data.append(student_data)
+    
+    context = {
+        'unit_allocation': unit_allocation,
+        'assessments': assessments,
+        'preview_data': preview_data,
+    }
+    
+    return render(request, 'lecturer/grading/preview_results.html', context)
+
+
+@login_required
+def submission_history(request, unit_allocation_id):
+    """View submission history for a unit"""
+    unit_allocation = get_object_or_404(
+        UnitAllocation,
+        id=unit_allocation_id,
+        lecturer=request.user
+    )
+    
+    # Get all results for this unit
+    results = SemesterResults.objects.filter(
+        programme_unit=unit_allocation.programme_unit,
+        semester=unit_allocation.semester
+    ).select_related(
+        'student__user',
+        'approved_by_hod',
+        'approved_by_hos',
+        'approved_by_dean'
+    ).order_by('-created_at')
+    
+    context = {
+        'unit_allocation': unit_allocation,
+        'results': results,
+    }
+    
+    return render(request, 'lecturer/grading/submission_history.html', context)
