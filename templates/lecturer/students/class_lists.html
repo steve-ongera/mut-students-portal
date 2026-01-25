@@ -3,85 +3,407 @@
 
 {% block title %}Class Lists - Lecturer Portal{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div class="page-header-content">
-        <h1>Class Lists</h1>
-        <p class="text-muted">View enrolled students for your units</p>
+<div class="content-container">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Class Lists</li>
+        </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Class Lists</h1>
+                <p class="text-muted mb-0">View enrolled students for your units</p>
+            </div>
+            <div class="text-end">
+                {% if current_semester %}
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester.name }} - {{ current_semester.academic_year.name }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
     </div>
-</div>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
-        <li class="breadcrumb-item active">Class Lists</li>
-    </ol>
-</nav>
-
-<!-- Current Semester Info -->
-<div class="info-banner mb-4">
-    {% if current_semester %}
-        <i class="ri-calendar-line"></i>
-        <span><strong>{{ current_semester.name }}</strong> - {{ current_semester.academic_year.name }}</span>
-    {% endif %}
-</div>
-
-<!-- Units Grid -->
-<div class="content-card">
-    <div class="card-header">
-        <h5>Your Units</h5>
-    </div>
-    <div class="card-body">
-        {% if unit_allocations %}
-            <div class="units-grid">
+    <!-- Units Management Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Your Units</h5>
+            <div class="card-subtitle">{{ unit_allocations|length }} unit(s) allocated</div>
+        </div>
+        <div class="card-body">
+            {% if unit_allocations %}
+            <div class="row g-4">
                 {% for allocation in unit_allocations %}
-                <div class="unit-card">
-                    <div class="unit-header">
-                        <div>
-                            <h6>{{ allocation.programme_unit.unit.code }}</h6>
-                            <p class="unit-name">{{ allocation.programme_unit.unit.name }}</p>
+                <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6">
+                    <div class="unit-management-card">
+                        <div class="unit-card-header">
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h6 class="fw-semibold mb-1">{{ allocation.programme_unit.unit.code }}</h6>
+                                    <p class="text-muted small mb-0">{{ allocation.programme_unit.unit.name|truncatechars:60 }}</p>
+                                </div>
+                                <span class="badge bg-primary-subtle text-primary px-3 py-1">
+                                    {{ allocation.programme_unit.unit.credit_hours }} CH
+                                </span>
+                            </div>
+                            
+                            <div class="unit-meta-info mb-3">
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <span class="badge bg-info-subtle text-info">
+                                        {{ allocation.programme_unit.programme.code }}
+                                    </span>
+                                    <span class="badge bg-secondary-subtle text-secondary">
+                                        Year {{ allocation.programme_unit.year_of_study }}
+                                    </span>
+                                    <span class="badge bg-warning-subtle text-warning">
+                                        Sem {{ allocation.programme_unit.semester_number }}
+                                    </span>
+                                    {% if allocation.programme_unit.unit_type %}
+                                    <span class="badge bg-success-subtle text-success">
+                                        {{ allocation.programme_unit.get_unit_type_display }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
-                        <span class="unit-credits">{{ allocation.programme_unit.unit.credit_hours }} CH</span>
-                    </div>
-                    
-                    <div class="unit-details">
-                        <div class="detail-item">
-                            <span class="detail-label">Programme:</span>
-                            <span>{{ allocation.programme_unit.programme.code }}</span>
+                        
+                        <div class="unit-card-body">
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <div class="unit-stat">
+                                        <div class="stat-label">Programme</div>
+                                        <div class="stat-value">{{ allocation.programme_unit.programme.name|truncatechars:25 }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="unit-stat">
+                                        <div class="stat-label">Level</div>
+                                        <div class="stat-value">Year {{ allocation.programme_unit.year_of_study }}, Sem {{ allocation.programme_unit.semester_number }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="unit-stat">
+                                        <div class="stat-label">Unit Type</div>
+                                        <div class="stat-value">{{ allocation.programme_unit.get_unit_type_display }}</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="unit-stat">
+                                        <div class="stat-label">Enrolled</div>
+                                        <div class="stat-value">
+                                            <span class="text-primary fw-bold">{{ allocation.enrolled_count }}</span> student(s)
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Level:</span>
-                            <span>Year {{ allocation.programme_unit.year_of_study }}, Semester {{ allocation.programme_unit.semester_number }}</span>
+                        
+                        <div class="unit-card-footer">
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'class_detail' allocation.id %}" 
+                                   class="btn btn-primary flex-fill d-flex align-items-center justify-content-center gap-2">
+                                    <i class="ri-eye-line fs-5"></i>
+                                    <span>View Class</span>
+                                </a>
+                                <a href="{% url 'export_class_list' allocation.id %}" 
+                                   class="btn btn-outline-success d-flex align-items-center gap-2 px-3">
+                                    <i class="ri-download-line"></i>
+                                </a>
+                            </div>
                         </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Type:</span>
-                            <span>{{ allocation.programme_unit.get_unit_type_display }}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Enrolled:</span>
-                            <span class="badge-primary">{{ allocation.enrolled_count }} students</span>
-                        </div>
-                    </div>
-                    
-                    <div class="unit-actions">
-                        <a href="{% url 'class_detail' allocation.id %}" class="btn-primary">
-                            <i class="ri-eye-line"></i> View Class List
-                        </a>
-                        <a href="{% url 'export_class_list' allocation.id %}" class="btn-secondary">
-                            <i class="ri-download-line"></i> Export CSV
-                        </a>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-        {% else %}
+            {% else %}
             <div class="empty-state">
-                <i class="ri-book-line"></i>
-                <h5>No Units Allocated</h5>
-                <p>You have no units allocated for this semester</p>
+                <i class="ri-book-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No Units Allocated</h5>
+                <p class="text-muted mb-0">You have no units allocated for this semester</p>
             </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --radius-xl: 16px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Unit Management Card */
+    .unit-management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        height: 100%;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .unit-management-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-primary);
+    }
+    
+    .unit-card-header {
+        padding: 1.25rem 1.25rem 0.75rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .unit-card-body {
+        padding: 1.25rem;
+    }
+    
+    .unit-card-footer {
+        padding: 1.25rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    /* Unit Stats */
+    .unit-stat {
+        padding: 0.5rem 0;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-value {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    /* Unit Meta Info */
+    .unit-meta-info .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    /* Badge Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.1); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    .text-warning { color: var(--color-warning); }
+    .text-success { color: var(--color-success); }
+    
+    /* Buttons */
+    .unit-card-footer .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .unit-card-footer .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .unit-card-footer .btn-primary {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .unit-card-footer .btn-primary:hover {
+        background: #276b2a;
+        border-color: #276b2a;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .unit-management-card {
+            margin-bottom: 1rem;
+        }
+        
+        .unit-card-footer .btn {
+            font-size: 0.8125rem;
+            padding: 0.5rem 0.75rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .unit-card-header,
+        .unit-card-body,
+        .unit-card-footer {
+            padding: 1rem;
+        }
+        
+        .page-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .page-header .text-end {
+            text-align: left !important;
+            align-self: flex-start;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add animation to unit cards on load
+    const unitCards = document.querySelectorAll('.unit-management-card');
+    unitCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Add hover effects
+    unitCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.zIndex = '10';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.zIndex = '1';
+        });
+    });
+});
+</script>
 {% endblock %}

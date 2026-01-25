@@ -3,189 +3,715 @@
 
 {% block title %}Students Dashboard - Lecturer Portal{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div class="page-header-content">
-        <h1>Students Dashboard</h1>
-        <p class="text-muted">Overview of your students across all units</p>
-    </div>
-</div>
+<div class="content-container">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Students</li>
+        </ol>
+    </nav>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Students</li>
-    </ol>
-</nav>
-
-<!-- Statistics Cards -->
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="ri-group-line"></i>
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Students Dashboard</h1>
+                <p class="text-muted mb-0">Overview of your students across all units</p>
             </div>
-            <div class="stat-content">
-                <h3>{{ total_students }}</h3>
-                <p>Total Students</p>
+            <div class="text-end">
+                {% if current_semester %}
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester.name }} - {{ current_semester.academic_year.name }}
+                </span>
+                {% endif %}
             </div>
         </div>
     </div>
-    
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="ri-hearts-line"></i>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4 g-4">
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-group-line fs-4 text-primary"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold">{{ total_students }}</h3>
+                        <p class="text-muted mb-0 small">Total Students</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-success">
+                        <i class="ri-arrow-up-line me-1"></i>
+                        Across all units
+                    </small>
+                </div>
             </div>
-            <div class="stat-content">
-                <h3>{{ special_needs_students }}</h3>
-                <p>Special Needs</p>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-hearts-line fs-4 text-danger"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold">{{ special_needs_students }}</h3>
+                        <p class="text-muted mb-0 small">Special Needs</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-warning">
+                        <i class="ri-information-line me-1"></i>
+                        Require attention
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-alert-line fs-4 text-warning"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold">{{ students_needing_advising }}</h3>
+                        <p class="text-muted mb-0 small">Need Advising</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-danger">
+                        <i class="ri-flag-line me-1"></i>
+                        Action required
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-book-open-line fs-4 text-success"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold">{{ unit_allocations.count }}</h3>
+                        <p class="text-muted mb-0 small">Units Teaching</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-info">
+                        <i class="ri-book-2-line me-1"></i>
+                        Current semester
+                    </small>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="ri-alert-line"></i>
-            </div>
-            <div class="stat-content">
-                <h3>{{ students_needing_advising }}</h3>
-                <p>Need Advising</p>
+
+    <!-- Quick Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Quick Actions</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-xxl-3 col-lg-6 col-md-6">
+                    <a href="{% url 'class_lists' %}" class="quick-action-card">
+                        <div class="action-icon">
+                            <i class="ri-file-list-3-line fs-2"></i>
+                        </div>
+                        <div class="action-content">
+                            <h6 class="mb-1 fw-semibold">View Class Lists</h6>
+                            <p class="text-muted small mb-0">Access all your unit class lists</p>
+                        </div>
+                        <div class="action-arrow">
+                            <i class="ri-arrow-right-s-line"></i>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-xxl-3 col-lg-6 col-md-6">
+                    <a href="{% url 'student_performance_overview' %}" class="quick-action-card">
+                        <div class="action-icon">
+                            <i class="ri-bar-chart-line fs-2"></i>
+                        </div>
+                        <div class="action-content">
+                            <h6 class="mb-1 fw-semibold">Performance Overview</h6>
+                            <p class="text-muted small mb-0">View student academic performance</p>
+                        </div>
+                        <div class="action-arrow">
+                            <i class="ri-arrow-right-s-line"></i>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-xxl-3 col-lg-6 col-md-6">
+                    <a href="{% url 'academic_advising' %}" class="quick-action-card">
+                        <div class="action-icon">
+                            <i class="ri-user-heart-line fs-2"></i>
+                        </div>
+                        <div class="action-content">
+                            <h6 class="mb-1 fw-semibold">Academic Advising</h6>
+                            <p class="text-muted small mb-0">Manage student advising sessions</p>
+                        </div>
+                        <div class="action-arrow">
+                            <i class="ri-arrow-right-s-line"></i>
+                        </div>
+                    </a>
+                </div>
+                
+                <div class="col-xxl-3 col-lg-6 col-md-6">
+                    <a href="{% url 'special_needs' %}" class="quick-action-card">
+                        <div class="action-icon">
+                            <i class="ri-hand-heart-line fs-2"></i>
+                        </div>
+                        <div class="action-content">
+                            <h6 class="mb-1 fw-semibold">Special Needs</h6>
+                            <p class="text-muted small mb-0">Support special needs students</p>
+                        </div>
+                        <div class="action-arrow">
+                            <i class="ri-arrow-right-s-line"></i>
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="ri-book-open-line"></i>
-            </div>
-            <div class="stat-content">
-                <h3>{{ unit_allocations.count }}</h3>
-                <p>Units Teaching</p>
-            </div>
+
+    <!-- Units Overview Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Your Units - {{ current_semester.name }}</h5>
+            <div class="card-subtitle">{{ unit_allocations.count }} unit(s) allocated</div>
         </div>
-    </div>
-</div>
-
-<!-- Current Semester Info -->
-<div class="info-card mb-4">
-    <h5>Current Semester</h5>
-    {% if current_semester %}
-        <p><strong>{{ current_semester.name }}</strong> - {{ current_semester.academic_year.name }}</p>
-        <p>{{ current_semester.start_date|date:"M d, Y" }} - {{ current_semester.end_date|date:"M d, Y" }}</p>
-    {% else %}
-        <p class="text-muted">No active semester</p>
-    {% endif %}
-</div>
-
-<!-- Quick Actions -->
-<div class="quick-actions mb-4">
-    <h5>Quick Actions</h5>
-    <div class="actions-grid">
-        <a href="{% url 'class_lists' %}" class="action-item">
-            <i class="ri-file-list-3-line"></i>
-            <span>View Class Lists</span>
-        </a>
-        <a href="{% url 'student_performance_overview' %}" class="action-item">
-            <i class="ri-bar-chart-line"></i>
-            <span>Performance Overview</span>
-        </a>
-        <a href="{% url 'academic_advising' %}" class="action-item">
-            <i class="ri-user-heart-line"></i>
-            <span>Academic Advising</span>
-        </a>
-        <a href="{% url 'special_needs' %}" class="action-item">
-            <i class="ri-hand-heart-line"></i>
-            <span>Special Needs</span>
-        </a>
-    </div>
-</div>
-
-<!-- Units Overview -->
-<div class="content-card mb-4">
-    <div class="card-header">
-        <h5>Your Units - {{ current_semester.name }}</h5>
-    </div>
-    <div class="card-body">
-        {% if unit_allocations %}
+        <div class="card-body p-0">
+            {% if unit_allocations %}
             <div class="table-responsive">
-                <table class="table">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Unit Code</th>
+                            <th class="ps-4">Unit Code</th>
                             <th>Unit Name</th>
                             <th>Programme</th>
                             <th>Year/Sem</th>
                             <th>Students</th>
-                            <th>Actions</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for allocation in unit_allocations %}
                         <tr>
-                            <td><strong>{{ allocation.programme_unit.unit.code }}</strong></td>
-                            <td>{{ allocation.programme_unit.unit.name }}</td>
-                            <td>{{ allocation.programme_unit.programme.code }}</td>
-                            <td>Year {{ allocation.programme_unit.year_of_study }}, Sem {{ allocation.programme_unit.semester_number }}</td>
-                            <td>
-                                <span class="badge">{{ allocation.enrolled_count }} students</span>
+                            <td class="ps-4">
+                                <strong>{{ allocation.programme_unit.unit.code }}</strong>
                             </td>
                             <td>
-                                <a href="{% url 'class_detail' allocation.id %}" class="btn-sm">
-                                    <i class="ri-eye-line"></i> View Class
-                                </a>
+                                <div class="unit-info">
+                                    <span class="d-block">{{ allocation.programme_unit.unit.name|truncatechars:30 }}</span>
+                                    <small class="text-muted">{{ allocation.programme_unit.unit.credit_hours }} CH</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <span class="d-block">{{ allocation.programme_unit.programme.code }}</span>
+                                    <small class="text-muted">{{ allocation.programme_unit.get_unit_type_display }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="academic-info">
+                                    <span class="badge bg-info-subtle text-info mb-1 d-block">Year {{ allocation.programme_unit.year_of_study }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary">Sem {{ allocation.programme_unit.semester_number }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-count">
+                                    <span class="fw-bold text-primary">{{ allocation.enrolled_count }}</span>
+                                    <small class="text-muted d-block">students</small>
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'class_detail' allocation.id %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="View Class"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        <a href="{% url 'export_class_list' allocation.id %}" 
+                                           class="btn btn-icon btn-outline-success btn-sm" 
+                                           title="Export CSV"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-download-line"></i>
+                                        </a>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        {% else %}
-            <div class="empty-state">
-                <i class="ri-book-line"></i>
-                <p>No units allocated for this semester</p>
+            {% else %}
+            <div class="empty-state p-5">
+                <i class="ri-book-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No Units Allocated</h5>
+                <p class="text-muted mb-0">No units allocated for this semester</p>
             </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
-</div>
 
-<!-- Recent Advising Notes -->
-<div class="content-card">
-    <div class="card-header">
-        <h5>Recent Advising Notes</h5>
-        <a href="{% url 'academic_advising' %}">View All</a>
-    </div>
-    <div class="card-body">
-        {% if recent_notes %}
-            <div class="notes-list">
+    <!-- Recent Advising Notes Card -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Recent Advising Notes</h5>
+                <div class="card-subtitle">Latest student interactions</div>
+            </div>
+            <a href="{% url 'academic_advising' %}" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1">
+                View All
+                <i class="ri-arrow-right-line"></i>
+            </a>
+        </div>
+        <div class="card-body">
+            {% if recent_notes %}
+            <div class="notes-container">
                 {% for note in recent_notes %}
-                <div class="note-item">
-                    <div class="note-header">
+                <div class="note-management-card">
+                    <div class="note-header d-flex justify-content-between align-items-start mb-2">
                         <div>
-                            <strong>{{ note.student.user.get_full_name }}</strong>
-                            <span class="text-muted">{{ note.student.registration_number }}</span>
+                            <h6 class="mb-0 fw-semibold">{{ note.student.user.get_full_name }}</h6>
+                            <small class="text-muted">{{ note.student.registration_number }}</small>
                         </div>
-                        <span class="note-date">{{ note.created_at|date:"M d, Y" }}</span>
+                        <div class="note-meta">
+                            <span class="badge {% if note.note_type == 'academic' %}bg-info-subtle text-info{% elif note.note_type == 'personal' %}bg-warning-subtle text-warning{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                {{ note.get_note_type_display }}
+                            </span>
+                            <small class="text-muted ms-2">{{ note.created_at|date:"M d, Y" }}</small>
+                        </div>
                     </div>
-                    <div class="note-content">
-                        <span class="note-type">{{ note.get_note_type_display }}</span>
-                        <p><strong>{{ note.subject }}</strong></p>
-                        <p>{{ note.note|truncatewords:20 }}</p>
-                        {% if note.action_required %}
-                        <span class="badge-warning">Action Required</span>
-                        {% endif %}
+                    
+                    <div class="note-body mb-2">
+                        <p class="mb-1 fw-medium">{{ note.subject }}</p>
+                        <p class="text-muted small mb-0">{{ note.note|truncatewords:30 }}</p>
+                    </div>
+                    
+                    <div class="note-footer d-flex justify-content-between align-items-center">
+                        <div>
+                            {% if note.action_required %}
+                            <span class="badge bg-danger-subtle text-danger">
+                                <i class="ri-flag-line me-1"></i>
+                                Action Required
+                            </span>
+                            {% endif %}
+                        </div>
+                        <a href="{% url 'student_detail' note.student.registration_number %}" 
+                           class="btn btn-sm btn-outline-primary">
+                            View Student
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
             </div>
-        {% else %}
+            {% else %}
             <div class="empty-state">
-                <i class="ri-sticky-note-line"></i>
-                <p>No recent advising notes</p>
+                <i class="ri-sticky-note-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No Recent Advising Notes</h5>
+                <p class="text-muted mb-0">No advising notes recorded yet</p>
             </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --radius-xl: 16px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Stat Management Cards */
+    .stat-management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .stat-management-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-primary);
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(46, 125, 50, 0.1);
+    }
+    
+    .stat-icon.text-primary { background: rgba(46, 125, 50, 0.1); }
+    .stat-icon.text-danger { background: rgba(244, 67, 54, 0.1); }
+    .stat-icon.text-warning { background: rgba(255, 152, 0, 0.1); }
+    .stat-icon.text-success { background: rgba(76, 175, 80, 0.1); }
+    .stat-icon.text-info { background: rgba(33, 150, 243, 0.1); }
+    
+    .stat-management-card h3 {
+        font-size: 1.75rem;
+        line-height: 1;
+    }
+    
+    .stat-trend small {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .quick-action-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-primary);
+        color: var(--color-gray-800);
+    }
+    
+    .action-icon {
+        margin-right: 1rem;
+        color: var(--color-primary);
+    }
+    
+    .action-content {
+        flex: 1;
+    }
+    
+    .action-arrow {
+        color: var(--color-gray-600);
+        transition: transform 0.3s ease;
+    }
+    
+    .quick-action-card:hover .action-arrow {
+        transform: translateX(4px);
+        color: var(--color-primary);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Unit Info */
+    .unit-info,
+    .programme-info {
+        min-width: 120px;
+    }
+    
+    /* Academic Info */
+    .academic-info .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    /* Student Count */
+    .student-count {
+        min-width: 80px;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Note Management Cards */
+    .note-management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .note-management-card:last-child {
+        margin-bottom: 0;
+    }
+    
+    .note-management-card:hover {
+        transform: translateX(4px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+    
+    .note-body {
+        border-left: 3px solid var(--color-gray-300);
+        padding-left: 0.75rem;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Badge Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.1); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .quick-action-card {
+            margin-bottom: 1rem;
+        }
+        
+        .note-management-card {
+            margin-bottom: 0.75rem;
+        }
+        
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .stat-management-card {
+            padding: 1rem;
+        }
+        
+        .quick-action-card {
+            padding: 0.75rem;
+        }
+        
+        .page-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .page-header .text-end {
+            text-align: left !important;
+            align-self: flex-start;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Add animation to stat cards
+    const statCards = document.querySelectorAll('.stat-management-card');
+    statCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Add animation to quick action cards
+    const actionCards = document.querySelectorAll('.quick-action-card');
+    actionCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 50 + 300);
+    });
+    
+    // Add hover effects to table rows
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'rgba(46, 125, 50, 0.02)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+});
+</script>
 {% endblock %}

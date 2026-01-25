@@ -1,151 +1,287 @@
 {% extends 'lecturer/lecturer_base.html' %}
 {% load static %}
-
+{% load custom_filters %}
 {% block title %}Grade Students - {{ assessment.title }}{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="content-container">
+    <!-- Breadcrumb Navigation -->
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
             <li class="breadcrumb-item"><a href="{% url 'grading_dashboard' %}">Grading</a></li>
-            <li class="breadcrumb-item active">Grade Students</li>
+            <li class="breadcrumb-item active" aria-current="page">Grade Students</li>
         </ol>
     </nav>
 
+    <!-- Page Header -->
     <div class="page-header mb-4">
         <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h1 class="h3">{{ assessment.title }}</h1>
-                <p class="text-muted mb-0">
-                    {{ assessment.unit_allocation.programme_unit.unit.code }} - 
-                    {{ assessment.unit_allocation.programme_unit.unit.name }}
-                </p>
+                <h1 class="h3 fw-semibold mb-2">Grade Students</h1>
+                <p class="text-muted mb-0">{{ assessment.title }}</p>
             </div>
-            <div>
-                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkUploadModal">
-                    <i class="ri-upload-line me-1"></i> Bulk Upload
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-primary d-flex align-items-center gap-1" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#bulkUploadModal">
+                    <i class="ri-upload-line"></i>
+                    Bulk Upload
                 </button>
+                <a href="{% url 'download_grading_template' assessment.id %}" 
+                   class="btn btn-outline-success d-flex align-items-center gap-1">
+                    <i class="ri-download-line"></i>
+                    Download Template
+                </a>
             </div>
         </div>
     </div>
 
-    <!-- Progress Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Total Students</h6>
-                    <h2 class="mb-0">{{ total_students }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Graded</h6>
-                    <h2 class="mb-0 text-success">{{ graded_count }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Progress</h6>
-                    <h2 class="mb-0">{{ grading_progress }}%</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Average Marks</h6>
-                    <h2 class="mb-0">{{ avg_marks }}/{{ assessment.max_marks }}</h2>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Assessment Details -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    <small class="text-muted">Assessment Type</small>
-                    <p class="mb-0 fw-medium">{{ assessment.get_assessment_type_display }}</p>
-                </div>
-                <div class="col-md-3">
-                    <small class="text-muted">Date</small>
-                    <p class="mb-0 fw-medium">{{ assessment.date }}</p>
-                </div>
-                <div class="col-md-3">
-                    <small class="text-muted">Max Marks</small>
-                    <p class="mb-0 fw-medium">{{ assessment.max_marks }}</p>
-                </div>
-                <div class="col-md-3">
-                    <small class="text-muted">Weight</small>
-                    <p class="mb-0 fw-medium">{{ assessment.weight_percentage }}%</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Grading Table -->
-    <div class="card">
+    <!-- Unit Info Card -->
+    <div class="management-card mb-4">
         <div class="card-header">
-            <h5 class="card-title mb-0">Student Marks</h5>
+            <h5 class="card-title">Assessment Information</h5>
+            <div class="card-subtitle">{{ assessment.get_assessment_type_display }}</div>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="assessment-info-item">
+                        <span class="info-label">Unit Code</span>
+                        <span class="info-value">{{ assessment.unit_allocation.programme_unit.unit.code }}</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="assessment-info-item">
+                        <span class="info-label">Unit Name</span>
+                        <span class="info-value">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="assessment-info-item">
+                        <span class="info-label">Max Marks</span>
+                        <span class="info-value text-primary fw-bold">{{ assessment.max_marks }}</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="assessment-info-item">
+                        <span class="info-label">Weight</span>
+                        <span class="info-value text-info fw-bold">{{ assessment.weight_percentage }}%</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="assessment-info-item">
+                        <span class="info-label">Date</span>
+                        <span class="info-value">{{ assessment.date }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Statistics -->
+    <div class="row mb-4 g-4">
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-group-line fs-4 text-primary"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold">{{ total_students }}</h3>
+                        <p class="text-muted mb-0 small">Total Students</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-primary">
+                        <i class="ri-user-line me-1"></i>
+                        Enrolled students
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card border-start border-success">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-checkbox-circle-line fs-4 text-success"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold text-success">{{ graded_count }}</h3>
+                        <p class="text-muted mb-0 small">Graded</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-success">
+                        <i class="ri-check-double-line me-1"></i>
+                        {{ graded_count }}/{{ total_students }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card border-start border-info">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-progress-3-line fs-4 text-info"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold text-info">{{ grading_progress }}%</h3>
+                        <p class="text-muted mb-0 small">Progress</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar bg-info" style="width: {{ grading_progress }}%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card border-start border-warning">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-bar-chart-line fs-4 text-warning"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold text-warning">{{ avg_marks }}</h3>
+                        <p class="text-muted mb-0 small">Average Marks</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-warning">
+                        <i class="ri-percent-line me-1"></i>
+                        out of {{ assessment.max_marks }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grading Table Card -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Student Marks</h5>
+                <div class="card-subtitle">Grade individual students or use bulk upload</div>
+            </div>
+            <div class="d-flex gap-2">
+                <span class="badge bg-light text-dark">
+                    {{ graded_count }}/{{ total_students }} graded
+                </span>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0" id="gradingTable">
                     <thead>
                         <tr>
-                            <th>Reg. No.</th>
-                            <th>Student Name</th>
+                            <th class="ps-4">Reg. No.</th>
+                            <th>Student Details</th>
                             <th>Programme</th>
                             <th>Marks</th>
                             <th>Attendance</th>
                             <th>Remarks</th>
-                            <th>Action</th>
+                            <th class="pe-4">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for mark in student_marks %}
-                        <tr>
-                            <td>{{ mark.student.registration_number }}</td>
-                            <td>{{ mark.student.user.get_full_name }}</td>
-                            <td>{{ mark.student.programme.code }}</td>
+                        <tr {% if not mark.marks_obtained %}class="table-light"{% endif %}>
+                            <td class="ps-4">
+                                <strong>{{ mark.student.registration_number }}</strong>
+                            </td>
                             <td>
-                                {% if mark.marks_obtained > 0 %}
-                                <span class="fw-medium text-success">
-                                    {{ mark.marks_obtained }}/{{ assessment.max_marks }}
-                                </span>
-                                {% else %}
-                                <span class="text-muted">Not graded</span>
-                                {% endif %}
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-2">
+                                            {% if mark.student.user.profile_picture %}
+                                            <img src="{{ mark.student.user.profile_picture.url }}" 
+                                                 alt="{{ mark.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                            {% else %}
+                                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                                 style="width: 32px; height: 32px; font-weight: 600; font-size: 0.75rem;">
+                                                {{ mark.student.user.first_name.0 }}{{ mark.student.user.last_name.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ mark.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ mark.student.user.email }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <span class="d-block">{{ mark.student.programme.code }}</span>
+                                    <small class="text-muted">Year {{ mark.student.current_year }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="marks-display">
+                                    {% if mark.marks_obtained > 0 %}
+                                    <span class="marks-value 
+                                        {% if mark.marks_obtained >= assessment.max_marks|mul:0.7 %}text-success
+                                        {% elif mark.marks_obtained >= assessment.max_marks|mul:0.5 %}text-warning
+                                        {% else %}text-danger{% endif %} fw-bold">
+                                        {{ mark.marks_obtained }}
+                                    </span>
+                                    <small class="text-muted d-block">/{{ assessment.max_marks }}</small>
+                                    {% else %}
+                                    <span class="text-muted small">Not graded</span>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td>
                                 {% if mark.attendance %}
-                                <span class="badge bg-success">Present</span>
+                                <span class="badge bg-success-subtle text-success d-flex align-items-center justify-content-center gap-1">
+                                    <i class="ri-check-line"></i>
+                                    Present
+                                </span>
                                 {% else %}
-                                <span class="badge bg-secondary">Absent</span>
+                                <span class="badge bg-danger-subtle text-danger d-flex align-items-center justify-content-center gap-1">
+                                    <i class="ri-close-line"></i>
+                                    Absent
+                                </span>
                                 {% endif %}
                             </td>
                             <td>
-                                <small class="text-muted">{{ mark.remarks|truncatechars:30 }}</small>
+                                <div class="remarks-preview">
+                                    {% if mark.remarks %}
+                                    <span class="d-block text-truncate" style="max-width: 150px;" 
+                                          title="{{ mark.remarks }}">
+                                        {{ mark.remarks|truncatechars:30 }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted small">No remarks</span>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td>
-                                <button class="btn btn-sm btn-outline-primary" 
-                                        data-bs-toggle="modal" 
-                                        data-bs-target="#gradeModal{{ mark.id }}">
-                                    <i class="ri-edit-line"></i> Grade
-                                </button>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <button class="btn btn-icon btn-outline-primary btn-sm" 
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#gradeModal{{ mark.id }}"
+                                            title="Grade Student"
+                                            data-bs-toggle="tooltip">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
 
                         <!-- Grade Modal for each student -->
                         <div class="modal fade" id="gradeModal{{ mark.id }}" tabindex="-1">
-                            <div class="modal-dialog">
+                            <div class="modal-dialog modal-dialog-centered">
                                 <div class="modal-content">
                                     <form method="post">
                                         {% csrf_token %}
@@ -156,34 +292,71 @@
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label class="form-label fw-medium">Student</label>
-                                                <p class="mb-0">{{ mark.student.user.get_full_name }}</p>
-                                                <small class="text-muted">{{ mark.student.registration_number }}</small>
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <label class="form-label">Marks Obtained <span class="text-danger">*</span></label>
-                                                <input type="number" name="marks_obtained" class="form-control" 
-                                                       min="0" max="{{ assessment.max_marks }}" step="0.5"
-                                                       value="{{ mark.marks_obtained }}" required>
-                                                <small class="text-muted">Out of {{ assessment.max_marks }}</small>
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <div class="form-check">
-                                                    <input type="checkbox" class="form-check-input" 
-                                                           name="attendance" id="attendance{{ mark.id }}"
-                                                           {% if mark.attendance %}checked{% endif %}>
-                                                    <label class="form-check-label" for="attendance{{ mark.id }}">
-                                                        Student was present
-                                                    </label>
+                                            <div class="student-modal-info mb-4">
+                                                <div class="d-flex align-items-center">
+                                                    <div class="student-avatar me-3">
+                                                        {% if mark.student.user.profile_picture %}
+                                                        <img src="{{ mark.student.user.profile_picture.url }}" 
+                                                             alt="{{ mark.student.user.get_full_name }}" 
+                                                             class="rounded-circle">
+                                                        {% else %}
+                                                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                                             style="width: 48px; height: 48px; font-weight: 600; font-size: 1rem;">
+                                                            {{ mark.student.user.first_name.0 }}{{ mark.student.user.last_name.0 }}
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div>
+                                                        <h6 class="mb-0 fw-medium">{{ mark.student.user.get_full_name }}</h6>
+                                                        <div class="student-meta">
+                                                            <small class="text-muted me-3">
+                                                                <i class="ri-id-card-line me-1"></i>
+                                                                {{ mark.student.registration_number }}
+                                                            </small>
+                                                            <small class="text-muted">
+                                                                <i class="ri-book-line me-1"></i>
+                                                                {{ mark.student.programme.code }}
+                                                            </small>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                             
                                             <div class="mb-3">
-                                                <label class="form-label">Remarks (Optional)</label>
-                                                <textarea name="remarks" class="form-control" rows="3">{{ mark.remarks }}</textarea>
+                                                <label class="form-label fw-medium">Marks Obtained <span class="text-danger">*</span></label>
+                                                <div class="input-group">
+                                                    <input type="number" name="marks_obtained" class="form-control" 
+                                                           min="0" max="{{ assessment.max_marks }}" step="0.5"
+                                                           value="{{ mark.marks_obtained|default:'0' }}" required>
+                                                    <span class="input-group-text">/ {{ assessment.max_marks }}</span>
+                                                </div>
+                                                <small class="text-muted">Enter marks between 0 and {{ assessment.max_marks }}</small>
+                                            </div>
+                                            
+                                            <div class="row g-3 mb-3">
+                                                <div class="col-md-6">
+                                                    <div class="form-check">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="attendance" id="attendance{{ mark.id }}"
+                                                               {% if mark.attendance %}checked{% endif %}>
+                                                        <label class="form-check-label fw-medium" for="attendance{{ mark.id }}">
+                                                            <i class="ri-checkbox-circle-line me-1"></i>
+                                                            Student was present
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6 text-end">
+                                                    <small class="text-muted">
+                                                        Max marks: <span class="fw-bold">{{ assessment.max_marks }}</span>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-medium">Remarks (Optional)</label>
+                                                <textarea name="remarks" class="form-control" rows="3" 
+                                                          placeholder="Enter any remarks about student performance...">{{ mark.remarks }}</textarea>
+                                                <small class="text-muted">Optional comments for reference</small>
                                             </div>
                                         </div>
                                         <div class="modal-footer">
@@ -201,21 +374,27 @@
         </div>
     </div>
 
-    <!-- Action Buttons -->
+    <!-- Completion Card -->
     {% if graded_count == total_students %}
-    <div class="card mt-4 border-success">
+    <div class="management-card mt-4 border-success">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h6 class="mb-1">All students graded!</h6>
-                    <p class="text-muted mb-0">You can now submit these marks for moderation</p>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="completion-icon">
+                        <i class="ri-checkbox-circle-line display-4 text-success"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-semibold">All students graded successfully!</h6>
+                        <p class="text-muted mb-0">You can now submit these marks for moderation and approval</p>
+                    </div>
                 </div>
                 <div>
-                    <form method="post" action="{% url 'request_moderation' assessment.id %}" style="display: inline;">
+                    <form method="post" action="{% url 'request_moderation' assessment.id %}" class="d-inline">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-success"
-                                onclick="return confirm('Submit all marks for moderation? You cannot edit after submission.')">
-                            <i class="ri-send-plane-line me-1"></i> Submit for Moderation
+                        <button type="submit" class="btn btn-success d-flex align-items-center gap-2 px-4"
+                                onclick="return confirm('Are you sure you want to submit all marks for moderation? This action cannot be undone.')">
+                            <i class="ri-send-plane-line"></i>
+                            Submit for Moderation
                         </button>
                     </form>
                 </div>
@@ -227,7 +406,7 @@
 
 <!-- Bulk Upload Modal -->
 <div class="modal fade" id="bulkUploadModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="post" action="{% url 'bulk_upload_marks' assessment.id %}" enctype="multipart/form-data">
                 {% csrf_token %}
@@ -236,48 +415,501 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="ri-information-line me-2"></i>
-                        Upload a CSV file with student marks
+                    <div class="upload-instructions mb-4">
+                        <div class="alert alert-info">
+                            <div class="d-flex">
+                                <i class="ri-information-line fs-5 me-2 mt-1"></i>
+                                <div>
+                                    <p class="mb-0">Upload a CSV file with student marks. The system will match students by registration number.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label class="form-label">CSV File</label>
-                        <input type="file" name="marks_file" class="form-control" accept=".csv" required>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">CSV File</label>
+                        <div class="file-upload-area">
+                            <input type="file" name="marks_file" class="form-control" accept=".csv" required>
+                            <small class="text-muted d-block mt-1">Supported format: .csv (max 5MB)</small>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <a href="{% url 'download_grading_template' assessment.id %}" class="btn btn-sm btn-outline-primary">
-                            <i class="ri-download-line me-1"></i> Download Template
+                    <div class="mb-4">
+                        <h6 class="fw-medium mb-2">CSV Format Guidelines</h6>
+                        <div class="alert alert-warning">
+                            <ul class="mb-0 small">
+                                <li><strong>Required columns:</strong> registration_number, marks, attendance</li>
+                                <li><strong>Optional columns:</strong> student_name, remarks</li>
+                                <li><strong>Attendance values:</strong> YES/NO or 1/0 or Present/Absent</li>
+                                <li><strong>Marks format:</strong> Numbers only (e.g., 75.5, 80, 67.0)</li>
+                                <li><strong>File encoding:</strong> UTF-8 recommended</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <a href="{% url 'download_grading_template' assessment.id %}" 
+                           class="btn btn-outline-primary d-inline-flex align-items-center gap-2">
+                            <i class="ri-download-line"></i>
+                            Download Template
                         </a>
-                    </div>
-                    
-                    <div class="alert alert-warning">
-                        <strong>CSV Format:</strong>
-                        <ul class="mb-0 small">
-                            <li>Columns: registration_number, student_name, marks, attendance, remarks</li>
-                            <li>Attendance: YES/NO or 1/0</li>
-                            <li>Marks should be numbers only</li>
-                        </ul>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Upload Marks</button>
+                    <button type="submit" class="btn btn-primary">Upload and Process</button>
                 </div>
             </form>
         </div>
     </div>
 </div>
 
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card.border-success {
+        border-color: var(--color-success) !important;
+        border-width: 2px !important;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Assessment Info */
+    .assessment-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    /* Stat Management Cards */
+    .stat-management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .stat-management-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-primary);
+    }
+    
+    .stat-management-card.border-start {
+        border-left-width: 4px !important;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(46, 125, 50, 0.1);
+    }
+    
+    .stat-icon.text-primary { background: rgba(46, 125, 50, 0.1); }
+    .stat-icon.text-success { background: rgba(76, 175, 80, 0.1); }
+    .stat-icon.text-info { background: rgba(33, 150, 243, 0.1); }
+    .stat-icon.text-warning { background: rgba(255, 152, 0, 0.1); }
+    .stat-icon.text-danger { background: rgba(244, 67, 54, 0.1); }
+    
+    .stat-management-card h3 {
+        font-size: 1.75rem;
+        line-height: 1;
+    }
+    
+    .stat-trend small {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    /* Progress Bar */
+    .progress {
+        border-radius: 2px;
+        background-color: var(--color-gray-200);
+    }
+    
+    .progress-bar {
+        border-radius: 2px;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .table.table-light {
+        background-color: var(--color-gray-100);
+    }
+    
+    /* Student Info */
+    .student-avatar img {
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Marks Display */
+    .marks-display {
+        text-align: center;
+        min-width: 70px;
+    }
+    
+    .marks-value {
+        font-size: 1.125rem;
+        line-height: 1;
+    }
+    
+    /* Attendance Badges */
+    .badge {
+        padding: 0.375rem 0.75rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+    }
+    
+    /* Remarks Preview */
+    .remarks-preview {
+        max-width: 150px;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Completion Section */
+    .completion-icon {
+        width: 64px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(76, 175, 80, 0.1);
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .student-modal-info {
+        padding: 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .student-modal-info .student-avatar img {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .student-meta {
+        display: flex;
+        align-items: center;
+        margin-top: 0.25rem;
+    }
+    
+    /* File Upload Area */
+    .file-upload-area {
+        padding: 1rem;
+        border: 2px dashed var(--color-gray-300);
+        border-radius: var(--radius-md);
+        background: var(--color-gray-100);
+        transition: all 0.3s ease;
+    }
+    
+    .file-upload-area:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+    
+    /* Color Utilities */
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.1); }
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    
+    .text-success { color: var(--color-success); }
+    .text-danger { color: var(--color-danger); }
+    .text-info { color: var(--color-info); }
+    .text-warning { color: var(--color-warning); }
+    .text-primary { color: var(--color-primary); }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+        
+        .student-meta {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .page-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .management-card .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .management-card .card-header .badge {
+            align-self: flex-start;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .assessment-info-item {
+            margin-bottom: 1rem;
+        }
+        
+        .stat-management-card {
+            padding: 1rem;
+        }
+        
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+    }
+</style>
+
 <script>
-$(document).ready(function() {
-    $('#gradingTable').DataTable({
-        ordering: true,
-        searching: true,
-        paging: true,
-        pageLength: 25,
-        order: [[0, 'asc']]
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize DataTable
+    if ($.fn.DataTable && !$.fn.DataTable.isDataTable('#gradingTable')) {
+        $('#gradingTable').DataTable({
+            ordering: true,
+            searching: true,
+            paging: true,
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
+            order: [[0, 'asc']],
+            responsive: true,
+            autoWidth: false,
+            language: {
+                search: "Search students:",
+                lengthMenu: "Show _MENU_ students",
+                info: "Showing _START_ to _END_ of _TOTAL_ students",
+                emptyTable: "No student data available"
+            }
+        });
+    }
+    
+    // Add animation to stat cards
+    const statCards = document.querySelectorAll('.stat-management-card');
+    statCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Add hover effects to table rows
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'rgba(46, 125, 50, 0.02)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+    
+    // Add confirmation for moderation submission
+    const submitButton = document.querySelector('form[action*="request_moderation"] button');
+    if (submitButton) {
+        submitButton.addEventListener('click', function(e) {
+            if (!confirm('Are you sure you want to submit all marks for moderation?\n\nOnce submitted, you cannot edit marks until moderation is complete.')) {
+                e.preventDefault();
+            }
+        });
+    }
+    
+    // Add marks input validation
+    const marksInputs = document.querySelectorAll('input[name="marks_obtained"]');
+    marksInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            const maxMarks = parseFloat(this.max);
+            const value = parseFloat(this.value);
+            
+            if (value > maxMarks) {
+                this.value = maxMarks;
+                alert(`Marks cannot exceed maximum of ${maxMarks}`);
+            }
+            
+            if (value < 0) {
+                this.value = 0;
+                alert('Marks cannot be negative');
+            }
+        });
     });
 });
 </script>

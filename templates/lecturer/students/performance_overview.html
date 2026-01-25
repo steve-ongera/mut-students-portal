@@ -3,132 +3,626 @@
 
 {% block title %}Student Performance Overview{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div class="page-header-content">
-        <h1>Student Performance Overview</h1>
-        <p class="text-muted">Monitor student academic performance across your units</p>
-    </div>
-</div>
+<div class="content-container">
+    <!-- Breadcrumb Navigation -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Performance Overview</li>
+        </ol>
+    </nav>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
-        <li class="breadcrumb-item active">Performance Overview</li>
-    </ol>
-</nav>
-
-<!-- Search Student -->
-<div class="content-card mb-4">
-    <div class="card-header">
-        <h5>Search Student</h5>
-    </div>
-    <div class="card-body">
-        <form method="get" class="search-form">
-            <div class="search-group">
-                <i class="ri-search-line"></i>
-                <input type="text" 
-                       name="search" 
-                       placeholder="Search by registration number or name..." 
-                       value="{{ search_query }}"
-                       class="search-input">
-                <button type="submit" class="btn-primary">Search</button>
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Student Performance Overview</h1>
+                <p class="text-muted mb-0">Monitor student academic performance across your units</p>
             </div>
-        </form>
-        
-        {% if search_results %}
-            <div class="search-results mt-4">
-                <h6>Search Results ({{ search_results.count }} found)</h6>
+            <div class="text-end">
+                {% if current_semester %}
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester.name }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Student Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Search Student</h5>
+            <div class="card-subtitle">Find student by name or registration number</div>
+        </div>
+        <div class="card-body">
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number or name..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+            
+            {% if search_results %}
+            <div class="search-results-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-semibold">Search Results</h6>
+                    <span class="badge bg-light text-dark">
+                        {{ search_results.count }} student(s) found
+                    </span>
+                </div>
+                
                 <div class="results-list">
                     {% for student in search_results %}
-                    <div class="result-item">
-                        <div class="student-info">
-                            {% if student.user.profile_picture %}
-                            <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="student-avatar">
-                            {% else %}
-                            <div class="student-avatar-placeholder">
-                                {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+                    <div class="result-management-card">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="student-avatar me-3">
+                                    {% if student.user.profile_picture %}
+                                    <img src="{{ student.user.profile_picture.url }}" 
+                                         alt="{{ student.user.get_full_name }}" 
+                                         class="rounded-circle">
+                                    {% else %}
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                         style="width: 40px; height: 40px; font-weight: 600; font-size: 0.875rem;">
+                                        {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-medium">{{ student.user.get_full_name }}</h6>
+                                    <div class="student-meta">
+                                        <small class="text-muted me-3">
+                                            <i class="ri-id-card-line me-1"></i>
+                                            {{ student.registration_number }}
+                                        </small>
+                                        <small class="text-muted">
+                                            <i class="ri-book-line me-1"></i>
+                                            {{ student.programme.code }}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
-                            {% endif %}
-                            <div>
-                                <strong>{{ student.user.get_full_name }}</strong>
-                                <p class="text-muted">{{ student.registration_number }} - {{ student.programme.code }}</p>
+                            
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="gpa-display text-center">
+                                    <div class="gpa-value 
+                                        {% if student.cumulative_gpa >= 3.0 %}text-success
+                                        {% elif student.cumulative_gpa >= 2.0 %}text-warning
+                                        {% else %}text-danger{% endif %} fw-bold">
+                                        {{ student.cumulative_gpa }}
+                                    </div>
+                                    <small class="text-muted">GPA</small>
+                                </div>
+                                
+                                <div class="academic-info">
+                                    <span class="badge bg-info-subtle text-info mb-1 d-block">Year {{ student.current_year }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary">Sem {{ student.current_semester }}</span>
+                                </div>
+                                
+                                <div class="action-buttons">
+                                    <a href="{% url 'student_performance_detail' student.registration_number %}" 
+                                       class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                                        <i class="ri-eye-line"></i>
+                                        View Details
+                                    </a>
+                                </div>
                             </div>
-                        </div>
-                        <div class="result-actions">
-                            <span class="gpa-badge {% if student.cumulative_gpa >= 3.0 %}badge-success{% elif student.cumulative_gpa >= 2.0 %}badge-warning{% else %}badge-danger{% endif %}">
-                                GPA: {{ student.cumulative_gpa }}
-                            </span>
-                            <a href="{% url 'student_performance_detail' student.registration_number %}" class="btn-primary">
-                                View Details
-                            </a>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
             </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
-</div>
 
-<!-- Unit Performance Summary -->
-<div class="content-card">
-    <div class="card-header">
-        <h5>Performance by Unit - {{ current_semester.name }}</h5>
-    </div>
-    <div class="card-body">
-        {% if unit_performance %}
+    <!-- Unit Performance Summary Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Performance by Unit</h5>
+            <div class="card-subtitle">{{ current_semester.name }} - {{ unit_performance|length }} unit(s)</div>
+        </div>
+        <div class="card-body p-0">
+            {% if unit_performance %}
             <div class="table-responsive">
-                <table class="table">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Unit Code</th>
+                            <th class="ps-4">Unit Code</th>
                             <th>Unit Name</th>
                             <th>Programme</th>
                             <th>Total Students</th>
                             <th>Avg. Marks</th>
                             <th>High Performers</th>
                             <th>Low Performers</th>
-                            <th>Actions</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for unit in unit_performance %}
                         <tr>
-                            <td><strong>{{ unit.allocation.programme_unit.unit.code }}</strong></td>
-                            <td>{{ unit.allocation.programme_unit.unit.name }}</td>
-                            <td>{{ unit.allocation.programme_unit.programme.code }}</td>
-                            <td>{{ unit.total_students }}</td>
-                            <td>
-                                <span class="avg-marks {% if unit.avg_marks >= 70 %}text-success{% elif unit.avg_marks >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                    {{ unit.avg_marks }}%
-                                </span>
+                            <td class="ps-4">
+                                <strong>{{ unit.allocation.programme_unit.unit.code }}</strong>
                             </td>
                             <td>
-                                <span class="badge-success">{{ unit.high_performers }}</span>
-                                <small class="text-muted">(GPA ≥ 3.5)</small>
+                                <div class="unit-info">
+                                    <span class="d-block">{{ unit.allocation.programme_unit.unit.name|truncatechars:30 }}</span>
+                                    <small class="text-muted">{{ unit.allocation.programme_unit.unit.credit_hours }} CH</small>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge-danger">{{ unit.low_performers }}</span>
-                                <small class="text-muted">(GPA < 2.0)</small>
+                                <div class="programme-info">
+                                    <span class="d-block">{{ unit.allocation.programme_unit.programme.code }}</span>
+                                    <small class="text-muted">{{ unit.allocation.programme_unit.get_unit_type_display }}</small>
+                                </div>
                             </td>
                             <td>
-                                <a href="{% url 'class_detail' unit.allocation.id %}" class="btn-sm">
-                                    <i class="ri-eye-line"></i> View Class
-                                </a>
+                                <div class="student-count">
+                                    <span class="fw-bold">{{ unit.total_students }}</span>
+                                    <small class="text-muted d-block">students</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="avg-marks-display text-center">
+                                    <span class="avg-marks-value 
+                                        {% if unit.avg_marks >= 70 %}text-success
+                                        {% elif unit.avg_marks >= 50 %}text-warning
+                                        {% else %}text-danger{% endif %} fw-bold">
+                                        {{ unit.avg_marks }}%
+                                    </span>
+                                    <div class="progress" style="height: 4px; width: 60px; margin: 4px auto;">
+                                        <div class="progress-bar 
+                                            {% if unit.avg_marks >= 70 %}bg-success
+                                            {% elif unit.avg_marks >= 50 %}bg-warning
+                                            {% else %}bg-danger{% endif %}" 
+                                            style="width: {{ unit.avg_marks }}%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="performance-indicator">
+                                    <span class="badge bg-success-subtle text-success fw-medium">
+                                        {{ unit.high_performers }}
+                                    </span>
+                                    <small class="text-muted d-block mt-1">GPA ≥ 3.5</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="performance-indicator">
+                                    <span class="badge bg-danger-subtle text-danger fw-medium">
+                                        {{ unit.low_performers }}
+                                    </span>
+                                    <small class="text-muted d-block mt-1">GPA < 2.0</small>
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'class_detail' unit.allocation.id %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="View Class"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        <a href="{% url 'export_class_list' unit.allocation.id %}" 
+                                           class="btn btn-icon btn-outline-success btn-sm" 
+                                           title="Export Class"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-download-line"></i>
+                                        </a>
+                                        <a href="#" 
+                                           class="btn btn-icon btn-outline-info btn-sm" 
+                                           title="Unit Performance"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-bar-chart-line"></i>
+                                        </a>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        {% else %}
-            <div class="empty-state">
-                <i class="ri-bar-chart-line"></i>
-                <p>No performance data available</p>
+            {% else %}
+            <div class="empty-state p-5">
+                <i class="ri-bar-chart-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No Performance Data Available</h5>
+                <p class="text-muted mb-0">No performance data available for current semester</p>
             </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Search Results Section */
+    .search-results-section {
+        border-top: 1px solid var(--color-gray-200);
+        padding-top: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    .result-management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.3s ease;
+    }
+    
+    .result-management-card:last-child {
+        margin-bottom: 0;
+    }
+    
+    .result-management-card:hover {
+        transform: translateX(4px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+    
+    .student-avatar img {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    .student-meta {
+        display: flex;
+        align-items: center;
+        margin-top: 0.25rem;
+    }
+    
+    /* GPA Display */
+    .gpa-display {
+        min-width: 60px;
+    }
+    
+    .gpa-value {
+        font-size: 1.125rem;
+        line-height: 1;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Unit Info */
+    .unit-info,
+    .programme-info {
+        min-width: 120px;
+    }
+    
+    /* Student Count */
+    .student-count {
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    /* Avg Marks Display */
+    .avg-marks-display {
+        min-width: 100px;
+    }
+    
+    .avg-marks-value {
+        font-size: 1rem;
+        line-height: 1;
+    }
+    
+    /* Performance Indicator */
+    .performance-indicator {
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    .text-success { color: var(--color-success); }
+    .text-danger { color: var(--color-danger); }
+    .text-primary { color: var(--color-primary); }
+    .text-warning { color: var(--color-warning); }
+    
+    /* Progress Bar */
+    .progress {
+        border-radius: 2px;
+        background-color: var(--color-gray-200);
+    }
+    
+    .progress-bar {
+        border-radius: 2px;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 992px) {
+        .result-management-card .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .result-management-card .d-flex > div:last-child {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 1rem;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+        
+        .result-management-card {
+            padding: 0.75rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .management-card .card-body {
+            padding: 1rem;
+        }
+        
+        .page-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .page-header .text-end {
+            text-align: left !important;
+            align-self: flex-start;
+        }
+        
+        .search-container .btn {
+            padding: 0.75rem 1rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Add animation to search result cards
+    const resultCards = document.querySelectorAll('.result-management-card');
+    resultCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Add hover effects to table rows
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'rgba(46, 125, 50, 0.02)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+    
+    // Focus search input if there's a search query
+    const searchInput = document.querySelector('input[name="search"]');
+    if (searchInput && searchInput.value) {
+        searchInput.focus();
+        searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    }
+});
+</script>
 {% endblock %}

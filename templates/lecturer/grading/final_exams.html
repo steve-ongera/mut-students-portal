@@ -3,98 +3,210 @@
 
 {% block title %}Final Exams{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="content-container">
+    <!-- Breadcrumb Navigation -->
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
-            <li class="breadcrumb-item active">Final Exams</li>
+            <li class="breadcrumb-item active" aria-current="page">Final Exams</li>
         </ol>
     </nav>
 
+    <!-- Page Header -->
     <div class="page-header mb-4">
         <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h1 class="h3">Final Examinations</h1>
-                <p class="text-muted">Manage final exams for {{ current_semester }}</p>
+                <h1 class="h3 fw-semibold mb-2">Final Examinations</h1>
+                <p class="text-muted mb-0">Manage final exams for your allocated units</p>
             </div>
-            {% if unit_allocations %}
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createExamModal">
-                <i class="ri-add-line me-1"></i> Create Final Exam
-            </button>
-            {% endif %}
+            <div class="text-end">
+                {% if current_semester %}
+                <span class="badge bg-light text-dark px-3 py-2 me-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester }}
+                </span>
+                {% endif %}
+                {% if unit_allocations %}
+                <button class="btn btn-primary d-flex align-items-center gap-1" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#createExamModal">
+                    <i class="ri-add-line"></i>
+                    Create Final Exam
+                </button>
+                {% endif %}
+            </div>
         </div>
     </div>
 
-    <!-- Existing Final Exams -->
-    {% if final_exams %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="card-title mb-0">My Final Exams</h5>
+    <!-- Final Exams Management Card -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">My Final Exams</h5>
+                <div class="card-subtitle">{{ final_exams|length }} exam(s) created</div>
+            </div>
+            <div class="d-flex gap-2">
+                {% if unit_allocations and final_exams %}
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#createExamModal">
+                    <i class="ri-add-line"></i>
+                    New Exam
+                </button>
+                {% endif %}
+            </div>
         </div>
         <div class="card-body p-0">
+            {% if final_exams %}
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Unit</th>
-                            <th>Title</th>
-                            <th>Date</th>
-                            <th>Duration</th>
+                            <th class="ps-4">Unit</th>
+                            <th>Exam Details</th>
+                            <th>Date & Duration</th>
                             <th>Max Marks</th>
                             <th>Students</th>
-                            <th>Graded</th>
-                            <th>Action</th>
+                            <th>Grading Status</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for exam in final_exams %}
                         <tr>
-                            <td>
-                                <strong>{{ exam.unit_allocation.programme_unit.unit.code }}</strong><br>
-                                <small class="text-muted">{{ exam.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
-                            </td>
-                            <td>{{ exam.title }}</td>
-                            <td>{{ exam.date }}</td>
-                            <td>{{ exam.duration_minutes }} mins</td>
-                            <td>{{ exam.max_marks }}</td>
-                            <td>{{ exam.total_students }}</td>
-                            <td>
-                                <span class="badge {% if exam.graded_count == exam.total_students %}bg-success{% else %}bg-warning text-dark{% endif %}">
-                                    {{ exam.graded_count }}/{{ exam.total_students }}
-                                </span>
+                            <td class="ps-4">
+                                <div class="unit-info">
+                                    <strong class="d-block">{{ exam.unit_allocation.programme_unit.unit.code }}</strong>
+                                    <small class="text-muted">{{ exam.unit_allocation.programme_unit.unit.name|truncatechars:25 }}</small>
+                                </div>
                             </td>
                             <td>
-                                <a href="{% url 'grade_final_exam' exam.id %}" class="btn btn-sm btn-outline-primary">
-                                    <i class="ri-edit-line me-1"></i> Grade
-                                </a>
+                                <div class="exam-info">
+                                    <h6 class="mb-1 fw-medium">{{ exam.title }}</h6>
+                                    {% if exam.venue %}
+                                    <small class="text-muted">
+                                        <i class="ri-map-pin-line me-1"></i>
+                                        {{ exam.venue|truncatechars:20 }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="date-info">
+                                    <span class="d-block fw-medium">{{ exam.date }}</span>
+                                    <small class="text-muted">
+                                        <i class="ri-time-line me-1"></i>
+                                        {{ exam.duration_minutes }} mins
+                                    </small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="marks-info text-center">
+                                    <span class="d-block fw-bold text-primary">{{ exam.max_marks }}</span>
+                                    <small class="text-muted">max marks</small>
+                                    <div class="weight-info">
+                                        <small class="badge bg-info-subtle text-info">
+                                            {{ exam.weight_percentage }}% weight
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-count text-center">
+                                    <span class="d-block fw-bold">{{ exam.total_students }}</span>
+                                    <small class="text-muted">students</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="grading-status">
+                                    {% if exam.graded_count == exam.total_students %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-success-subtle text-success d-flex align-items-center gap-1">
+                                            <i class="ri-checkbox-circle-line"></i>
+                                            Complete
+                                        </span>
+                                        <small class="text-muted">{{ exam.graded_count }}/{{ exam.total_students }}</small>
+                                    </div>
+                                    {% else %}
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-warning-subtle text-warning d-flex align-items-center gap-1">
+                                            <i class="ri-time-line"></i>
+                                            In Progress
+                                        </span>
+                                        <div class="progress" style="height: 6px; width: 80px;">
+                                            {% widthratio exam.graded_count exam.total_students 100 as progress %}
+                                            <div class="progress-bar bg-warning" style="width: {{ progress }}%"></div>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ exam.graded_count }}/{{ exam.total_students }} graded</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'grade_final_exam' exam.id %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="Grade Exam"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-edit-line"></i>
+                                        </a>
+                                        <button class="btn btn-icon btn-outline-info btn-sm" 
+                                                title="View Details"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                        <button class="btn btn-icon btn-outline-success btn-sm" 
+                                                title="Export Results"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-download-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-        </div>
-    </div>
-    {% else %}
-    <div class="card">
-        <div class="card-body text-center py-5">
-            <i class="ri-file-list-3-line display-4 text-muted"></i>
-            <h5 class="mt-3">No Final Exams Created</h5>
-            <p class="text-muted">Create final exams for your allocated units</p>
-            {% if unit_allocations %}
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createExamModal">
-                <i class="ri-add-line me-1"></i> Create Final Exam
-            </button>
+            {% else %}
+            <div class="empty-state p-5">
+                <div class="empty-icon mb-4">
+                    <i class="ri-file-list-3-line display-4 text-muted"></i>
+                </div>
+                <h5 class="text-muted mb-3">No Final Exams Created</h5>
+                <p class="text-muted mb-4">Create final exams for your allocated units to get started</p>
+                {% if unit_allocations %}
+                <button class="btn btn-primary d-flex align-items-center gap-2 px-4" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#createExamModal">
+                    <i class="ri-add-line"></i>
+                    Create Your First Exam
+                </button>
+                {% else %}
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-start">
+                        <i class="ri-information-line fs-5 me-2 mt-1"></i>
+                        <div>
+                            <p class="mb-0">You don't have any units allocated for the current semester. Please contact your department head.</p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
             {% endif %}
         </div>
     </div>
-    {% endif %}
 </div>
 
 <!-- Create Exam Modal -->
 <div class="modal fade" id="createExamModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <form method="post" action="{% url 'create_final_exam' %}">
                 {% csrf_token %}
@@ -103,8 +215,32 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">Select Unit <span class="text-danger">*</span></label>
+                    <div class="form-stepper mb-4">
+                        <div class="stepper-line"></div>
+                        <div class="stepper-items">
+                            <div class="stepper-item active">
+                                <div class="stepper-icon">
+                                    <i class="ri-book-line"></i>
+                                </div>
+                                <div class="stepper-label">Unit</div>
+                            </div>
+                            <div class="stepper-item">
+                                <div class="stepper-icon">
+                                    <i class="ri-file-text-line"></i>
+                                </div>
+                                <div class="stepper-label">Details</div>
+                            </div>
+                            <div class="stepper-item">
+                                <div class="stepper-icon">
+                                    <i class="ri-settings-line"></i>
+                                </div>
+                                <div class="stepper-label">Settings</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">Select Unit <span class="text-danger">*</span></label>
                         <select name="unit_allocation" class="form-select" required>
                             <option value="">Choose a unit...</option>
                             {% for allocation in unit_allocations %}
@@ -114,58 +250,576 @@
                             </option>
                             {% endfor %}
                         </select>
+                        <small class="text-muted">Select the unit for which you want to create the final exam</small>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Exam Title <span class="text-danger">*</span></label>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">Exam Title <span class="text-danger">*</span></label>
                         <input type="text" name="title" class="form-control" 
                                placeholder="e.g., Final Examination - Semester 1" required>
+                        <small class="text-muted">Provide a descriptive title for the exam</small>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <label class="form-label">Maximum Marks <span class="text-danger">*</span></label>
-                            <input type="number" name="max_marks" class="form-control" 
-                                   min="1" max="100" value="70" required>
+                            <label class="form-label fw-medium">Maximum Marks <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="max_marks" class="form-control" 
+                                       min="1" max="100" value="70" required>
+                                <span class="input-group-text">marks</span>
+                            </div>
+                            <small class="text-muted">Typically 70% of total unit marks</small>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Weight (%) <span class="text-danger">*</span></label>
-                            <input type="number" name="weight_percentage" class="form-control" 
-                                   min="1" max="100" value="70" required>
+                            <label class="form-label fw-medium">Weight (%) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="weight_percentage" class="form-control" 
+                                       min="1" max="100" value="70" required>
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <small class="text-muted">Percentage contribution to final grade</small>
                         </div>
                     </div>
 
-                    <div class="row mb-3">
+                    <div class="row g-3 mb-4">
                         <div class="col-md-6">
-                            <label class="form-label">Exam Date <span class="text-danger">*</span></label>
+                            <label class="form-label fw-medium">Exam Date <span class="text-danger">*</span></label>
                             <input type="date" name="date" class="form-control" 
                                    min="{{ today|date:'Y-m-d' }}" required>
+                            <small class="text-muted">Scheduled date for the exam</small>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Duration (minutes)</label>
-                            <input type="number" name="duration_minutes" class="form-control" 
-                                   min="60" max="240" value="120">
+                            <label class="form-label fw-medium">Duration</label>
+                            <div class="input-group">
+                                <input type="number" name="duration_minutes" class="form-control" 
+                                       min="60" max="240" value="120">
+                                <span class="input-group-text">mins</span>
+                            </div>
+                            <small class="text-muted">Exam duration in minutes</small>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Venue</label>
+                    <div class="mb-4">
+                        <label class="form-label fw-medium">Venue</label>
                         <input type="text" name="venue" class="form-control" 
-                               placeholder="e.g., Main Hall">
+                               placeholder="e.g., Main Hall, Room 101, etc.">
+                        <small class="text-muted">Location where the exam will be held</small>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Instructions</label>
+                        <label class="form-label fw-medium">Instructions</label>
                         <textarea name="instructions" class="form-control" rows="4"
-                                  placeholder="Enter exam instructions..."></textarea>
+                                  placeholder="Enter exam instructions, rules, and guidelines for students..."></textarea>
+                        <small class="text-muted">Instructions that will be displayed to students</small>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Create Final Exam</button>
+                    <button type="submit" class="btn btn-primary d-flex align-items-center gap-2 px-4">
+                        <i class="ri-save-line"></i>
+                        Create Final Exam
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Unit Info */
+    .unit-info {
+        min-width: 120px;
+    }
+    
+    /* Exam Info */
+    .exam-info {
+        min-width: 150px;
+    }
+    
+    /* Date Info */
+    .date-info {
+        min-width: 120px;
+    }
+    
+    /* Marks Info */
+    .marks-info {
+        min-width: 100px;
+        text-align: center;
+    }
+    
+    /* Student Count */
+    .student-count {
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    /* Grading Status */
+    .grading-status {
+        min-width: 160px;
+    }
+    
+    .progress {
+        border-radius: 3px;
+        background-color: var(--color-gray-200);
+    }
+    
+    .progress-bar {
+        border-radius: 3px;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+    }
+    
+    .empty-state i {
+        font-size: 2.5rem;
+    }
+    
+    /* Form Stepper */
+    .form-stepper {
+        position: relative;
+        margin-bottom: 2rem;
+    }
+    
+    .stepper-line {
+        position: absolute;
+        top: 24px;
+        left: 40px;
+        right: 40px;
+        height: 2px;
+        background: var(--color-gray-300);
+        z-index: 1;
+    }
+    
+    .stepper-items {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        z-index: 2;
+    }
+    
+    .stepper-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .stepper-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid var(--color-gray-300);
+        transition: all 0.3s ease;
+    }
+    
+    .stepper-item.active .stepper-icon {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .stepper-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+    }
+    
+    .stepper-item.active .stepper-label {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    /* Form Styles */
+    .form-label {
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+    }
+    
+    .input-group-text {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-300);
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.1); }
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    
+    .text-info { color: var(--color-info); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-primary { color: var(--color-primary); }
+    .text-danger { color: var(--color-danger); }
+    
+    /* Alert Styles */
+    .alert {
+        border: none;
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+        
+        .stepper-items {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .stepper-line {
+            display: none;
+        }
+        
+        .management-card .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .page-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .page-header .text-end {
+            text-align: left !important;
+            align-self: flex-start;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .modal-dialog {
+            margin: 0.5rem;
+        }
+        
+        .empty-state {
+            padding: 2rem 1rem;
+        }
+        
+        .row.g-3 > [class*="col-"] {
+            margin-bottom: 1rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Add hover effects to table rows
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'rgba(46, 125, 50, 0.02)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+    
+    // Form validation for modal
+    const createExamForm = document.querySelector('form[action*="create_final_exam"]');
+    if (createExamForm) {
+        createExamForm.addEventListener('submit', function(e) {
+            const unitSelect = this.querySelector('select[name="unit_allocation"]');
+            const maxMarks = this.querySelector('input[name="max_marks"]');
+            const weight = this.querySelector('input[name="weight_percentage"]');
+            const examDate = this.querySelector('input[name="date"]');
+            
+            // Validate unit selection
+            if (!unitSelect.value) {
+                e.preventDefault();
+                alert('Please select a unit for the exam.');
+                unitSelect.focus();
+                return false;
+            }
+            
+            // Validate max marks
+            if (maxMarks.value < 1 || maxMarks.value > 100) {
+                e.preventDefault();
+                alert('Maximum marks must be between 1 and 100.');
+                maxMarks.focus();
+                return false;
+            }
+            
+            // Validate weight percentage
+            if (weight.value < 1 || weight.value > 100) {
+                e.preventDefault();
+                alert('Weight percentage must be between 1% and 100%.');
+                weight.focus();
+                return false;
+            }
+            
+            // Validate exam date
+            const today = new Date().toISOString().split('T')[0];
+            if (examDate.value < today) {
+                e.preventDefault();
+                alert('Exam date cannot be in the past.');
+                examDate.focus();
+                return false;
+            }
+            
+            // Show confirmation
+            const confirmed = confirm('Are you sure you want to create this final exam?\n\nYou will be able to edit exam details before it starts.');
+            if (!confirmed) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+    
+    // Set minimum date for exam date input
+    const examDateInput = document.querySelector('input[name="date"]');
+    if (examDateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        examDateInput.min = today;
+        
+        // Set default date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        examDateInput.value = tomorrow.toISOString().split('T')[0];
+    }
+    
+    // Auto-calculate weight based on max marks
+    const maxMarksInput = document.querySelector('input[name="max_marks"]');
+    const weightInput = document.querySelector('input[name="weight_percentage"]');
+    
+    if (maxMarksInput && weightInput) {
+        maxMarksInput.addEventListener('input', function() {
+            const maxMarks = parseInt(this.value);
+            if (maxMarks >= 60 && maxMarks <= 70) {
+                weightInput.value = 70;
+            } else if (maxMarks > 70 && maxMarks <= 80) {
+                weightInput.value = 60;
+            } else if (maxMarks > 80) {
+                weightInput.value = 50;
+            }
+        });
+    }
+    
+    // Add animation to modal when shown
+    const createExamModal = document.getElementById('createExamModal');
+    if (createExamModal) {
+        createExamModal.addEventListener('shown.bs.modal', function() {
+            const stepperItems = this.querySelectorAll('.stepper-item');
+            stepperItems.forEach((item, index) => {
+                item.style.opacity = '0';
+                item.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    item.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+        });
+    }
+});
+</script>
 {% endblock %}

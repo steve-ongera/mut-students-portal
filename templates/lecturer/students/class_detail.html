@@ -3,151 +3,239 @@
 
 {% block title %}{{ unit_allocation.programme_unit.unit.code }} Class List{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div class="page-header-content">
-        <h1>{{ unit_allocation.programme_unit.unit.code }} - {{ unit_allocation.programme_unit.unit.name }}</h1>
-        <p class="text-muted">{{ unit_allocation.programme_unit.programme.name }}</p>
-    </div>
-    <div class="page-actions">
-        <a href="{% url 'export_class_list' unit_allocation.id %}" class="btn-success">
-            <i class="ri-download-line"></i> Export to CSV
-        </a>
-    </div>
-</div>
+<div class="content-container">
+    <!-- Page Header -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'class_lists' %}">Class Lists</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ unit_allocation.programme_unit.unit.code }}</li>
+        </ol>
+    </nav>
 
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'class_lists' %}">Class Lists</a></li>
-        <li class="breadcrumb-item active">{{ unit_allocation.programme_unit.unit.code }}</li>
-    </ol>
-</nav>
-
-<!-- Unit Info Summary -->
-<div class="info-grid mb-4">
-    <div class="info-item">
-        <span class="info-label">Programme</span>
-        <span class="info-value">{{ unit_allocation.programme_unit.programme.code }}</span>
-    </div>
-    <div class="info-item">
-        <span class="info-label">Year/Semester</span>
-        <span class="info-value">Year {{ unit_allocation.programme_unit.year_of_study }}, Sem {{ unit_allocation.programme_unit.semester_number }}</span>
-    </div>
-    <div class="info-item">
-        <span class="info-label">Credit Hours</span>
-        <span class="info-value">{{ unit_allocation.programme_unit.unit.credit_hours }}</span>
-    </div>
-    <div class="info-item">
-        <span class="info-label">Total Students</span>
-        <span class="info-value">{{ total_students }}</span>
-    </div>
-    <div class="info-item">
-        <span class="info-label">Semester</span>
-        <span class="info-value">{{ unit_allocation.semester.name }}</span>
-    </div>
-</div>
-
-<!-- Search and Filter -->
-<div class="content-card mb-4">
-    <div class="card-body">
-        <form method="get" class="search-form">
-            <div class="search-group">
-                <i class="ri-search-line"></i>
-                <input type="text" 
-                       name="search" 
-                       placeholder="Search by registration number or name..." 
-                       value="{{ search_query }}"
-                       class="search-input">
-                <button type="submit" class="btn-primary">Search</button>
-                {% if search_query %}
-                <a href="{% url 'class_detail' unit_allocation.id %}" class="btn-secondary">Clear</a>
-                {% endif %}
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">{{ unit_allocation.programme_unit.unit.code }} - {{ unit_allocation.programme_unit.unit.name }}</h1>
+                <p class="text-muted mb-0">{{ unit_allocation.programme_unit.programme.name }}</p>
             </div>
-        </form>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2 me-2">
+                    <i class="ri-group-line me-2"></i>
+                    {{ total_students }} student(s)
+                </span>
+                <a href="{% url 'export_class_list' unit_allocation.id %}" class="btn btn-sm btn-success d-flex align-items-center gap-1">
+                    <i class="ri-download-line fs-5"></i>
+                    <span>Export to CSV</span>
+                </a>
+            </div>
+        </div>
     </div>
-</div>
 
-<!-- Students Table -->
-<div class="content-card">
-    <div class="card-header">
-        <h5>Enrolled Students</h5>
-        <span class="text-muted">{{ students_data|length }} student(s)</span>
+    <!-- Unit Info Summary -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Unit Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="info-item">
+                        <span class="info-label">Programme</span>
+                        <span class="info-value">{{ unit_allocation.programme_unit.programme.code }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-item">
+                        <span class="info-label">Year/Semester</span>
+                        <span class="info-value">Year {{ unit_allocation.programme_unit.year_of_study }}, Sem {{ unit_allocation.programme_unit.semester_number }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-item">
+                        <span class="info-label">Credit Hours</span>
+                        <span class="info-value">{{ unit_allocation.programme_unit.unit.credit_hours }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-item">
+                        <span class="info-label">Semester</span>
+                        <span class="info-value">{{ unit_allocation.semester.name }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-item">
+                        <span class="info-label">Lecturer</span>
+                        <span class="info-value">{{ unit_allocation.lecturer.user.get_full_name }}</span>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="info-item">
+                        <span class="info-label">Total Students</span>
+                        <span class="info-value text-primary fw-bold">{{ total_students }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        {% if students_data %}
+
+    <!-- Search and Filter -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Search & Filter</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="mb-0">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number or name..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                        {% if search_query %}
+                        <a href="{% url 'class_detail' unit_allocation.id %}" class="btn btn-outline-secondary px-4">
+                            Clear
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Enrolled Students</h5>
+            <div class="card-subtitle">Showing {{ students_data|length }} student(s)</div>
+        </div>
+        <div class="card-body p-0">
+            {% if students_data %}
             <div class="table-responsive">
-                <table class="table">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th class="ps-4">#</th>
                             <th>Registration No.</th>
-                            <th>Student Name</th>
-                            <th>Email</th>
+                            <th>Student Details</th>
                             <th>Programme</th>
                             <th>Year/Sem</th>
                             <th>Attendance</th>
                             <th>Performance</th>
-                            <th>Actions</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for data in students_data %}
                         <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td><strong>{{ data.student.registration_number }}</strong></td>
+                            <td class="ps-4">{{ forloop.counter }}</td>
                             <td>
-                                <div class="student-info">
-                                    {% if data.student.user.profile_picture %}
-                                    <img src="{{ data.student.user.profile_picture.url }}" alt="{{ data.student.user.get_full_name }}" class="student-avatar">
-                                    {% else %}
-                                    <div class="student-avatar-placeholder">
-                                        {{ data.student.user.first_name.0 }}{{ data.student.user.last_name.0 }}
-                                    </div>
-                                    {% endif %}
-                                    <span>{{ data.student.user.get_full_name }}</span>
+                                <div class="registration-number">
+                                    <strong>{{ data.student.registration_number }}</strong>
+                                    <small class="text-muted d-block">{{ data.student.user.email }}</small>
                                 </div>
                             </td>
-                            <td>{{ data.student.user.email }}</td>
-                            <td>{{ data.student.programme.code }}</td>
-                            <td>Year {{ data.student.current_year }}, Sem {{ data.student.current_semester }}</td>
                             <td>
-                                <div class="attendance-info">
-                                    <div class="attendance-rate">
-                                        <span class="rate-value {% if data.attendance_rate >= 75 %}text-success{% elif data.attendance_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">
-                                            {{ data.attendance_rate }}%
-                                        </span>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-3">
+                                            {% if data.student.user.profile_picture %}
+                                            <img src="{{ data.student.user.profile_picture.url }}" 
+                                                 alt="{{ data.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                            {% else %}
+                                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                                                 style="width: 40px; height: 40px; font-weight: 600; font-size: 0.875rem;">
+                                                {{ data.student.user.first_name.0 }}{{ data.student.user.last_name.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ data.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ data.student.user.email }}</small>
+                                        </div>
                                     </div>
-                                    <small class="text-muted">{{ data.attended }}/{{ data.total_classes }} classes</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ data.student.programme.code }}</strong>
+                                    <small class="text-muted">{{ data.student.programme.name|truncatechars:20 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="academic-info">
+                                    <span class="badge bg-info-subtle text-info mb-1">Year {{ data.student.current_year }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary">Sem {{ data.student.current_semester }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="attendance-display">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="attendance-rate">
+                                            <span class="attendance-value 
+                                                {% if data.attendance_rate >= 75 %}text-success
+                                                {% elif data.attendance_rate >= 50 %}text-warning
+                                                {% else %}text-danger{% endif %} fw-bold">
+                                                {{ data.attendance_rate }}%
+                                            </span>
+                                        </div>
+                                        <div class="attendance-details">
+                                            <small class="text-muted d-block">{{ data.attended }}/{{ data.total_classes }}</small>
+                                            <small class="text-muted">classes attended</small>
+                                        </div>
+                                    </div>
                                 </div>
                             </td>
                             <td>
                                 {% if data.marks_data %}
-                                    <div class="marks-summary">
+                                    <div class="performance-summary">
                                         {% for mark in data.marks_data %}
-                                        <div class="mark-item">
-                                            <span class="mark-type">{{ mark.assessment__assessment_type }}:</span>
-                                            <span class="mark-value">{{ mark.total_marks }}</span>
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span class="performance-type text-muted small">{{ mark.assessment__assessment_type|slice:":3" }}:</span>
+                                            <span class="performance-value fw-medium">{{ mark.total_marks }}</span>
                                         </div>
                                         {% endfor %}
                                     </div>
                                 {% else %}
-                                    <span class="text-muted">No marks</span>
+                                    <span class="text-muted small">No marks</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="action-buttons">
-                                    <a href="{% url 'student_detail' data.student.registration_number %}" 
-                                       class="btn-icon" 
-                                       title="View Performance">
-                                        <i class="ri-bar-chart-line"></i>
-                                    </a>
-                                    <a href="#" 
-                                       class="btn-icon" 
-                                       title="Advising">
-                                        <i class="ri-user-heart-line"></i>
-                                    </a>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'student_detail' data.student.registration_number %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="View Performance"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-bar-chart-line"></i>
+                                        </a>
+                                        <a href="#" 
+                                           class="btn btn-icon btn-outline-info btn-sm" 
+                                           title="Advising"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-user-heart-line"></i>
+                                        </a>
+                                        <a href="#" 
+                                           class="btn btn-icon btn-outline-success btn-sm" 
+                                           title="Attendance"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-calendar-check-line"></i>
+                                        </a>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -155,18 +243,283 @@
                     </tbody>
                 </table>
             </div>
-        {% else %}
-            <div class="empty-state">
-                <i class="ri-user-line"></i>
-                <h5>No Students Found</h5>
+            {% else %}
+            <div class="empty-state p-5">
+                <i class="ri-user-search-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No Students Found</h5>
                 {% if search_query %}
-                    <p>No students match your search criteria</p>
-                    <a href="{% url 'class_detail' unit_allocation.id %}" class="btn-primary">Clear Search</a>
+                <p class="text-muted mb-3">No students match your search criteria</p>
+                <a href="{% url 'class_detail' unit_allocation.id %}" class="btn btn-primary">
+                    Clear Search
+                </a>
                 {% else %}
-                    <p>No students are enrolled in this unit</p>
+                <p class="text-muted mb-0">No students are enrolled in this unit</p>
                 {% endif %}
             </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Unit Info Grid */
+    .info-item {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Student Avatar */
+    .student-avatar img {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Registration Number */
+    .registration-number {
+        min-width: 140px;
+    }
+    
+    /* Programme Info */
+    .programme-info {
+        min-width: 120px;
+    }
+    
+    /* Academic Info */
+    .academic-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    /* Attendance Display */
+    .attendance-display {
+        min-width: 120px;
+    }
+    
+    .attendance-value {
+        font-size: 1rem;
+        line-height: 1;
+    }
+    
+    /* Performance Summary */
+    .performance-summary {
+        min-width: 100px;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

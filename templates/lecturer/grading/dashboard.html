@@ -3,63 +3,134 @@
 
 {% block title %}Grading Dashboard{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<div class="content-container">
+    <!-- Breadcrumb Navigation -->
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
-            <li class="breadcrumb-item active">Grading</li>
+            <li class="breadcrumb-item active" aria-current="page">Grading</li>
         </ol>
     </nav>
 
+    <!-- Page Header -->
     <div class="page-header mb-4">
-        <h1 class="h3">Grading Dashboard</h1>
-        <p class="text-muted">Manage and submit student grades - {{ current_semester }}</p>
-    </div>
-
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Total Assessments</h6>
-                    <h2 class="mb-0">{{ total_assessments }}</h2>
-                </div>
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Grading Dashboard</h1>
+                <p class="text-muted mb-0">Manage and submit student grades</p>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-warning">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Pending Grading</h6>
-                    <h2 class="mb-0 text-warning">{{ pending_grading.count }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-info">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Graded (Not Submitted)</h6>
-                    <h2 class="mb-0 text-info">{{ graded_not_submitted.count }}</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-success">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Submitted to HOD</h6>
-                    <h2 class="mb-0 text-success">{{ submitted_to_hod.count }}</h2>
-                </div>
+            <div class="text-end">
+                {% if current_semester %}
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester }}
+                </span>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Pending Grading -->
-    <div class="card mb-4">
-        <div class="card-header bg-warning text-dark">
-            <h5 class="card-title mb-0">
-                <i class="ri-edit-line me-2"></i>
-                Pending Grading ({{ pending_grading.count }})
-            </h5>
+    <!-- Statistics Cards -->
+    <div class="row mb-4 g-4">
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-file-list-line fs-4 text-primary"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold">{{ total_assessments }}</h3>
+                        <p class="text-muted mb-0 small">Total Assessments</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-primary">
+                        <i class="ri-folder-line me-1"></i>
+                        All assessments
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card border-start border-warning">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-edit-line fs-4 text-warning"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold text-warning">{{ pending_grading.count }}</h3>
+                        <p class="text-muted mb-0 small">Pending Grading</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-warning">
+                        <i class="ri-alarm-warning-line me-1"></i>
+                        Needs attention
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card border-start border-info">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-checkbox-line fs-4 text-info"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold text-info">{{ graded_not_submitted.count }}</h3>
+                        <p class="text-muted mb-0 small">Graded (Not Submitted)</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-info">
+                        <i class="ri-time-line me-1"></i>
+                        Ready for submission
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xxl-3 col-lg-6 col-md-6">
+            <div class="stat-management-card border-start border-success">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon me-3">
+                        <i class="ri-shield-check-line fs-4 text-success"></i>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold text-success">{{ submitted_to_hod.count }}</h3>
+                        <p class="text-muted mb-0 small">Submitted to HOD</p>
+                    </div>
+                </div>
+                <div class="stat-trend mt-2">
+                    <small class="text-success">
+                        <i class="ri-check-double-line me-1"></i>
+                        Awaiting moderation
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Grading Card -->
+    <div class="management-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">
+                    <i class="ri-edit-line me-2"></i>
+                    Pending Grading
+                </h5>
+                <div class="card-subtitle">{{ pending_grading.count }} assessment(s) require grading</div>
+            </div>
+            <span class="badge bg-warning-subtle text-warning px-3 py-2">
+                {{ pending_grading.count }} pending
+            </span>
         </div>
         <div class="card-body p-0">
             {% if pending_grading %}
@@ -67,44 +138,74 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Unit</th>
+                            <th class="ps-4">Unit</th>
                             <th>Assessment</th>
                             <th>Date</th>
                             <th>Total Students</th>
                             <th>Graded</th>
                             <th>Progress</th>
-                            <th>Action</th>
+                            <th class="pe-4">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for assessment in pending_grading %}
                         <tr>
-                            <td>
-                                <strong>{{ assessment.unit_allocation.programme_unit.unit.code }}</strong><br>
-                                <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
-                            </td>
-                            <td>
-                                <span class="badge bg-primary">{{ assessment.get_assessment_type_display }}</span><br>
-                                <small>{{ assessment.title }}</small>
-                            </td>
-                            <td>{{ assessment.date }}</td>
-                            <td>{{ assessment.total_students }}</td>
-                            <td>
-                                <span class="fw-medium">{{ assessment.graded_count }}</span>
-                            </td>
-                            <td>
-                                {% widthratio assessment.graded_count assessment.total_students 100 as progress %}
-                                <div class="progress" style="height: 20px;">
-                                    <div class="progress-bar {% if progress == 100 %}bg-success{% elif progress > 50 %}bg-info{% else %}bg-warning{% endif %}" 
-                                         style="width: {{ progress }}%">
-                                        {{ progress }}%
-                                    </div>
+                            <td class="ps-4">
+                                <div class="unit-info">
+                                    <strong class="d-block">{{ assessment.unit_allocation.programme_unit.unit.code }}</strong>
+                                    <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:25 }}</small>
                                 </div>
                             </td>
                             <td>
-                                <a href="{% url 'grade_students' assessment.id %}" class="btn btn-sm btn-warning">
-                                    <i class="ri-edit-line me-1"></i> Grade Now
-                                </a>
+                                <div class="assessment-info">
+                                    <span class="badge bg-primary-subtle text-primary">
+                                        {{ assessment.get_assessment_type_display }}
+                                    </span>
+                                    <small class="d-block mt-1">{{ assessment.title|truncatechars:30 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="date-info">
+                                    <span class="d-block">{{ assessment.date }}</span>
+                                    <small class="text-muted">Due date</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-count text-center">
+                                    <span class="fw-bold">{{ assessment.total_students }}</span>
+                                    <small class="text-muted d-block">students</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="graded-count text-center">
+                                    <span class="fw-medium">{{ assessment.graded_count }}</span>
+                                    <small class="text-muted d-block">graded</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="progress-section">
+                                    {% widthratio assessment.graded_count assessment.total_students 100 as progress %}
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted">Progress</small>
+                                        <small class="fw-medium {% if progress == 100 %}text-success{% elif progress > 50 %}text-info{% else %}text-warning{% endif %}">
+                                            {{ progress }}%
+                                        </small>
+                                    </div>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar {% if progress == 100 %}bg-success{% elif progress > 50 %}bg-info{% else %}bg-warning{% endif %}" 
+                                             style="width: {{ progress }}%">
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <a href="{% url 'grade_students' assessment.id %}" 
+                                       class="btn btn-sm btn-warning d-flex align-items-center gap-1">
+                                        <i class="ri-edit-line"></i>
+                                        Grade Now
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -112,21 +213,28 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-4">
-                <i class="ri-checkbox-circle-line display-4 text-success"></i>
-                <p class="text-muted mb-0">No pending grading tasks</p>
+            <div class="empty-state p-5">
+                <i class="ri-checkbox-circle-line display-4 text-success mb-3"></i>
+                <h5 class="text-muted">No Pending Grading Tasks</h5>
+                <p class="text-muted mb-0">All assessments are up to date</p>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Graded but Not Submitted -->
-    <div class="card mb-4">
-        <div class="card-header bg-info text-white">
-            <h5 class="card-title mb-0">
-                <i class="ri-checkbox-line me-2"></i>
-                Graded - Ready for Submission ({{ graded_not_submitted.count }})
-            </h5>
+    <!-- Graded but Not Submitted Card -->
+    <div class="management-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">
+                    <i class="ri-checkbox-line me-2"></i>
+                    Graded - Ready for Submission
+                </h5>
+                <div class="card-subtitle">{{ graded_not_submitted.count }} assessment(s) ready for moderation</div>
+            </div>
+            <span class="badge bg-info-subtle text-info px-3 py-2">
+                {{ graded_not_submitted.count }} ready
+            </span>
         </div>
         <div class="card-body p-0">
             {% if graded_not_submitted %}
@@ -134,34 +242,64 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Unit</th>
+                            <th class="ps-4">Unit</th>
                             <th>Assessment</th>
-                            <th>Students</th>
-                            <th>Action</th>
+                            <th>Students Graded</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for assessment in graded_not_submitted %}
                         <tr>
-                            <td>
-                                <strong>{{ assessment.unit_allocation.programme_unit.unit.code }}</strong><br>
-                                <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                            <td class="ps-4">
+                                <div class="unit-info">
+                                    <strong class="d-block">{{ assessment.unit_allocation.programme_unit.unit.code }}</strong>
+                                    <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:25 }}</small>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-primary">{{ assessment.get_assessment_type_display }}</span><br>
-                                <small>{{ assessment.title }}</small>
+                                <div class="assessment-info">
+                                    <span class="badge bg-primary-subtle text-primary">
+                                        {{ assessment.get_assessment_type_display }}
+                                    </span>
+                                    <small class="d-block mt-1">{{ assessment.title|truncatechars:30 }}</small>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-success">{{ assessment.graded_count }} / {{ assessment.total_students }}</span>
+                                <div class="completion-info text-center">
+                                    <div class="completion-badge">
+                                        <span class="badge bg-success rounded-pill px-3 py-2">
+                                            {{ assessment.graded_count }} / {{ assessment.total_students }}
+                                        </span>
+                                    </div>
+                                    <small class="text-muted mt-1 d-block">Fully graded</small>
+                                </div>
                             </td>
                             <td>
-                                <a href="{% url 'request_moderation' assessment.id %}" class="btn btn-sm btn-success me-1"
-                                   onclick="return confirm('Submit this assessment for moderation?')">
-                                    <i class="ri-send-plane-line me-1"></i> Submit for Moderation
-                                </a>
-                                <a href="{% url 'grade_students' assessment.id %}" class="btn btn-sm btn-outline-info">
-                                    <i class="ri-eye-line me-1"></i> Review
-                                </a>
+                                <div class="status-info">
+                                    <span class="badge bg-info-subtle text-info">
+                                        <i class="ri-checkbox-circle-line me-1"></i>
+                                        Ready for submission
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-2">
+                                        <a href="{% url 'request_moderation' assessment.id %}" 
+                                           class="btn btn-sm btn-success d-flex align-items-center gap-1"
+                                           onclick="return confirm('Submit this assessment for moderation?')">
+                                            <i class="ri-send-plane-line"></i>
+                                            Submit
+                                        </a>
+                                        <a href="{% url 'grade_students' assessment.id %}" 
+                                           class="btn btn-sm btn-outline-info d-flex align-items-center gap-1">
+                                            <i class="ri-eye-line"></i>
+                                            Review
+                                        </a>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -169,20 +307,28 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted mb-0">No assessments ready for submission</p>
+            <div class="empty-state p-5">
+                <i class="ri-file-list-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No Assessments Ready for Submission</h5>
+                <p class="text-muted mb-0">No fully graded assessments available</p>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Submitted to HOD -->
-    <div class="card">
-        <div class="card-header bg-success text-white">
-            <h5 class="card-title mb-0">
-                <i class="ri-shield-check-line me-2"></i>
-                Submitted for Moderation ({{ submitted_to_hod.count }})
-            </h5>
+    <!-- Submitted to HOD Card -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">
+                    <i class="ri-shield-check-line me-2"></i>
+                    Submitted for Moderation
+                </h5>
+                <div class="card-subtitle">{{ submitted_to_hod.count }} assessment(s) under review</div>
+            </div>
+            <span class="badge bg-success-subtle text-success px-3 py-2">
+                {{ submitted_to_hod.count }} submitted
+            </span>
         </div>
         <div class="card-body p-0">
             {% if submitted_to_hod %}
@@ -190,30 +336,72 @@
                 <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Unit</th>
+                            <th class="ps-4">Unit</th>
                             <th>Assessment</th>
-                            <th>Submitted</th>
-                            <th>Action</th>
+                            <th>Submitted Date</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for assessment in submitted_to_hod %}
                         <tr>
-                            <td>
-                                <strong>{{ assessment.unit_allocation.programme_unit.unit.code }}</strong><br>
-                                <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                            <td class="ps-4">
+                                <div class="unit-info">
+                                    <strong class="d-block">{{ assessment.unit_allocation.programme_unit.unit.code }}</strong>
+                                    <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:25 }}</small>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-primary">{{ assessment.get_assessment_type_display }}</span><br>
-                                <small>{{ assessment.title }}</small>
+                                <div class="assessment-info">
+                                    <span class="badge bg-primary-subtle text-primary">
+                                        {{ assessment.get_assessment_type_display }}
+                                    </span>
+                                    <small class="d-block mt-1">{{ assessment.title|truncatechars:30 }}</small>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-success">Submitted</span>
+                                <div class="date-info">
+                                    {% if assessment.moderation_request_date %}
+                                    <span class="d-block">{{ assessment.moderation_request_date|date:"M d, Y" }}</span>
+                                    <small class="text-muted">Submitted</small>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td>
-                                <a href="{% url 'view_moderation' assessment.id %}" class="btn btn-sm btn-outline-success">
-                                    <i class="ri-eye-line me-1"></i> View Status
-                                </a>
+                                <div class="status-info">
+                                    {% if assessment.moderation_status == 'pending' %}
+                                    <span class="badge bg-warning-subtle text-warning">
+                                        <i class="ri-time-line me-1"></i>
+                                        Pending Review
+                                    </span>
+                                    {% elif assessment.moderation_status == 'approved' %}
+                                    <span class="badge bg-success-subtle text-success">
+                                        <i class="ri-check-double-line me-1"></i>
+                                        Approved
+                                    </span>
+                                    {% elif assessment.moderation_status == 'revisions_requested' %}
+                                    <span class="badge bg-danger-subtle text-danger">
+                                        <i class="ri-error-warning-line me-1"></i>
+                                        Revisions Requested
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary">
+                                        {{ assessment.get_moderation_status_display }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <a href="{% url 'view_moderation' assessment.id %}" 
+                                       class="btn btn-sm btn-outline-success d-flex align-items-center gap-1">
+                                        <i class="ri-eye-line"></i>
+                                        View Status
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -221,11 +409,377 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-4">
-                <p class="text-muted mb-0">No assessments submitted yet</p>
+            <div class="empty-state p-5">
+                <i class="ri-inbox-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No Assessments Submitted Yet</h5>
+                <p class="text-muted mb-0">Submit graded assessments for moderation</p>
             </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
+    .page-header {
+        padding: 1rem 0;
+    }
+    
+    .page-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Stat Management Cards */
+    .stat-management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .stat-management-card:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--color-primary);
+    }
+    
+    .stat-management-card.border-start {
+        border-left-width: 4px !important;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(46, 125, 50, 0.1);
+    }
+    
+    .stat-icon.text-primary { background: rgba(46, 125, 50, 0.1); }
+    .stat-icon.text-warning { background: rgba(255, 152, 0, 0.1); }
+    .stat-icon.text-info { background: rgba(33, 150, 243, 0.1); }
+    .stat-icon.text-success { background: rgba(76, 175, 80, 0.1); }
+    .stat-icon.text-danger { background: rgba(244, 67, 54, 0.1); }
+    
+    .stat-management-card h3 {
+        font-size: 1.75rem;
+        line-height: 1;
+    }
+    
+    .stat-trend small {
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Unit Info */
+    .unit-info {
+        min-width: 120px;
+    }
+    
+    /* Assessment Info */
+    .assessment-info {
+        min-width: 140px;
+    }
+    
+    /* Date Info */
+    .date-info {
+        min-width: 100px;
+    }
+    
+    /* Student Count */
+    .student-count,
+    .graded-count {
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    /* Progress Section */
+    .progress-section {
+        min-width: 120px;
+    }
+    
+    .progress {
+        border-radius: 3px;
+        background-color: var(--color-gray-200);
+    }
+    
+    .progress-bar {
+        border-radius: 3px;
+    }
+    
+    /* Completion Info */
+    .completion-info {
+        min-width: 100px;
+        text-align: center;
+    }
+    
+    .completion-badge {
+        display: inline-block;
+    }
+    
+    /* Status Info */
+    .status-info {
+        min-width: 140px;
+    }
+    
+    /* Action Buttons */
+    .action-buttons-group .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .action-buttons-group .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Badge Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.1); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.1); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-info { color: var(--color-info); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-danger { color: var(--color-danger); }
+    .text-secondary { color: var(--color-gray-600); }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .table-responsive {
+            font-size: 0.875rem;
+        }
+        
+        .stat-management-card {
+            padding: 1rem;
+        }
+        
+        .management-card .card-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        
+        .management-card .card-header .badge {
+            align-self: flex-start;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .page-header .d-flex {
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .page-header .text-end {
+            text-align: left !important;
+            align-self: flex-start;
+        }
+        
+        .action-buttons-group .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8125rem;
+        }
+        
+        .empty-state {
+            padding: 2rem 1rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add animation to stat cards
+    const statCards = document.querySelectorAll('.stat-management-card');
+    statCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // Add hover effects to table rows
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'rgba(46, 125, 50, 0.02)';
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+    
+    // Add progress bar animation
+    const progressBars = document.querySelectorAll('.progress-bar');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0';
+        
+        setTimeout(() => {
+            bar.style.transition = 'width 1s ease-in-out';
+            bar.style.width = width;
+        }, 300);
+    });
+    
+    // Add confirmation dialog for moderation submission
+    const submitButtons = document.querySelectorAll('a[href*="request_moderation"]');
+    submitButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            if (!confirm('Are you sure you want to submit this assessment for moderation? This action cannot be undone.')) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
