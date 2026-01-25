@@ -20354,3 +20354,713 @@ def submission_history(request, unit_allocation_id):
     }
     
     return render(request, 'lecturer/grading/submission_history.html', context)
+
+
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Count, Q, Avg, Sum, F, Max, Min
+from django.http import HttpResponse, JsonResponse
+from datetime import datetime, timedelta
+import csv
+from decimal import Decimal
+
+from .models import (
+    Lecturer, UnitAllocation, Student, UnitEnrollment, 
+    StudentMarks, Assessment, SemesterResults, Attendance,
+    AdvisingNote, StudentSpecialNeed, Semester, AcademicYear
+)
+
+# ============= STUDENTS DASHBOARD =============
+
+@login_required
+def students_dashboard(request):
+    """Main students dashboard for lecturers"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get lecturer's units
+    unit_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related('programme_unit__unit', 'programme_unit__programme')
+    
+    # Get total students across all units
+    total_students = UnitEnrollment.objects.filter(
+        programme_unit__in=[ua.programme_unit for ua in unit_allocations],
+        semester=current_semester,
+        status='approved'
+    ).values('student').distinct().count()
+    
+    # Get students with special needs
+    special_needs_students = StudentSpecialNeed.objects.filter(
+        student__unit_enrollments__programme_unit__in=[ua.programme_unit for ua in unit_allocations],
+        student__unit_enrollments__semester=current_semester,
+        is_active=True
+    ).values('student').distinct().count()
+    
+    # Get students needing academic advising (low performance)
+    students_needing_advising = Student.objects.filter(
+        unit_enrollments__programme_unit__in=[ua.programme_unit for ua in unit_allocations],
+        unit_enrollments__semester=current_semester,
+        cumulative_gpa__lt=2.5
+    ).distinct().count()
+    
+    # Recent advising notes
+    recent_notes = AdvisingNote.objects.filter(
+        lecturer=request.user
+    ).select_related('student__user')[:5]
+    
+    context = {
+        'current_semester': current_semester,
+        'unit_allocations': unit_allocations,
+        'total_students': total_students,
+        'special_needs_students': special_needs_students,
+        'students_needing_advising': students_needing_advising,
+        'recent_notes': recent_notes,
+    }
+    
+    return render(request, 'lecturer/students/dashboard.html', context)
+
+
+# ============= CLASS LISTS =============
+
+@login_required
+def class_lists(request):
+    """View all class lists for lecturer's units"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all unit allocations with student counts
+    unit_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'semester'
+    ).annotate(
+        enrolled_count=Count('programme_unit__enrollments', 
+                           filter=Q(programme_unit__enrollments__semester=current_semester,
+                                  programme_unit__enrollments__status='approved'))
+    ).order_by('programme_unit__unit__code')
+    
+    context = {
+        'current_semester': current_semester,
+        'unit_allocations': unit_allocations,
+    }
+    
+    return render(request, 'lecturer/students/class_lists.html', context)
+
+
+@login_required
+def class_detail(request, unit_allocation_id):
+    """Detailed class list for a specific unit"""
+    unit_allocation = get_object_or_404(
+        UnitAllocation.objects.select_related(
+            'programme_unit__unit',
+            'programme_unit__programme',
+            'semester'
+        ),
+        id=unit_allocation_id,
+        lecturer=request.user
+    )
+    
+    # Get enrolled students
+    enrollments = UnitEnrollment.objects.filter(
+        programme_unit=unit_allocation.programme_unit,
+        semester=unit_allocation.semester,
+        status='approved'
+    ).select_related(
+        'student__user',
+        'student__programme'
+    ).order_by('student__registration_number')
+    
+    # Get attendance statistics for each student
+    students_data = []
+    for enrollment in enrollments:
+        # Get attendance record
+        total_classes = Attendance.objects.filter(
+            unit_allocation=unit_allocation,
+            student=enrollment.student
+        ).count()
+        
+        attended = Attendance.objects.filter(
+            unit_allocation=unit_allocation,
+            student=enrollment.student,
+            status='present'
+        ).count()
+        
+        attendance_rate = (attended / total_classes * 100) if total_classes > 0 else 0
+        
+        # Get current marks
+        marks_data = StudentMarks.objects.filter(
+            assessment__unit_allocation=unit_allocation,
+            student=enrollment.student
+        ).values('assessment__assessment_type').annotate(
+            total_marks=Sum('marks_obtained')
+        )
+        
+        students_data.append({
+            'student': enrollment.student,
+            'enrollment': enrollment,
+            'attendance_rate': round(attendance_rate, 1),
+            'total_classes': total_classes,
+            'attended': attended,
+            'marks_data': marks_data,
+        })
+    
+    # Filter options
+    search_query = request.GET.get('search', '')
+    if search_query:
+        students_data = [
+            data for data in students_data
+            if search_query.lower() in data['student'].registration_number.lower() or
+               search_query.lower() in data['student'].user.get_full_name().lower()
+        ]
+    
+    context = {
+        'unit_allocation': unit_allocation,
+        'students_data': students_data,
+        'total_students': len(students_data),
+        'search_query': search_query,
+    }
+    
+    return render(request, 'lecturer/students/class_detail.html', context)
+
+
+@login_required
+def export_class_list(request, unit_allocation_id):
+    """Export class list to CSV"""
+    unit_allocation = get_object_or_404(
+        UnitAllocation,
+        id=unit_allocation_id,
+        lecturer=request.user
+    )
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="class_list_{unit_allocation.programme_unit.unit.code}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Registration Number', 'Student Name', 'Email', 'Programme', 
+        'Year', 'Semester', 'Phone Number', 'ID Number'
+    ])
+    
+    # Get enrolled students
+    enrollments = UnitEnrollment.objects.filter(
+        programme_unit=unit_allocation.programme_unit,
+        semester=unit_allocation.semester,
+        status='approved'
+    ).select_related('student__user', 'student__programme').order_by('student__registration_number')
+    
+    for enrollment in enrollments:
+        writer.writerow([
+            enrollment.student.registration_number,
+            enrollment.student.user.get_full_name(),
+            enrollment.student.user.email,
+            enrollment.student.programme.code,
+            enrollment.student.current_year,
+            enrollment.student.current_semester,
+            enrollment.student.user.phone_number,
+            enrollment.student.national_id,
+        ])
+    
+    return response
+
+
+# ============= STUDENT PERFORMANCE =============
+
+@login_required
+def student_performance_overview(request):
+    """Overview of student performance across units"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get lecturer's units
+    unit_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        status__in=['approved_hod', 'approved_hos', 'approved_dean']
+    ).select_related('programme_unit__unit', 'programme_unit__programme')
+    
+    # Get performance data per unit
+    unit_performance = []
+    for allocation in unit_allocations:
+        enrollments = UnitEnrollment.objects.filter(
+            programme_unit=allocation.programme_unit,
+            semester=current_semester,
+            status='approved'
+        ).count()
+        
+        # Get average marks
+        avg_marks = StudentMarks.objects.filter(
+            assessment__unit_allocation=allocation
+        ).aggregate(Avg('marks_obtained'))['marks_obtained__avg'] or 0
+        
+        # Get students by performance category
+        high_performers = Student.objects.filter(
+            unit_enrollments__programme_unit=allocation.programme_unit,
+            unit_enrollments__semester=current_semester,
+            cumulative_gpa__gte=3.5
+        ).distinct().count()
+        
+        low_performers = Student.objects.filter(
+            unit_enrollments__programme_unit=allocation.programme_unit,
+            unit_enrollments__semester=current_semester,
+            cumulative_gpa__lt=2.0
+        ).distinct().count()
+        
+        unit_performance.append({
+            'allocation': allocation,
+            'total_students': enrollments,
+            'avg_marks': round(avg_marks, 2),
+            'high_performers': high_performers,
+            'low_performers': low_performers,
+        })
+    
+    # Search for specific student
+    search_query = request.GET.get('search', '')
+    search_results = None
+    if search_query:
+        search_results = Student.objects.filter(
+            Q(registration_number__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query)
+        ).filter(
+            unit_enrollments__programme_unit__in=[ua.programme_unit for ua in unit_allocations],
+            unit_enrollments__semester=current_semester
+        ).distinct().select_related('user', 'programme')[:10]
+    
+    context = {
+        'current_semester': current_semester,
+        'unit_performance': unit_performance,
+        'search_query': search_query,
+        'search_results': search_results,
+    }
+    
+    return render(request, 'lecturer/students/performance_overview.html', context)
+
+
+@login_required
+def student_performance_detail(request, registration_number):
+    """Detailed performance view for a specific student"""
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        registration_number=registration_number
+    )
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Check if lecturer teaches this student
+    lecturer_units = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=current_semester,
+        programme_unit__enrollments__student=student,
+        programme_unit__enrollments__semester=current_semester
+    ).exists()
+    
+    if not lecturer_units:
+        messages.error(request, 'You do not teach this student in the current semester.')
+        return redirect('student_performance_overview')
+    
+    # Get student's enrollments for current semester
+    enrollments = UnitEnrollment.objects.filter(
+        student=student,
+        semester=current_semester,
+        status='approved'
+    ).select_related('programme_unit__unit')
+    
+    # Get performance data for each unit
+    unit_performances = []
+    for enrollment in enrollments:
+        # Get all marks for this unit
+        marks = StudentMarks.objects.filter(
+            student=student,
+            assessment__unit_allocation__programme_unit=enrollment.programme_unit,
+            assessment__unit_allocation__semester=current_semester
+        ).select_related('assessment')
+        
+        total_marks = sum([mark.marks_obtained for mark in marks])
+        total_possible = sum([mark.assessment.max_marks for mark in marks])
+        percentage = (total_marks / total_possible * 100) if total_possible > 0 else 0
+        
+        # Get attendance
+        attendance_records = Attendance.objects.filter(
+            student=student,
+            unit_allocation__programme_unit=enrollment.programme_unit,
+            unit_allocation__semester=current_semester
+        )
+        
+        total_classes = attendance_records.count()
+        attended = attendance_records.filter(status='present').count()
+        attendance_rate = (attended / total_classes * 100) if total_classes > 0 else 0
+        
+        unit_performances.append({
+            'unit': enrollment.programme_unit.unit,
+            'marks': marks,
+            'total_marks': total_marks,
+            'total_possible': total_possible,
+            'percentage': round(percentage, 2),
+            'attendance_rate': round(attendance_rate, 1),
+            'total_classes': total_classes,
+            'attended': attended,
+        })
+    
+    # Get semester results history
+    semester_results = SemesterResults.objects.filter(
+        student=student
+    ).select_related('semester', 'programme_unit__unit').order_by('-semester__start_date')
+    
+    # Get advising notes
+    advising_notes = AdvisingNote.objects.filter(
+        student=student
+    ).select_related('lecturer').order_by('-created_at')[:5]
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'unit_performances': unit_performances,
+        'semester_results': semester_results,
+        'advising_notes': advising_notes,
+    }
+    
+    return render(request, 'lecturer/students/performance_detail.html', context)
+
+
+@login_required
+def student_unit_performance(request, registration_number, unit_id):
+    """Detailed performance for a student in a specific unit"""
+    student = get_object_or_404(Student, registration_number=registration_number)
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get unit allocation
+    unit_allocation = get_object_or_404(
+        UnitAllocation.objects.select_related('programme_unit__unit'),
+        programme_unit__unit__id=unit_id,
+        lecturer=request.user,
+        semester=current_semester
+    )
+    
+    # Get all assessments and marks
+    assessments = Assessment.objects.filter(
+        unit_allocation=unit_allocation
+    ).order_by('assessment_type', 'date')
+    
+    marks_data = []
+    for assessment in assessments:
+        mark = StudentMarks.objects.filter(
+            assessment=assessment,
+            student=student
+        ).first()
+        
+        marks_data.append({
+            'assessment': assessment,
+            'mark': mark,
+            'percentage': (mark.marks_obtained / assessment.max_marks * 100) if mark else 0
+        })
+    
+    # Get attendance records
+    attendance_records = Attendance.objects.filter(
+        student=student,
+        unit_allocation=unit_allocation
+    ).order_by('-attendance_date')
+    
+    context = {
+        'student': student,
+        'unit_allocation': unit_allocation,
+        'marks_data': marks_data,
+        'attendance_records': attendance_records,
+    }
+    
+    return render(request, 'lecturer/students/unit_performance.html', context)
+
+
+# ============= ACADEMIC ADVISING =============
+
+@login_required
+def academic_advising(request):
+    """Academic advising dashboard"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get students taught by lecturer
+    lecturer_students = Student.objects.filter(
+        unit_enrollments__programme_unit__allocations__lecturer=request.user,
+        unit_enrollments__semester=current_semester
+    ).distinct().select_related('user', 'programme')
+    
+    # Categorize students
+    at_risk_students = lecturer_students.filter(cumulative_gpa__lt=2.0)
+    low_performing = lecturer_students.filter(cumulative_gpa__gte=2.0, cumulative_gpa__lt=2.5)
+    high_performing = lecturer_students.filter(cumulative_gpa__gte=3.5)
+    
+    # Get all advising notes
+    all_notes = AdvisingNote.objects.filter(
+        lecturer=request.user
+    ).select_related('student__user').order_by('-created_at')
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter == 'open':
+        all_notes = all_notes.filter(is_resolved=False)
+    elif status_filter == 'resolved':
+        all_notes = all_notes.filter(is_resolved=True)
+    elif status_filter == 'action_required':
+        all_notes = all_notes.filter(action_required=True, is_resolved=False)
+    
+    context = {
+        'current_semester': current_semester,
+        'at_risk_students': at_risk_students,
+        'low_performing': low_performing,
+        'high_performing': high_performing,
+        'all_notes': all_notes,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'lecturer/students/academic_advising.html', context)
+
+
+@login_required
+def student_advising_detail(request, registration_number):
+    """Detailed advising view for a student"""
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        registration_number=registration_number
+    )
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all advising notes for this student
+    advising_notes = AdvisingNote.objects.filter(
+        student=student
+    ).select_related('lecturer').order_by('-created_at')
+    
+    # Get student's academic performance
+    semester_results = SemesterResults.objects.filter(
+        student=student
+    ).select_related('semester', 'programme_unit__unit').order_by('-semester__start_date')[:5]
+    
+    # Get current semester performance
+    current_enrollments = UnitEnrollment.objects.filter(
+        student=student,
+        semester=current_semester,
+        status='approved'
+    ).select_related('programme_unit__unit')
+    
+    context = {
+        'student': student,
+        'current_semester': current_semester,
+        'advising_notes': advising_notes,
+        'semester_results': semester_results,
+        'current_enrollments': current_enrollments,
+    }
+    
+    return render(request, 'lecturer/students/advising_detail.html', context)
+
+
+@login_required
+def add_advising_note(request, registration_number):
+    """Add new advising note"""
+    student = get_object_or_404(Student, registration_number=registration_number)
+    
+    if request.method == 'POST':
+        note_type = request.POST.get('note_type')
+        subject = request.POST.get('subject')
+        note = request.POST.get('note')
+        action_required = request.POST.get('action_required') == 'on'
+        follow_up_date = request.POST.get('follow_up_date') or None
+        is_confidential = request.POST.get('is_confidential') == 'on'
+        
+        try:
+            AdvisingNote.objects.create(
+                student=student,
+                lecturer=request.user,
+                note_type=note_type,
+                subject=subject,
+                note=note,
+                action_required=action_required,
+                follow_up_date=follow_up_date,
+                is_confidential=is_confidential
+            )
+            
+            messages.success(request, 'Advising note added successfully.')
+            return redirect('student_advising_detail', registration_number=registration_number)
+            
+        except Exception as e:
+            messages.error(request, f'Error adding note: {str(e)}')
+    
+    return redirect('student_advising_detail', registration_number=registration_number)
+
+
+@login_required
+def edit_advising_note(request, note_id):
+    """Edit existing advising note"""
+    note = get_object_or_404(
+        AdvisingNote,
+        id=note_id,
+        lecturer=request.user
+    )
+    
+    if request.method == 'POST':
+        note.note_type = request.POST.get('note_type')
+        note.subject = request.POST.get('subject')
+        note.note = request.POST.get('note')
+        note.action_required = request.POST.get('action_required') == 'on'
+        note.action_taken = request.POST.get('action_taken', '')
+        note.follow_up_date = request.POST.get('follow_up_date') or None
+        note.is_confidential = request.POST.get('is_confidential') == 'on'
+        note.is_resolved = request.POST.get('is_resolved') == 'on'
+        
+        if note.is_resolved and not note.resolved_date:
+            note.resolved_date = timezone.now()
+        
+        try:
+            note.save()
+            messages.success(request, 'Advising note updated successfully.')
+        except Exception as e:
+            messages.error(request, f'Error updating note: {str(e)}')
+    
+    return redirect('student_advising_detail', registration_number=note.student.registration_number)
+
+
+# ============= SPECIAL NEEDS =============
+
+@login_required
+def special_needs(request):
+    """View students with special needs"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'You do not have a lecturer profile.')
+        return redirect('dashboard')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get students with special needs that lecturer teaches
+    special_needs_students = StudentSpecialNeed.objects.filter(
+        student__unit_enrollments__programme_unit__allocations__lecturer=request.user,
+        student__unit_enrollments__semester=current_semester,
+        is_active=True
+    ).distinct().select_related(
+        'student__user',
+        'student__programme'
+    ).order_by('student__registration_number')
+    
+    # Filter by type
+    type_filter = request.GET.get('type')
+    if type_filter:
+        special_needs_students = special_needs_students.filter(need_type=type_filter)
+    
+    # Statistics
+    total_special_needs = special_needs_students.count()
+    by_type = StudentSpecialNeed.objects.filter(
+        student__unit_enrollments__programme_unit__allocations__lecturer=request.user,
+        student__unit_enrollments__semester=current_semester,
+        is_active=True
+    ).values('need_type').annotate(count=Count('id'))
+    
+    context = {
+        'current_semester': current_semester,
+        'special_needs_students': special_needs_students,
+        'total_special_needs': total_special_needs,
+        'by_type': by_type,
+        'type_filter': type_filter,
+    }
+    
+    return render(request, 'lecturer/students/special_needs.html', context)
+
+
+@login_required
+def special_needs_detail(request, registration_number):
+    """Detailed view of student's special needs"""
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme'),
+        registration_number=registration_number
+    )
+    
+    # Get all special needs records for this student
+    special_needs_records = StudentSpecialNeed.objects.filter(
+        student=student
+    ).select_related('reported_by').order_by('-created_at')
+    
+    context = {
+        'student': student,
+        'special_needs_records': special_needs_records,
+    }
+    
+    return render(request, 'lecturer/students/special_needs_detail.html', context)
+
+
+
+@login_required
+def update_special_needs(request, registration_number):
+    """Update special needs support information"""
+    
+    student = get_object_or_404(Student, registration_number=registration_number)
+    special_needs = StudentSpecialNeed.objects.filter(student=student)
+
+    if request.method == 'POST':
+        special_need_id = request.POST.get('special_need_id')
+        support_provided = request.POST.get('support_provided')
+        review_notes = request.POST.get('review_notes')
+
+        try:
+            special_need = StudentSpecialNeed.objects.get(
+                id=special_need_id,
+                student=student
+            )
+
+            special_need.support_provided = support_provided
+            special_need.review_notes = review_notes
+            special_need.last_reviewed = timezone.now().date()
+            special_need.save()
+
+            messages.success(
+                request,
+                'Special needs information updated successfully.'
+            )
+
+            return redirect('student_special_needs', registration_number=student.registration_number)
+
+        except StudentSpecialNeed.DoesNotExist:
+            messages.error(
+                request,
+                'Invalid special need selected. Please try again.'
+            )
+
+            return redirect('student_special_needs', registration_number=student.registration_number)
+
+    # GET request – show update form
+    context = {
+        'student': student,
+        'special_needs': special_needs,
+    }
+
+    return render(request, 'lecturer/students//update_special_needs.html', context)
