@@ -474,6 +474,29 @@ urlpatterns = [
     path('lecturer/assessments/<int:assessment_id>/delete/', views.delete_assessment, name='delete_assessment'),
     path('lecturer/assessments/<int:assessment_id>/extend/', views.extend_assessment, name='extend_assessment'),
     path('lecturer/assessments/<int:assessment_id>/participants/', views.assessment_participants, name='assessment_participants'),
+    
+    
+    # Grading URLs
+    path('lecturer/grading/', views.grading_dashboard, name='grading_dashboard'),
+    path('lecturer/grading/<int:assessment_id>/', views.grade_students, name='grade_students'),
+    path('lecturer/grading/<int:assessment_id>/bulk-upload/', views.bulk_upload_marks, name='bulk_upload_marks'),
+    path('lecturer/grading/<int:assessment_id>/download-template/', views.download_grading_template, name='download_grading_template'),
+    
+    # Final Exams URLs
+    path('lecturer/final-exams/', views.final_exams, name='final_exams'),
+    path('lecturer/final-exams/create/', views.create_final_exam, name='create_final_exam'),
+    path('lecturer/final-exams/<int:exam_id>/grade/', views.grade_final_exam, name='grade_final_exam'),
+    
+    # Moderation URLs
+    path('lecturer/moderation/', views.moderation_dashboard, name='moderation_dashboard'),
+    path('lecturer/moderation/<int:assessment_id>/request/', views.request_moderation, name='request_moderation'),
+    path('lecturer/moderation/<int:assessment_id>/view/', views.view_moderation, name='view_moderation'),
+    
+    # Result Submission URLs
+    path('lecturer/results/', views.results_dashboard, name='results_dashboard'),
+    path('lecturer/results/<int:unit_allocation_id>/submit/', views.submit_results, name='submit_results'),
+    path('lecturer/results/<int:unit_allocation_id>/preview/', views.preview_results, name='preview_results'),
+    path('lecturer/results/<int:unit_allocation_id>/history/', views.submission_history, name='submission_history'),
 
     
 ]
