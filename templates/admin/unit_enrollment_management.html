@@ -1,0 +1,2407 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Unit Enrollment Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/unit_enrollment.css' %}">
+{% endblock %}
+
+{% block page_title %}Unit Enrollment Management{% endblock %}
+{% block page_subtitle %}Manage student unit enrollments, approve registrations, and track course selections{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Unit Enrollments</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Unit Enrollment Management</h1>
+                <p class="text-muted mb-0">Manage student unit enrollments and course registrations</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-file-list-line me-2"></i>
+                    {{ total_enrollments }} enrollment(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment Period Alert -->
+    {% if enrollment_period %}
+    <div class="alert {% if enrollment_period.is_enrollment_open %}alert-success{% else %}alert-warning{% endif %} mb-4">
+        <div class="d-flex align-items-start">
+            <i class="ri-calendar-line fs-5 me-2 mt-1"></i>
+            <div>
+                <h6 class="mb-1">Enrollment Period: {{ enrollment_period.semester.name }}</h6>
+                <p class="mb-1">
+                    <strong>Normal Enrollment:</strong> 
+                    {{ enrollment_period.start_date|date:"M d, Y" }} - {{ enrollment_period.end_date|date:"M d, Y" }}
+                    {% if enrollment_period.is_enrollment_open %}
+                        <span class="badge bg-success ms-2">OPEN</span>
+                    {% else %}
+                        <span class="badge bg-danger ms-2">CLOSED</span>
+                    {% endif %}
+                </p>
+                {% if enrollment_period.resit_start_date and enrollment_period.resit_end_date %}
+                <p class="mb-0">
+                    <strong>Resit Enrollment:</strong> 
+                    {{ enrollment_period.resit_start_date|date:"M d, Y" }} - {{ enrollment_period.resit_end_date|date:"M d, Y" }}
+                    {% if enrollment_period.is_resit_enrollment_open %}
+                        <span class="badge bg-success ms-2">OPEN</span>
+                    {% else %}
+                        <span class="badge bg-danger ms-2">CLOSED</span>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card stat-pending">
+                <div class="stat-icon">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ pending_enrollments }}</div>
+                    <div class="stat-label">Pending Approval</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-approved">
+                <div class="stat-icon">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ approved_enrollments }}</div>
+                    <div class="stat-label">Approved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-rejected">
+                <div class="stat-icon">
+                    <i class="ri-close-circle-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ rejected_enrollments }}</div>
+                    <div class="stat-label">Rejected</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-dropped">
+                <div class="stat-icon">
+                    <i class="ri-arrow-down-circle-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ dropped_enrollments }}</div>
+                    <div class="stat-label">Dropped</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment Type Statistics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-card stat-normal">
+                <div class="stat-icon">
+                    <i class="ri-book-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ normal_enrollments }}</div>
+                    <div class="stat-label">Normal Enrollments</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-resit">
+                <div class="stat-icon">
+                    <i class="ri-repeat-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ resit_enrollments }}</div>
+                    <div class="stat-label">Resit Enrollments</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-retake">
+                <div class="stat-icon">
+                    <i class="ri-restart-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ retake_enrollments }}</div>
+                    <div class="stat-label">Retake Enrollments</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Actions</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number, name, email, or unit code..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#filterModal">
+                        <i class="ri-filter-line fs-5"></i>
+                        <span>Advanced Filters</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#bulkApproveModal"
+                            id="bulkApproveBtn"
+                            disabled>
+                        <i class="ri-checkbox-multiple-line fs-5"></i>
+                        <span>Bulk Approve</span>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#bulkRejectModal"
+                            id="bulkRejectBtn"
+                            disabled>
+                        <i class="ri-close-circle-line fs-5"></i>
+                        <span>Bulk Reject</span>
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-success d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#programmeApprovalModal">
+                        <i class="ri-shield-check-line fs-5"></i>
+                        <span>Programme-Wide Approval</span>
+                    </button>
+                    <button class="btn btn-sm btn-info d-flex align-items-center gap-1"
+                            onclick="window.location.reload()">
+                        <i class="ri-refresh-line fs-5"></i>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Statistics -->
+    {% if programme_stats %}
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Programme Statistics</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Programme</th>
+                            <th class="text-center">Total</th>
+                            <th class="text-center">Pending</th>
+                            <th class="text-center">Approved</th>
+                            <th class="text-center">Rejected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in programme_stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ stat.student__programme__code }}</strong>
+                                <small class="text-muted d-block">{{ stat.student__programme__name|truncatechars:40 }}</small>
+                            </td>
+                            <td class="text-center"><span class="badge bg-secondary">{{ stat.total }}</span></td>
+                            <td class="text-center"><span class="badge bg-warning">{{ stat.pending }}</span></td>
+                            <td class="text-center"><span class="badge bg-success">{{ stat.approved }}</span></td>
+                            <td class="text-center"><span class="badge bg-danger">{{ stat.rejected }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Enrolled Units -->
+    {% if unit_stats %}
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Top Enrolled Units</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th class="text-center">Total Enrollments</th>
+                            <th class="text-center">Pending</th>
+                            <th class="text-center">Approved</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for stat in unit_stats %}
+                        <tr>
+                            <td>
+                                <strong>{{ stat.programme_unit__unit__code }}</strong>
+                                <small class="text-muted d-block">{{ stat.programme_unit__unit__name|truncatechars:50 }}</small>
+                            </td>
+                            <td class="text-center"><span class="badge bg-secondary">{{ stat.total }}</span></td>
+                            <td class="text-center"><span class="badge bg-warning">{{ stat.pending }}</span></td>
+                            <td class="text-center"><span class="badge bg-success">{{ stat.approved }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Enrollments Table Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Unit Enrollments</h5>
+            <div class="card-subtitle">Showing {{ enrollments|length }} of {{ total_enrollments }} enrollments</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="enrollmentsTable">
+                    <thead>
+                        <tr>
+                            <th class="ps-4" width="50">
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            <th>Student Details</th>
+                            <th>Programme</th>
+                            <th>Unit Details</th>
+                            <th>Enrollment Type</th>
+                            <th>Semester Report</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for enrollment in enrollments %}
+                        <tr data-enrollment-id="{{ enrollment.id }}">
+                            <td class="ps-4">
+                                <input type="checkbox" 
+                                       name="enrollment_ids" 
+                                       value="{{ enrollment.id }}" 
+                                       class="form-check-input enrollment-checkbox"
+                                       {% if enrollment.status == 'approved' %}disabled{% endif %}>
+                            </td>
+                            <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-3">
+                                            <img src="{% if enrollment.student.user.profile_picture %}{{ enrollment.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ enrollment.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ enrollment.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ enrollment.student.registration_number }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ enrollment.student.programme.code }}</strong>
+                                    <small class="text-muted">{{ enrollment.student.programme.name|truncatechars:25 }}</small>
+                                    <div class="mt-1">
+                                        <span class="badge bg-info-subtle text-info">
+                                            Y{{ enrollment.student.current_year }}S{{ enrollment.student.current_semester }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="unit-info">
+                                    <strong class="d-block">{{ enrollment.programme_unit.unit.code }}</strong>
+                                    <small class="text-muted d-block">{{ enrollment.programme_unit.unit.name|truncatechars:30 }}</small>
+                                    <div class="mt-1">
+                                        <span class="badge bg-secondary-subtle text-secondary">
+                                            {{ enrollment.programme_unit.unit.credit_hours }} Credit Hours
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if enrollment.enrollment_type == 'normal' %}
+                                <span class="badge bg-primary-subtle text-primary">
+                                    <i class="ri-book-line me-1"></i>
+                                    Normal
+                                </span>
+                                {% elif enrollment.enrollment_type == 'resit' %}
+                                <span class="badge bg-warning-subtle text-warning">
+                                    <i class="ri-repeat-line me-1"></i>
+                                    Resit
+                                </span>
+                                {% elif enrollment.enrollment_type == 'retake' %}
+                                <span class="badge bg-info-subtle text-info">
+                                    <i class="ri-restart-line me-1"></i>
+                                    Retake
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if enrollment.semester_report %}
+                                    {% if enrollment.semester_report.status == 'approved' %}
+                                    <span class="badge bg-success-subtle text-success">
+                                        <i class="ri-checkbox-circle-fill me-1"></i>
+                                        Approved
+                                    </span>
+                                    {% elif enrollment.semester_report.status == 'pending' %}
+                                    <span class="badge bg-warning-subtle text-warning">
+                                        <i class="ri-time-fill me-1"></i>
+                                        Pending
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger-subtle text-danger">
+                                        <i class="ri-close-circle-fill me-1"></i>
+                                        {{ enrollment.semester_report.get_status_display }}
+                                    </span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">
+                                    <i class="ri-question-line me-1"></i>
+                                    No Report
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if enrollment.status == 'pending' %}
+                                <span class="status-badge status-pending">
+                                    <i class="ri-time-fill me-1"></i>
+                                    Pending
+                                </span>
+                                {% elif enrollment.status == 'approved' %}
+                                <span class="status-badge status-approved">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Approved
+                                </span>
+                                {% elif enrollment.status == 'rejected' %}
+                                <span class="status-badge status-rejected">
+                                    <i class="ri-close-circle-fill me-1"></i>
+                                    Rejected
+                                </span>
+                                {% elif enrollment.status == 'dropped' %}
+                                <span class="status-badge status-dropped">
+                                    <i class="ri-arrow-down-circle-fill me-1"></i>
+                                    Dropped
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ enrollment.enrollment_date|date:"M d, Y" }}</small>
+                                {% if enrollment.approved_by %}
+                                <small class="text-muted d-block">by {{ enrollment.approved_by.get_full_name|truncatechars:15 }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-icon btn-outline-info btn-sm view-details-btn" 
+                                                title="View Details"
+                                                data-enrollment-id="{{ enrollment.id }}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                        
+                                        {% if enrollment.status == 'pending' %}
+                                        <button class="btn btn-icon btn-outline-success btn-sm approve-btn" 
+                                                title="Approve"
+                                                data-enrollment-id="{{ enrollment.id }}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-check-line"></i>
+                                        </button>
+                                        
+                                        <button class="btn btn-icon btn-outline-danger btn-sm reject-btn" 
+                                                title="Reject"
+                                                data-enrollment-id="{{ enrollment.id }}"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-close-line"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-search-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No enrollments found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your search or filter criteria</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if enrollments.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if enrollments.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ enrollments.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in enrollments.paginator.page_range %}
+                    {% if enrollments.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > enrollments.number|add:'-3' and i < enrollments.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if enrollments.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ enrollments.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Advanced Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Advanced Filters</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Semester</label>
+                            <select name="semester" class="form-select">
+                                {% for sem in semesters %}
+                                <option value="{{ sem.id }}" {% if semester_id == sem.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ sem.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Programme</label>
+                            <select name="programme" class="form-select">
+                                <option value="">All Programmes</option>
+                                {% for prog in programmes %}
+                                <option value="{{ prog.id }}" {% if programme_id == prog.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ prog.code }} - {{ prog.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Unit</label>
+                            <select name="unit" class="form-select">
+                                <option value="">All Units</option>
+                                {% for unit in units %}
+                                <option value="{{ unit.unit_id }}" {% if unit_id == unit.unit_id|stringformat:"i" %}selected{% endif %}>
+                                    {{ unit.unit__code }} - {{ unit.unit__name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Year of Study</label>
+                            <select name="year" class="form-select">
+                                <option value="">All Years</option>
+                                {% for year in years %}
+                                <option value="{{ year }}" {% if year_of_study == year|stringformat:"i" %}selected{% endif %}>
+                                    Year {{ year }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                {% for status_code, status_name in status_choices %}
+                                <option value="{{ status_code }}" {% if status == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Enrollment Type</label>
+                            <select name="enrollment_type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for type_code, type_name in type_choices %}
+                                <option value="{{ type_code }}" {% if enrollment_type == type_code %}selected{% endif %}>
+                                    {{ type_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="?" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Approve Modal -->
+<div class="modal fade" id="bulkApproveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Approve Enrollments</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <div class="d-flex align-items-start">
+                        <i class="ri-information-line fs-5 me-2 mt-1"></i>
+                        <div>
+                            <p class="mb-2">You are about to approve <strong id="bulkApproveCount">0</strong> enrollment(s).</p>
+                            <p class="mb-0 small">This will allow students to attend classes and take assessments for these units.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="bypassSemesterReportCheckBulk">
+                    <label class="form-check-label" for="bypassSemesterReportCheckBulk">
+                        <strong>Bypass semester report requirement</strong>
+                        <small class="text-muted d-block">Approve even if students haven't reported for semester</small>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmBulkApprove">
+                    <i class="ri-checkbox-multiple-line me-1"></i>
+                    Approve Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Reject Modal -->
+<div class="modal fade" id="bulkRejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Reject Enrollments</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <div class="d-flex align-items-start">
+                        <i class="ri-alert-line fs-5 me-2 mt-1"></i>
+                        <div>
+                            <p class="mb-0">You are about to reject <strong id="bulkRejectCount">0</strong> enrollment(s).</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="bulkRejectionReason" rows="3" required placeholder="Enter reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBulkReject">
+                    <i class="ri-close-circle-line me-1"></i>
+                    Reject Selected
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Programme-Wide Approval Modal -->
+<div class="modal fade" id="programmeApprovalModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Programme-Wide Approval</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info mb-3">
+                    <i class="ri-information-line me-2"></i>
+                    Approve all pending enrollments for a specific programme, year, and/or unit
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Semester <span class="text-danger">*</span></label>
+                        <select class="form-select" id="progSemester" required>
+                            {% for sem in semesters %}
+                            <option value="{{ sem.id }}" {% if current_semester and sem.id == current_semester.id %}selected{% endif %}>
+                                {{ sem.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Programme <span class="text-danger">*</span></label>
+                        <select class="form-select" id="progProgramme" required>
+                            <option value="">Select Programme</option>
+                            {% for prog in programmes %}
+                            <option value="{{ prog.id }}">{{ prog.code }} - {{ prog.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Year of Study</label>
+                        <select class="form-select" id="progYear">
+                            <option value="">All Years</option>
+                            {% for year in years %}
+                            <option value="{{ year }}">Year {{ year }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Leave blank to approve all years</small>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Unit (Optional)</label>
+                        <select class="form-select" id="progUnit">
+                            <option value="">All Units</option>
+                            {% for unit in units %}
+                            <option value="{{ unit.unit_id }}">{{ unit.unit__code }} - {{ unit.unit__name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Leave blank to approve all units</small>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="bypassSemesterReportCheckProg">
+                            <label class="form-check-label" for="bypassSemesterReportCheckProg">
+                                Bypass semester report requirement
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmProgrammeApproval">
+                    <i class="ri-shield-check-line me-1"></i>
+                    Approve Programme
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enrollment Details Modal -->
+<div class="modal fade" id="enrollmentDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enrollment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="enrollmentDetailsContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Individual Approve Modal -->
+<div class="modal fade" id="individualApproveModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Approve Enrollment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success">
+                    <i class="ri-checkbox-circle-line me-2"></i>
+                    Approve this unit enrollment?
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="bypassSemesterReportCheckIndiv">
+                    <label class="form-check-label" for="bypassSemesterReportCheckIndiv">
+                        Bypass semester report requirement
+                    </label>
+                </div>
+                
+                <div class="mb-0">
+                    <label class="form-label">Remarks (Optional)</label>
+                    <textarea class="form-control" id="individualApproveRemarks" rows="2" placeholder="Add any remarks..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmIndividualApprove">
+                    <i class="ri-check-line me-1"></i>
+                    Approve
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Individual Reject Modal -->
+<div class="modal fade" id="individualRejectModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reject Enrollment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <i class="ri-close-circle-line me-2"></i>
+                    Reject this unit enrollment?
+                </div>
+                
+                <div class="mb-0">
+                    <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="individualRejectionReason" rows="3" required placeholder="Enter reason for rejection..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmIndividualReject">
+                    <i class="ri-close-line me-1"></i>
+                    Reject
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /**
+ * Unit Enrollment Management Styles
+ * Modern, clean CSS for enrollment management interface
+ */
+
+/* ==================== CSS VARIABLES ==================== */
+:root {
+    /* Font Family */
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    
+    /* Border Radius */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.06);
+    --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.08);
+    
+    /* Colors - Primary */
+    --color-primary: #2E7D32;
+    --color-primary-dark: #1B5E20;
+    --color-primary-light: #4CAF50;
+    
+    /* Colors - Status */
+    --color-success: #4CAF50;
+    --color-warning: #FF9800;
+    --color-info: #2196F3;
+    --color-danger: #F44336;
+    
+    /* Colors - Gray Scale */
+    --color-gray-50: #fafafa;
+    --color-gray-100: #f8f9fa;
+    --color-gray-200: #e9ecef;
+    --color-gray-300: #dee2e6;
+    --color-gray-400: #ced4da;
+    --color-gray-500: #adb5bd;
+    --color-gray-600: #6c757d;
+    --color-gray-700: #495057;
+    --color-gray-800: #343a40;
+    --color-gray-900: #212529;
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 300ms ease;
+}
+
+/* ==================== BASE STYLES ==================== */
+body {
+    font-family: var(--font-family);
+    font-weight: 400;
+    color: var(--color-gray-900);
+    background-color: var(--color-gray-50);
+}
+
+/* ==================== CONTENT CONTAINER ==================== */
+.content-container {
+    padding: 0 0.5rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ==================== BREADCRUMB ==================== */
+.breadcrumb {
+    background: transparent;
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: var(--color-gray-400);
+}
+
+.breadcrumb-item a {
+    color: var(--color-gray-600);
+    text-decoration: none;
+    transition: color var(--transition-base);
+    font-weight: 500;
+}
+
+.breadcrumb-item a:hover {
+    color: var(--color-primary);
+}
+
+.breadcrumb-item.active {
+    color: var(--color-gray-800);
+    font-weight: 600;
+}
+
+/* ==================== PAGE HEADER ==================== */
+.page-header {
+    padding: 1.5rem 0;
+}
+
+.page-header h1 {
+    font-weight: 700;
+    color: var(--color-gray-900);
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.page-header p {
+    color: var(--color-gray-600);
+    font-size: 0.95rem;
+}
+
+.page-header .badge {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ==================== STATISTICS CARDS ==================== */
+.stat-card {
+    background: white;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: all var(--transition-base);
+    height: 100%;
+    cursor: default;
+}
+
+.stat-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--color-gray-300);
+}
+
+.stat-icon {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    font-size: 1.75rem;
+    flex-shrink: 0;
+}
+
+/* Stat Card Variations */
+.stat-pending .stat-icon {
+    background: rgba(255, 152, 0, 0.1);
+    color: var(--color-warning);
+}
+
+.stat-approved .stat-icon {
+    background: rgba(76, 175, 80, 0.1);
+    color: var(--color-success);
+}
+
+.stat-rejected .stat-icon {
+    background: rgba(244, 67, 54, 0.1);
+    color: var(--color-danger);
+}
+
+.stat-dropped .stat-icon {
+    background: rgba(108, 117, 125, 0.1);
+    color: var(--color-gray-600);
+}
+
+.stat-normal .stat-icon {
+    background: rgba(33, 150, 243, 0.1);
+    color: var(--color-info);
+}
+
+.stat-resit .stat-icon {
+    background: rgba(255, 152, 0, 0.1);
+    color: var(--color-warning);
+}
+
+.stat-retake .stat-icon {
+    background: rgba(156, 39, 176, 0.1);
+    color: #9C27B0;
+}
+
+.stat-financial .stat-icon {
+    background: rgba(33, 150, 243, 0.1);
+    color: var(--color-info);
+}
+
+.stat-eligible .stat-icon {
+    background: rgba(156, 39, 176, 0.1);
+    color: #9C27B0;
+}
+
+.stat-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 0.375rem;
+    color: var(--color-gray-900);
+    letter-spacing: -0.02em;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--color-gray-600);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ==================== MANAGEMENT CARDS ==================== */
+.management-card {
+    background: white;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-base);
+}
+
+.management-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.management-card .card-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--color-gray-200);
+    background: var(--color-gray-50);
+}
+
+.management-card .card-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.01em;
+}
+
+.management-card .card-subtitle {
+    font-size: 0.8125rem;
+    color: var(--color-gray-600);
+    font-weight: 500;
+}
+
+.management-card .card-body {
+    padding: 1.5rem;
+}
+
+/* ==================== SEARCH CONTAINER ==================== */
+.search-container .input-group {
+    box-shadow: var(--shadow-sm);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid var(--color-gray-300);
+}
+
+.search-container .input-group:focus-within {
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+    border-color: var(--color-primary);
+}
+
+.search-container .input-group-text {
+    background: white;
+    border: none;
+    border-right: none;
+    padding: 0.75rem 1rem;
+}
+
+.search-container .form-control {
+    border: none;
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+}
+
+.search-container .form-control:focus {
+    box-shadow: none;
+    outline: none;
+}
+
+.search-container .form-control::placeholder {
+    color: var(--color-gray-400);
+}
+
+.search-container .btn {
+    border-radius: 0;
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    border: none;
+}
+
+/* ==================== ACTION BUTTONS ==================== */
+.action-buttons .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-base);
+    border-width: 1.5px;
+}
+
+.action-buttons .btn i {
+    font-size: 1.125rem;
+}
+
+.action-buttons .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.action-buttons .btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.action-buttons .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ==================== TABLE STYLES ==================== */
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-gray-700);
+    border-top: none;
+    border-bottom: 2px solid var(--color-gray-200);
+    padding: 1rem 0.75rem;
+    background: var(--color-gray-50);
+    white-space: nowrap;
+}
+
+.table tbody td {
+    padding: 1.125rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--color-gray-200);
+    font-size: 0.9375rem;
+}
+
+.table tbody tr {
+    transition: background-color var(--transition-fast);
+}
+
+.table tbody tr:hover {
+    background-color: rgba(46, 125, 50, 0.02);
+}
+
+.table tbody tr[data-enrollment-id] {
+    cursor: pointer;
+}
+
+/* ==================== STUDENT INFO ==================== */
+.student-info {
+    display: flex;
+    align-items: center;
+}
+
+.student-avatar {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.student-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid var(--color-gray-200);
+}
+
+.student-info h6 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+    margin-bottom: 0.125rem;
+}
+
+.student-info small {
+    font-size: 0.8125rem;
+    color: var(--color-gray-600);
+}
+
+/* ==================== PROGRAMME & UNIT INFO ==================== */
+.programme-info strong,
+.unit-info strong {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: var(--color-gray-900);
+}
+
+.programme-info small,
+.unit-info small {
+    font-size: 0.8125rem;
+    color: var(--color-gray-600);
+    line-height: 1.4;
+}
+
+/* ==================== STATUS BADGES ==================== */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.status-badge i {
+    font-size: 0.875rem;
+}
+
+.status-pending {
+    background: rgba(255, 152, 0, 0.12);
+    color: #E65100;
+}
+
+.status-approved {
+    background: rgba(76, 175, 80, 0.12);
+    color: #2E7D32;
+}
+
+.status-rejected {
+    background: rgba(244, 67, 54, 0.12);
+    color: #C62828;
+}
+
+.status-dropped {
+    background: rgba(108, 117, 125, 0.12);
+    color: #495057;
+}
+
+.status-other {
+    background: var(--color-gray-100);
+    color: var(--color-gray-600);
+}
+
+/* ==================== BADGE UTILITIES ==================== */
+.bg-info-subtle { 
+    background-color: rgba(33, 150, 243, 0.1);
+}
+
+.bg-secondary-subtle { 
+    background-color: rgba(108, 117, 125, 0.1);
+}
+
+.bg-success-subtle { 
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.bg-danger-subtle { 
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.bg-warning-subtle { 
+    background-color: rgba(255, 152, 0, 0.1);
+}
+
+.bg-primary-subtle { 
+    background-color: rgba(46, 125, 50, 0.1);
+}
+
+.text-info { color: var(--color-info) !important; }
+.text-secondary { color: var(--color-gray-600) !important; }
+
+/* ==================== ACTION ICONS ==================== */
+.btn-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-base);
+    border-width: 1.5px;
+}
+
+.btn-icon i {
+    font-size: 1.125rem;
+}
+
+.btn-icon:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-icon:active {
+    transform: translateY(0);
+}
+
+.action-buttons-group {
+    display: flex;
+    gap: 0.25rem;
+}
+
+/* ==================== EMPTY STATE ==================== */
+.empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: var(--color-gray-300);
+    margin-bottom: 1.5rem;
+}
+
+.empty-state h5 {
+    font-weight: 600;
+    color: var(--color-gray-600);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--color-gray-500);
+    font-size: 0.9375rem;
+}
+
+/* ==================== PAGINATION ==================== */
+.pagination-container {
+    padding: 1.5rem 0;
+}
+
+.pagination {
+    gap: 0.25rem;
+}
+
+.pagination .page-link {
+    border: 1px solid var(--color-gray-200);
+    color: var(--color-gray-700);
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-base);
+    font-weight: 500;
+    min-width: 38px;
+    text-align: center;
+}
+
+.pagination .page-link:hover {
+    background: var(--color-gray-100);
+    border-color: var(--color-gray-300);
+    color: var(--color-gray-900);
+    transform: translateY(-1px);
+}
+
+.pagination .page-item.active .page-link {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+    font-weight: 700;
+}
+
+.pagination .page-item.disabled .page-link {
+    opacity: 0.5;
+}
+
+/* ==================== FORM ELEMENTS ==================== */
+.form-check-input {
+    width: 1.125rem;
+    height: 1.125rem;
+    border-width: 1.5px;
+    cursor: pointer;
+}
+
+.form-check-input:checked {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.15);
+    border-color: var(--color-primary);
+}
+
+.form-select,
+.form-control {
+    border-color: var(--color-gray-300);
+    border-radius: var(--radius-md);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+}
+
+.form-select:focus,
+.form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.form-label {
+    font-weight: 600;
+    color: var(--color-gray-800);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* ==================== MODALS ==================== */
+.modal-content {
+    border: none;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--color-gray-200);
+    padding: 1.5rem;
+    background: var(--color-gray-50);
+}
+
+.modal-title {
+    font-weight: 700;
+    color: var(--color-gray-900);
+    font-size: 1.25rem;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    border-top: 1px solid var(--color-gray-200);
+    padding: 1.25rem 1.5rem;
+    background: var(--color-gray-50);
+}
+
+.modal-backdrop.show {
+    opacity: 0.5;
+}
+
+/* ==================== ALERTS ==================== */
+.alert {
+    border-radius: var(--radius-md);
+    border: none;
+    padding: 1rem 1.25rem;
+    font-size: 0.9375rem;
+}
+
+.alert i {
+    font-size: 1.25rem;
+}
+
+.alert-info {
+    background: rgba(33, 150, 243, 0.1);
+    color: #01579B;
+}
+
+.alert-success {
+    background: rgba(76, 175, 80, 0.1);
+    color: #1B5E20;
+}
+
+.alert-warning {
+    background: rgba(255, 152, 0, 0.1);
+    color: #E65100;
+}
+
+.alert-danger {
+    background: rgba(244, 67, 54, 0.1);
+    color: #C62828;
+}
+
+/* ==================== GPA DISPLAY ==================== */
+.gpa-display {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.375rem;
+}
+
+.gpa-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+/* ==================== SPINNER ==================== */
+.spinner-border {
+    border-width: 2px;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 2px;
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 768px) {
+    .content-container {
+        padding: 0 0.25rem;
+    }
+    
+    .stat-card {
+        padding: 1.25rem;
+    }
+    
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+    
+    .stat-value {
+        font-size: 1.75rem;
+    }
+    
+    .stat-label {
+        font-size: 0.8125rem;
+    }
+    
+    .management-card .card-header {
+        padding: 1rem 1.25rem;
+    }
+    
+    .management-card .card-body {
+        padding: 1.25rem;
+    }
+    
+    .table {
+        font-size: 0.875rem;
+    }
+    
+    .table thead th {
+        padding: 0.875rem 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.5rem;
+    }
+    
+    .student-avatar {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .action-buttons .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+    
+    .btn-icon {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .btn-icon i {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .page-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+    }
+    
+    .search-container .input-group {
+        flex-wrap: wrap;
+    }
+    
+    .search-container .btn {
+        width: 100%;
+        margin-top: 0.5rem;
+        border-radius: var(--radius-md) !important;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    .action-buttons > div {
+        width: 100%;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+}
+
+/* ==================== PRINT STYLES ==================== */
+@media print {
+    .search-container,
+    .action-buttons,
+    .pagination-container,
+    .breadcrumb,
+    .btn-icon {
+        display: none !important;
+    }
+    
+    .stat-card,
+    .management-card {
+        box-shadow: none;
+        border: 1px solid var(--color-gray-300);
+    }
+    
+    .table {
+        font-size: 10pt;
+    }
+}
+
+/* ==================== ACCESSIBILITY ==================== */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+/* ==================== UTILITY CLASSES ==================== */
+.fw-bold {
+    font-weight: 700 !important;
+}
+
+.fw-semibold {
+    font-weight: 600 !important;
+}
+
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==================== CUSTOM SCROLLBAR ==================== */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: var(--color-gray-100);
+    border-radius: var(--radius-sm);
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: var(--color-gray-300);
+    border-radius: var(--radius-sm);
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: var(--color-gray-400);
+}
+
+</style>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    /**
+ * Unit Enrollment Management JavaScript
+ * Handles all interactions for unit enrollment approval system
+ */
+
+// ==================== UTILITY FUNCTIONS ====================
+
+/**
+ * Get CSRF token from cookies or meta tag
+ */
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+}
+
+/**
+ * Show alert message to user
+ */
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    alertDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="ri-${type === 'success' ? 'checkbox-circle' : type === 'danger' ? 'error-warning' : 'information'}-line me-2 fs-5"></i>
+            <div>${message}</div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+/**
+ * Generate HTML for enrollment details modal
+ */
+function generateEnrollmentDetailsHTML(data) {
+    return `
+        <div class="row g-4">
+            <!-- Student Information -->
+            <div class="col-12">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3 text-primary">
+                            <i class="ri-user-line me-2"></i>Student Information
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Name:</strong> ${data.student.name}</p>
+                                <p class="mb-2"><strong>Registration:</strong> ${data.student.registration_number}</p>
+                                <p class="mb-0"><strong>Email:</strong> ${data.student.email}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Phone:</strong> ${data.student.phone || 'N/A'}</p>
+                                <p class="mb-2"><strong>Programme:</strong> ${data.student.programme_code}</p>
+                                <p class="mb-0"><small class="text-muted">${data.student.programme}</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Unit Information -->
+            <div class="col-12">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3 text-info">
+                            <i class="ri-book-line me-2"></i>Unit Information
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Unit Code:</strong> ${data.unit.code}</p>
+                                <p class="mb-2"><strong>Unit Name:</strong> ${data.unit.name}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Credit Hours:</strong> ${data.unit.credit_hours}</p>
+                                <p class="mb-2"><strong>Level:</strong> ${data.unit.level}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Enrollment Details -->
+            <div class="col-md-6">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3 text-success">
+                            <i class="ri-file-list-line me-2"></i>Enrollment Details
+                        </h6>
+                        <p class="mb-2">
+                            <strong>Type:</strong> 
+                            <span class="badge ${
+                                data.enrollment.enrollment_type === 'Normal Enrollment' ? 'bg-primary' : 
+                                data.enrollment.enrollment_type === 'Resit/Supplementary' ? 'bg-warning' : 
+                                'bg-info'
+                            }">
+                                ${data.enrollment.enrollment_type}
+                            </span>
+                        </p>
+                        <p class="mb-2"><strong>Date:</strong> ${new Date(data.enrollment.enrollment_date).toLocaleDateString('en-KE', {
+                            year: 'numeric', month: 'long', day: 'numeric'
+                        })}</p>
+                        <p class="mb-2">
+                            <strong>Status:</strong> 
+                            <span class="badge ${
+                                data.enrollment.status === 'Approved' ? 'bg-success' : 
+                                data.enrollment.status === 'Pending' ? 'bg-warning' : 
+                                data.enrollment.status === 'Rejected' ? 'bg-danger' : 
+                                'bg-secondary'
+                            }">
+                                ${data.enrollment.status}
+                            </span>
+                        </p>
+                        <p class="mb-0"><strong>Semester:</strong> ${data.enrollment.semester}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Approval Information -->
+            <div class="col-md-6">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3 text-warning">
+                            <i class="ri-shield-check-line me-2"></i>Approval Information
+                        </h6>
+                        ${data.approval.approved_by ? `
+                            <p class="mb-2"><strong>Approved By:</strong> ${data.approval.approved_by}</p>
+                            <p class="mb-2"><strong>Approval Date:</strong> ${new Date(data.approval.approval_date).toLocaleDateString('en-KE', {
+                                year: 'numeric', month: 'long', day: 'numeric'
+                            })}</p>
+                        ` : '<p class="text-muted">Not yet approved</p>'}
+                        
+                        ${data.approval.rejection_reason ? `
+                            <div class="alert alert-danger mt-2 mb-0">
+                                <strong>Rejection Reason:</strong>
+                                <p class="mb-0 mt-1">${data.approval.rejection_reason}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${data.approval.remarks ? `
+                            <div class="alert alert-info mt-2 mb-0">
+                                <strong>Remarks:</strong>
+                                <p class="mb-0 mt-1">${data.approval.remarks}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Unit Allocation Info -->
+            ${data.unit_allocation ? `
+            <div class="col-12">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3 text-danger">
+                            <i class="ri-user-star-line me-2"></i>Unit Allocation
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <p class="mb-2"><strong>Lecturer:</strong> ${data.unit_allocation.lecturer}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-2"><strong>Status:</strong> ${data.unit_allocation.status}</p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-2"><strong>Max Students:</strong> ${data.unit_allocation.max_students || 'N/A'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+            
+            <!-- Resit Information -->
+            ${data.resit_info ? `
+            <div class="col-12">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3 text-warning">
+                            <i class="ri-repeat-line me-2"></i>Resit Information
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Original Marks:</strong> ${data.resit_info.original_marks}%</p>
+                                <p class="mb-2"><strong>Original Grade:</strong> <span class="badge bg-danger">${data.resit_info.original_grade}</span></p>
+                                <p class="mb-0"><strong>Resit Status:</strong> ${data.resit_info.status}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2"><strong>Resit Fee:</strong> KES ${parseFloat(data.resit_info.resit_fee_amount).toLocaleString('en-KE', {minimumFractionDigits: 2})}</p>
+                                <p class="mb-2">
+                                    <strong>Fee Paid:</strong> 
+                                    ${data.resit_info.fee_paid ? 
+                                        '<span class="badge bg-success">Yes</span>' : 
+                                        '<span class="badge bg-danger">No</span>'
+                                    }
+                                </p>
+                                ${data.resit_info.exam_date ? `
+                                    <p class="mb-0"><strong>Exam Date:</strong> ${new Date(data.resit_info.exam_date).toLocaleDateString('en-KE', {
+                                        year: 'numeric', month: 'long', day: 'numeric'
+                                    })}</p>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+            
+            <!-- Semester Report Info -->
+            ${data.semester_report ? `
+            <div class="col-12">
+                <div class="card border-0 bg-light">
+                    <div class="card-body">
+                        <h6 class="fw-bold mb-3 text-primary">
+                            <i class="ri-file-text-line me-2"></i>Semester Report
+                        </h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-2">
+                                    <strong>Status:</strong> 
+                                    <span class="badge ${
+                                        data.semester_report.status === 'Approved' ? 'bg-success' : 
+                                        data.semester_report.status === 'Pending' ? 'bg-warning' : 
+                                        'bg-danger'
+                                    }">
+                                        ${data.semester_report.status}
+                                    </span>
+                                </p>
+                                <p class="mb-2"><strong>From:</strong> Year ${data.semester_report.from_year} Semester ${data.semester_report.to_year}</p>
+                                <p class="mb-0"><strong>To:</strong> Year ${data.semester_report.to_year}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-2">
+                                    <strong>Eligible:</strong> 
+                                    ${data.semester_report.is_eligible ? 
+                                        '<span class="badge bg-success">Yes</span>' : 
+                                        '<span class="badge bg-warning">No</span>'
+                                    }
+                                </p>
+                                <p class="mb-2"><strong>Failed Units:</strong> <span class="badge bg-danger">${data.semester_report.failed_units_count}</span></p>
+                                ${data.semester_report.cumulative_gpa ? `
+                                    <p class="mb-0"><strong>Cumulative GPA:</strong> <span class="fw-bold ${
+                                        data.semester_report.cumulative_gpa >= 3.0 ? 'text-success' : 
+                                        data.semester_report.cumulative_gpa >= 2.0 ? 'text-warning' : 
+                                        'text-danger'
+                                    }">${data.semester_report.cumulative_gpa}</span></p>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// ==================== MAIN INITIALIZATION ====================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // ==================== SELECT ALL FUNCTIONALITY ====================
+    const selectAll = document.getElementById('selectAll');
+    const enrollmentCheckboxes = document.querySelectorAll('.enrollment-checkbox:not(:disabled)');
+    
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            enrollmentCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateBulkButtons();
+        });
+    }
+    
+    // ==================== UPDATE BULK BUTTONS ====================
+    function updateBulkButtons() {
+        const selectedCount = document.querySelectorAll('.enrollment-checkbox:checked').length;
+        const bulkApproveBtn = document.getElementById('bulkApproveBtn');
+        const bulkRejectBtn = document.getElementById('bulkRejectBtn');
+        const bulkApproveCount = document.getElementById('bulkApproveCount');
+        const bulkRejectCount = document.getElementById('bulkRejectCount');
+        
+        if (bulkApproveBtn) bulkApproveBtn.disabled = selectedCount === 0;
+        if (bulkRejectBtn) bulkRejectBtn.disabled = selectedCount === 0;
+        if (bulkApproveCount) bulkApproveCount.textContent = selectedCount;
+        if (bulkRejectCount) bulkRejectCount.textContent = selectedCount;
+        
+        // Update select all checkbox state
+        if (selectAll) {
+            const enabledCheckboxes = document.querySelectorAll('.enrollment-checkbox:not(:disabled)');
+            const checkedCheckboxes = document.querySelectorAll('.enrollment-checkbox:checked');
+            selectAll.checked = enabledCheckboxes.length > 0 && 
+                               enabledCheckboxes.length === checkedCheckboxes.length;
+        }
+    }
+    
+    enrollmentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateBulkButtons);
+    });
+    
+    // ==================== VIEW ENROLLMENT DETAILS ====================
+    let currentEnrollmentId = null;
+    
+    document.querySelectorAll('.view-details-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const enrollmentId = this.dataset.enrollmentId;
+            viewEnrollmentDetails(enrollmentId);
+        });
+    });
+    
+    function viewEnrollmentDetails(enrollmentId) {
+        const modal = new bootstrap.Modal(document.getElementById('enrollmentDetailsModal'));
+        const contentDiv = document.getElementById('enrollmentDetailsContent');
+        
+        contentDiv.innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="text-muted mt-2">Loading enrollment details...</p>
+            </div>
+        `;
+        
+        modal.show();
+        
+        fetch(`/api/unit-enrollments/${enrollmentId}/details/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+            }
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                contentDiv.innerHTML = generateEnrollmentDetailsHTML(result.data);
+            } else {
+                contentDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="ri-error-warning-line me-2"></i>
+                        ${result.message || 'Error loading enrollment details'}
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            contentDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ri-error-warning-line me-2"></i>
+                    Error loading enrollment details. Please try again.
+                </div>
+            `;
+        });
+    }
+    
+    // ==================== INDIVIDUAL APPROVE ====================
+    document.querySelectorAll('.approve-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentEnrollmentId = this.dataset.enrollmentId;
+            // Reset form
+            document.getElementById('bypassSemesterReportCheckIndiv').checked = false;
+            document.getElementById('individualApproveRemarks').value = '';
+            
+            const modal = new bootstrap.Modal(document.getElementById('individualApproveModal'));
+            modal.show();
+        });
+    });
+    
+    document.getElementById('confirmIndividualApprove')?.addEventListener('click', function() {
+        const btn = this;
+        const bypassSemesterReport = document.getElementById('bypassSemesterReportCheckIndiv').checked;
+        const remarks = document.getElementById('individualApproveRemarks').value.trim();
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        
+        fetch(`/api/unit-enrollments/${currentEnrollmentId}/approve/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                bypass_semester_report_check: bypassSemesterReport,
+                remarks: remarks
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            if (result.success) {
+                showAlert('success', result.message);
+                bootstrap.Modal.getInstance(document.getElementById('individualApproveModal')).hide();
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('danger', result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showAlert('danger', 'Error approving enrollment. Please try again.');
+        });
+    });
+    
+    // ==================== INDIVIDUAL REJECT ====================
+    document.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentEnrollmentId = this.dataset.enrollmentId;
+            document.getElementById('individualRejectionReason').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('individualRejectModal'));
+            modal.show();
+        });
+    });
+    
+    document.getElementById('confirmIndividualReject')?.addEventListener('click', function() {
+        const btn = this;
+        const reason = document.getElementById('individualRejectionReason').value.trim();
+        
+        if (!reason) {
+            showAlert('warning', 'Please enter a rejection reason');
+            return;
+        }
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        
+        fetch(`/api/unit-enrollments/${currentEnrollmentId}/reject/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                rejection_reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            if (result.success) {
+                showAlert('success', result.message);
+                bootstrap.Modal.getInstance(document.getElementById('individualRejectModal')).hide();
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('danger', result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showAlert('danger', 'Error rejecting enrollment. Please try again.');
+        });
+    });
+    
+    // ==================== BULK APPROVE ====================
+    document.getElementById('confirmBulkApprove')?.addEventListener('click', function() {
+        const btn = this;
+        const selectedCheckboxes = document.querySelectorAll('.enrollment-checkbox:checked');
+        const enrollmentIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        const bypassSemesterReport = document.getElementById('bypassSemesterReportCheckBulk').checked;
+        
+        if (enrollmentIds.length === 0) {
+            showAlert('warning', 'No enrollments selected');
+            return;
+        }
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        
+        fetch('/api/unit-enrollments/bulk-approve/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                enrollment_ids: enrollmentIds,
+                bypass_semester_report_check: bypassSemesterReport
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            if (result.success) {
+                const message = `${result.message}${result.failed_count > 0 ? ` (${result.failed_count} failed)` : ''}`;
+                showAlert('success', message);
+                
+                // Show errors if any
+                if (result.errors && result.errors.length > 0) {
+                    setTimeout(() => {
+                        let errorMsg = '<strong>Failed enrollments:</strong><br>';
+                        result.errors.forEach(err => {
+                            errorMsg += `${err.student} - ${err.unit}: ${err.reason}<br>`;
+                        });
+                        showAlert('warning', errorMsg);
+                    }, 2000);
+                }
+                
+                bootstrap.Modal.getInstance(document.getElementById('bulkApproveModal')).hide();
+                setTimeout(() => window.location.reload(), 3000);
+            } else {
+                showAlert('danger', result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showAlert('danger', 'Error processing bulk approval. Please try again.');
+        });
+    });
+    
+    // ==================== BULK REJECT ====================
+    document.getElementById('confirmBulkReject')?.addEventListener('click', function() {
+        const btn = this;
+        const selectedCheckboxes = document.querySelectorAll('.enrollment-checkbox:checked');
+        const enrollmentIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        const reason = document.getElementById('bulkRejectionReason').value.trim();
+        
+        if (enrollmentIds.length === 0) {
+            showAlert('warning', 'No enrollments selected');
+            return;
+        }
+        
+        if (!reason) {
+            showAlert('warning', 'Please enter a rejection reason');
+            return;
+        }
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        
+        fetch('/api/unit-enrollments/bulk-reject/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                enrollment_ids: enrollmentIds,
+                rejection_reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            if (result.success) {
+                showAlert('success', result.message);
+                bootstrap.Modal.getInstance(document.getElementById('bulkRejectModal')).hide();
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                showAlert('danger', result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showAlert('danger', 'Error processing bulk rejection. Please try again.');
+        });
+    });
+    
+    // ==================== PROGRAMME-WIDE APPROVAL ====================
+    document.getElementById('confirmProgrammeApproval')?.addEventListener('click', function() {
+        const btn = this;
+        const semesterId = document.getElementById('progSemester').value;
+        const programmeId = document.getElementById('progProgramme').value;
+        const yearOfStudy = document.getElementById('progYear').value;
+        const unitId = document.getElementById('progUnit').value;
+        const bypassSemesterReport = document.getElementById('bypassSemesterReportCheckProg').checked;
+        
+        if (!semesterId || !programmeId) {
+            showAlert('warning', 'Please select semester and programme');
+            return;
+        }
+        
+        // Disable button and show loading
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        
+        fetch('/api/unit-enrollments/programme-approve/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                semester_id: parseInt(semesterId),
+                programme_id: parseInt(programmeId),
+                year_of_study: yearOfStudy ? parseInt(yearOfStudy) : null,
+                unit_id: unitId ? parseInt(unitId) : null,
+                bypass_semester_report_check: bypassSemesterReport
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            if (result.success) {
+                const message = `${result.message}${result.failed_count > 0 ? ` (${result.failed_count} failed)` : ''}`;
+                showAlert('success', message);
+                
+                // Show errors if any
+                if (result.errors && result.errors.length > 0) {
+                    setTimeout(() => {
+                        let errorMsg = '<strong>Failed enrollments:</strong><br>';
+                        result.errors.forEach(err => {
+                            errorMsg += `${err.student} - ${err.unit}: ${err.reason}<br>`;
+                        });
+                        showAlert('warning', errorMsg);
+                    }, 2000);
+                }
+                
+                bootstrap.Modal.getInstance(document.getElementById('programmeApprovalModal')).hide();
+                setTimeout(() => window.location.reload(), 3000);
+            } else {
+                showAlert('danger', result.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showAlert('danger', 'Error processing programme approval. Please try again.');
+        });
+    });
+    
+    // ==================== RESET MODALS ON CLOSE ====================
+    document.getElementById('bulkApproveModal')?.addEventListener('hidden.bs.modal', function () {
+        document.getElementById('bypassSemesterReportCheckBulk').checked = false;
+    });
+    
+    document.getElementById('bulkRejectModal')?.addEventListener('hidden.bs.modal', function () {
+        document.getElementById('bulkRejectionReason').value = '';
+    });
+    
+    document.getElementById('programmeApprovalModal')?.addEventListener('hidden.bs.modal', function () {
+        document.getElementById('bypassSemesterReportCheckProg').checked = false;
+    });
+});
+</script>
+{% endblock %}

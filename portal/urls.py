@@ -581,25 +581,25 @@ urlpatterns = [
          views.bulk_approve_reports, 
          name='bulk_approve_reports'),
     
-    path('api/semester-reports/bulk-reject/', 
-         views.bulk_reject_reports, 
-         name='bulk_reject_reports'),
+    path('api/semester-reports/bulk-reject/', views.bulk_reject_reports, name='bulk_reject_reports'),
+    path('api/semester-reports/programme-approve/', views.approve_programme_reports, name='approve_programme_reports'),
     
-    path('api/semester-reports/programme-approve/', 
-         views.approve_programme_reports, 
-         name='approve_programme_reports'),
+    path('api/semester-reports/<int:report_id>/details/', views.get_report_details, name='get_report_details'),
+    path('api/semester-reports/<int:report_id>/approve/', views.individual_approve_report, name='individual_approve_report'),
+    path('api/semester-reports/<int:report_id>/reject/', views.individual_reject_report, name='individual_reject_report'),
     
-    path('api/semester-reports/<int:report_id>/details/', 
-         views.get_report_details, 
-         name='get_report_details'),
     
-    path('api/semester-reports/<int:report_id>/approve/', 
-         views.individual_approve_report, 
-         name='individual_approve_report'),
+    # Main unit enrollment management page
+    path('admin-unit-enrollments/', views.unit_enrollment_management, name='unit_enrollment_management'),
     
-    path('api/semester-reports/<int:report_id>/reject/', 
-         views.individual_reject_report, 
-         name='individual_reject_report'),
+    # API endpoints for unit enrollments
+    path('api/unit-enrollments/bulk-approve/', views.bulk_approve_enrollments, name='bulk_approve_enrollments'),
+    path('api/unit-enrollments/bulk-reject/', views.bulk_reject_enrollments, name='bulk_reject_enrollments'),
+    path('api/unit-enrollments/programme-approve/', views.approve_programme_enrollments, name='approve_programme_enrollments'),
+    path('api/unit-enrollments/<int:enrollment_id>/details/', views.get_enrollment_details,  name='get_enrollment_details'),
+    path('api/unit-enrollments/<int:enrollment_id>/approve/', views.individual_approve_enrollment, name='individual_approve_enrollment'),
+    path('api/unit-enrollments/<int:enrollment_id>/reject/', views.individual_reject_enrollment, name='individual_reject_enrollment'),
+    path('api/unit-enrollments/statistics/', views.get_enrollment_statistics, name='get_enrollment_statistics'),
 
        
 ]

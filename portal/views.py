@@ -22436,3 +22436,718 @@ def individual_reject_report(request, report_id):
             'success': False,
             'message': f'Error: {str(e)}'
         }, status=500)
+        
+        
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.db.models import Q, Count, Sum, F, Case, When, DecimalField
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from decimal import Decimal
+import json
+
+from .models import (
+    UnitEnrollment, Student, Semester, AcademicYear, 
+    Programme, ProgrammeUnit, UnitAllocation, SemesterReport,
+    ResitExam, EnrollmentPeriod
+)
+
+
+def is_admin_or_registrar(user):
+    """Check if user is admin or registrar"""
+    return user.is_staff or user.role in ['registrar', 'finance', 'dean', 'hos', 'hod']
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+def unit_enrollment_management(request):
+    """Main unit enrollment management view"""
+    
+    # Get current semester
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get filter parameters
+    semester_id = request.GET.get('semester', current_semester.id if current_semester else None)
+    programme_id = request.GET.get('programme', '')
+    year_of_study = request.GET.get('year', '')
+    status = request.GET.get('status', '')
+    search_query = request.GET.get('search', '')
+    enrollment_type = request.GET.get('enrollment_type', '')
+    unit_id = request.GET.get('unit', '')
+    
+    # Base queryset
+    enrollments = UnitEnrollment.objects.select_related(
+        'student__user',
+        'student__programme__department__school',
+        'semester',
+        'semester_report',
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'approved_by',
+        'resit_exam'
+    ).all()
+    
+    # Apply filters
+    if semester_id:
+        enrollments = enrollments.filter(semester_id=semester_id)
+    
+    if programme_id:
+        enrollments = enrollments.filter(student__programme_id=programme_id)
+    
+    if year_of_study:
+        enrollments = enrollments.filter(semester_report__to_year_of_study=year_of_study)
+    
+    if status:
+        enrollments = enrollments.filter(status=status)
+    
+    if enrollment_type:
+        enrollments = enrollments.filter(enrollment_type=enrollment_type)
+    
+    if unit_id:
+        enrollments = enrollments.filter(programme_unit__unit_id=unit_id)
+    
+    if search_query:
+        enrollments = enrollments.filter(
+            Q(student__registration_number__icontains=search_query) |
+            Q(student__user__first_name__icontains=search_query) |
+            Q(student__user__last_name__icontains=search_query) |
+            Q(student__user__email__icontains=search_query) |
+            Q(programme_unit__unit__code__icontains=search_query) |
+            Q(programme_unit__unit__name__icontains=search_query)
+        )
+    
+    # Order by most recent first
+    enrollments = enrollments.order_by('-enrollment_date')
+    
+    # Calculate statistics
+    total_enrollments = enrollments.count()
+    pending_enrollments = enrollments.filter(status='pending').count()
+    approved_enrollments = enrollments.filter(status='approved').count()
+    rejected_enrollments = enrollments.filter(status='rejected').count()
+    dropped_enrollments = enrollments.filter(status='dropped').count()
+    
+    # Enrollment type statistics
+    normal_enrollments = enrollments.filter(enrollment_type='normal').count()
+    resit_enrollments = enrollments.filter(enrollment_type='resit').count()
+    retake_enrollments = enrollments.filter(enrollment_type='retake').count()
+    
+    # Aggregate by programme
+    programme_stats = enrollments.values(
+        'student__programme__name',
+        'student__programme__code',
+        'student__programme_id'
+    ).annotate(
+        total=Count('id'),
+        pending=Count(Case(When(status='pending', then=1))),
+        approved=Count(Case(When(status='approved', then=1))),
+        rejected=Count(Case(When(status='rejected', then=1)))
+    ).order_by('-total')
+    
+    # Aggregate by unit
+    unit_stats = enrollments.values(
+        'programme_unit__unit__code',
+        'programme_unit__unit__name',
+        'programme_unit__unit_id'
+    ).annotate(
+        total=Count('id'),
+        pending=Count(Case(When(status='pending', then=1))),
+        approved=Count(Case(When(status='approved', then=1)))
+    ).order_by('-total')[:10]  # Top 10 units
+    
+    # Check enrollment period
+    enrollment_period = None
+    if semester_id:
+        try:
+            enrollment_period = EnrollmentPeriod.objects.get(semester_id=semester_id)
+        except EnrollmentPeriod.DoesNotExist:
+            pass
+    
+    # Pagination
+    paginator = Paginator(enrollments, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    semesters = Semester.objects.filter(is_active=True).order_by('-academic_year__start_date')
+    programmes = Programme.objects.filter(is_active=True).select_related('department__school')
+    years = range(1, 8)
+    
+    # Get units for current semester
+    units = []
+    if semester_id:
+        units = ProgrammeUnit.objects.filter(
+            programme_id__in=enrollments.values_list('student__programme_id', flat=True).distinct()
+        ).select_related('unit').values(
+            'unit_id', 'unit__code', 'unit__name'
+        ).distinct().order_by('unit__code')
+    
+    context = {
+        'enrollments': page_obj,
+        'current_semester': current_semester,
+        'semesters': semesters,
+        'programmes': programmes,
+        'years': years,
+        'units': units,
+        'total_enrollments': total_enrollments,
+        'pending_enrollments': pending_enrollments,
+        'approved_enrollments': approved_enrollments,
+        'rejected_enrollments': rejected_enrollments,
+        'dropped_enrollments': dropped_enrollments,
+        'normal_enrollments': normal_enrollments,
+        'resit_enrollments': resit_enrollments,
+        'retake_enrollments': retake_enrollments,
+        'programme_stats': programme_stats,
+        'unit_stats': unit_stats,
+        'enrollment_period': enrollment_period,
+        'search_query': search_query,
+        'semester_id': semester_id,
+        'programme_id': programme_id,
+        'year_of_study': year_of_study,
+        'status': status,
+        'enrollment_type': enrollment_type,
+        'unit_id': unit_id,
+        'status_choices': UnitEnrollment.ENROLLMENT_STATUS,
+        'type_choices': UnitEnrollment.ENROLLMENT_TYPE,
+    }
+    
+    return render(request, 'admin/unit_enrollment_management.html', context)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def bulk_approve_enrollments(request):
+    """API endpoint for bulk approval of unit enrollments"""
+    
+    try:
+        data = json.loads(request.body)
+        enrollment_ids = data.get('enrollment_ids', [])
+        bypass_semester_report_check = data.get('bypass_semester_report_check', False)
+        
+        if not enrollment_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No enrollments selected'
+            }, status=400)
+        
+        # Get enrollments
+        enrollments = UnitEnrollment.objects.filter(id__in=enrollment_ids)
+        
+        if not enrollments.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'No valid enrollments found'
+            }, status=404)
+        
+        approved_count = 0
+        failed_count = 0
+        errors = []
+        
+        for enrollment in enrollments:
+            # Check if already approved
+            if enrollment.status == 'approved':
+                failed_count += 1
+                errors.append({
+                    'student': enrollment.student.registration_number,
+                    'unit': enrollment.programme_unit.unit.code,
+                    'reason': 'Already approved'
+                })
+                continue
+            
+            # Check if semester report is approved (unless bypassed)
+            if not bypass_semester_report_check:
+                if not enrollment.semester_report or enrollment.semester_report.status != 'approved':
+                    failed_count += 1
+                    errors.append({
+                        'student': enrollment.student.registration_number,
+                        'unit': enrollment.programme_unit.unit.code,
+                        'reason': 'Student has not reported for semester or report not approved'
+                    })
+                    continue
+            
+            # Check if unit is offered in this semester
+            unit_offered = UnitAllocation.objects.filter(
+                programme_unit=enrollment.programme_unit,
+                semester=enrollment.semester,
+                status__in=['approved_hod', 'approved_hos', 'approved_dean']
+            ).exists()
+            
+            if not unit_offered:
+                failed_count += 1
+                errors.append({
+                    'student': enrollment.student.registration_number,
+                    'unit': enrollment.programme_unit.unit.code,
+                    'reason': 'Unit is not offered in this semester'
+                })
+                continue
+            
+            # Approve the enrollment
+            enrollment.status = 'approved'
+            enrollment.approved_by = request.user
+            enrollment.approval_date = timezone.now()
+            enrollment.remarks = f"Bulk approved by {request.user.get_full_name()}"
+            
+            if bypass_semester_report_check:
+                enrollment.remarks += " (Semester report check bypassed)"
+            
+            enrollment.save()
+            approved_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully approved {approved_count} enrollment(s)',
+            'approved_count': approved_count,
+            'failed_count': failed_count,
+            'errors': errors
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def bulk_reject_enrollments(request):
+    """API endpoint for bulk rejection of unit enrollments"""
+    
+    try:
+        data = json.loads(request.body)
+        enrollment_ids = data.get('enrollment_ids', [])
+        rejection_reason = data.get('rejection_reason', '')
+        
+        if not enrollment_ids:
+            return JsonResponse({
+                'success': False,
+                'message': 'No enrollments selected'
+            }, status=400)
+        
+        if not rejection_reason:
+            return JsonResponse({
+                'success': False,
+                'message': 'Rejection reason is required'
+            }, status=400)
+        
+        # Get enrollments
+        enrollments = UnitEnrollment.objects.filter(
+            id__in=enrollment_ids,
+            status='pending'
+        )
+        
+        if not enrollments.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'No pending enrollments found'
+            }, status=404)
+        
+        # Reject enrollments
+        updated_count = enrollments.update(
+            status='rejected',
+            rejection_reason=rejection_reason,
+            remarks=f"Bulk rejected by {request.user.get_full_name()}: {rejection_reason}"
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully rejected {updated_count} enrollment(s)',
+            'rejected_count': updated_count
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def approve_programme_enrollments(request):
+    """API endpoint to approve all enrollments for a specific programme, year, and unit"""
+    
+    try:
+        data = json.loads(request.body)
+        semester_id = data.get('semester_id')
+        programme_id = data.get('programme_id')
+        year_of_study = data.get('year_of_study')
+        unit_id = data.get('unit_id')
+        bypass_semester_report_check = data.get('bypass_semester_report_check', False)
+        
+        # Build query
+        query = Q(
+            semester_id=semester_id,
+            student__programme_id=programme_id,
+            status='pending'
+        )
+        
+        if year_of_study:
+            query &= Q(semester_report__to_year_of_study=year_of_study)
+        
+        if unit_id:
+            query &= Q(programme_unit__unit_id=unit_id)
+        
+        # Add semester report filter if not bypassed
+        if not bypass_semester_report_check:
+            query &= Q(semester_report__status='approved')
+        
+        # Get enrollments
+        enrollments = UnitEnrollment.objects.filter(query)
+        
+        if not enrollments.exists():
+            return JsonResponse({
+                'success': False,
+                'message': 'No eligible enrollments found for approval'
+            }, status=404)
+        
+        approved_count = 0
+        failed_count = 0
+        errors = []
+        
+        for enrollment in enrollments:
+            # Check if unit is offered
+            unit_offered = UnitAllocation.objects.filter(
+                programme_unit=enrollment.programme_unit,
+                semester=enrollment.semester,
+                status__in=['approved_hod', 'approved_hos', 'approved_dean']
+            ).exists()
+            
+            if not unit_offered:
+                failed_count += 1
+                errors.append({
+                    'student': enrollment.student.registration_number,
+                    'unit': enrollment.programme_unit.unit.code,
+                    'reason': 'Unit not offered'
+                })
+                continue
+            
+            enrollment.status = 'approved'
+            enrollment.approved_by = request.user
+            enrollment.approval_date = timezone.now()
+            enrollment.remarks = f"Programme-wide approval by {request.user.get_full_name()}"
+            
+            if bypass_semester_report_check:
+                enrollment.remarks += " (Semester report check bypassed)"
+            
+            enrollment.save()
+            approved_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Successfully approved {approved_count} enrollment(s)',
+            'approved_count': approved_count,
+            'failed_count': failed_count,
+            'errors': errors
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["GET"])
+def get_enrollment_details(request, enrollment_id):
+    """API endpoint to get detailed information about an enrollment"""
+    
+    try:
+        enrollment = get_object_or_404(
+            UnitEnrollment.objects.select_related(
+                'student__user',
+                'student__programme',
+                'semester',
+                'semester_report',
+                'programme_unit__unit',
+                'programme_unit__programme',
+                'approved_by',
+                'resit_exam'
+            ),
+            id=enrollment_id
+        )
+        
+        # Get unit allocation info
+        unit_allocation = None
+        try:
+            allocation = UnitAllocation.objects.select_related(
+                'lecturer__user',
+                'programme_unit__unit'
+            ).filter(
+                programme_unit=enrollment.programme_unit,
+                semester=enrollment.semester
+            ).first()
+            
+            if allocation:
+                unit_allocation = {
+                    'lecturer': allocation.lecturer.user.get_full_name(),
+                    'status': allocation.get_status_display(),
+                    'max_students': allocation.max_students,
+                }
+        except UnitAllocation.DoesNotExist:
+            pass
+        
+        # Get resit info if applicable
+        resit_info = None
+        if enrollment.enrollment_type == 'resit' and enrollment.resit_exam:
+            resit = enrollment.resit_exam
+            resit_info = {
+                'original_marks': float(resit.original_marks),
+                'original_grade': resit.original_grade,
+                'fee_paid': resit.fee_paid,
+                'resit_fee_amount': float(resit.resit_fee_amount),
+                'exam_date': resit.exam_date.isoformat() if resit.exam_date else None,
+                'status': resit.get_status_display(),
+            }
+        
+        # Get semester report info
+        semester_report_info = None
+        if enrollment.semester_report:
+            report = enrollment.semester_report
+            semester_report_info = {
+                'status': report.get_status_display(),
+                'from_year': report.from_year_of_study,
+                'to_year': report.to_year_of_study,
+                'is_eligible': report.is_eligible,
+                'failed_units_count': report.failed_units_count,
+                'cumulative_gpa': float(report.cumulative_gpa) if report.cumulative_gpa else None,
+            }
+        
+        data = {
+            'id': enrollment.id,
+            'student': {
+                'registration_number': enrollment.student.registration_number,
+                'name': enrollment.student.user.get_full_name(),
+                'email': enrollment.student.user.email,
+                'phone': enrollment.student.user.phone_number,
+                'programme': enrollment.student.programme.name,
+                'programme_code': enrollment.student.programme.code,
+                'current_year': enrollment.student.current_year,
+                'current_semester': enrollment.student.current_semester,
+            },
+            'unit': {
+                'code': enrollment.programme_unit.unit.code,
+                'name': enrollment.programme_unit.unit.name,
+                'credit_hours': enrollment.programme_unit.unit.credit_hours,
+                'level': enrollment.programme_unit.unit.get_unit_level_display(),
+            },
+            'enrollment': {
+                'enrollment_type': enrollment.get_enrollment_type_display(),
+                'enrollment_date': enrollment.enrollment_date.isoformat(),
+                'status': enrollment.get_status_display(),
+                'semester': enrollment.semester.name,
+            },
+            'approval': {
+                'approved_by': enrollment.approved_by.get_full_name() if enrollment.approved_by else None,
+                'approval_date': enrollment.approval_date.isoformat() if enrollment.approval_date else None,
+                'rejection_reason': enrollment.rejection_reason,
+                'remarks': enrollment.remarks,
+            },
+            'unit_allocation': unit_allocation,
+            'resit_info': resit_info,
+            'semester_report': semester_report_info,
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'data': data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def individual_approve_enrollment(request, enrollment_id):
+    """API endpoint to approve individual enrollment"""
+    
+    try:
+        data = json.loads(request.body)
+        bypass_semester_report_check = data.get('bypass_semester_report_check', False)
+        remarks = data.get('remarks', '')
+        
+        enrollment = get_object_or_404(UnitEnrollment, id=enrollment_id)
+        
+        # Validation
+        if enrollment.status == 'approved':
+            return JsonResponse({
+                'success': False,
+                'message': 'Enrollment is already approved'
+            }, status=400)
+        
+        # Check semester report
+        if not bypass_semester_report_check:
+            if not enrollment.semester_report or enrollment.semester_report.status != 'approved':
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Student has not reported for semester or report not approved. Use bypass option to approve anyway.'
+                }, status=400)
+        
+        # Check if unit is offered
+        unit_offered = UnitAllocation.objects.filter(
+            programme_unit=enrollment.programme_unit,
+            semester=enrollment.semester,
+            status__in=['approved_hod', 'approved_hos', 'approved_dean']
+        ).exists()
+        
+        if not unit_offered:
+            return JsonResponse({
+                'success': False,
+                'message': 'Unit is not offered in this semester'
+            }, status=400)
+        
+        # Approve
+        enrollment.status = 'approved'
+        enrollment.approved_by = request.user
+        enrollment.approval_date = timezone.now()
+        
+        enrollment_remarks = f"Approved by {request.user.get_full_name()}"
+        if bypass_semester_report_check:
+            enrollment_remarks += " (Semester report check bypassed)"
+        if remarks:
+            enrollment_remarks += f" - {remarks}"
+        
+        enrollment.remarks = enrollment_remarks
+        enrollment.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Enrollment approved successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["POST"])
+def individual_reject_enrollment(request, enrollment_id):
+    """API endpoint to reject individual enrollment"""
+    
+    try:
+        data = json.loads(request.body)
+        rejection_reason = data.get('rejection_reason', '')
+        
+        if not rejection_reason:
+            return JsonResponse({
+                'success': False,
+                'message': 'Rejection reason is required'
+            }, status=400)
+        
+        enrollment = get_object_or_404(UnitEnrollment, id=enrollment_id)
+        
+        if enrollment.status == 'rejected':
+            return JsonResponse({
+                'success': False,
+                'message': 'Enrollment is already rejected'
+            }, status=400)
+        
+        # Reject
+        enrollment.status = 'rejected'
+        enrollment.rejection_reason = rejection_reason
+        enrollment.remarks = f"Rejected by {request.user.get_full_name()}: {rejection_reason}"
+        enrollment.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Enrollment rejected successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@user_passes_test(is_admin_or_registrar)
+@require_http_methods(["GET"])
+def get_enrollment_statistics(request):
+    """API endpoint to get enrollment statistics"""
+    
+    try:
+        semester_id = request.GET.get('semester_id')
+        programme_id = request.GET.get('programme_id')
+        
+        query = Q()
+        if semester_id:
+            query &= Q(semester_id=semester_id)
+        if programme_id:
+            query &= Q(student__programme_id=programme_id)
+        
+        enrollments = UnitEnrollment.objects.filter(query)
+        
+        stats = {
+            'total': enrollments.count(),
+            'by_status': {
+                'pending': enrollments.filter(status='pending').count(),
+                'approved': enrollments.filter(status='approved').count(),
+                'rejected': enrollments.filter(status='rejected').count(),
+                'dropped': enrollments.filter(status='dropped').count(),
+            },
+            'by_type': {
+                'normal': enrollments.filter(enrollment_type='normal').count(),
+                'resit': enrollments.filter(enrollment_type='resit').count(),
+                'retake': enrollments.filter(enrollment_type='retake').count(),
+            },
+            'top_units': list(enrollments.values(
+                'programme_unit__unit__code',
+                'programme_unit__unit__name'
+            ).annotate(
+                count=Count('id')
+            ).order_by('-count')[:5])
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'data': stats
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Error: {str(e)}'
+        }, status=500)
