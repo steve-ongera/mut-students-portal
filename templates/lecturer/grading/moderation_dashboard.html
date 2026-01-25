@@ -1,0 +1,140 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Moderation Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active">Moderation</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Moderation Dashboard</h1>
+        <p class="text-muted">Track moderation status for {{ current_semester }}</p>
+    </div>
+
+    <!-- Ready for Moderation -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">
+                <i class="ri-checkbox-line me-2"></i>
+                Ready for Moderation Submission
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if assessments %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>Assessment</th>
+                            <th>Total Students</th>
+                            <th>All Graded</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assessment in assessments %}
+                        <tr>
+                            <td>
+                                <strong>{{ assessment.unit_allocation.programme_unit.unit.code }}</strong><br>
+                                <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ assessment.get_assessment_type_display }}</span><br>
+                                <small>{{ assessment.title }}</small>
+                            </td>
+                            <td>{{ assessment.total_students }}</td>
+                            <td>
+                                <span class="badge bg-success">
+                                    <i class="ri-checkbox-circle-line me-1"></i> Yes
+                                </span>
+                            </td>
+                            <td>
+                                <form method="post" action="{% url 'request_moderation' assessment.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success me-1"
+                                            onclick="return confirm('Submit this assessment for moderation? You cannot edit after submission.')">
+                                        <i class="ri-send-plane-line me-1"></i> Submit for Moderation
+                                    </button>
+                                </form>
+                                <a href="{% url 'grade_students' assessment.id %}" class="btn btn-sm btn-outline-info">
+                                    <i class="ri-eye-line me-1"></i> Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="ri-checkbox-circle-line display-4 text-muted"></i>
+                <p class="text-muted mb-0">No assessments ready for moderation</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Under Moderation -->
+    <div class="card">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="card-title mb-0">
+                <i class="ri-time-line me-2"></i>
+                Under Moderation
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if under_moderation %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Assessment</th>
+                            <th>Status</th>
+                            <th>Count</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in under_moderation %}
+                        <tr>
+                            <td>{{ item.assessment__unit_allocation__programme_unit__unit__code }}</td>
+                            <td>{{ item.assessment__title }}</td>
+                            <td>
+                                {% if item.status == 'submitted' %}
+                                <span class="badge bg-info">Submitted to HOD</span>
+                                {% elif item.status == 'approved_hod' %}
+                                <span class="badge bg-primary">Approved by HOD</span>
+                                {% elif item.status == 'approved_hos' %}
+                                <span class="badge bg-success">Approved by HOS</span>
+                                {% elif item.status == 'approved_dean' %}
+                                <span class="badge bg-success">Approved by Dean</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.count }} student(s)</td>
+                            <td>
+                                <a href="{% url 'view_moderation' item.assessment__id %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line me-1"></i> View Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-0">No assessments under moderation</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,231 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Grading Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active">Grading</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Grading Dashboard</h1>
+        <p class="text-muted">Manage and submit student grades - {{ current_semester }}</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Assessments</h6>
+                    <h2 class="mb-0">{{ total_assessments }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Pending Grading</h6>
+                    <h2 class="mb-0 text-warning">{{ pending_grading.count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Graded (Not Submitted)</h6>
+                    <h2 class="mb-0 text-info">{{ graded_not_submitted.count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Submitted to HOD</h6>
+                    <h2 class="mb-0 text-success">{{ submitted_to_hod.count }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Grading -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="card-title mb-0">
+                <i class="ri-edit-line me-2"></i>
+                Pending Grading ({{ pending_grading.count }})
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if pending_grading %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>Assessment</th>
+                            <th>Date</th>
+                            <th>Total Students</th>
+                            <th>Graded</th>
+                            <th>Progress</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assessment in pending_grading %}
+                        <tr>
+                            <td>
+                                <strong>{{ assessment.unit_allocation.programme_unit.unit.code }}</strong><br>
+                                <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ assessment.get_assessment_type_display }}</span><br>
+                                <small>{{ assessment.title }}</small>
+                            </td>
+                            <td>{{ assessment.date }}</td>
+                            <td>{{ assessment.total_students }}</td>
+                            <td>
+                                <span class="fw-medium">{{ assessment.graded_count }}</span>
+                            </td>
+                            <td>
+                                {% widthratio assessment.graded_count assessment.total_students 100 as progress %}
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar {% if progress == 100 %}bg-success{% elif progress > 50 %}bg-info{% else %}bg-warning{% endif %}" 
+                                         style="width: {{ progress }}%">
+                                        {{ progress }}%
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{% url 'grade_students' assessment.id %}" class="btn btn-sm btn-warning">
+                                    <i class="ri-edit-line me-1"></i> Grade Now
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <i class="ri-checkbox-circle-line display-4 text-success"></i>
+                <p class="text-muted mb-0">No pending grading tasks</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Graded but Not Submitted -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="card-title mb-0">
+                <i class="ri-checkbox-line me-2"></i>
+                Graded - Ready for Submission ({{ graded_not_submitted.count }})
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if graded_not_submitted %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>Assessment</th>
+                            <th>Students</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assessment in graded_not_submitted %}
+                        <tr>
+                            <td>
+                                <strong>{{ assessment.unit_allocation.programme_unit.unit.code }}</strong><br>
+                                <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ assessment.get_assessment_type_display }}</span><br>
+                                <small>{{ assessment.title }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">{{ assessment.graded_count }} / {{ assessment.total_students }}</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'request_moderation' assessment.id %}" class="btn btn-sm btn-success me-1"
+                                   onclick="return confirm('Submit this assessment for moderation?')">
+                                    <i class="ri-send-plane-line me-1"></i> Submit for Moderation
+                                </a>
+                                <a href="{% url 'grade_students' assessment.id %}" class="btn btn-sm btn-outline-info">
+                                    <i class="ri-eye-line me-1"></i> Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-0">No assessments ready for submission</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Submitted to HOD -->
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h5 class="card-title mb-0">
+                <i class="ri-shield-check-line me-2"></i>
+                Submitted for Moderation ({{ submitted_to_hod.count }})
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if submitted_to_hod %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Unit</th>
+                            <th>Assessment</th>
+                            <th>Submitted</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assessment in submitted_to_hod %}
+                        <tr>
+                            <td>
+                                <strong>{{ assessment.unit_allocation.programme_unit.unit.code }}</strong><br>
+                                <small class="text-muted">{{ assessment.unit_allocation.programme_unit.unit.name|truncatechars:30 }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ assessment.get_assessment_type_display }}</span><br>
+                                <small>{{ assessment.title }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-success">Submitted</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'view_moderation' assessment.id %}" class="btn btn-sm btn-outline-success">
+                                    <i class="ri-eye-line me-1"></i> View Status
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-4">
+                <p class="text-muted mb-0">No assessments submitted yet</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

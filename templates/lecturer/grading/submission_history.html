@@ -1,0 +1,128 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Submission History{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'results_dashboard' %}">Results</a></li>
+            <li class="breadcrumb-item active">History</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Result Submission History</h1>
+        <p class="text-muted mb-0">
+            {{ unit_allocation.programme_unit.unit.code }} - {{ unit_allocation.programme_unit.unit.name }}
+        </p>
+    </div>
+
+    <!-- Submission Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Total Students</h6>
+                    <h2 class="mb-0">{{ results.count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Passed</h6>
+                    <h2 class="mb-0 text-success">
+                        {{ results|filter_passed|length }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Failed</h6>
+                    <h2 class="mb-0 text-danger">
+                        {{ results|filter_failed|length }}
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Published</h6>
+                    <h2 class="mb-0 text-info">
+                        {% if results.first.is_published %}
+                        <i class="ri-check-line"></i> Yes
+                        {% else %}
+                        <i class="ri-close-line"></i> No
+                        {% endif %}
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Submitted Results</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Reg. No.</th>
+                            <th>Student Name</th>
+                            <th>CAT</th>
+                            <th>Assignment</th>
+                            <th>Exam</th>
+                            <th>Total</th>
+                            <th>Grade</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in results %}
+                        <tr>
+                            <td>{{ result.student.registration_number }}</td>
+                            <td>{{ result.student.user.get_full_name }}</td>
+                            <td>{{ result.cat_marks|floatformat:2 }}</td>
+                            <td>{{ result.assignment_marks|floatformat:2 }}</td>
+                            <td>{{ result.exam_marks|floatformat:2 }}</td>
+                            <td class="fw-medium">{{ result.total_marks|floatformat:2 }}</td>
+                            <td>
+                                <span class="badge {% if result.grade == 'A' %}bg-success{% elif result.grade == 'B' %}bg-info{% elif result.grade == 'C' %}bg-warning text-dark{% elif result.grade == 'D' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ result.grade }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if result.is_passed %}
+                                <span class="badge bg-success">Pass</span>
+                                {% else %}
+                                <span class="badge bg-danger">Fail</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ result.created_at|date:"d M Y H:i" }}</small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <p class="text-muted mb-0">No results submitted yet</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

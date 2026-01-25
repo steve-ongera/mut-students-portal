@@ -1,0 +1,99 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Results Submission{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active">Results Submission</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Results Submission Dashboard</h1>
+        <p class="text-muted">Submit final semester results - {{ current_semester }}</p>
+    </div>
+
+    <!-- Units Table -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">My Allocated Units</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Unit Name</th>
+                            <th>Programme</th>
+                            <th>Assessments</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for allocation in unit_allocations %}
+                        <tr>
+                            <td>
+                                <strong>{{ allocation.programme_unit.unit.code }}</strong>
+                            </td>
+                            <td>{{ allocation.programme_unit.unit.name }}</td>
+                            <td>
+                                <small class="text-muted">{{ allocation.programme_unit.programme.code }}</small>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="badge bg-light text-dark">
+                                        {{ allocation.completed_assessments }}/{{ allocation.total_assessments }}
+                                    </span>
+                                    {% if allocation.completed_assessments == allocation.total_assessments and allocation.total_assessments > 0 %}
+                                    <i class="ri-checkbox-circle-fill text-success"></i>
+                                    {% else %}
+                                    <i class="ri-time-line text-warning"></i>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if allocation.results_exist %}
+                                <span class="badge bg-success">Results Submitted</span>
+                                {% elif allocation.completed_assessments == allocation.total_assessments and allocation.total_assessments > 0 %}
+                                <span class="badge bg-warning text-dark">Ready to Submit</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Assessments Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if allocation.completed_assessments == allocation.total_assessments and allocation.total_assessments > 0 %}
+                                    {% if allocation.results_exist %}
+                                    <a href="{% url 'submission_history' allocation.id %}" class="btn btn-sm btn-outline-success">
+                                        <i class="ri-history-line me-1"></i> View History
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'preview_results' allocation.id %}" class="btn btn-sm btn-primary">
+                                        <i class="ri-eye-line me-1"></i> Preview & Submit
+                                    </a>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted small">Complete all assessments first</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <i class="ri-inbox-line display-4 text-muted"></i>
+                                <p class="text-muted mb-0">No unit allocations found</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

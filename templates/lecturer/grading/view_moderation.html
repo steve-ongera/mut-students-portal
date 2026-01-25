@@ -1,0 +1,172 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Moderation Status - {{ assessment.title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'moderation_dashboard' %}">Moderation</a></li>
+            <li class="breadcrumb-item active">View Status</li>
+        </ol>
+    </nav>
+
+    <div class="page-header mb-4">
+        <h1 class="h3">Moderation Status</h1>
+        <p class="text-muted mb-0">
+            {{ assessment.title }} - {{ assessment.unit_allocation.programme_unit.unit.code }}
+        </p>
+    </div>
+
+    <!-- Moderation Progress -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">Total</h6>
+                    <h3 class="mb-0">{{ moderation_stats.total }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">Submitted</h6>
+                    <h3 class="mb-0 text-info">{{ moderation_stats.submitted }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">HOD Approved</h6>
+                    <h3 class="mb-0 text-primary">{{ moderation_stats.approved_hod }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">HOS Approved</h6>
+                    <h3 class="mb-0 text-primary">{{ moderation_stats.approved_hos }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">Dean Approved</h6>
+                    <h3 class="mb-0 text-success">{{ moderation_stats.approved_dean }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <h6 class="text-muted small mb-2">Rejected</h6>
+                    <h3 class="mb-0 text-danger">{{ moderation_stats.rejected }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assessment Details -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Assessment Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <small class="text-muted">Assessment Type</small>
+                    <p class="mb-0 fw-medium">{{ assessment.get_assessment_type_display }}</p>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted">Date</small>
+                    <p class="mb-0 fw-medium">{{ assessment.date }}</p>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted">Max Marks</small>
+                    <p class="mb-0 fw-medium">{{ assessment.max_marks }}</p>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted">Weight</small>
+                    <p class="mb-0 fw-medium">{{ assessment.weight_percentage }}%</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student Marks with Moderation Status -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title mb-0">Student Marks & Moderation Status</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Reg. No.</th>
+                            <th>Student Name</th>
+                            <th>Marks</th>
+                            <th>Status</th>
+                            <th>Approved By</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mark in student_marks %}
+                        <tr>
+                            <td>{{ mark.student.registration_number }}</td>
+                            <td>{{ mark.student.user.get_full_name }}</td>
+                            <td>
+                                <span class="fw-medium">{{ mark.marks_obtained }}/{{ assessment.max_marks }}</span>
+                            </td>
+                            <td>
+                                {% if mark.status == 'draft' %}
+                                <span class="badge bg-secondary">Draft</span>
+                                {% elif mark.status == 'submitted' %}
+                                <span class="badge bg-info">Submitted</span>
+                                {% elif mark.status == 'approved_hod' %}
+                                <span class="badge bg-primary">HOD Approved</span>
+                                {% elif mark.status == 'approved_hos' %}
+                                <span class="badge bg-primary">HOS Approved</span>
+                                {% elif mark.status == 'approved_dean' %}
+                                <span class="badge bg-success">Dean Approved</span>
+                                {% elif mark.status == 'published' %}
+                                <span class="badge bg-success">Published</span>
+                                {% elif mark.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>
+                                    {% if mark.approved_by_hod %}
+                                    <div><i class="ri-check-line text-success"></i> HOD: {{ mark.approved_by_hod.get_full_name }}</div>
+                                    {% endif %}
+                                    {% if mark.approved_by_hos %}
+                                    <div><i class="ri-check-line text-success"></i> HOS: {{ mark.approved_by_hos.get_full_name }}</div>
+                                    {% endif %}
+                                    {% if mark.approved_by_dean %}
+                                    <div><i class="ri-check-line text-success"></i> Dean: {{ mark.approved_by_dean.get_full_name }}</div>
+                                    {% endif %}
+                                    {% if not mark.approved_by_hod and not mark.approved_by_hos and not mark.approved_by_dean %}
+                                    <span class="text-muted">Pending</span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ mark.remarks|truncatechars:30 }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
