@@ -1,0 +1,446 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}{{ student.user.get_full_name }} - Academic Advising{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="student-header">
+            {% if student.user.profile_picture %}
+            <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="student-avatar-large">
+            {% else %}
+            <div class="student-avatar-large-placeholder">
+                {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+            </div>
+            {% endif %}
+            <div>
+                <h1>{{ student.user.get_full_name }}</h1>
+                <p class="text-muted">{{ student.registration_number }} - {{ student.programme.name }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="page-actions">
+        <button class="btn-primary" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+            <i class="ri-add-line"></i> Add Advising Note
+        </button>
+        <a href="{% url 'student_performance_detail' student.registration_number %}" class="btn-secondary">
+            <i class="ri-bar-chart-line"></i> View Performance
+        </a>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'academic_advising' %}">Academic Advising</a></li>
+        <li class="breadcrumb-item active">{{ student.registration_number }}</li>
+    </ol>
+</nav>
+
+<!-- Student Academic Summary -->
+<div class="info-grid mb-4">
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-medal-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Cumulative GPA</span>
+            <span class="info-value {% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                {{ student.cumulative_gpa }}
+            </span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-book-open-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Current Level</span>
+            <span class="info-value">Year {{ student.current_year }}, Sem {{ student.current_semester }}</span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-star-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Total Credits</span>
+            <span class="info-value">{{ student.total_credit_hours }}</span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-file-list-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Advising Notes</span>
+            <span class="info-value">{{ advising_notes.count }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Current Semester Enrollment -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5>Current Semester Enrollment - {{ current_semester.name }}</h5>
+    </div>
+    <div class="card-body">
+        {% if current_enrollments %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Unit Name</th>
+                            <th>Credits</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for enrollment in current_enrollments %}
+                        <tr>
+                            <td><strong>{{ enrollment.programme_unit.unit.code }}</strong></td>
+                            <td>{{ enrollment.programme_unit.unit.name }}</td>
+                            <td>{{ enrollment.programme_unit.unit.credit_hours }}</td>
+                            <td>{{ enrollment.programme_unit.get_unit_type_display }}</td>
+                            <td>
+                                {% if enrollment.status == 'approved' %}
+                                <span class="badge-success">Approved</span>
+                                {% elif enrollment.status == 'pending' %}
+                                <span class="badge-warning">Pending</span>
+                                {% elif enrollment.status == 'dropped' %}
+                                <span class="badge-danger">Dropped</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-file-list-line"></i>
+                <p>No current enrollments</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Semester Results -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5>Recent Semester Results</h5>
+    </div>
+    <div class="card-body">
+        {% if semester_results %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Semester</th>
+                            <th>Unit</th>
+                            <th>Grade</th>
+                            <th>Grade Points</th>
+                            <th>Total Marks</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in semester_results %}
+                        <tr>
+                            <td>{{ result.semester.name }}</td>
+                            <td>{{ result.programme_unit.unit.code }}</td>
+                            <td><strong class="grade-{{ result.grade }}">{{ result.grade }}</strong></td>
+                            <td>{{ result.grade_point }}</td>
+                            <td>{{ result.total_marks }}%</td>
+                            <td>
+                                {% if result.is_passed %}
+                                <span class="badge-success">Passed</span>
+                                {% else %}
+                                <span class="badge-danger">Failed</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-file-list-line"></i>
+                <p>No semester results available</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Advising Notes -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Advising Notes History</h5>
+    </div>
+    <div class="card-body">
+        {% if advising_notes %}
+            <div class="notes-timeline">
+                {% for note in advising_notes %}
+                <div class="note-timeline-item {% if note.is_resolved %}resolved{% endif %}">
+                    <div class="note-timeline-marker">
+                        <i class="ri-sticky-note-line"></i>
+                    </div>
+                    <div class="note-timeline-content">
+                        <div class="note-header">
+                            <div>
+                                <span class="note-type-badge {{ note.note_type }}">
+                                    {{ note.get_note_type_display }}
+                                </span>
+                                <strong>{{ note.subject }}</strong>
+                            </div>
+                            <div class="note-meta">
+                                <span class="note-date">{{ note.created_at|date:"M d, Y - H:i" }}</span>
+                                <span class="note-lecturer">by {{ note.lecturer.get_full_name }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="note-body">
+                            <p>{{ note.note }}</p>
+                        </div>
+                        
+                        {% if note.action_required %}
+                        <div class="note-action-section">
+                            <div class="action-required-badge">
+                                <i class="ri-alert-line"></i> Action Required
+                            </div>
+                            {% if note.action_taken %}
+                            <div class="action-taken">
+                                <strong>Action Taken:</strong>
+                                <p>{{ note.action_taken }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="note-footer">
+                            <div class="note-status">
+                                {% if note.is_resolved %}
+                                <span class="badge-success">
+                                    <i class="ri-check-line"></i> Resolved
+                                    {% if note.resolved_date %}
+                                    on {{ note.resolved_date|date:"M d, Y" }}
+                                    {% endif %}
+                                </span>
+                                {% else %}
+                                <span class="badge-warning">
+                                    <i class="ri-time-line"></i> Open
+                                </span>
+                                {% endif %}
+                                
+                                {% if note.follow_up_date %}
+                                <span class="follow-up-date">
+                                    <i class="ri-calendar-line"></i> Follow-up: {{ note.follow_up_date|date:"M d, Y" }}
+                                </span>
+                                {% endif %}
+                                
+                                {% if note.is_confidential %}
+                                <span class="badge-info">
+                                    <i class="ri-lock-line"></i> Confidential
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="note-actions">
+                                <button class="btn-sm btn-secondary" 
+                                        onclick="openEditNoteModal({{ note.id }}, '{{ note.note_type }}', '{{ note.subject|escapejs }}', '{{ note.note|escapejs }}', {{ note.action_required|lower }}, '{{ note.action_taken|escapejs }}', '{{ note.follow_up_date|date:"Y-m-d"|default:"" }}', {{ note.is_confidential|lower }}, {{ note.is_resolved|lower }})">
+                                    <i class="ri-edit-line"></i> Edit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-sticky-note-line"></i>
+                <h5>No Advising Notes</h5>
+                <p>No advising notes have been created for this student</p>
+                <button class="btn-primary" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                    <i class="ri-add-line"></i> Add First Note
+                </button>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Note Modal -->
+<div class="modal fade" id="addNoteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'add_advising_note' student.registration_number %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Advising Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Note Type <span class="text-danger">*</span></label>
+                            <select name="note_type" class="form-select" required>
+                                <option value="">Select type...</option>
+                                <option value="academic">Academic Concern</option>
+                                <option value="attendance">Attendance Issue</option>
+                                <option value="performance">Performance Discussion</option>
+                                <option value="personal">Personal Issue</option>
+                                <option value="career">Career Guidance</option>
+                                <option value="general">General Note</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Follow-up Date</label>
+                            <input type="date" name="follow_up_date" class="form-control">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Subject <span class="text-danger">*</span></label>
+                            <input type="text" name="subject" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Note <span class="text-danger">*</span></label>
+                            <textarea name="note" class="form-control" rows="5" required></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="action_required" class="form-check-input" id="actionRequired">
+                                <label class="form-check-label" for="actionRequired">
+                                    Action Required
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_confidential" class="form-check-input" id="isConfidential">
+                                <label class="form-check-label" for="isConfidential">
+                                    Mark as Confidential
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Note Modal -->
+<div class="modal fade" id="editNoteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" id="editNoteForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Advising Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Note Type <span class="text-danger">*</span></label>
+                            <select name="note_type" id="editNoteType" class="form-select" required>
+                                <option value="">Select type...</option>
+                                <option value="academic">Academic Concern</option>
+                                <option value="attendance">Attendance Issue</option>
+                                <option value="performance">Performance Discussion</option>
+                                <option value="personal">Personal Issue</option>
+                                <option value="career">Career Guidance</option>
+                                <option value="general">General Note</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Follow-up Date</label>
+                            <input type="date" name="follow_up_date" id="editFollowUpDate" class="form-control">
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Subject <span class="text-danger">*</span></label>
+                            <input type="text" name="subject" id="editSubject" class="form-control" required>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Note <span class="text-danger">*</span></label>
+                            <textarea name="note" id="editNote" class="form-control" rows="5" required></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label class="form-label">Action Taken</label>
+                            <textarea name="action_taken" id="editActionTaken" class="form-control" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="action_required" class="form-check-input" id="editActionRequired">
+                                <label class="form-check-label" for="editActionRequired">
+                                    Action Required
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_confidential" class="form-check-input" id="editIsConfidential">
+                                <label class="form-check-label" for="editIsConfidential">
+                                    Mark as Confidential
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_resolved" class="form-check-input" id="editIsResolved">
+                                <label class="form-check-label" for="editIsResolved">
+                                    Mark as Resolved
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-primary">Update Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditNoteModal(noteId, noteType, subject, note, actionRequired, actionTaken, followUpDate, isConfidential, isResolved) {
+    const form = document.getElementById('editNoteForm');
+    form.action = '/lecturer/students/advising/notes/' + noteId + '/edit/';
+    
+    document.getElementById('editNoteType').value = noteType;
+    document.getElementById('editSubject').value = subject;
+    document.getElementById('editNote').value = note;
+    document.getElementById('editActionTaken').value = actionTaken || '';
+    document.getElementById('editFollowUpDate').value = followUpDate;
+    document.getElementById('editActionRequired').checked = actionRequired;
+    document.getElementById('editIsConfidential').checked = isConfidential;
+    document.getElementById('editIsResolved').checked = isResolved;const modal = new bootstrap.Modal(document.getElementById('editNoteModal'));
+    modal.show();
+    }
+</script>
+{% endblock %}

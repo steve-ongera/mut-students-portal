@@ -1,0 +1,232 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}{{ student.user.get_full_name }} - Performance{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="student-header">
+            {% if student.user.profile_picture %}
+            <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="student-avatar-large">
+            {% else %}
+            <div class="student-avatar-large-placeholder">
+                {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+            </div>
+            {% endif %}
+            <div>
+                <h1>{{ student.user.get_full_name }}</h1>
+                <p class="text-muted">{{ student.registration_number }} - {{ student.programme.name }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="page-actions">
+        <a href="{% url 'student_advising_detail' student.registration_number %}" class="btn-primary">
+            <i class="ri-user-heart-line"></i> Academic Advising
+        </a>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_performance_overview' %}">Performance</a></li>
+        <li class="breadcrumb-item active">{{ student.registration_number }}</li>
+    </ol>
+</nav>
+
+<!-- Student Info Summary -->
+<div class="info-grid mb-4">
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-graduation-cap-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Programme</span>
+            <span class="info-value">{{ student.programme.code }}</span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-book-open-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Current Level</span>
+            <span class="info-value">Year {{ student.current_year }}, Sem {{ student.current_semester }}</span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-medal-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Cumulative GPA</span>
+            <span class="info-value {% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                {{ student.cumulative_gpa }}
+            </span>
+        </div>
+    </div>
+    
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-star-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Total Credits</span>
+            <span class="info-value">{{ student.total_credit_hours }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Current Semester Performance -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5>Current Semester Performance - {{ current_semester.name }}</h5>
+    </div>
+    <div class="card-body">
+        {% if unit_performances %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Unit Name</th>
+                            <th>Marks</th>
+                            <th>Percentage</th>
+                            <th>Attendance</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for performance in unit_performances %}
+                        <tr>
+                            <td><strong>{{ performance.unit.code }}</strong></td>
+                            <td>{{ performance.unit.name }}</td>
+                            <td>
+                                <div class="marks-breakdown">
+                                    {{ performance.total_marks }}/{{ performance.total_possible }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="percentage-badge {% if performance.percentage >= 70 %}badge-success{% elif performance.percentage >= 50 %}badge-warning{% else %}badge-danger{% endif %}">
+                                    {{ performance.percentage }}%
+                                </span>
+                            </td>
+                            <td>
+                                <div class="attendance-info">
+                                    <span class="attendance-rate {% if performance.attendance_rate >= 75 %}text-success{% elif performance.attendance_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                        {{ performance.attendance_rate }}%
+                                    </span>
+                                    <small class="text-muted">{{ performance.attended }}/{{ performance.total_classes }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="{% url 'student_unit_performance' student.registration_number performance.unit.id %}" class="btn-sm">
+                                    <i class="ri-eye-line"></i> View Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-file-list-line"></i>
+                <p>No units enrolled for this semester</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Semester Results History -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5>Semester Results History</h5>
+    </div>
+    <div class="card-body">
+        {% if semester_results %}
+            <div class="table-responsive">
+                <tableclass="table">
+<thead>
+<tr>
+<th>Semester</th>
+<th>Unit</th>
+<th>Total Marks</th>
+<th>Grade</th>
+<th>Grade Points</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+{% for result in semester_results %}
+<tr>
+<td>{{ result.semester.name }}</td>
+<td>{{ result.programme_unit.unit.code }}</td>
+<td>{{ result.total_marks }}%</td>
+<td><strong>{{ result.grade }}</strong></td>
+<td>{{ result.grade_point }}</td>
+<td>
+{% if result.is_passed %}
+<span class="badge-success">Passed</span>
+{% else %}
+<span class="badge-danger">Failed</span>
+{% endif %}
+{% if result.is_supplementary %}
+<span class="badge-warning">Supplementary</span>
+{% endif %}
+</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+<i class="ri-file-list-line"></i>
+<p>No semester results available</p>
+</div>
+{% endif %}
+</div>
+</div>
+<!-- Recent Advising Notes -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Recent Advising Notes</h5>
+        <a href="{% url 'student_advising_detail' student.registration_number %}" class="btn-link">View All</a>
+    </div>
+    <div class="card-body">
+        {% if advising_notes %}
+            <div class="notes-list">
+                {% for note in advising_notes %}
+                <div class="note-item">
+                    <div class="note-header">
+                        <div>
+                            <span class="note-type">{{ note.get_note_type_display }}</span>
+                            <strong>{{ note.subject }}</strong>
+                        </div>
+                        <span class="note-date">{{ note.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <p>{{ note.note|truncatewords:30 }}</p>
+                    {% if note.action_required %}
+                    <span class="badge-warning">Action Required</span>
+                    {% endif %}
+                    {% if note.is_resolved %}
+                    <span class="badge-success">Resolved</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-sticky-note-line"></i>
+                <p>No advising notes</p>
+                <a href="{% url 'add_advising_note' student.registration_number %}" class="btn-primary">Add Note</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Update Special Needs - {{ student.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Update Special Needs Support</h1>
+        <p class="text-muted">{{ student.user.get_full_name }} - {{ student.registration_number }}</p>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'special_needs' %}">Special Needs</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'special_needs_detail' student.registration_number %}">{{ student.registration_number }}</a></li>
+        <li class="breadcrumb-item active">Update</li>
+    </ol>
+</nav>
+
+<!-- Student Info Bar -->
+<div class="student-info-bar mb-4">
+    <div class="student-details">
+        {% if student.user.profile_picture %}
+        <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="student-avatar">
+        {% else %}
+        <div class="student-avatar-placeholder">
+            {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+        </div>
+        {% endif %}
+        <div>
+            <strong>{{ student.user.get_full_name }}</strong>
+            <p class="text-muted">{{ student.registration_number }} - {{ student.programme.code }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Update Form -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Update Support Information</h5>
+    </div>
+    <div class="card-body">
+        {% if special_needs %}
+            <form method="post">
+                {% csrf_token %}
+                <div class="row g-4">
+                    <div class="col-12">
+                        <label class="form-label">Select Special Need Record <span class="text-danger">*</span></label>
+                        <select name="special_need_id" class="form-select" required id="specialNeedSelect">
+                            <option value="">Select a record...</option>
+                            {% for need in special_needs %}
+                            <option value="{{ need.id }}" 
+                                    data-description="{{ need.description }}"
+                                    data-accommodations="{{ need.accommodations_required }}"
+                                    data-support="{{ need.support_provided }}"
+                                    data-review="{{ need.review_notes }}">
+                                {{ need.get_need_type_display }} - {{ need.get_severity_display }} 
+                                (Reported: {{ need.reported_date|date:"M d, Y" }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Current Information Display -->
+                    <div class="col-12" id="currentInfoSection" style="display: none;">
+                        <div class="alert alert-info">
+                            <h6>Current Information:</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Description:</strong>
+                                    <p id="currentDescription">-</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Required Accommodations:</strong>
+                                    <p id="currentAccommodations">-</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Support Provided:</strong>
+                                    <p id="currentSupport">-</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Review Notes:</strong>
+                                    <p id="currentReview">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label class="form-label">Support Provided <span class="text-danger">*</span></label>
+                        <textarea name="support_provided" 
+                                  class="form-control" 
+                                  rows="5" 
+                                  required
+                                  placeholder="Describe the support and accommodations that have been provided..."></textarea>
+                        <small class="form-text text-muted">
+                            Detail any special arrangements, equipment, extra time, or other support measures implemented
+                        </small>
+                    </div>
+                    
+                    <div class="col-12">
+                        <label class="form-label">Review Notes <span class="text-danger">*</span></label>
+                        <textarea name="review_notes" 
+                                  class="form-control" 
+                                  rows="5" 
+                                  required
+                                  placeholder="Add your review comments..."></textarea>
+                        <small class="form-text text-muted">
+                            Include observations on effectiveness of support, student progress, and any recommendations
+                        </small>
+                    </div>
+                    
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <i class="ri-information-line"></i>
+                            <strong>Note:</strong> This review will be recorded with today's date. 
+                            The information you provide will help ensure appropriate support continues to be available for this student.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions mt-4">
+                    <button type="submit" class="btn-primary">
+                        <i class="ri-save-line"></i> Update Support Information
+                    </button>
+                    <a href="{% url 'special_needs_detail' student.registration_number %}" class="btn-secondary">
+                        <i class="ri-close-line"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-hand-heart-line"></i>
+                <h5>No Special Needs Records</h5>
+                <p>This student has no special needs records to update</p>
+                <a href="{% url 'special_needs_detail' student.registration_number %}" class="btn-primary">
+                    Go Back
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectElement = document.getElementById('specialNeedSelect');
+    const currentInfoSection = document.getElementById('currentInfoSection');
+    
+    if (selectElement) {
+        selectElement.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            
+            if (this.value) {
+                const description = selectedOption.getAttribute('data-description');
+                const accommodations = selectedOption.getAttribute('data-accommodations');
+                const support = selectedOption.getAttribute('data-support');
+                const review = selectedOption.getAttribute('data-review');
+                
+                document.getElementById('currentDescription').textContent = description || '-';
+                document.getElementById('currentAccommodations').textContent = accommodations || '-';
+                document.getElementById('currentSupport').textContent = support || 'No support provided yet';
+                document.getElementById('currentReview').textContent = review || 'No review notes yet';
+                
+                currentInfoSection.style.display = 'block';
+            } else {
+                currentInfoSection.style.display = 'none';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

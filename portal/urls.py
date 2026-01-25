@@ -498,5 +498,26 @@ urlpatterns = [
     path('lecturer/results/<int:unit_allocation_id>/preview/', views.preview_results, name='preview_results'),
     path('lecturer/results/<int:unit_allocation_id>/history/', views.submission_history, name='submission_history'),
 
+    # Students Management URLs
+    path('lecturer/students/', views.students_dashboard, name='students_dashboard'),
+    path('lecturer/students/class-lists/', views.class_lists, name='class_lists'),
+    path('lecturer/students/class/<int:unit_allocation_id>/', views.class_detail, name='class_detail'),
+    path('lecturer/students/class/<int:unit_allocation_id>/export/', views.export_class_list, name='export_class_list'),
     
+    # Student Performance URLs
+    path('lecturer/students/performance/', views.student_performance_overview, name='student_performance_overview'),
+    path('lecturer/students/performance/<str:registration_number>/', views.student_performance_detail, name='student_performance_detail'),
+    path('lecturer/students/performance/<str:registration_number>/unit/<int:unit_id>/', views.student_unit_performance, name='student_unit_performance'),
+    
+    # Academic Advising URLs
+    path('lecturer/students/advising/', views.academic_advising, name='academic_advising'),
+    path('lecturer/students/advising/<str:registration_number>/', views.student_advising_detail, name='student_advising_detail'),
+    path('lecturer/students/advising/<str:registration_number>/add-note/', views.add_advising_note, name='add_advising_note'),
+    path('lecturer/students/advising/notes/<int:note_id>/edit/', views.edit_advising_note, name='edit_advising_note'),
+    
+    # Special Needs URLs
+    path('lecturer/students/special-needs/', views.special_needs, name='special_needs'),
+    path('lecturer/students/special-needs/<str:registration_number>/', views.special_needs_detail, name='special_needs_detail'),
+    path('lecturer/students/special-needs/<str:registration_number>/update/', views.update_special_needs, name='update_special_needs'),
+       
 ]

@@ -1,0 +1,165 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}{% block title %}{{ student.user.get_full_name }} - Special Needs{% endblock %}{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <div class="student-header">
+            {% if student.user.profile_picture %}
+            <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="student-avatar-large">
+            {% else %}
+            <div class="student-avatar-large-placeholder">
+                {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+            </div>
+            {% endif %}
+            <div>
+                <h1>{{ student.user.get_full_name }}</h1>
+                <p class="text-muted">{{ student.registration_number }} - {{ student.programme.name }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="page-actions">
+        <a href="{% url 'update_special_needs' student.registration_number %}" class="btn-primary">
+            <i class="ri-edit-line"></i> Update Support Info
+        </a>
+        <a href="{% url 'student_performance_detail' student.registration_number %}" class="btn-secondary">
+            <i class="ri-bar-chart-line"></i> View Performance
+        </a>
+    </div>
+</div><nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'special_needs' %}">Special Needs</a></li>
+        <li class="breadcrumb-item active">{{ student.registration_number }}</li>
+    </ol>
+</nav><!-- Student Info Summary -->
+<div class="info-grid mb-4">
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-graduation-cap-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Programme</span>
+            <span class="info-value">{{ student.programme.code }}</span>
+        </div>
+    </div><div class="info-card">
+    <div class="info-icon">
+        <i class="ri-book-open-line"></i>
+    </div>
+    <div class="info-content">
+        <span class="info-label">Current Level</span>
+        <span class="info-value">Year {{ student.current_year }}, Sem {{ student.current_semester }}</span>
+    </div>
+</div><div class="info-card">
+    <div class="info-icon">
+        <i class="ri-medal-line"></i>
+    </div>
+    <div class="info-content">
+        <span class="info-label">GPA</span>
+        <span class="info-value">{{ student.cumulative_gpa }}</span>
+    </div>
+</div><div class="info-card">
+    <div class="info-icon">
+        <i class="ri-hand-heart-line"></i>
+    </div>
+    <div class="info-content">
+        <span class="info-label">Special Needs</span>
+        <span class="info-value">{{ special_needs_records.count }}</span>
+    </div>
+</div>
+</div><!-- Special Needs Records -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Special Needs Records</h5>
+    </div>
+    <div class="card-body">
+        {% if special_needs_records %}
+            <div class="special-needs-list">
+                {% for record in special_needs_records %}
+                <div class="special-need-item {% if not record.is_active %}inactive{% endif %}">
+                    <div class="need-header">
+                        <div>
+                            <span class="need-type-badge {{ record.need_type }}">
+                                {{ record.get_need_type_display }}
+                            </span>
+                            {% if record.severity == 'severe' %}
+                            <span class="severity-badge severe">
+                                <i class="ri-error-warning-fill"></i> Severe
+                            </span>
+                            {% elif record.severity == 'moderate' %}
+                            <span class="severity-badge moderate">
+                                <i class="ri-alert-fill"></i> Moderate
+                            </span>
+                            {% else %}
+                            <span class="severity-badge mild">
+                                <i class="ri-information-fill"></i> Mild
+                            </span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            {% if record.is_active %}
+                            <span class="badge-success">Active</span>
+                            {% else %}
+                            <span class="badge-secondary">Inactive</span>
+                            {% endif %}
+                        </div>
+                    </div>                <div class="need-content">
+                    <div class="info-section">
+                        <h6>Description</h6>
+                        <p>{{ record.description }}</p>
+                    </div>                    <div class="info-section">
+                        <h6>Required Accommodations</h6>
+                        <p>{{ record.accommodations_required }}</p>
+                    </div>                    {% if record.support_provided %}
+                    <div class="info-section">
+                        <h6>Support Provided</h6>
+                        <p>{{ record.support_provided }}</p>
+                    </div>
+                    {% endif %}                    {% if record.review_notes %}
+                    <div class="info-section">
+                        <h6>Review Notes</h6>
+                        <p>{{ record.review_notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>                <div class="need-footer">
+                    <div class="need-meta">
+                        <div class="meta-item">
+                            <i class="ri-calendar-line"></i>
+                            <span>Reported: {{ record.reported_date|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="ri-user-line"></i>
+                            <span>By: {{ record.reported_by.get_full_name }}</span>
+                        </div>
+                        {% if record.last_reviewed %}
+                        <div class="meta-item">
+                            <i class="ri-eye-line"></i>
+                            <span>Last Reviewed: {{ record.last_reviewed|date:"M d, Y" }}</span>
+                        </div>
+                        {% endif %}
+                        {% if record.next_review_date %}
+                        <div class="meta-item">
+                            <i class="ri-calendar-check-line"></i>
+                            <span>Next Review: {{ record.next_review_date|date:"M d, Y" }}</span>
+                        </div>
+                        {% endif %}
+                    </div>                    {% if record.medical_certificate %}
+                    <div class="need-attachment">
+                        <a href="{{ record.medical_certificate.url }}" target="_blank" class="btn-sm btn-secondary">
+                            <i class="ri-file-text-line"></i> View Medical Certificate
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="ri-hand-heart-line"></i>
+            <h5>No Special Needs Records</h5>
+            <p>No special needs have been recorded for this student</p>
+        </div>
+    {% endif %}
+</div>
+</div>
+{% endblock %}

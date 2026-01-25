@@ -1,0 +1,87 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Class Lists - Lecturer Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Class Lists</h1>
+        <p class="text-muted">View enrolled students for your units</p>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item active">Class Lists</li>
+    </ol>
+</nav>
+
+<!-- Current Semester Info -->
+<div class="info-banner mb-4">
+    {% if current_semester %}
+        <i class="ri-calendar-line"></i>
+        <span><strong>{{ current_semester.name }}</strong> - {{ current_semester.academic_year.name }}</span>
+    {% endif %}
+</div>
+
+<!-- Units Grid -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Your Units</h5>
+    </div>
+    <div class="card-body">
+        {% if unit_allocations %}
+            <div class="units-grid">
+                {% for allocation in unit_allocations %}
+                <div class="unit-card">
+                    <div class="unit-header">
+                        <div>
+                            <h6>{{ allocation.programme_unit.unit.code }}</h6>
+                            <p class="unit-name">{{ allocation.programme_unit.unit.name }}</p>
+                        </div>
+                        <span class="unit-credits">{{ allocation.programme_unit.unit.credit_hours }} CH</span>
+                    </div>
+                    
+                    <div class="unit-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Programme:</span>
+                            <span>{{ allocation.programme_unit.programme.code }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Level:</span>
+                            <span>Year {{ allocation.programme_unit.year_of_study }}, Semester {{ allocation.programme_unit.semester_number }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Type:</span>
+                            <span>{{ allocation.programme_unit.get_unit_type_display }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Enrolled:</span>
+                            <span class="badge-primary">{{ allocation.enrolled_count }} students</span>
+                        </div>
+                    </div>
+                    
+                    <div class="unit-actions">
+                        <a href="{% url 'class_detail' allocation.id %}" class="btn-primary">
+                            <i class="ri-eye-line"></i> View Class List
+                        </a>
+                        <a href="{% url 'export_class_list' allocation.id %}" class="btn-secondary">
+                            <i class="ri-download-line"></i> Export CSV
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-book-line"></i>
+                <h5>No Units Allocated</h5>
+                <p>You have no units allocated for this semester</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

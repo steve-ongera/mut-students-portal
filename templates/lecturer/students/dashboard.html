@@ -1,0 +1,191 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Students Dashboard - Lecturer Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Students Dashboard</h1>
+        <p class="text-muted">Overview of your students across all units</p>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Students</li>
+    </ol>
+</nav>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="ri-group-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ total_students }}</h3>
+                <p>Total Students</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="ri-hearts-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ special_needs_students }}</h3>
+                <p>Special Needs</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="ri-alert-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ students_needing_advising }}</h3>
+                <p>Need Advising</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="ri-book-open-line"></i>
+            </div>
+            <div class="stat-content">
+                <h3>{{ unit_allocations.count }}</h3>
+                <p>Units Teaching</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Semester Info -->
+<div class="info-card mb-4">
+    <h5>Current Semester</h5>
+    {% if current_semester %}
+        <p><strong>{{ current_semester.name }}</strong> - {{ current_semester.academic_year.name }}</p>
+        <p>{{ current_semester.start_date|date:"M d, Y" }} - {{ current_semester.end_date|date:"M d, Y" }}</p>
+    {% else %}
+        <p class="text-muted">No active semester</p>
+    {% endif %}
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions mb-4">
+    <h5>Quick Actions</h5>
+    <div class="actions-grid">
+        <a href="{% url 'class_lists' %}" class="action-item">
+            <i class="ri-file-list-3-line"></i>
+            <span>View Class Lists</span>
+        </a>
+        <a href="{% url 'student_performance_overview' %}" class="action-item">
+            <i class="ri-bar-chart-line"></i>
+            <span>Performance Overview</span>
+        </a>
+        <a href="{% url 'academic_advising' %}" class="action-item">
+            <i class="ri-user-heart-line"></i>
+            <span>Academic Advising</span>
+        </a>
+        <a href="{% url 'special_needs' %}" class="action-item">
+            <i class="ri-hand-heart-line"></i>
+            <span>Special Needs</span>
+        </a>
+    </div>
+</div>
+
+<!-- Units Overview -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5>Your Units - {{ current_semester.name }}</h5>
+    </div>
+    <div class="card-body">
+        {% if unit_allocations %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Unit Name</th>
+                            <th>Programme</th>
+                            <th>Year/Sem</th>
+                            <th>Students</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for allocation in unit_allocations %}
+                        <tr>
+                            <td><strong>{{ allocation.programme_unit.unit.code }}</strong></td>
+                            <td>{{ allocation.programme_unit.unit.name }}</td>
+                            <td>{{ allocation.programme_unit.programme.code }}</td>
+                            <td>Year {{ allocation.programme_unit.year_of_study }}, Sem {{ allocation.programme_unit.semester_number }}</td>
+                            <td>
+                                <span class="badge">{{ allocation.enrolled_count }} students</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'class_detail' allocation.id %}" class="btn-sm">
+                                    <i class="ri-eye-line"></i> View Class
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-book-line"></i>
+                <p>No units allocated for this semester</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Advising Notes -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Recent Advising Notes</h5>
+        <a href="{% url 'academic_advising' %}">View All</a>
+    </div>
+    <div class="card-body">
+        {% if recent_notes %}
+            <div class="notes-list">
+                {% for note in recent_notes %}
+                <div class="note-item">
+                    <div class="note-header">
+                        <div>
+                            <strong>{{ note.student.user.get_full_name }}</strong>
+                            <span class="text-muted">{{ note.student.registration_number }}</span>
+                        </div>
+                        <span class="note-date">{{ note.created_at|date:"M d, Y" }}</span>
+                    </div>
+                    <div class="note-content">
+                        <span class="note-type">{{ note.get_note_type_display }}</span>
+                        <p><strong>{{ note.subject }}</strong></p>
+                        <p>{{ note.note|truncatewords:20 }}</p>
+                        {% if note.action_required %}
+                        <span class="badge-warning">Action Required</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-sticky-note-line"></i>
+                <p>No recent advising notes</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

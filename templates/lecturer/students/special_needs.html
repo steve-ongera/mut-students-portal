@@ -1,0 +1,181 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}{% block title %}Students with Special Needs{% endblock %}{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Students with Special Needs</h1>
+        <p class="text-muted">Monitor and support students with special requirements</p>
+    </div>
+</div><nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item active">Special Needs</li>
+    </ol>
+</nav><!-- Statistics Overview -->
+<div class="info-grid mb-4">
+    <div class="info-card">
+        <div class="info-icon">
+            <i class="ri-hand-heart-line"></i>
+        </div>
+        <div class="info-content">
+            <span class="info-label">Total Students</span>
+            <span class="info-value">{{ total_special_needs }}</span>
+        </div>
+    </div>{% for type_data in by_type %}
+<div class="info-card">
+    <div class="info-icon">
+        <i class="ri-user-line"></i>
+    </div>
+    <div class="info-content">
+        <span class="info-label">{{ type_data.need_type|title }}</span>
+        <span class="info-value">{{ type_data.count }}</span>
+    </div>
+</div>
+{% endfor %}
+</div><!-- Filter Options -->
+<div class="content-card mb-4">
+    <div class="card-body">
+        <form method="get" class="filter-form">
+            <div class="filter-group">
+                <label>Filter by Type:</label>
+                <div class="filter-options">
+                    <a href="{% url 'special_needs' %}" 
+                       class="filter-btn {% if not type_filter %}active{% endif %}">
+                        All Types
+                    </a>
+                    <a href="?type=physical" 
+                       class="filter-btn {% if type_filter == 'physical' %}active{% endif %}">
+                        Physical
+                    </a>
+                    <a href="?type=visual" 
+                       class="filter-btn {% if type_filter == 'visual' %}active{% endif %}">
+                        Visual
+                    </a>
+                    <a href="?type=hearing" 
+                       class="filter-btn {% if type_filter == 'hearing' %}active{% endif %}">
+                        Hearing
+                    </a>
+                    <a href="?type=learning" 
+                       class="filter-btn {% if type_filter == 'learning' %}active{% endif %}">
+                        Learning
+                    </a>
+                    <a href="?type=medical" 
+                       class="filter-btn {% if type_filter == 'medical' %}active{% endif %}">
+                        Medical
+                    </a>
+                    <a href="?type=mental" 
+                       class="filter-btn {% if type_filter == 'mental' %}active{% endif %}">
+                        Mental Health
+                    </a>
+                    <a href="?type=other" 
+                       class="filter-btn {% if type_filter == 'other' %}active{% endif %}">
+                        Other
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div><!-- Students with Special Needs -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Students Requiring Special Support</h5>
+        <span class="text-muted">{{ special_needs_students.count }} student(s)</span>
+    </div>
+    <div class="card-body">
+        {% if special_needs_students %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Programme</th>
+                            <th>Need Type</th>
+                            <th>Severity</th>
+                            <th>Description</th>
+                            <th>Last Reviewed</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for special_need in special_needs_students %}
+                        <tr>
+                            <td>
+                                <div class="student-info">
+                                    {% if special_need.student.user.profile_picture %}
+                                    <img src="{{ special_need.student.user.profile_picture.url }}" 
+                                         alt="{{ special_need.student.user.get_full_name }}" 
+                                         class="student-avatar">
+                                    {% else %}
+                                    <div class="student-avatar-placeholder">
+                                        {{ special_need.student.user.first_name.0 }}{{ special_need.student.user.last_name.0 }}
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <strong>{{ special_need.student.user.get_full_name }}</strong>
+                                        <small class="text-muted">{{ special_need.student.registration_number }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ special_need.student.programme.code }}</td>
+                            <td>
+                                <span class="need-type-badge {{ special_need.need_type }}">
+                                    {{ special_need.get_need_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if special_need.severity == 'severe' %}
+                                <span class="severity-badge severe">
+                                    <i class="ri-error-warning-fill"></i> Severe
+                                </span>
+                                {% elif special_need.severity == 'moderate' %}
+                                <span class="severity-badge moderate">
+                                    <i class="ri-alert-fill"></i> Moderate
+                                </span>
+                                {% else %}
+                                <span class="severity-badge mild">
+                                    <i class="ri-information-fill"></i> Mild
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ special_need.description|truncatewords:10 }}</td>
+                            <td>
+                                {% if special_need.last_reviewed %}
+                                {{ special_need.last_reviewed|date:"M d, Y" }}
+                                {% else %}
+                                <span class="text-muted">Not reviewed</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{% url 'special_needs_detail' special_need.student.registration_number %}" 
+                                       class="btn-icon" 
+                                       title="View Details">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    <a href="{% url 'update_special_needs' special_need.student.registration_number %}" 
+                                       class="btn-icon" 
+                                       title="Update Support">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-hand-heart-line"></i>
+                <h5>No Students Found</h5>
+                {% if type_filter %}
+                    <p>No students with {{ type_filter }} needs</p>
+                    <a href="{% url 'special_needs' %}" class="btn-primary">View All</a>
+                {% else %}
+                    <p>No students with special needs in your units</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}{{ unit_allocation.programme_unit.unit.code }} Class List{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>{{ unit_allocation.programme_unit.unit.code }} - {{ unit_allocation.programme_unit.unit.name }}</h1>
+        <p class="text-muted">{{ unit_allocation.programme_unit.programme.name }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{% url 'export_class_list' unit_allocation.id %}" class="btn-success">
+            <i class="ri-download-line"></i> Export to CSV
+        </a>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'class_lists' %}">Class Lists</a></li>
+        <li class="breadcrumb-item active">{{ unit_allocation.programme_unit.unit.code }}</li>
+    </ol>
+</nav>
+
+<!-- Unit Info Summary -->
+<div class="info-grid mb-4">
+    <div class="info-item">
+        <span class="info-label">Programme</span>
+        <span class="info-value">{{ unit_allocation.programme_unit.programme.code }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Year/Semester</span>
+        <span class="info-value">Year {{ unit_allocation.programme_unit.year_of_study }}, Sem {{ unit_allocation.programme_unit.semester_number }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Credit Hours</span>
+        <span class="info-value">{{ unit_allocation.programme_unit.unit.credit_hours }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Total Students</span>
+        <span class="info-value">{{ total_students }}</span>
+    </div>
+    <div class="info-item">
+        <span class="info-label">Semester</span>
+        <span class="info-value">{{ unit_allocation.semester.name }}</span>
+    </div>
+</div>
+
+<!-- Search and Filter -->
+<div class="content-card mb-4">
+    <div class="card-body">
+        <form method="get" class="search-form">
+            <div class="search-group">
+                <i class="ri-search-line"></i>
+                <input type="text" 
+                       name="search" 
+                       placeholder="Search by registration number or name..." 
+                       value="{{ search_query }}"
+                       class="search-input">
+                <button type="submit" class="btn-primary">Search</button>
+                {% if search_query %}
+                <a href="{% url 'class_detail' unit_allocation.id %}" class="btn-secondary">Clear</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Students Table -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Enrolled Students</h5>
+        <span class="text-muted">{{ students_data|length }} student(s)</span>
+    </div>
+    <div class="card-body">
+        {% if students_data %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Registration No.</th>
+                            <th>Student Name</th>
+                            <th>Email</th>
+                            <th>Programme</th>
+                            <th>Year/Sem</th>
+                            <th>Attendance</th>
+                            <th>Performance</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in students_data %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><strong>{{ data.student.registration_number }}</strong></td>
+                            <td>
+                                <div class="student-info">
+                                    {% if data.student.user.profile_picture %}
+                                    <img src="{{ data.student.user.profile_picture.url }}" alt="{{ data.student.user.get_full_name }}" class="student-avatar">
+                                    {% else %}
+                                    <div class="student-avatar-placeholder">
+                                        {{ data.student.user.first_name.0 }}{{ data.student.user.last_name.0 }}
+                                    </div>
+                                    {% endif %}
+                                    <span>{{ data.student.user.get_full_name }}</span>
+                                </div>
+                            </td>
+                            <td>{{ data.student.user.email }}</td>
+                            <td>{{ data.student.programme.code }}</td>
+                            <td>Year {{ data.student.current_year }}, Sem {{ data.student.current_semester }}</td>
+                            <td>
+                                <div class="attendance-info">
+                                    <div class="attendance-rate">
+                                        <span class="rate-value {% if data.attendance_rate >= 75 %}text-success{% elif data.attendance_rate >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ data.attendance_rate }}%
+                                        </span>
+                                    </div>
+                                    <small class="text-muted">{{ data.attended }}/{{ data.total_classes }} classes</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if data.marks_data %}
+                                    <div class="marks-summary">
+                                        {% for mark in data.marks_data %}
+                                        <div class="mark-item">
+                                            <span class="mark-type">{{ mark.assessment__assessment_type }}:</span>
+                                            <span class="mark-value">{{ mark.total_marks }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">No marks</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{% url 'student_performance_detail' data.student.registration_number %}" 
+                                       class="btn-icon" 
+                                       title="View Performance">
+                                        <i class="ri-bar-chart-line"></i>
+                                    </a>
+                                    <a href="{% url 'student_advising_detail' data.student.registration_number %}" 
+                                       class="btn-icon" 
+                                       title="Advising">
+                                        <i class="ri-user-heart-line"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-user-line"></i>
+                <h5>No Students Found</h5>
+                {% if search_query %}
+                    <p>No students match your search criteria</p>
+                    <a href="{% url 'class_detail' unit_allocation.id %}" class="btn-primary">Clear Search</a>
+                {% else %}
+                    <p>No students are enrolled in this unit</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

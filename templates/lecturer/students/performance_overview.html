@@ -1,0 +1,134 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}Student Performance Overview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>Student Performance Overview</h1>
+        <p class="text-muted">Monitor student academic performance across your units</p>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item active">Performance Overview</li>
+    </ol>
+</nav>
+
+<!-- Search Student -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5>Search Student</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="search-form">
+            <div class="search-group">
+                <i class="ri-search-line"></i>
+                <input type="text" 
+                       name="search" 
+                       placeholder="Search by registration number or name..." 
+                       value="{{ search_query }}"
+                       class="search-input">
+                <button type="submit" class="btn-primary">Search</button>
+            </div>
+        </form>
+        
+        {% if search_results %}
+            <div class="search-results mt-4">
+                <h6>Search Results ({{ search_results.count }} found)</h6>
+                <div class="results-list">
+                    {% for student in search_results %}
+                    <div class="result-item">
+                        <div class="student-info">
+                            {% if student.user.profile_picture %}
+                            <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="student-avatar">
+                            {% else %}
+                            <div class="student-avatar-placeholder">
+                                {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <strong>{{ student.user.get_full_name }}</strong>
+                                <p class="text-muted">{{ student.registration_number }} - {{ student.programme.code }}</p>
+                            </div>
+                        </div>
+                        <div class="result-actions">
+                            <span class="gpa-badge {% if student.cumulative_gpa >= 3.0 %}badge-success{% elif student.cumulative_gpa >= 2.0 %}badge-warning{% else %}badge-danger{% endif %}">
+                                GPA: {{ student.cumulative_gpa }}
+                            </span>
+                            <a href="{% url 'student_performance_detail' student.registration_number %}" class="btn-primary">
+                                View Details
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Unit Performance Summary -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Performance by Unit - {{ current_semester.name }}</h5>
+    </div>
+    <div class="card-body">
+        {% if unit_performance %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Unit Name</th>
+                            <th>Programme</th>
+                            <th>Total Students</th>
+                            <th>Avg. Marks</th>
+                            <th>High Performers</th>
+                            <th>Low Performers</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for unit in unit_performance %}
+                        <tr>
+                            <td><strong>{{ unit.allocation.programme_unit.unit.code }}</strong></td>
+                            <td>{{ unit.allocation.programme_unit.unit.name }}</td>
+                            <td>{{ unit.allocation.programme_unit.programme.code }}</td>
+                            <td>{{ unit.total_students }}</td>
+                            <td>
+                                <span class="avg-marks {% if unit.avg_marks >= 70 %}text-success{% elif unit.avg_marks >= 50 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ unit.avg_marks }}%
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge-success">{{ unit.high_performers }}</span>
+                                <small class="text-muted">(GPA ≥ 3.5)</small>
+                            </td>
+                            <td>
+                                <span class="badge-danger">{{ unit.low_performers }}</span>
+                                <small class="text-muted">(GPA < 2.0)</small>
+                            </td>
+                            <td>
+                                <a href="{% url 'class_detail' unit.allocation.id %}" class="btn-sm">
+                                    <i class="ri-eye-line"></i> View Class
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-bar-chart-line"></i>
+                <p>No performance data available</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

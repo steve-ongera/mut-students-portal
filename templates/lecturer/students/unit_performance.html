@@ -1,0 +1,211 @@
+{% extends 'lecturer/base.html' %}
+{% load static %}
+
+{% block title %}{{ student.user.get_full_name }} - {{ unit_allocation.programme_unit.unit.code }} Performance{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-header-content">
+        <h1>{{ unit_allocation.programme_unit.unit.code }} - {{ unit_allocation.programme_unit.unit.name }}</h1>
+        <p class="text-muted">Performance details for {{ student.user.get_full_name }}</p>
+    </div>
+</div>
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'students_dashboard' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'student_performance_detail' student.registration_number %}">{{ student.registration_number }}</a></li>
+        <li class="breadcrumb-item active">{{ unit_allocation.programme_unit.unit.code }}</li>
+    </ol>
+</nav>
+
+<!-- Student Info Bar -->
+<div class="student-info-bar mb-4">
+    <div class="student-details">
+        {% if student.user.profile_picture %}
+        <img src="{{ student.user.profile_picture.url }}" alt="{{ student.user.get_full_name }}" class="student-avatar">
+        {% else %}
+        <div class="student-avatar-placeholder">
+            {{ student.user.first_name.0 }}{{ student.user.last_name.0 }}
+        </div>
+        {% endif %}
+        <div>
+            <strong>{{ student.user.get_full_name }}</strong>
+            <p class="text-muted">{{ student.registration_number }} - {{ student.programme.code }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Assessment Marks -->
+<div class="content-card mb-4">
+    <div class="card-header">
+        <h5>Assessment Performance</h5>
+    </div>
+    <div class="card-body">
+        {% if marks_data %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Assessment Type</th>
+                            <th>Title</th>
+                            <th>Date</th>
+                            <th>Max Marks</th>
+                            <th>Marks Obtained</th>
+                            <th>Percentage</th>
+                            <th>Attendance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in marks_data %}
+                        <tr>
+                            <td><strong>{{ data.assessment.get_assessment_type_display }}</strong></td>
+                            <td>{{ data.assessment.title }}</td>
+                            <td>{{ data.assessment.date|date:"M d, Y" }}</td>
+                            <td>{{ data.assessment.max_marks }}</td>
+                            <td>
+                                {% if data.mark %}
+                                <strong>{{ data.mark.marks_obtained }}</strong>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data.mark %}
+                                <span class="percentage-badge {% if data.percentage >= 70 %}badge-success{% elif data.percentage >= 50 %}badge-warning{% else %}badge-danger{% endif %}">
+                                    {{ data.percentage|floatformat:1 }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if data.mark %}
+                                    {% if data.mark.attendance %}
+                                    <span class="badge-success"><i class="ri-checkbox-circle-line"></i> Present</span>
+                                    {% else %}
+                                    <span class="badge-danger"><i class="ri-close-circle-line"></i> Absent</span>
+                                    {% endif %}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Summary Stats -->
+            <div class="summary-stats mt-4">
+                {% with total_marks=0 total_possible=0 %}
+                    {% for data in marks_data %}
+                        {% if data.mark %}
+                            {% widthratio data.mark.marks_obtained 1 1 as mark_value %}
+                            {% widthratio total_marks 1 1 as current_total %}
+                            {% widthratio current_total|add:mark_value 1 1 as total_marks %}
+                            
+                            {% widthratio data.assessment.max_marks 1 1 as max_value %}
+                            {% widthratio total_possible 1 1 as current_possible %}
+                            {% widthratio current_possible|add:max_value 1 1 as total_possible %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <div class="stat-item">
+                        <span class="stat-label">Total Marks</span>
+                        <span class="stat-value">{{ total_marks }}/{{ total_possible }}</span>
+                    </div>
+                    
+                    {% if total_possible > 0 %}
+                    <div class="stat-item">
+                        <span class="stat-label">Overall Percentage</span>
+                        <span class="stat-value">{% widthratio total_marks total_possible 100 %}%</span>
+                    </div>
+                    {% endif %}
+                {% endwith %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-file-list-line"></i>
+                <p>No assessment marks recorded</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Attendance Records -->
+<div class="content-card">
+    <div class="card-header">
+        <h5>Attendance Records</h5>
+    </div>
+    <div class="card-body">
+        {% if attendance_records %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in attendance_records %}
+                        <tr>
+                            <td>{{ record.attendance_date|date:"M d, Y" }}</td>
+                            <td>{{ record.attendance_date|date:"l" }}</td>
+                            <td>
+                                {% if record.status == 'present' %}
+                                <span class="badge-success"><i class="ri-checkbox-circle-line"></i> Present</span>
+                                {% elif record.status == 'absent' %}
+                                <span class="badge-danger"><i class="ri-close-circle-line"></i> Absent</span>
+                                {% elif record.status == 'late' %}
+                                <span class="badge-warning"><i class="ri-time-line"></i> Late</span>
+                                {% elif record.status == 'excused' %}
+                                <span class="badge-info"><i class="ri-information-line"></i> Excused</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ record.remarks|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Attendance Summary -->
+            <div class="summary-stats mt-4">
+                {% with total=attendance_records.count present=attendance_records|length %}
+                    {% for record in attendance_records %}
+                        {% if record.status == 'present' %}
+                            {% widthratio forloop.counter 1 1 as present_count %}
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <div class="stat-item">
+                        <span class="stat-label">Total Classes</span>
+                        <span class="stat-value">{{ total }}</span>
+                    </div>
+                    
+                    <div class="stat-item">
+                        <span class="stat-label">Attendance Rate</span>
+                        <span class="stat-value">
+                            {% if total > 0 %}
+                                {% widthratio present_count total 100 %}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </span>
+                    </div>
+                {% endwith %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <i class="ri-calendar-line"></i>
+                <p>No attendance records</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
