@@ -570,6 +570,36 @@ urlpatterns = [
     path('reports/annual/', 
          views.annual_report, 
          name='lecturer_annual_report'),
+    
+    # Main semester reporting management page
+    path('admin-semester-reporting/', 
+         views.semester_reporting_management, 
+         name='semester_reporting_management'),
+    
+    # API endpoints for semester reports
+    path('api/semester-reports/bulk-approve/', 
+         views.bulk_approve_reports, 
+         name='bulk_approve_reports'),
+    
+    path('api/semester-reports/bulk-reject/', 
+         views.bulk_reject_reports, 
+         name='bulk_reject_reports'),
+    
+    path('api/semester-reports/programme-approve/', 
+         views.approve_programme_reports, 
+         name='approve_programme_reports'),
+    
+    path('api/semester-reports/<int:report_id>/details/', 
+         views.get_report_details, 
+         name='get_report_details'),
+    
+    path('api/semester-reports/<int:report_id>/approve/', 
+         views.individual_approve_report, 
+         name='individual_approve_report'),
+    
+    path('api/semester-reports/<int:report_id>/reject/', 
+         views.individual_reject_report, 
+         name='individual_reject_report'),
 
        
 ]
