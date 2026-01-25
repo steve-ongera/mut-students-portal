@@ -5256,3 +5256,87 @@ class DeanApproval(models.Model):
     class Meta:
         db_table = 'dean_approvals'
         ordering = ['-request_date']
+
+# Add these models to your models.py
+
+class AdvisingNote(models.Model):
+    """Academic advising notes for students"""
+    NOTE_TYPES = (
+        ('academic', 'Academic Concern'),
+        ('attendance', 'Attendance Issue'),
+        ('performance', 'Performance Discussion'),
+        ('personal', 'Personal Issue'),
+        ('career', 'Career Guidance'),
+        ('general', 'General Note'),
+    )
+    
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='advising_notes')
+    lecturer = models.ForeignKey('User', on_delete=models.CASCADE, related_name='advising_notes_created')
+    note_type = models.CharField(max_length=20, choices=NOTE_TYPES, default='general')
+    subject = models.CharField(max_length=200)
+    note = models.TextField()
+    action_required = models.BooleanField(default=False)
+    action_taken = models.TextField(blank=True)
+    follow_up_date = models.DateField(null=True, blank=True)
+    is_confidential = models.BooleanField(default=False)
+    is_resolved = models.BooleanField(default=False)
+    resolved_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.subject}"
+
+    class Meta:
+        db_table = 'advising_notes'
+        ordering = ['-created_at']
+
+
+class StudentSpecialNeed(models.Model):
+    """Track students with special needs"""
+    NEED_TYPES = (
+        ('physical', 'Physical Disability'),
+        ('visual', 'Visual Impairment'),
+        ('hearing', 'Hearing Impairment'),
+        ('learning', 'Learning Disability'),
+        ('medical', 'Medical Condition'),
+        ('mental', 'Mental Health'),
+        ('other', 'Other'),
+    )
+    
+    SEVERITY_LEVELS = (
+        ('mild', 'Mild'),
+        ('moderate', 'Moderate'),
+        ('severe', 'Severe'),
+    )
+    
+    student = models.ForeignKey('Student', on_delete=models.CASCADE, related_name='special_needs')
+    need_type = models.CharField(max_length=20, choices=NEED_TYPES)
+    severity = models.CharField(max_length=10, choices=SEVERITY_LEVELS, default='moderate')
+    description = models.TextField()
+    accommodations_required = models.TextField(help_text="Special accommodations needed")
+    support_provided = models.TextField(blank=True)
+    
+    # Documentation
+    medical_certificate = models.FileField(upload_to='special_needs/', null=True, blank=True)
+    
+    # Tracking
+    reported_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, 
+                                   related_name='special_needs_reported')
+    reported_date = models.DateField()
+    is_active = models.BooleanField(default=True)
+    
+    # Review
+    last_reviewed = models.DateField(null=True, blank=True)
+    next_review_date = models.DateField(null=True, blank=True)
+    review_notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.student.registration_number} - {self.get_need_type_display()}"
+
+    class Meta:
+        db_table = 'student_special_needs'
+        ordering = ['-created_at']
