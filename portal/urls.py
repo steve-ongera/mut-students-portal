@@ -519,5 +519,57 @@ urlpatterns = [
     path('lecturer/students/special-needs/', views.special_needs, name='special_needs'),
     path('lecturer/students/special-needs/<str:registration_number>/', views.special_needs_detail, name='special_needs_detail'),
     path('lecturer/students/special-needs/<str:registration_number>/update/', views.update_special_needs, name='update_special_needs'),
+    
+    # ============= RESEARCH URLS =============
+    path('research/projects/', 
+         views.research_projects_list, 
+         name='lecturer_research_projects'),
+    
+    path('research/projects/<int:project_id>/', 
+         views.research_project_detail, 
+         name='lecturer_research_project_detail'),
+    
+    path('research/publications/', 
+         views.publications_list, 
+         name='lecturer_publications'),
+    
+    path('research/publications/<int:publication_id>/', 
+         views.publication_detail, 
+         name='lecturer_publication_detail'),
+    
+    path('research/grants/', 
+         views.research_grants_list, 
+         name='lecturer_research_grants'),
+    
+    # ============= DEPARTMENT URLS =============
+    path('department/unit-allocations/', 
+         views.unit_allocations_list, 
+         name='lecturer_unit_allocations'),
+    
+    path('department/unit-allocations/<int:allocation_id>/', 
+         views.unit_allocation_detail, 
+         name='lecturer_unit_allocation_detail'),
+    
+    path('department/staff-development/', 
+         views.staff_development_list, 
+         name='lecturer_staff_development'),
+    
+    # ============= REPORTS URLS =============
+    path('reports/teaching-load/', 
+         views.teaching_load_report, 
+         name='lecturer_teaching_load_report'),
+    
+    path('reports/student-results/', 
+         views.student_results_report, 
+         name='lecturer_student_results_report'),
+    
+    path('reports/research-output/', 
+         views.research_output_report, 
+         name='lecturer_research_output_report'),
+    
+    path('reports/annual/', 
+         views.annual_report, 
+         name='lecturer_annual_report'),
+
        
 ]

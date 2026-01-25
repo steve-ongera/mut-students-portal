@@ -21064,3 +21064,753 @@ def update_special_needs(request, registration_number):
     }
 
     return render(request, 'lecturer/students//update_special_needs.html', context)
+
+
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Sum, Avg
+from django.utils import timezone
+from django.http import JsonResponse
+from django.core.paginator import Paginator
+from .models import (
+    ResearchProject, Publication, ResearchGrant, Lecturer,
+    UnitAllocation, StaffTraining, PerformanceAppraisal,
+    SemesterResults, TeachingMaterial, Student, Semester,
+    AcademicYear, Unit, Programme, Department
+)
+from .decorators import lecturer_required
+from decimal import Decimal
+
+
+# ============= RESEARCH VIEWS =============
+
+@login_required
+@lecturer_required
+def research_projects_list(request):
+    """List all research projects for the lecturer"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get projects where lecturer is PI or Co-Investigator
+    projects_pi = ResearchProject.objects.filter(
+        principal_investigator=lecturer
+    ).select_related('school', 'department')
+    
+    projects_co = ResearchProject.objects.filter(
+        co_investigators=lecturer
+    ).select_related('school', 'department')
+    
+    # Combine and remove duplicates
+    projects = (projects_pi | projects_co).distinct().order_by('-created_at')
+    
+    # Filter by status if provided
+    status_filter = request.GET.get('status')
+    if status_filter:
+        projects = projects.filter(status=status_filter)
+    
+    # Search functionality
+    search_query = request.GET.get('search')
+    if search_query:
+        projects = projects.filter(
+            Q(title__icontains=search_query) |
+            Q(project_code__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(projects, 10)
+    page_number = request.GET.get('page')
+    projects_page = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total_projects': projects.count(),
+        'ongoing': projects.filter(status='ongoing').count(),
+        'completed': projects.filter(status='completed').count(),
+        'total_budget': projects.aggregate(Sum('total_budget'))['total_budget__sum'] or 0,
+        'total_publications': projects.aggregate(Sum('publications_count'))['publications_count__sum'] or 0,
+    }
+    
+    context = {
+        'projects': projects_page,
+        'stats': stats,
+        'status_choices': ResearchProject.PROJECT_STATUS,
+        'current_status': status_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'lecturer/research/projects_list.html', context)
+
+
+@login_required
+@lecturer_required
+def research_project_detail(request, project_id):
+    """View details of a specific research project"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    project = get_object_or_404(
+        ResearchProject,
+        id=project_id
+    )
+    
+    # Check if lecturer is part of this project
+    if project.principal_investigator != lecturer and lecturer not in project.co_investigators.all():
+        messages.error(request, 'You do not have access to this project.')
+        return redirect('lecturer_research_projects')
+    
+    # Get related publications
+    publications = project.publications.all().order_by('-publication_date')
+    
+    # Calculate project metrics
+    duration_days = (project.end_date - project.start_date).days
+    days_elapsed = (timezone.now().date() - project.start_date).days
+    progress_percentage = min((days_elapsed / duration_days * 100), 100) if duration_days > 0 else 0
+    
+    budget_utilization = (project.funds_utilized / project.total_budget * 100) if project.total_budget > 0 else 0
+    
+    context = {
+        'project': project,
+        'publications': publications,
+        'progress_percentage': round(progress_percentage, 2),
+        'budget_utilization': round(budget_utilization, 2),
+        'co_investigators': project.co_investigators.all(),
+    }
+    
+    return render(request, 'lecturer/research/project_detail.html', context)
+
+
+@login_required
+@lecturer_required
+def publications_list(request):
+    """List all publications by the lecturer"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get publications
+    publications = Publication.objects.filter(
+        authors=lecturer
+    ).select_related(
+        'corresponding_author', 'school', 'research_project'
+    ).prefetch_related('authors').order_by('-publication_date')
+    
+    # Filter by type if provided
+    pub_type = request.GET.get('type')
+    if pub_type:
+        publications = publications.filter(publication_type=pub_type)
+    
+    # Filter by year
+    year_filter = request.GET.get('year')
+    if year_filter:
+        publications = publications.filter(year=year_filter)
+    
+    # Search
+    search_query = request.GET.get('search')
+    if search_query:
+        publications = publications.filter(
+            Q(title__icontains=search_query) |
+            Q(journal_name__icontains=search_query) |
+            Q(keywords__icontains=search_query)
+        )
+    
+    # Pagination
+    paginator = Paginator(publications, 15)
+    page_number = request.GET.get('page')
+    publications_page = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total_publications': publications.count(),
+        'journal_articles': publications.filter(publication_type='journal').count(),
+        'conference_papers': publications.filter(publication_type='conference').count(),
+        'total_citations': publications.aggregate(Sum('citations_count'))['citations_count__sum'] or 0,
+        'peer_reviewed': publications.filter(is_peer_reviewed=True).count(),
+    }
+    
+    # Get unique years for filter
+    years = publications.values_list('year', flat=True).distinct().order_by('-year')
+    
+    context = {
+        'publications': publications_page,
+        'stats': stats,
+        'publication_types': Publication.PUBLICATION_TYPE,
+        'years': years,
+        'current_type': pub_type,
+        'current_year': year_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'lecturer/research/publications_list.html', context)
+
+
+@login_required
+@lecturer_required
+def publication_detail(request, publication_id):
+    """View publication details"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    publication = get_object_or_404(
+        Publication,
+        id=publication_id,
+        authors=lecturer
+    )
+    
+    context = {
+        'publication': publication,
+        'authors': publication.authors.all(),
+    }
+    
+    return render(request, 'lecturer/research/publication_detail.html', context)
+
+
+@login_required
+@lecturer_required
+def research_grants_list(request):
+    """List research grants"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get grants where lecturer is principal or co-applicant
+    grants_principal = ResearchGrant.objects.filter(
+        principal_applicant=lecturer
+    ).select_related('school')
+    
+    grants_co = ResearchGrant.objects.filter(
+        co_applicants=lecturer
+    ).select_related('school')
+    
+    grants = (grants_principal | grants_co).distinct().order_by('-application_date')
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        grants = grants.filter(status=status_filter)
+    
+    # Filter by type
+    type_filter = request.GET.get('type')
+    if type_filter:
+        grants = grants.filter(grant_type=type_filter)
+    
+    # Pagination
+    paginator = Paginator(grants, 10)
+    page_number = request.GET.get('page')
+    grants_page = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total_grants': grants.count(),
+        'active_grants': grants.filter(status='active').count(),
+        'total_applied': grants.aggregate(Sum('amount_applied'))['amount_applied__sum'] or 0,
+        'total_awarded': grants.aggregate(Sum('amount_awarded'))['amount_awarded__sum'] or 0,
+    }
+    
+    context = {
+        'grants': grants_page,
+        'stats': stats,
+        'status_choices': ResearchGrant.GRANT_STATUS,
+        'type_choices': ResearchGrant.GRANT_TYPE,
+        'current_status': status_filter,
+        'current_type': type_filter,
+    }
+    
+    return render(request, 'lecturer/research/grants_list.html', context)
+
+
+# ============= DEPARTMENT VIEWS =============
+
+@login_required
+@lecturer_required
+def unit_allocations_list(request):
+    """View unit allocations for the lecturer"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get allocations
+    allocations = UnitAllocation.objects.filter(
+        lecturer=request.user
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'semester__academic_year',
+        'assigned_by'
+    ).order_by('-semester__academic_year__start_date', 'programme_unit__unit__code')
+    
+    # Filter by semester if provided
+    semester_id = request.GET.get('semester')
+    if semester_id:
+        allocations = allocations.filter(semester_id=semester_id)
+    elif current_semester:
+        allocations = allocations.filter(semester=current_semester)
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        allocations = allocations.filter(status=status_filter)
+    
+    # Pagination
+    paginator = Paginator(allocations, 15)
+    page_number = request.GET.get('page')
+    allocations_page = paginator.get_page(page_number)
+    
+    # Calculate teaching load
+    current_allocations = allocations.filter(
+        semester=current_semester
+    ) if current_semester else allocations.none()
+    
+    teaching_load = {
+        'total_units': current_allocations.count(),
+        'total_students': current_allocations.aggregate(
+            total=Sum('max_students')
+        )['total'] or 0,
+        'approved_units': current_allocations.filter(
+            status='approved_dean'
+        ).count(),
+    }
+    
+    # Get available semesters for filter
+    semesters = Semester.objects.all().order_by('-academic_year__start_date', '-semester_number')
+    
+    context = {
+        'allocations': allocations_page,
+        'teaching_load': teaching_load,
+        'semesters': semesters,
+        'current_semester': current_semester,
+        'selected_semester': semester_id,
+        'status_choices': UnitAllocation.STATUS_CHOICES,
+        'current_status': status_filter,
+    }
+    
+    return render(request, 'lecturer/department/unit_allocations.html', context)
+
+
+@login_required
+@lecturer_required
+def unit_allocation_detail(request, allocation_id):
+    """View details of a unit allocation"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    allocation = get_object_or_404(
+        UnitAllocation,
+        id=allocation_id,
+        lecturer=request.user
+    )
+    
+    # Get enrolled students count
+    enrolled_students = UnitEnrollment.objects.filter(
+        programme_unit=allocation.programme_unit,
+        semester=allocation.semester,
+        status='approved'
+    ).count()
+    
+    # Get teaching materials
+    materials = TeachingMaterial.objects.filter(
+        unit_allocation=allocation,
+        is_published=True
+    ).order_by('week_number')
+    
+    # Get assessments
+    assessments = allocation.assessments.all().order_by('date')
+    
+    # Get attendance summary
+    # This would require an Attendance model query
+    
+    context = {
+        'allocation': allocation,
+        'enrolled_students': enrolled_students,
+        'materials': materials,
+        'assessments': assessments,
+    }
+    
+    return render(request, 'lecturer/department/allocation_detail.html', context)
+
+
+@login_required
+@lecturer_required
+def staff_development_list(request):
+    """View staff development and training"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get trainings
+    trainings = StaffTraining.objects.filter(
+        lecturer=lecturer
+    ).order_by('-start_date')
+    
+    # Filter by status
+    status_filter = request.GET.get('status')
+    if status_filter:
+        trainings = trainings.filter(status=status_filter)
+    
+    # Filter by type
+    type_filter = request.GET.get('type')
+    if type_filter:
+        trainings = trainings.filter(training_type=type_filter)
+    
+    # Pagination
+    paginator = Paginator(trainings, 10)
+    page_number = request.GET.get('page')
+    trainings_page = paginator.get_page(page_number)
+    
+    # Statistics
+    stats = {
+        'total_trainings': trainings.count(),
+        'completed': trainings.filter(status='completed').count(),
+        'ongoing': trainings.filter(status='ongoing').count(),
+        'total_days': trainings.aggregate(Sum('duration_days'))['duration_days__sum'] or 0,
+        'certifications': trainings.filter(certificate_obtained=True).count(),
+    }
+    
+    context = {
+        'trainings': trainings_page,
+        'stats': stats,
+        'status_choices': StaffTraining.TRAINING_STATUS,
+        'type_choices': StaffTraining.TRAINING_TYPE,
+        'current_status': status_filter,
+        'current_type': type_filter,
+    }
+    
+    return render(request, 'lecturer/department/staff_development.html', context)
+
+
+# ============= REPORTS VIEWS =============
+
+@login_required
+@lecturer_required
+def teaching_load_report(request):
+    """Generate teaching load report"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get selected academic year or current
+    academic_year_id = request.GET.get('academic_year')
+    if academic_year_id:
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    else:
+        academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    if not academic_year:
+        messages.error(request, 'No academic year found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get allocations for the academic year
+    allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester__academic_year=academic_year,
+        status='approved_dean'
+    ).select_related(
+        'programme_unit__unit',
+        'programme_unit__programme',
+        'semester'
+    ).order_by('semester__semester_number')
+    
+    # Group by semester
+    semester_data = {}
+    for allocation in allocations:
+        semester_key = allocation.semester.name
+        if semester_key not in semester_data:
+            semester_data[semester_key] = {
+                'semester': allocation.semester,
+                'allocations': [],
+                'total_units': 0,
+                'total_students': 0,
+                'total_credit_hours': 0,
+            }
+        
+        semester_data[semester_key]['allocations'].append(allocation)
+        semester_data[semester_key]['total_units'] += 1
+        semester_data[semester_key]['total_students'] += allocation.max_students or 0
+        semester_data[semester_key]['total_credit_hours'] += allocation.programme_unit.unit.credit_hours
+    
+    # Get all academic years for filter
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    # Calculate yearly totals
+    yearly_totals = {
+        'total_units': sum(data['total_units'] for data in semester_data.values()),
+        'total_students': sum(data['total_students'] for data in semester_data.values()),
+        'total_credit_hours': sum(data['total_credit_hours'] for data in semester_data.values()),
+    }
+    
+    context = {
+        'academic_year': academic_year,
+        'semester_data': semester_data,
+        'yearly_totals': yearly_totals,
+        'academic_years': academic_years,
+    }
+    
+    return render(request, 'lecturer/reports/teaching_load.html', context)
+
+
+@login_required
+@lecturer_required
+def student_results_report(request):
+    """View student results for units taught"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get selected semester or current
+    semester_id = request.GET.get('semester')
+    if semester_id:
+        semester = get_object_or_404(Semester, id=semester_id)
+    else:
+        semester = Semester.objects.filter(is_current=True).first()
+    
+    if not semester:
+        messages.error(request, 'No semester found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get allocations for the semester
+    allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester=semester,
+        status='approved_dean'
+    ).select_related('programme_unit__unit', 'programme_unit__programme')
+    
+    # Get results for each allocation
+    results_data = []
+    for allocation in allocations:
+        results = SemesterResults.objects.filter(
+            programme_unit=allocation.programme_unit,
+            semester=semester,
+            is_published=True
+        ).select_related('student')
+        
+        if results.exists():
+            # Calculate statistics
+            total_students = results.count()
+            passed = results.filter(is_passed=True).count()
+            failed = total_students - passed
+            pass_rate = (passed / total_students * 100) if total_students > 0 else 0
+            
+            avg_marks = results.aggregate(Avg('total_marks'))['total_marks__avg'] or 0
+            
+            # Grade distribution
+            grade_dist = {}
+            for result in results:
+                grade = result.grade
+                grade_dist[grade] = grade_dist.get(grade, 0) + 1
+            
+            results_data.append({
+                'allocation': allocation,
+                'total_students': total_students,
+                'passed': passed,
+                'failed': failed,
+                'pass_rate': round(pass_rate, 2),
+                'avg_marks': round(avg_marks, 2),
+                'grade_distribution': grade_dist,
+            })
+    
+    # Get semesters for filter
+    semesters = Semester.objects.all().order_by('-academic_year__start_date', '-semester_number')
+    
+    context = {
+        'semester': semester,
+        'results_data': results_data,
+        'semesters': semesters,
+    }
+    
+    return render(request, 'lecturer/reports/student_results.html', context)
+
+
+@login_required
+@lecturer_required
+def research_output_report(request):
+    """Generate research output report"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get selected year or current
+    year = request.GET.get('year')
+    if year:
+        year = int(year)
+    else:
+        year = timezone.now().year
+    
+    # Get publications for the year
+    publications = Publication.objects.filter(
+        authors=lecturer,
+        year=year
+    ).select_related('research_project')
+    
+    # Get research projects
+    projects = ResearchProject.objects.filter(
+        Q(principal_investigator=lecturer) | Q(co_investigators=lecturer),
+        start_date__year__lte=year,
+        end_date__year__gte=year
+    ).distinct()
+    
+    # Get grants
+    grants = ResearchGrant.objects.filter(
+        Q(principal_applicant=lecturer) | Q(co_applicants=lecturer),
+        application_date__year=year
+    ).distinct()
+    
+    # Statistics
+    pub_stats = {
+        'total': publications.count(),
+        'journal_articles': publications.filter(publication_type='journal').count(),
+        'conference_papers': publications.filter(publication_type='conference').count(),
+        'books': publications.filter(publication_type='book').count(),
+        'peer_reviewed': publications.filter(is_peer_reviewed=True).count(),
+        'total_citations': publications.aggregate(Sum('citations_count'))['citations_count__sum'] or 0,
+    }
+    
+    project_stats = {
+        'total': projects.count(),
+        'ongoing': projects.filter(status='ongoing').count(),
+        'completed': projects.filter(status='completed').count(),
+    }
+    
+    grant_stats = {
+        'total_applied': grants.count(),
+        'approved': grants.filter(status='approved').count(),
+        'total_amount': grants.aggregate(Sum('amount_awarded'))['amount_awarded__sum'] or 0,
+    }
+    
+    # Get years for filter
+    years = range(timezone.now().year, timezone.now().year - 10, -1)
+    
+    context = {
+        'selected_year': year,
+        'publications': publications,
+        'projects': projects,
+        'grants': grants,
+        'pub_stats': pub_stats,
+        'project_stats': project_stats,
+        'grant_stats': grant_stats,
+        'years': years,
+    }
+    
+    return render(request, 'lecturer/reports/research_output.html', context)
+
+
+@login_required
+@lecturer_required
+def annual_report(request):
+    """Generate comprehensive annual report"""
+    try:
+        lecturer = request.user.lecturer_profile
+    except Lecturer.DoesNotExist:
+        messages.error(request, 'Lecturer profile not found.')
+        return redirect('lecturer_dashboard')
+    
+    # Get selected academic year or current
+    academic_year_id = request.GET.get('academic_year')
+    if academic_year_id:
+        academic_year = get_object_or_404(AcademicYear, id=academic_year_id)
+    else:
+        academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    if not academic_year:
+        messages.error(request, 'No academic year found.')
+        return redirect('lecturer_dashboard')
+    
+    year = academic_year.start_date.year
+    
+    # Teaching Data
+    teaching_allocations = UnitAllocation.objects.filter(
+        lecturer=request.user,
+        semester__academic_year=academic_year,
+        status='approved_dean'
+    ).select_related('programme_unit__unit', 'semester')
+    
+    teaching_stats = {
+        'total_units': teaching_allocations.count(),
+        'total_students': teaching_allocations.aggregate(Sum('max_students'))['max_students__sum'] or 0,
+        'total_credit_hours': sum(
+            alloc.programme_unit.unit.credit_hours for alloc in teaching_allocations
+        ),
+    }
+    
+    # Research Data
+    publications = Publication.objects.filter(
+        authors=lecturer,
+        publication_date__year=year
+    )
+    
+    projects = ResearchProject.objects.filter(
+        Q(principal_investigator=lecturer) | Q(co_investigators=lecturer),
+        start_date__year__lte=year,
+        end_date__year__gte=year
+    ).distinct()
+    
+    research_stats = {
+        'publications': publications.count(),
+        'projects': projects.count(),
+        'citations': publications.aggregate(Sum('citations_count'))['citations_count__sum'] or 0,
+    }
+    
+    # Professional Development
+    trainings = StaffTraining.objects.filter(
+        lecturer=lecturer,
+        start_date__year=year
+    )
+    
+    development_stats = {
+        'trainings_attended': trainings.count(),
+        'certificates_obtained': trainings.filter(certificate_obtained=True).count(),
+        'total_days': trainings.aggregate(Sum('duration_days'))['duration_days__sum'] or 0,
+    }
+    
+    # Performance Appraisal
+    appraisal = PerformanceAppraisal.objects.filter(
+        lecturer=lecturer,
+        academic_year=academic_year
+    ).first()
+    
+    # Get academic years for filter
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    context = {
+        'academic_year': academic_year,
+        'lecturer': lecturer,
+        'teaching_stats': teaching_stats,
+        'research_stats': research_stats,
+        'development_stats': development_stats,
+        'appraisal': appraisal,
+        'publications': publications[:5],  # Top 5
+        'projects': projects[:5],  # Top 5
+        'academic_years': academic_years,
+    }
+    
+    return render(request, 'lecturer/reports/annual_report.html', context)
