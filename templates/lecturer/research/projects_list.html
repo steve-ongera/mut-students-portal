@@ -1,0 +1,275 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}Research Projects{% endblock %}
+
+{% block page_title %}Research Projects{% endblock %}
+{% block page_subtitle %}Manage and track your research projects{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Research Projects</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Research Projects</h1>
+                <p class="text-muted mb-0">Manage and track your research projects</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-flask-line me-2"></i>
+                    {{ stats.total_projects }} project(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Projects</p>
+                            <h3 class="mb-0">{{ stats.total_projects }}</h3>
+                        </div>
+                        <div class="icon-box bg-primary-subtle">
+                            <i class="ri-flask-line text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Ongoing</p>
+                            <h3 class="mb-0">{{ stats.ongoing }}</h3>
+                        </div>
+                        <div class="icon-box bg-info-subtle">
+                            <i class="ri-time-line text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Completed</p>
+                            <h3 class="mb-0">{{ stats.completed }}</h3>
+                        </div>
+                        <div class="icon-box bg-success-subtle">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Publications</p>
+                            <h3 class="mb-0">{{ stats.total_publications }}</h3>
+                        </div>
+                        <div class="icon-box bg-warning-subtle">
+                            <i class="ri-article-line text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Search Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Search</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-3">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by project code or title..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Filter Buttons -->
+            <div class="d-flex gap-2">
+                <a href="?status=" class="btn btn-sm {% if not current_status %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    All
+                </a>
+                {% for status_code, status_name in status_choices %}
+                <a href="?status={{ status_code }}" 
+                   class="btn btn-sm {% if current_status == status_code %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {{ status_name }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects Table Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Research Projects</h5>
+            <div class="card-subtitle">Showing {{ projects|length }} projects</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Project Code</th>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Duration</th>
+                            <th>Budget</th>
+                            <th>Status</th>
+                            <th>Publications</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects %}
+                        <tr>
+                            <td>
+                                <strong>{{ project.project_code }}</strong>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong class="d-block">{{ project.title|truncatechars:50 }}</strong>
+                                    <small class="text-muted">{{ project.school.code }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">
+                                    {{ project.get_project_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div>
+                                    <small class="d-block">{{ project.start_date|date:"M Y" }}</small>
+                                    <small class="text-muted">{{ project.duration_months }} months</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong class="d-block">KES {{ project.total_budget|floatformat:0 }}</strong>
+                                    <small class="text-muted">Utilized: {{ project.funds_utilized|floatformat:0 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if project.status == 'ongoing' %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-time-line me-1"></i>
+                                    Ongoing
+                                </span>
+                                {% elif project.status == 'completed' %}
+                                <span class="status-badge status-graduated">
+                                    <i class="ri-checkbox-circle-line me-1"></i>
+                                    Completed
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-other">
+                                    {{ project.get_status_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <strong>{{ project.publications_count }}</strong>
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'lecturer_research_project_detail' project.id %}" 
+                                       class="btn btn-icon btn-outline-primary btn-sm" 
+                                       title="View Details"
+                                       data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-flask-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No research projects found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your search criteria</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if projects.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if projects.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ projects.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in projects.paginator.page_range %}
+                    {% if projects.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > projects.number|add:'-3' and i < projects.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if projects.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ projects.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

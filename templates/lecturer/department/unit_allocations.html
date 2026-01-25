@@ -1,0 +1,266 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}Unit Allocations{% endblock %}
+
+{% block page_title %}Unit Allocations{% endblock %}
+{% block page_subtitle %}View your teaching assignments and workload{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Unit Allocations</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Unit Allocations</h1>
+                <p class="text-muted mb-0">View your teaching assignments and workload</p>
+            </div>
+            <div class="text-end">
+                {% if current_semester %}
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester.name }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Teaching Load Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Units</p>
+                            <h3 class="mb-0">{{ teaching_load.total_units }}</h3>
+                        </div>
+                        <div class="icon-box bg-primary-subtle">
+                            <i class="ri-book-open-line text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Students</p>
+                            <h3 class="mb-0">{{ teaching_load.total_students }}</h3>
+                        </div>
+                        <div class="icon-box bg-info-subtle">
+                            <i class="ri-group-line text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Approved Units</p>
+                            <h3 class="mb-0">{{ teaching_load.approved_units }}</h3>
+                        </div>
+                        <div class="icon-box bg-success-subtle">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label">Semester</label>
+                        <select name="semester" class="form-select">
+                            <option value="">All Semesters</option>
+                            {% for sem in semesters %}
+                            <option value="{{ sem.id }}" {% if selected_semester == sem.id|stringformat:"i" %}selected{% endif %}>
+                                {{ sem.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}" {% if current_status == status_code %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button class="btn btn-primary w-100" type="submit">
+                            Apply
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Allocations Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Unit Allocations</h5>
+            <div class="card-subtitle">Showing {{ allocations|length }} allocations</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Unit Code</th>
+                            <th>Unit Name</th>
+                            <th>Programme</th>
+                            <th>Year/Sem</th>
+                            <th>Credit Hours</th>
+                            <th>Max Students</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for allocation in allocations %}
+                        <tr>
+                            <td>
+                                <strong>{{ allocation.programme_unit.unit.code }}</strong>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong class="d-block">{{ allocation.programme_unit.unit.name }}</strong>
+                                    <small class="text-muted">{{ allocation.semester.name }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong class="d-block">{{ allocation.programme_unit.programme.code }}</strong>
+                                    <small class="text-muted">{{ allocation.programme_unit.programme.name|truncatechars:25 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <span class="badge bg-info-subtle text-info mb-1">Year {{ allocation.programme_unit.year_of_study }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary">Sem {{ allocation.programme_unit.semester_number }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <strong>{{ allocation.programme_unit.unit.credit_hours }}</strong>
+                            </td>
+                            <td class="text-center">
+                                <strong>{{ allocation.max_students|default:"N/A" }}</strong>
+                            </td>
+                            <td>
+                                {% if allocation.status == 'approved_dean' %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-line me-1"></i>
+                                    Approved
+                                </span>
+                                {% elif allocation.status == 'approved_hod' or allocation.status == 'approved_hos' %}
+                                <span class="status-badge status-deferred">
+                                    <i class="ri-time-line me-1"></i>
+                                    Pending
+                                </span>
+                                {% elif allocation.status == 'rejected' %}
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-close-circle-line me-1"></i>
+                                    Rejected
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-other">
+                                    {{ allocation.get_status_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'lecturer_unit_allocation_detail' allocation.id %}" 
+                                       class="btn btn-icon btn-outline-primary btn-sm" 
+                                       title="View Details"
+                                       data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-book-open-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No unit allocations found</h5>
+                                    <p class="text-muted mb-0">No units have been allocated to you yet</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if allocations.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if allocations.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ allocations.previous_page_number }}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in allocations.paginator.page_range %}
+                    {% if allocations.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > allocations.number|add:'-3' and i < allocations.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if allocations.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ allocations.next_page_number }}{% if selected_semester %}&semester={{ selected_semester }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

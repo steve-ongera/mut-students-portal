@@ -1,0 +1,290 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}Publications{% endblock %}
+
+{% block page_title %}Publications{% endblock %}
+{% block page_subtitle %}Your academic publications and research outputs{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Publications</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Publications</h1>
+                <p class="text-muted mb-0">Your academic publications and research outputs</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-article-line me-2"></i>
+                    {{ stats.total_publications }} publication(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Journal Articles</p>
+                            <h3 class="mb-0">{{ stats.journal_articles }}</h3>
+                        </div>
+                        <div class="icon-box bg-primary-subtle">
+                            <i class="ri-article-line text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Conference Papers</p>
+                            <h3 class="mb-0">{{ stats.conference_papers }}</h3>
+                        </div>
+                        <div class="icon-box bg-info-subtle">
+                            <i class="ri-presentation-line text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Citations</p>
+                            <h3 class="mb-0">{{ stats.total_citations }}</h3>
+                        </div>
+                        <div class="icon-box bg-success-subtle">
+                            <i class="ri-bookmark-line text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Peer Reviewed</p>
+                            <h3 class="mb-0">{{ stats.peer_reviewed }}</h3>
+                        </div>
+                        <div class="icon-box bg-warning-subtle">
+                            <i class="ri-star-line text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Search Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Search</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="search-container">
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0">
+                                    <i class="ri-search-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control border-start-0 ps-0" 
+                                       name="search" 
+                                       placeholder="Search by title, journal, or keywords..." 
+                                       value="{{ search_query }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="type" class="form-select">
+                            <option value="">All Types</option>
+                            {% for type_code, type_name in publication_types %}
+                            <option value="{{ type_code }}" {% if current_type == type_code %}selected{% endif %}>
+                                {{ type_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="year" class="form-select">
+                            <option value="">All Years</option>
+                            {% for year in years %}
+                            <option value="{{ year }}" {% if current_year == year|stringformat:"i" %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <button class="btn btn-primary w-100" type="submit">
+                            <i class="ri-filter-line"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Publications List -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Publications</h5>
+            <div class="card-subtitle">Showing {{ publications|length }} publications</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Journal/Conference</th>
+                            <th>Year</th>
+                            <th>Citations</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pub in publications %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong class="d-block">{{ pub.title|truncatechars:60 }}</strong>
+                                    <small class="text-muted">{{ pub.authors.all|join:", " }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">
+                                    {{ pub.get_publication_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div>
+                                    {% if pub.journal_name %}
+                                    <strong class="d-block">{{ pub.journal_name|truncatechars:30 }}</strong>
+                                    {% elif pub.conference_name %}
+                                    <strong class="d-block">{{ pub.conference_name|truncatechars:30 }}</strong>
+                                    {% endif %}
+                                    {% if pub.publisher %}
+                                    <small class="text-muted">{{ pub.publisher }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <strong>{{ pub.year }}</strong>
+                            </td>
+                            <td class="text-center">
+                                <strong>{{ pub.citations_count }}</strong>
+                            </td>
+                            <td>
+                                {% if pub.is_peer_reviewed %}
+                                <span class="badge bg-success-subtle text-success">
+                                    <i class="ri-checkbox-circle-line me-1"></i>
+                                    Peer Reviewed
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">
+                                    Not Reviewed
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'lecturer_publication_detail' pub.id %}" 
+                                       class="btn btn-icon btn-outline-primary btn-sm" 
+                                       title="View Details"
+                                       data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    {% if pub.url %}
+                                    <a href="{{ pub.url }}"target="_blank"
+                                   class="btn btn-icon btn-outline-info btn-sm" 
+                                   title="External Link"
+                                   data-bs-toggle="tooltip">
+                                    <i class="ri-external-link-line"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5">
+                            <div class="empty-state">
+                                <i class="ri-article-line display-4 text-muted mb-3"></i>
+                                <h5 class="text-muted">No publications found</h5>
+                                <p class="text-muted mb-0">Try adjusting your search criteria</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if publications.has_other_pages %}
+<div class="pagination-container mt-4">
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if publications.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ publications.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}">
+                    <i class="ri-arrow-left-line"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for i in publications.paginator.page_range %}
+                {% if publications.number == i %}
+                <li class="page-item active">
+                    <span class="page-link">{{ i }}</span>
+                </li>
+                {% elif i > publications.number|add:'-3' and i < publications.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}">
+                        {{ i }}
+                    </a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if publications.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ publications.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_year %}&year={{ current_year }}{% endif %}">
+                    <i class="ri-arrow-right-line"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+</div>
+{% endblock %}

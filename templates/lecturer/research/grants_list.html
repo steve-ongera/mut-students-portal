@@ -1,0 +1,251 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}Research Grants{% endblock %}
+
+{% block page_title %}Research Grants{% endblock %}
+{% block page_subtitle %}Track your grant applications and funding{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Research Grants</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Research Grants</h1>
+                <p class="text-muted mb-0">Track your grant applications and funding</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-money-dollar-circle-line me-2"></i>
+                    {{ stats.total_grants }} grant(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Grants</p>
+                            <h3 class="mb-0">{{ stats.total_grants }}</h3>
+                        </div>
+                        <div class="icon-box bg-primary-subtle">
+                            <i class="ri-file-list-line text-primary"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Active Grants</p>
+                            <h3 class="mb-0">{{ stats.active_grants }}</h3>
+                        </div>
+                        <div class="icon-box bg-success-subtle">
+                            <i class="ri-checkbox-circle-line text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Applied</p>
+                            <h4 class="mb-0">KES {{ stats.total_applied|floatformat:0 }}</h4>
+                        </div>
+                        <div class="icon-box bg-info-subtle">
+                            <i class="ri-wallet-line text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1">Total Awarded</p>
+                            <h4 class="mb-0">KES {{ stats.total_awarded|floatformat:0 }}</h4>
+                        </div>
+                        <div class="icon-box bg-warning-subtle">
+                            <i class="ri-award-line text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <select name="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            {% for status_code, status_name in status_choices %}
+                            <option value="{{ status_code }}" {% if current_status == status_code %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select name="type" class="form-select">
+                            <option value="">All Types</option>
+                            {% for type_code, type_name in type_choices %}
+                            <option value="{{ type_code }}" {% if current_type == type_code %}selected{% endif %}>
+                                {{ type_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-primary w-100" type="submit">
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Grants Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Grant Applications</h5>
+            <div class="card-subtitle">Showing {{ grants|length }} grants</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Grant Number</th>
+                            <th>Title</th>
+                            <th>Funding Agency</th>
+                            <th>Type</th>
+                            <th>Amount Applied</th>
+                            <th>Amount Awarded</th>
+                            <th>Status</th>
+                            <th>Application Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for grant in grants %}
+                        <tr>
+                            <td>
+                                <strong>{{ grant.grant_number }}</strong>
+                            </td>
+                            <td>
+                                <strong class="d-block">{{ grant.grant_title|truncatechars:40 }}</strong>
+                            </td>
+                            <td>{{ grant.funding_agency }}</td>
+                            <td>
+                                <span class="badge bg-info-subtle text-info">
+                                    {{ grant.get_grant_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong>KES {{ grant.amount_applied|floatformat:0 }}</strong>
+                            </td>
+                            <td>
+                                <strong class="text-success">KES {{ grant.amount_awarded|floatformat:0 }}</strong>
+                            </td>
+                            <td>
+                                {% if grant.status == 'approved' or grant.status == 'active' %}
+                                <span class="status-badge status-active">
+                                    {{ grant.get_status_display }}
+                                </span>
+                                {% elif grant.status == 'rejected' %}
+                                <span class="status-badge status-suspended">
+                                    {{ grant.get_status_display }}
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-other">
+                                    {{ grant.get_status_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>{{ grant.application_date|date:"M d, Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-money-dollar-circle-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No grants found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your filters</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if grants.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if grants.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ grants.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in grants.paginator.page_range %}
+                    {% if grants.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > grants.number|add:'-3' and i < grants.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if grants.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ grants.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

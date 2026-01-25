@@ -1,0 +1,234 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}{{ project.title }}{% endblock %}
+
+{% block page_title %}Project Details{% endblock %}
+{% block page_subtitle %}{{ project.project_code }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_research_projects' %}">Research Projects</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ project.project_code }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">{{ project.title }}</h1>
+                <p class="text-muted mb-0">{{ project.project_code }} • {{ project.school.name }}</p>
+            </div>
+            <div>
+                {% if project.status == 'ongoing' %}
+                <span class="status-badge status-active">
+                    <i class="ri-time-line me-1"></i>
+                    Ongoing
+                </span>
+                {% elif project.status == 'completed' %}
+                <span class="status-badge status-graduated">
+                    <i class="ri-checkbox-circle-line me-1"></i>
+                    Completed
+                </span>
+                {% else %}
+                <span class="status-badge status-other">
+                    {{ project.get_status_display }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-body">
+                    <h6 class="mb-3">Project Progress</h6>
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div class="progress-bar bg-primary" 
+                             role="progressbar" 
+                             style="width: {{ progress_percentage }}%">
+                            {{ progress_percentage }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        {{ project.start_date|date:"M d, Y" }} - {{ project.end_date|date:"M d, Y" }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-body">
+                    <h6 class="mb-3">Budget Utilization</h6>
+                    <div class="progress mb-2" style="height: 25px;">
+                        <div class="progress-bar bg-success" 
+                             role="progressbar" 
+                             style="width: {{ budget_utilization }}%">
+                            {{ budget_utilization }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        KES {{ project.funds_utilized|floatformat:0 }} of {{ project.total_budget|floatformat:0 }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Project Information -->
+        <div class="col-md-8">
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">Project Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Abstract</h6>
+                        <p class="mb-0">{{ project.abstract }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Objectives</h6>
+                        <p class="mb-0">{{ project.objectives }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">Methodology</h6>
+                        <p class="mb-0">{{ project.methodology }}</p>
+                    </div>
+                    <div>
+                        <h6 class="text-muted mb-2">Expected Outcomes</h6>
+                        <p class="mb-0">{{ project.expected_outcomes }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Publications -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Publications</h5>
+                    <div class="card-subtitle">{{ publications|length }} publication(s)</div>
+                </div>
+                <div class="card-body p-0">
+                    {% if publications %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Type</th>
+                                    <th>Year</th>
+                                    <th>Citations</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pub in publications %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'lecturer_publication_detail' pub.id %}">
+                                            {{ pub.title|truncatechars:60 }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info">
+                                            {{ pub.get_publication_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ pub.year }}</td>
+                                    <td>{{ pub.citations_count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-article-line display-4 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No publications yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Project Details -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Project Type</small>
+                        <strong>{{ project.get_project_type_display }}</strong>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Duration</small>
+                        <strong>{{ project.duration_months }} months</strong>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Total Budget</small>
+                        <strong>KES {{ project.total_budget|floatformat:0 }}</strong>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Funding Source</small>
+                        <strong>{{ project.funding_source|default:"Not specified" }}</strong>
+                    </div>
+                    <div>
+                        <small class="text-muted d-block mb-1">Department</small>
+                        <strong>{{ project.department.name }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Team Members -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Research Team</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-2">Principal Investigator</small>
+                        <div class="d-flex align-items-center">
+                            <div class="student-avatar me-2">
+                                <img src="{% if project.principal_investigator.user.profile_picture %}{{ project.principal_investigator.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                     alt="{{ project.principal_investigator.user.get_full_name }}" 
+                                     class="rounded-circle">
+                            </div>
+                            <div>
+                                <strong class="d-block">{{ project.principal_investigator.user.get_full_name }}</strong>
+                                <small class="text-muted">{{ project.principal_investigator.designation }}</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if co_investigators %}
+                    <div>
+                        <small class="text-muted d-block mb-2">Co-Investigators</small>
+                        {% for co_inv in co_investigators %}
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="student-avatar me-2">
+                                <img src="{% if co_inv.user.profile_picture %}{{ co_inv.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                     alt="{{ co_inv.user.get_full_name }}" 
+                                     class="rounded-circle">
+                            </div>
+                            <div>
+                                <strong class="d-block">{{ co_inv.user.get_full_name }}</strong>
+                                <small class="text-muted">{{ co_inv.designation }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends 'lecturer/lecturer_base.html' %}
+{% load static %}
+
+{% block title %}{{ allocation.programme_unit.unit.code }} - Details{% endblock %}
+
+{% block page_title %}Unit Allocation Details{% endblock %}
+{% block page_subtitle %}{{ allocation.programme_unit.unit.code }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'lecturer_unit_allocations' %}">Unit Allocations</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ allocation.programme_unit.unit.code }}</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">{{ allocation.programme_unit.unit.name }}</h1>
+                <p class="text-muted mb-0">{{ allocation.programme_unit.unit.code }} • {{ allocation.semester.name }}</p>
+            </div>
+            <div>
+                {% if allocation.status == 'approved_dean' %}
+                <span class="status-badge status-active">
+                    <i class="ri-checkbox-circle-line me-1"></i>
+                    Approved
+                </span>
+                {% else %}
+                <span class="status-badge status-other">
+                    {{ allocation.get_status_display }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Main Content -->
+        <div class="col-md-8">
+            <!-- Unit Information -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">Unit Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Programme</small>
+                            <strong>{{ allocation.programme_unit.programme.name }}</strong>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted d-block mb-1">Year of Study</small>
+                            <strong>Year {{ allocation.programme_unit.year_of_study }}</strong>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted d-block mb-1">Semester</small>
+                            <strong>Semester {{ allocation.programme_unit.semester_number }}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Credit Hours</small>
+                            <strong>{{ allocation.programme_unit.unit.credit_hours }}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block mb-1">Unit Type</small>
+                            <strong>{{ allocation.programme_unit.get_unit_type_display }}</strong>
+                        </div>
+                        <div class="col-12">
+                            <small class="text-muted d-block mb-1">Description</small>
+                            <p class="mb-0">{{ allocation.programme_unit.unit.description|default:"No description available" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enrolled Students -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Enrolled Students</h5>
+                            <div class="card-subtitle">{{ enrolled_students }} student(s) enrolled</div>
+                        </div>
+                        {% if allocation.max_students %}
+                        <div>
+                            <span class="badge bg-info-subtle text-info">
+                                Capacity: {{ enrolled_students }}/{{ allocation.max_students }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Teaching Materials -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">Teaching Materials</h5>
+                    <div class="card-subtitle">{{ materials|length }} material(s) uploaded</div>
+                </div>
+                <div class="card-body p-0">
+                    {% if materials %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Week</th>
+                                    <th>Topic</th>
+                                    <th>Type</th>
+                                    <th>Upload Date</th>
+                                    <th>Downloads</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for material in materials %}
+                                <tr>
+                                    <td><strong>Week {{ material.week_number }}</strong></td>
+                                    <td>{{ material.topic }}</td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info">
+                                            {{ material.get_material_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ material.upload_date|date:"M d, Y" }}</td>
+                                    <td class="text-center">{{ material.download_count }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-file-list-line display-4 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No teaching materials uploaded yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Assessments -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Assessments</h5>
+                    <div class="card-subtitle">{{ assessments|length }} assessment(s) scheduled</div>
+                </div>
+                <div class="card-body p-0">
+                    {% if assessments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Title</th>
+                                    <th>Date</th>
+                                    <th>Max Marks</th>
+                                    <th>Weight</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assessment in assessments %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-primary-subtle text-primary">
+                                            {{ assessment.get_assessment_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ assessment.title }}</td>
+                                    <td>{{ assessment.date|date:"M d, Y" }}</td>
+                                    <td class="text-center">{{ assessment.max_marks }}</td>
+                                    <td class="text-center">{{ assessment.weight_percentage }}%</td>
+                                    <td>
+                                        {% if assessment.is_published %}
+                                        <span class="badge bg-success-subtle text-success">
+                                            Published
+                                        </span>
+                                        {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">
+                                            Draft
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ri-file-edit-line display-4 text-muted mb-2"></i>
+                        <p class="text-muted mb-0">No assessments scheduled yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <!-- Allocation Details -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">Allocation Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Assigned By</small>
+                        <strong>{{ allocation.assigned_by.get_full_name }}</strong>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Allocation Date</small>
+                        <strong>{{ allocation.created_at|date:"M d, Y" }}</strong>
+                    </div>
+                    {% if allocation.max_students %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block mb-1">Maximum Students</small>
+                        <strong>{{ allocation.max_students }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if allocation.remarks %}
+                    <div>
+                        <small class="text-muted d-block mb-1">Remarks</small>
+                        <p class="mb-0">{{ allocation.remarks }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Approval Status -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Approval Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="approval-timeline">
+                        <div class="approval-step {% if allocation.approved_by_hod %}completed{% endif %}">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="ri-checkbox-circle-fill me-2 {% if allocation.approved_by_hod %}text-success{% else %}text-muted{% endif %}"></i>
+                                <strong>HOD Approval</strong>
+                            </div>
+                            {% if allocation.approved_by_hod %}
+                            <small class="text-muted d-block ms-4">
+                                Approved by {{ allocation.approved_by_hod.get_full_name }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="approval-step {% if allocation.approved_by_hos %}completed{% endif %} mt-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="ri-checkbox-circle-fill me-2 {% if allocation.approved_by_hos %}text-success{% else %}text-muted{% endif %}"></i>
+                                <strong>HOS Approval</strong>
+                            </div>
+                            {% if allocation.approved_by_hos %}
+                            <small class="text-muted d-block ms-4">
+                                Approved by {{ allocation.approved_by_hos.get_full_name }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="approval-step {% if allocation.approved_by_dean %}completed{% endif %} mt-3">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="ri-checkbox-circle-fill me-2 {% if allocation.approved_by_dean %}text-success{% else %}text-muted{% endif %}"></i>
+                                <strong>Dean Approval</strong>
+                            </div>
+                            {% if allocation.approved_by_dean %}
+                            <small class="text-muted d-block ms-4">
+                                Approved by {{ allocation.approved_by_dean.get_full_name }}
+                            </small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
