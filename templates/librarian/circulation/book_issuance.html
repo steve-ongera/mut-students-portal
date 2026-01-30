@@ -3,8 +3,12 @@
 
 {% block title %}Book Issuance{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Book Issuance{% endblock %}
-{% block page_subtitle %}Issue books to students{% endblock %}
+{% block page_subtitle %}Issue books to library members{% endblock %}
 
 {% block content %}
 <nav aria-label="breadcrumb">
@@ -15,87 +19,254 @@
 </nav>
 
 <div class="content-container">
-    <div class="row">
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Today's Issuances -->
+        <div class="col-md-3">
+            <div class="metric-card metric-primary">
+                <div class="metric-icon">
+                    <i class="ri-hand-heart-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ today_issuances|default:0 }}</div>
+                    <div class="metric-label">Today's Issuances</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Returns -->
+        <div class="col-md-3">
+            <div class="metric-card metric-success">
+                <div class="metric-icon">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ today_returns|default:0 }}</div>
+                    <div class="metric-label">Today's Returns</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Borrowings -->
+        <div class="col-md-3">
+            <div class="metric-card metric-warning">
+                <div class="metric-icon">
+                    <i class="ri-book-mark-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ active_borrowings|default:0 }}</div>
+                    <div class="metric-label">Active Borrowings</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overdue Books -->
+        <div class="col-md-3">
+            <div class="metric-card metric-danger">
+                <div class="metric-icon">
+                    <i class="ri-alarm-warning-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ overdue_books|default:0 }}</div>
+                    <div class="metric-label">Overdue Today</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
         <!-- Issuance Form -->
         <div class="col-lg-5">
-            <div class="management-card mb-4">
+            <div class="management-card">
                 <div class="card-header">
                     <h5 class="card-title">Issue New Book</h5>
+                    <div class="card-subtitle">Search and select student and book</div>
                 </div>
                 <div class="card-body">
                     <form method="post" id="issuanceForm">
                         {% csrf_token %}
                         
                         <!-- Student Search -->
-                        <div class="mb-3">
-                            <label for="studentSearch" class="form-label">Search Student</label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="studentSearch" 
-                                   placeholder="Enter registration number or name..."
-                                   autocomplete="off">
-                            <input type="hidden" name="student_id" id="student_id">
-                            <div id="studentResults" class="list-group mt-2" style="display: none;"></div>
+                        <div class="mb-4">
+                            <label for="studentSearch" class="form-label fw-semibold">Search Student</label>
+                            <div class="search-container">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0">
+                                        <i class="ri-user-search-line text-muted"></i>
+                                    </span>
+                                    <input type="text" 
+                                           class="form-control border-start-0 ps-0" 
+                                           id="studentSearch" 
+                                           placeholder="Enter registration number or student name..."
+                                           autocomplete="off">
+                                </div>
+                                <input type="hidden" name="student_id" id="student_id">
+                                <div id="studentResults" class="list-group mt-2" style="display: none;"></div>
+                            </div>
                         </div>
 
                         <!-- Selected Student Info -->
-                        <div id="studentInfo" class="alert alert-info" style="display: none;">
-                            <h6 class="alert-heading mb-2">Student Information</h6>
-                            <p class="mb-1"><strong>Name:</strong> <span id="studentName"></span></p>
-                            <p class="mb-1"><strong>Reg No:</strong> <span id="studentRegNo"></span></p>
-                            <p class="mb-1"><strong>Programme:</strong> <span id="studentProgramme"></span></p>
-                            <p class="mb-1"><strong>Active Borrowings:</strong> <span id="studentBorrowings"></span></p>
-                            <p class="mb-0"><strong>Overdue Books:</strong> <span id="studentOverdue"></span></p>
+                        <div id="studentInfo" class="alert alert-info mb-4" style="display: none;">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="ri-user-line fs-4 me-2"></i>
+                                <h6 class="alert-heading mb-0">Selected Student</h6>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-info mb-2">
+                                        <i class="ri-id-card-line"></i>
+                                        <div>
+                                            <strong>Registration No</strong>
+                                            <div id="studentRegNo" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-info mb-2">
+                                        <i class="ri-user-line"></i>
+                                        <div>
+                                            <strong>Student Name</strong>
+                                            <div id="studentName" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-info mb-2">
+                                        <i class="ri-graduation-cap-line"></i>
+                                        <div>
+                                            <strong>Programme</strong>
+                                            <div id="studentProgramme" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-info mb-2">
+                                        <i class="ri-book-mark-line"></i>
+                                        <div>
+                                            <strong>Active Borrowings</strong>
+                                            <div id="studentBorrowings" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="alert-item alert-info mb-2">
+                                        <i class="ri-alarm-warning-line"></i>
+                                        <div>
+                                            <strong>Overdue Status</strong>
+                                            <div id="studentOverdue" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- Book Search -->
-                        <div class="mb-3">
-                            <label for="bookSearch" class="form-label">Search Book</label>
-                            <input type="text" 
-                                   class="form-control" 
-                                   id="bookSearch" 
-                                   placeholder="Enter title, author, or ISBN..."
-                                   autocomplete="off">
-                            <input type="hidden" name="book_id" id="book_id">
-                            <div id="bookResults" class="list-group mt-2" style="display: none;"></div>
+                        <div class="mb-4">
+                            <label for="bookSearch" class="form-label fw-semibold">Search Book</label>
+                            <div class="search-container">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-white border-end-0">
+                                        <i class="ri-search-line text-muted"></i>
+                                    </span>
+                                    <input type="text" 
+                                           class="form-control border-start-0 ps-0" 
+                                           id="bookSearch" 
+                                           placeholder="Enter title, author, or ISBN..."
+                                           autocomplete="off">
+                                </div>
+                                <input type="hidden" name="book_id" id="book_id">
+                                <div id="bookResults" class="list-group mt-2" style="display: none;"></div>
+                            </div>
                         </div>
 
                         <!-- Selected Book Info -->
-                        <div id="bookInfo" class="alert alert-success" style="display: none;">
-                            <h6 class="alert-heading mb-2">Book Information</h6>
-                            <p class="mb-1"><strong>Title:</strong> <span id="bookTitle"></span></p>
-                            <p class="mb-1"><strong>Author:</strong> <span id="bookAuthor"></span></p>
-                            <p class="mb-1"><strong>ISBN:</strong> <span id="bookISBN"></span></p>
-                            <p class="mb-0"><strong>Available:</strong> <span id="bookAvailable"></span></p>
+                        <div id="bookInfo" class="alert alert-success mb-4" style="display: none;">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="ri-book-line fs-4 me-2"></i>
+                                <h6 class="alert-heading mb-0">Selected Book</h6>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-success mb-2">
+                                        <i class="ri-book-line"></i>
+                                        <div>
+                                            <strong>Book Title</strong>
+                                            <div id="bookTitle" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-success mb-2">
+                                        <i class="ri-user-line"></i>
+                                        <div>
+                                            <strong>Author</strong>
+                                            <div id="bookAuthor" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-success mb-2">
+                                        <i class="ri-barcode-line"></i>
+                                        <div>
+                                            <strong>ISBN</strong>
+                                            <div id="bookISBN" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert-item alert-success mb-2">
+                                        <i class="ri-stack-line"></i>
+                                        <div>
+                                            <strong>Availability</strong>
+                                            <div id="bookAvailable" class="fw-medium"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary" id="issueBtn" disabled>
-                                <i class="ri-hand-heart-line"></i> Issue Book
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg" id="issueBtn" disabled>
+                                <i class="ri-hand-heart-line me-2"></i> Issue Book to Student
                             </button>
+                            <a href="{% url 'book_issuance' %}" class="btn btn-outline-secondary">
+                                <i class="ri-refresh-line me-2"></i> Clear Form
+                            </a>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Quick Stats -->
-            <div class="management-card">
+            <!-- Quick Actions -->
+            <div class="management-card mt-4">
                 <div class="card-header">
-                    <h5 class="card-title">Today's Statistics</h5>
+                    <h5 class="card-title">Quick Actions</h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
-                        <div class="col-6">
-                            <div class="stat-item">
-                                <div class="stat-value">0</div>
-                                <div class="stat-label">Books Issued Today</div>
-                            </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'book_returns' %}" class="quick-action-card">
+                                <i class="ri-checkbox-circle-line"></i>
+                                <span>Book Returns</span>
+                            </a>
                         </div>
-                        <div class="col-6">
-                            <div class="stat-item">
-                                <div class="stat-value">0</div>
-                                <div class="stat-label">Books Returned Today</div>
-                            </div>
+                        <div class="col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <i class="ri-list-check"></i>
+                                <span>Manage Borrowings</span>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'book_catalog_list' %}" class="quick-action-card">
+                                <i class="ri-book-line"></i>
+                                <span>Book Catalog</span>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'library_reports' %}" class="quick-action-card">
+                                <i class="ri-file-chart-line"></i>
+                                <span>Borrowing Reports</span>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -104,19 +275,19 @@
 
         <!-- Recent Issuances -->
         <div class="col-lg-7">
-            <div class="management-card">
+            <div class="management-card h-100">
                 <div class="card-header">
                     <h5 class="card-title">Recent Issuances</h5>
+                    <div class="card-subtitle">Today's and recent book issuances</div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Student</th>
-                                    <th>Book</th>
-                                    <th>Issue Date</th>
-                                    <th>Due Date</th>
+                                    <th>Student Details</th>
+                                    <th>Book Details</th>
+                                    <th>Dates</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -124,38 +295,75 @@
                                 {% for issuance in recent_issuances %}
                                 <tr>
                                     <td>
-                                        <div>
-                                            <strong>{{ issuance.student.user.get_full_name }}</strong>
-                                            <small class="d-block text-muted">{{ issuance.student.registration_number }}</small>
+                                        <div class="d-flex align-items-center">
+                                            <div class="student-avatar-sm me-3">
+                                                <div class="avatar-placeholder bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center">
+                                                    <i class="ri-user-line"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong class="d-block">{{ issuance.student.user.get_full_name }}</strong>
+                                                <small class="d-block text-muted">{{ issuance.student.registration_number }}</small>
+                                                <small class="d-block text-muted">{{ issuance.student.programme.name|default:"-" }}</small>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
                                         <div>
-                                            <strong>{{ issuance.book.title|truncatewords:5 }}</strong>
+                                            <strong class="d-block">{{ issuance.book.title|truncatewords:8 }}</strong>
                                             <small class="d-block text-muted">{{ issuance.book.author }}</small>
+                                            <small class="d-block text-muted">
+                                                <i class="ri-barcode-line me-1"></i>{{ issuance.book.isbn }}
+                                            </small>
                                         </div>
                                     </td>
-                                    <td>{{ issuance.borrow_date|date:"d/m/Y" }}</td>
                                     <td>
-                                        <span class="{% if issuance.due_date < today %}text-danger{% endif %}">
-                                            {{ issuance.due_date|date:"d/m/Y" }}
-                                        </span>
+                                        <div>
+                                            <div class="fw-medium mb-1">
+                                                <i class="ri-calendar-event-line me-1 text-primary"></i>
+                                                {{ issuance.borrow_date|date:"d M Y" }}
+                                            </div>
+                                            <div class="{% if issuance.due_date < today %}text-danger{% else %}text-muted{% endif %}">
+                                                <i class="ri-calendar-2-line me-1"></i>
+                                                {{ issuance.due_date|date:"d M Y" }}
+                                            </div>
+                                            {% if issuance.due_date < today %}
+                                            <small class="text-danger">
+                                                <i class="ri-alarm-warning-line me-1"></i>
+                                                {{ issuance.due_date|timesince }} overdue
+                                            </small>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                     <td>
                                         {% if issuance.status == 'active' %}
                                         <span class="badge bg-success">Active</span>
                                         {% elif issuance.status == 'overdue' %}
                                         <span class="badge bg-danger">Overdue</span>
+                                        {% elif issuance.status == 'returned' %}
+                                        <span class="badge bg-secondary">Returned</span>
                                         {% else %}
-                                        <span class="badge bg-secondary">{{ issuance.get_status_display }}</span>
+                                        <span class="badge bg-warning">{{ issuance.get_status_display }}</span>
+                                        {% endif %}
+                                        
+                                        {% if issuance.fine_amount and not issuance.fine_paid %}
+                                        <div class="mt-1">
+                                            <small class="text-danger">
+                                                <i class="ri-money-dollar-circle-line me-1"></i>
+                                                KES {{ issuance.fine_amount }}
+                                            </small>
+                                        </div>
                                         {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="ri-book-line fs-3 text-muted mb-2"></i>
-                                        <p class="text-muted mb-0">No recent issuances</p>
+                                    <td colspan="4" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-inbox-line fs-1 mb-3"></i>
+                                            <h5 class="fw-medium mb-2">No recent issuances</h5>
+                                            <p class="mb-0">Start issuing books to see them appear here</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -167,6 +375,354 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+
+    .metric-primary .metric-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+
+    .metric-success .metric-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .metric-warning .metric-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .metric-danger .metric-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Search Container */
+    .search-container {
+        margin-bottom: 1rem;
+    }
+
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+
+    .search-container .input-group-text {
+        border: 1px solid var(--color-gray-300);
+        border-right: none;
+    }
+
+    .search-container .form-control {
+        border: 1px solid var(--color-gray-300);
+        border-left: none;
+        padding-left: 0;
+    }
+
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-primary);
+    }
+
+    /* Alert Items */
+    .alert-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: var(--radius-md);
+        background: rgba(255, 255, 255, 0.7);
+        border-left: 3px solid;
+        margin-bottom: 0.5rem;
+    }
+
+    .alert-item i {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .alert-item strong {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        display: block;
+        margin-bottom: 0.125rem;
+    }
+
+    .alert-item .fw-medium {
+        font-size: 0.875rem;
+        color: var(--color-gray-800);
+    }
+
+    .alert-info .alert-item {
+        border-left-color: var(--color-info);
+        background: rgba(33, 150, 243, 0.05);
+    }
+
+    .alert-success .alert-item {
+        border-left-color: var(--color-success);
+        background: rgba(76, 175, 80, 0.05);
+    }
+
+    /* Search Results */
+    .list-group {
+        max-height: 300px;
+        overflow-y: auto;
+        box-shadow: var(--shadow-md);
+        border-radius: var(--radius-md);
+    }
+
+    .list-group-item {
+        border: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 0.75rem 1rem;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .list-group-item:hover {
+        background-color: rgba(46, 125, 50, 0.05);
+        border-left: 3px solid var(--color-primary);
+    }
+
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+
+    /* Student Avatar */
+    .student-avatar-sm {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        font-size: 1.25rem;
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 1rem;
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+        gap: 0.75rem;
+    }
+
+    .quick-action-card:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-card i {
+        font-size: 2rem;
+        color: var(--color-primary);
+    }
+
+    .quick-action-card span {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-align: center;
+    }
+
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+
+    /* Button Styles */
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+</style>
 
 <script>
 // Student search functionality
@@ -185,19 +741,30 @@ document.getElementById('studentSearch').addEventListener('input', function(e) {
             .then(response => response.json())
             .then(data => {
                 const resultsDiv = document.getElementById('studentResults');
-                if (data.students.length > 0) {
+                if (data.students && data.students.length > 0) {
                     resultsDiv.innerHTML = data.students.map(student => `
                         <a href="#" class="list-group-item list-group-item-action student-item" 
                            data-id="${student.id}"
                            data-name="${student.name}"
                            data-regno="${student.registration_number}"
-                           data-programme="${student.programme}"
-                           data-borrowings="${student.active_borrowings}"
-                           data-overdue="${student.has_overdue}">
-                            <div>
-                                <strong>${student.name}</strong>
-                                <small class="d-block text-muted">${student.registration_number} - ${student.programme}</small>
-                                <small class="d-block">${student.active_borrowings} active borrowings</small>
+                           data-programme="${student.programme || '-'}"
+                           data-borrowings="${student.active_borrowings || 0}"
+                           data-overdue="${student.has_overdue || false}">
+                            <div class="d-flex align-items-center">
+                                <div class="student-avatar-sm me-3">
+                                    <div class="avatar-placeholder bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center">
+                                        <i class="ri-user-line"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <strong>${student.name}</strong>
+                                    <small class="d-block text-muted">${student.registration_number}</small>
+                                    <small class="d-block">${student.programme || 'No programme'}</small>
+                                    <small class="d-block text-muted">
+                                        <i class="ri-book-mark-line me-1"></i>
+                                        ${student.active_borrowings || 0} active borrowing(s)
+                                    </small>
+                                </div>
                             </div>
                         </a>
                     `).join('');
@@ -211,9 +778,14 @@ document.getElementById('studentSearch').addEventListener('input', function(e) {
                         });
                     });
                 } else {
-                    resultsDiv.innerHTML = '<div class="list-group-item">No students found</div>';
+                    resultsDiv.innerHTML = '<div class="list-group-item text-muted">No students found</div>';
                     resultsDiv.style.display = 'block';
                 }
+            })
+            .catch(error => {
+                console.error('Error searching students:', error);
+                document.getElementById('studentResults').innerHTML = '<div class="list-group-item text-danger">Error searching students</div>';
+                document.getElementById('studentResults').style.display = 'block';
             });
     }, 300);
 });
@@ -223,10 +795,11 @@ function selectStudent(data) {
     document.getElementById('studentName').textContent = data.name;
     document.getElementById('studentRegNo').textContent = data.regno;
     document.getElementById('studentProgramme').textContent = data.programme;
-    document.getElementById('studentBorrowings').textContent = data.borrowings;
-    document.getElementById('studentOverdue').textContent = data.overdue === 'true' ? 'Yes' : 'No';
+    document.getElementById('studentBorrowings').textContent = `${data.borrowings} book(s)`;
+    document.getElementById('studentOverdue').textContent = data.overdue === 'true' ? 'Has overdue books' : 'No overdue books';
     
     document.getElementById('studentResults').style.display = 'none';
+    document.getElementById('studentSearch').value = data.name;
     document.getElementById('studentInfo').style.display = 'block';
     
     checkFormComplete();
@@ -248,18 +821,25 @@ document.getElementById('bookSearch').addEventListener('input', function(e) {
             .then(response => response.json())
             .then(data => {
                 const resultsDiv = document.getElementById('bookResults');
-                if (data.books.length > 0) {
+                if (data.books && data.books.length > 0) {
                     resultsDiv.innerHTML = data.books.map(book => `
                         <a href="#" class="list-group-item list-group-item-action book-item" 
                            data-id="${book.id}"
                            data-title="${book.title}"
-                           data-author="${book.author}"
-                           data-isbn="${book.isbn}"
-                           data-available="${book.available_copies}">
+                           data-author="${book.author || 'Unknown'}"
+                           data-isbn="${book.isbn || 'N/A'}"
+                           data-available="${book.available_copies || 0}">
                             <div>
                                 <strong>${book.title}</strong>
-                                <small class="d-block text-muted">${book.author} - ISBN: ${book.isbn}</small>
-                                <small class="d-block">Available: ${book.available_copies}/${book.total_copies}</small>
+                                <small class="d-block text-muted">${book.author || 'Unknown'} • ISBN: ${book.isbn || 'N/A'}</small>
+                                <small class="d-block">
+                                    <i class="ri-stack-line me-1"></i>
+                                    Available: ${book.available_copies || 0}/${book.total_copies || 0}
+                                    ${book.available_copies < 2 && book.available_copies > 0 ? 
+                                        '<span class="badge bg-warning-subtle text-warning ms-2">Low stock</span>' : ''}
+                                    ${book.available_copies === 0 ? 
+                                        '<span class="badge bg-danger-subtle text-danger ms-2">Out of stock</span>' : ''}
+                                </small>
                             </div>
                         </a>
                     `).join('');
@@ -273,9 +853,14 @@ document.getElementById('bookSearch').addEventListener('input', function(e) {
                         });
                     });
                 } else {
-                    resultsDiv.innerHTML = '<div class="list-group-item">No books found</div>';
+                    resultsDiv.innerHTML = '<div class="list-group-item text-muted">No books found</div>';
                     resultsDiv.style.display = 'block';
                 }
+            })
+            .catch(error => {
+                console.error('Error searching books:', error);
+                document.getElementById('bookResults').innerHTML = '<div class="list-group-item text-danger">Error searching books</div>';
+                document.getElementById('bookResults').style.display = 'block';
             });
     }, 300);
 });
@@ -285,9 +870,10 @@ function selectBook(data) {
     document.getElementById('bookTitle').textContent = data.title;
     document.getElementById('bookAuthor').textContent = data.author;
     document.getElementById('bookISBN').textContent = data.isbn;
-    document.getElementById('bookAvailable').textContent = data.available;
+    document.getElementById('bookAvailable').textContent = `${data.available} copy/copies available`;
     
     document.getElementById('bookResults').style.display = 'none';
+    document.getElementById('bookSearch').value = data.title;
     document.getElementById('bookInfo').style.display = 'block';
     
     checkFormComplete();
@@ -296,7 +882,25 @@ function selectBook(data) {
 function checkFormComplete() {
     const studentId = document.getElementById('student_id').value;
     const bookId = document.getElementById('book_id').value;
-    document.getElementById('issueBtn').disabled = !(studentId && bookId);
+    const issueBtn = document.getElementById('issueBtn');
+    
+    if (studentId && bookId) {
+        issueBtn.disabled = false;
+        issueBtn.innerHTML = '<i class="ri-hand-heart-line me-2"></i> Issue Book to Student';
+    } else {
+        issueBtn.disabled = true;
+        issueBtn.innerHTML = '<i class="ri-hand-heart-line me-2"></i> Select Student & Book';
+    }
 }
+
+// Close search results when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#studentSearch') && !e.target.closest('#studentResults')) {
+        document.getElementById('studentResults').style.display = 'none';
+    }
+    if (!e.target.closest('#bookSearch') && !e.target.closest('#bookResults')) {
+        document.getElementById('bookResults').style.display = 'none';
+    }
+});
 </script>
 {% endblock %}
