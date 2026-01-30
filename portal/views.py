@@ -3079,6 +3079,253 @@ def add_book(request):
     return render(request, 'librarian/catalog/add_book.html', context)
 
 
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.db.models import Count, Q, Sum
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+
+# Assuming these are your model imports
+from .models import (
+    Book, BookBorrowing, BookCategory, Student, 
+    AcademicYear, Semester, User
+)
+
+
+def is_librarian(user):
+    """Check if user is a librarian"""
+    return user.is_authenticated and user.role == 'librarian'
+
+
+@login_required
+@user_passes_test(is_librarian)
+def book_detail(request, book_id):
+    """
+    Detailed view of a specific book with borrowing history,
+    availability status, and statistics
+    """
+    
+    # Get the book or return 404
+    book = get_object_or_404(Book, id=book_id)
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # ===== AVAILABILITY STATUS =====
+    availability_status = {
+        'total_copies': book.total_copies,
+        'available_copies': book.available_copies,
+        'borrowed_copies': book.total_copies - book.available_copies,
+        'availability_percentage': (book.available_copies / book.total_copies * 100) if book.total_copies > 0 else 0,
+        'status': book.status,
+        'is_available': book.available_copies > 0,
+    }
+    
+    # ===== BORROWING STATISTICS =====
+    
+    # Total times borrowed (all time)
+    total_borrows = BookBorrowing.objects.filter(book=book).count()
+    
+    # Currently active borrowings
+    active_borrowings = BookBorrowing.objects.filter(
+        book=book,
+        status='active'
+    ).select_related('student__user', 'issued_by')
+    
+    # Overdue borrowings
+    overdue_borrowings = BookBorrowing.objects.filter(
+        book=book,
+        status__in=['active', 'overdue'],
+        due_date__lt=timezone.now().date()
+    ).select_related('student__user', 'issued_by')
+    
+    # Borrowing this semester
+    semester_borrows = 0
+    if current_semester:
+        semester_borrows = BookBorrowing.objects.filter(
+            book=book,
+            semester=current_semester
+        ).count()
+    
+    # Borrowing this academic year
+    year_borrows = 0
+    if current_academic_year:
+        year_borrows = BookBorrowing.objects.filter(
+            book=book,
+            academic_year=current_academic_year
+        ).count()
+    
+    # Average borrowing duration (in days)
+    returned_borrowings = BookBorrowing.objects.filter(
+        book=book,
+        status='returned',
+        return_date__isnull=False
+    )
+    
+    avg_duration = 0
+    if returned_borrowings.exists():
+        total_days = 0
+        count = 0
+        for borrowing in returned_borrowings:
+            duration = (borrowing.return_date.date() - borrowing.borrow_date.date()).days
+            total_days += duration
+            count += 1
+        avg_duration = total_days / count if count > 0 else 0
+    
+    borrowing_stats = {
+        'total_borrows': total_borrows,
+        'active_count': active_borrowings.count(),
+        'overdue_count': overdue_borrowings.count(),
+        'semester_borrows': semester_borrows,
+        'year_borrows': year_borrows,
+        'avg_duration': round(avg_duration, 1),
+    }
+    
+    # ===== BORROWING HISTORY =====
+    
+    # Get all borrowing history (paginated)
+    borrowing_history = BookBorrowing.objects.filter(
+        book=book
+    ).select_related(
+        'student__user', 'student__programme',
+        'issued_by', 'returned_to'
+    ).order_by('-borrow_date')[:20]  # Last 20 borrowings
+    
+    # ===== FINANCIAL DATA =====
+    
+    # Total fines generated
+    total_fines = BookBorrowing.objects.filter(
+        book=book,
+        fine_amount__gt=0
+    ).aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    # Fines collected
+    fines_collected = BookBorrowing.objects.filter(
+        book=book,
+        fine_amount__gt=0,
+        fine_paid=True
+    ).aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    # Pending fines
+    fines_pending = BookBorrowing.objects.filter(
+        book=book,
+        fine_amount__gt=0,
+        fine_paid=False
+    ).aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    financial_data = {
+        'total_fines': total_fines,
+        'fines_collected': fines_collected,
+        'fines_pending': fines_pending,
+        'collection_rate': (fines_collected / total_fines * 100) if total_fines > 0 else 0,
+    }
+    
+    # ===== TOP BORROWERS =====
+    
+    # Students who borrowed this book most frequently
+    top_borrowers = BookBorrowing.objects.filter(
+        book=book
+    ).values(
+        'student__registration_number',
+        'student__user__first_name',
+        'student__user__last_name',
+        'student__programme__code'
+    ).annotate(
+        borrow_count=Count('id')
+    ).order_by('-borrow_count')[:5]
+    
+    # ===== RELATED BOOKS =====
+    
+    # Books in the same category
+    related_books = Book.objects.filter(
+        category=book.category,
+        status= 'available'
+    ).exclude(
+        id=book.id
+    ).annotate(
+        borrow_count=Count('borrowings')
+    ).order_by('-borrow_count')[:6]
+    
+    # ===== MONTHLY BORROWING TREND =====
+    
+    # Get borrowing trend for last 6 months
+    six_months_ago = timezone.now() - timedelta(days=180)
+    from django.db.models.functions import TruncMonth
+    
+    monthly_trend = BookBorrowing.objects.filter(
+        book=book,
+        borrow_date__gte=six_months_ago
+    ).annotate(
+        month=TruncMonth('borrow_date')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+    
+    # ===== RECENT ACTIVITY =====
+    
+    # Last 5 activities (borrows and returns)
+    recent_activity = BookBorrowing.objects.filter(
+        book=book
+    ).select_related(
+        'student__user', 'issued_by', 'returned_to'
+    ).order_by('-borrow_date')[:5]
+    
+    # ===== BOOK CONDITION & STATUS =====
+    
+    # Check for any lost or damaged copies
+    lost_copies = BookBorrowing.objects.filter(
+        book=book,
+        status='lost'
+    ).count()
+    
+    damaged_copies = BookBorrowing.objects.filter(
+        book=book,
+        status='damaged'
+    ).count()
+    
+    condition_data = {
+        'lost_copies': lost_copies,
+        'damaged_copies': damaged_copies,
+        'good_copies': book.total_copies - lost_copies - damaged_copies,
+    }
+    
+    context = {
+        # Book Information
+        'book': book,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        
+        # Availability
+        'availability_status': availability_status,
+        
+        # Statistics
+        'borrowing_stats': borrowing_stats,
+        'financial_data': financial_data,
+        'condition_data': condition_data,
+        
+        # Borrowings
+        'active_borrowings': active_borrowings,
+        'overdue_borrowings': overdue_borrowings,
+        'borrowing_history': borrowing_history,
+        
+        # Analytics
+        'top_borrowers': top_borrowers,
+        'related_books': related_books,
+        'monthly_trend': monthly_trend,
+        'recent_activity': recent_activity,
+    }
+    
+    return render(request, 'librarian/catalog/book_detail.html', context)
+
 @login_required
 @user_passes_test(is_librarian)
 def edit_book(request, book_id):
@@ -3119,6 +3366,40 @@ def edit_book(request, book_id):
     
     return render(request, 'librarian/catalog/edit_book.html', context)
 
+@login_required
+@user_passes_test(is_librarian)
+def delete_book(request, book_id):
+    """Delete a book (soft delete - mark as inactive)"""
+    book = get_object_or_404(Book, id=book_id)
+    
+    # Check if book has active borrowings
+    active_borrowings = BookBorrowing.objects.filter(
+        book=book,
+        status__in=['active', 'overdue']
+    ).count()
+    
+    if active_borrowings > 0:
+        messages.error(
+            request, 
+            f'Cannot delete book "{book.title}". It has {active_borrowings} active borrowing(s). '
+            'Please wait for all copies to be returned.'
+        )
+        return redirect('book_detail', book_id=book.id)
+    
+    if request.method == 'POST':
+        try:
+            # Soft delete - mark as lost/removed
+            book.status = 'lost'
+            book.available_copies = 0
+            book.save()
+            
+            messages.success(request, f'Book "{book.title}" has been removed from the system.')
+            return redirect('book_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting book: {str(e)}')
+    
+    return redirect('book_detail', book_id=book.id)
 
 @login_required
 @user_passes_test(is_librarian)

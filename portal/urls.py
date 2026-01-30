@@ -604,7 +604,9 @@ urlpatterns = [
     # ============= CATALOG MANAGEMENT =============
     path('catalog/', views.book_catalog_list, name='book_catalog_list'),
     path('catalog/add/', views.add_book, name='add_book'),
+    path('catalog/detail/<int:book_id>/', views.book_detail, name='book_detail'),
     path('catalog/edit/<int:book_id>/', views.edit_book, name='edit_book'),
+    path('catalog/delete/<int:book_id>/', views.delete_book, name='delete_book'),
     path('catalog/categories/', views.manage_categories, name='manage_categories'),
     path('catalog/inventory/', views.inventory_management, name='inventory_management'),
     path('catalog/inventory/update/<int:book_id>/', views.update_stock, name='update_stock'),
