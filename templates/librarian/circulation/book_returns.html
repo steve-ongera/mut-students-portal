@@ -1,0 +1,168 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Book Returns{% endblock %}
+
+{% block page_title %}Book Returns{% endblock %}
+{% block page_subtitle %}Process book returns and renewals{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Book Returns</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="ri-book-open-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ active_borrowings|length }}</div>
+                    <div class="stat-label">Active Borrowings</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="ri-alarm-warning-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">
+                        {{ active_borrowings|length }}
+                    </div>
+                    <div class="stat-label">Overdue Today</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="ri-check-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">Returned Today</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">0</div>
+                    <div class="stat-label">Fines Pending</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Borrowings Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Active Borrowings</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Book</th>
+                            <th>Borrow Date</th>
+                            <th>Due Date</th>
+                            <th>Days</th>
+                            <th>Status</th>
+                            <th>Fine</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in active_borrowings %}
+                        <tr class="{% if borrowing.status == 'overdue' %}table-danger{% endif %}">
+                            <td>
+                                <div>
+                                    <strong>{{ borrowing.student.user.get_full_name }}</strong>
+                                    <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ borrowing.book.title|truncatewords:5 }}</strong>
+                                    <small class="d-block text-muted">{{ borrowing.book.author }}</small>
+                                    <small class="d-block text-muted">ISBN: {{ borrowing.book.isbn }}</small>
+                                </div>
+                            </td>
+                            <td>{{ borrowing.borrow_date|date:"d/m/Y" }}</td>
+                            <td>
+                                <span class="{% if borrowing.status == 'overdue' %}text-danger fw-bold{% endif %}">
+                                    {{ borrowing.due_date|date:"d/m/Y" }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if borrowing.status == 'overdue' %}
+                                <span class="badge bg-danger">
+                                    {{ borrowing.due_date|timesince|truncatewords:1 }} overdue
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    {{ borrowing.due_date|timeuntil|truncatewords:1 }} left
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-danger">Overdue</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.fine_amount > 0 %}
+                                <span class="text-danger fw-bold">KES {{ borrowing.fine_amount }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <form method="post" style="display: inline;">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="borrowing_id" value="{{ borrowing.id }}">
+                                        <button type="submit" class="btn btn-sm btn-success" title="Return Book">
+                                            <i class="ri-check-line"></i>
+                                        </button>
+                                    </form>
+                                    {% if borrowing.status == 'active' %}
+                                    <a href="{% url 'renew_borrowing' borrowing.id %}" 
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="Renew">
+                                        <i class="ri-refresh-line"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <i class="ri-book-line fs-3 text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No active borrowings</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

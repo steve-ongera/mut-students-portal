@@ -1,0 +1,242 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Process Fine Payment{% endblock %}
+
+{% block page_title %}Process Fine Payment{% endblock %}
+{% block page_subtitle %}Record payment for library fine{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'fine_management' %}">Fine Management</a></li>
+        <li class="breadcrumb-item active">Process Payment</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Fine Details -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Fine Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Student Information</h6>
+                            <p class="mb-1"><strong>Name:</strong> {{ borrowing.student.user.get_full_name }}</p>
+                            <p class="mb-1"><strong>Registration No:</strong> {{ borrowing.student.registration_number }}</p>
+                            <p class="mb-1"><strong>Programme:</strong> {{ borrowing.student.programme }}</p>
+                            <p class="mb-1"><strong>Email:</strong> {{ borrowing.student.user.email }}</p>
+                            <p class="mb-1"><strong>Phone:</strong> {{ borrowing.student.phone_number }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Book Information</h6>
+                            <p class="mb-1"><strong>Title:</strong> {{ borrowing.book.title }}</p>
+                            <p class="mb-1"><strong>Author:</strong> {{ borrowing.book.author }}</p>
+                            <p class="mb-1"><strong>ISBN:</strong> {{ borrowing.book.isbn }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Borrow Date:</strong></p>
+                            <p class="text-muted">{{ borrowing.borrow_date|date:"d/m/Y" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Due Date:</strong></p>
+                            <p class="text-muted">{{ borrowing.due_date|date:"d/m/Y" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Return Date:</strong></p>
+                            <p class="text-muted">
+                                {% if borrowing.return_date %}
+                                {{ borrowing.return_date|date:"d/m/Y" }}
+                                {% else %}
+                                Not returned yet
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-1"><strong>Days Overdue:</strong></p>
+                            <p class="text-danger">{{ days_overdue }} day(s)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fine Amount -->
+            <div class="management-card mb-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">Outstanding Fine</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h2 class="text-danger mb-2">KES {{ borrowing.fine_amount }}</h2>
+                    <p class="text-muted mb-0">Fine Rate: KES 5 per day overdue</p>
+                </div>
+            </div>
+
+            <!-- Payment Form -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Record Payment</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="amount_paid" class="form-label">Amount Paid (KES) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" class="form-control" id="amount_paid" name="amount_paid" 
+                                   value="{{ borrowing.fine_amount }}" min="0" max="{{ borrowing.fine_amount }}" required>
+                            <small class="form-text text-muted">Enter the amount received from the student</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="payment_method" class="form-label">Payment Method <span class="text-danger">*</span></label>
+                            <select class="form-select" id="payment_method" name="payment_method" required>
+                                <option value="">Select payment method</option>
+                                <option value="cash">Cash</option>
+                                <option value="mpesa">M-Pesa</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="card">Card Payment</option>
+                                <option value="cheque">Cheque</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3" id="transactionRefDiv" style="display: none;">
+                            <label for="transaction_reference" class="form-label">Transaction Reference</label>
+                            <input type="text" class="form-control" id="transaction_reference" name="transaction_reference" 
+                                   placeholder="e.g., M-Pesa code, transaction ID">
+                            <small class="form-text text-muted">Provide transaction reference for non-cash payments</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="receipt_number" class="form-label">Receipt Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="receipt_number" name="receipt_number" 
+                                   value="{{ suggested_receipt_number }}" required>
+                            <small class="form-text text-muted">Official receipt number for this transaction</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Payment Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                      placeholder="Any additional notes about this payment..."></textarea>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="ri-information-line"></i>
+                            <strong>Note:</strong> Processing this payment will:
+                            <ul class="mb-0 mt-2">
+                                <li>Mark the fine as paid in the system</li>
+                                <li>Generate a payment receipt for the student</li>
+                                <li>Update the student's fine history</li>
+                                <li>Send payment confirmation email to the student</li>
+                            </ul>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="send_receipt" name="send_receipt" checked>
+                            <label class="form-check-label" for="send_receipt">
+                                Send receipt to student via email
+                            </label>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="ri-check-line"></i> Process Payment
+                            </button>
+                            <a href="{% url 'fine_management' %}" class="btn btn-outline-secondary">
+                                <i class="ri-close-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Student's Fine History -->
+            {% if student_fine_history %}
+            <div class="management-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">Student's Fine History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Book</th>
+                                    <th>Due Date</th>
+                                    <th>Fine Amount</th>
+                                    <th>Payment Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fine in student_fine_history %}
+                                <tr>
+                                    <td>{{ fine.book.title|truncatewords:5 }}</td>
+                                    <td>{{ fine.due_date|date:"d/m/Y" }}</td>
+                                    <td>KES {{ fine.fine_amount }}</td>
+                                    <td>
+                                        {% if fine.fine_payment_date %}
+                                        {{ fine.fine_payment_date|date:"d/m/Y" }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if fine.fine_paid %}
+                                        <span class="badge bg-success">Paid</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentMethodSelect = document.getElementById('payment_method');
+    const transactionRefDiv = document.getElementById('transactionRefDiv');
+    const transactionRefInput = document.getElementById('transaction_reference');
+
+    paymentMethodSelect.addEventListener('change', function() {
+        if (this.value && this.value !== 'cash') {
+            transactionRefDiv.style.display = 'block';
+            transactionRefInput.required = true;
+        } else {
+            transactionRefDiv.style.display = 'none';
+            transactionRefInput.required = false;
+            transactionRefInput.value = '';
+        }
+    });
+
+    // Validate amount paid
+    const amountPaidInput = document.getElementById('amount_paid');
+    const maxAmount = parseFloat(amountPaidInput.max);
+
+    amountPaidInput.addEventListener('input', function() {
+        const value = parseFloat(this.value);
+        if (value > maxAmount) {
+            this.value = maxAmount;
+        }
+        if (value < 0) {
+            this.value = 0;
+        }
+    });
+});
+</script>
+{% endblock %}

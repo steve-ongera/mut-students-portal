@@ -1,0 +1,428 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Fine Reports{% endblock %}
+
+{% block page_title %}Fine Reports{% endblock %}
+{% block page_subtitle %}Library fine statistics and collection reports{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Fine Reports</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Report Filters -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Report Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">Fine Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="all" {% if status == 'all' %}selected{% endif %}>All Fines</option>
+                        <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="paid" {% if status == 'paid' %}selected{% endif %}>Paid</option>
+                        <option value="waived" {% if status == 'waived' %}selected{% endif %}>Waived</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-filter-line"></i> Apply Filter
+                        </button>
+                        <a href="{% url 'fine_reports' %}" class="btn btn-outline-secondary">
+                            <i class="ri-refresh-line"></i> Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">KES {{ total_fines_generated|floatformat:2 }}</div>
+                    <div class="stat-label">Total Fines Generated</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">KES {{ total_fines_collected|floatformat:2 }}</div>
+                    <div class="stat-label">Total Collected</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">KES {{ total_fines_pending|floatformat:2 }}</div>
+                    <div class="stat-label">Pending Collection</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info">
+                    <i class="ri-hand-heart-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">KES {{ total_fines_waived|floatformat:2 }}</div>
+                    <div class="stat-label">Total Waived</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collection Rate -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Fine Collection Rate</h5>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ collection_rate }}%">
+                            {{ collection_rate }}% Collected
+                        </div>
+                        <div class="progress-bar bg-warning" role="progressbar" style="width: {{ pending_rate }}%">
+                            {{ pending_rate }}% Pending
+                        </div>
+                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ waived_rate }}%">
+                            {{ waived_rate }}% Waived
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-end">
+                    <p class="mb-0"><strong>Efficiency:</strong> 
+                        <span class="badge {% if collection_rate >= 80 %}bg-success{% elif collection_rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ collection_rate }}%
+                        </span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Tabs -->
+    <div class="management-card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">
+                        <i class="ri-bar-chart-line"></i> Summary
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="collection-tab" data-bs-toggle="tab" data-bs-target="#collection" type="button" role="tab">
+                        <i class="ri-money-dollar-line"></i> Collections
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="outstanding-tab" data-bs-toggle="tab" data-bs-target="#outstanding" type="button" role="tab">
+                        <i class="ri-alert-line"></i> Outstanding
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="waiver-tab" data-bs-toggle="tab" data-bs-target="#waiver" type="button" role="tab">
+                        <i class="ri-hand-heart-line"></i> Waivers
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Summary Tab -->
+                <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Fine Summary by Period</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('summary')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Period</th>
+                                    <th>Fines Generated</th>
+                                    <th>Collected</th>
+                                    <th>Pending</th>
+                                    <th>Waived</th>
+                                    <th>Collection Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for period in period_summary %}
+                                <tr>
+                                    <td>{{ period.period }}</td>
+                                    <td>KES {{ period.generated|floatformat:2 }}</td>
+                                    <td class="text-success">KES {{ period.collected|floatformat:2 }}</td>
+                                    <td class="text-warning">KES {{ period.pending|floatformat:2 }}</td>
+                                    <td class="text-info">KES {{ period.waived|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge {% if period.collection_rate >= 80 %}bg-success{% elif period.collection_rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ period.collection_rate }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No data available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-active">
+                                    <th>Total</th>
+                                    <th>KES {{ total_fines_generated|floatformat:2 }}</th>
+                                    <th>KES {{ total_fines_collected|floatformat:2 }}</th>
+                                    <th>KES {{ total_fines_pending|floatformat:2 }}</th>
+                                    <th>KES {{ total_fines_waived|floatformat:2 }}</th>
+                                    <th>{{ collection_rate }}%</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Collection Tab -->
+                <div class="tab-pane fade" id="collection" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Recent Fine Collections</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('collection')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Receipt No</th>
+                                    <th>Student</th>
+                                    <th>Book</th>
+                                    <th>Amount</th>
+                                    <th>Payment Method</th>
+                                    <th>Collected By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in recent_collections %}
+                                <tr>
+                                    <td>{{ payment.payment_date|date:"d/m/Y H:i" }}</td>
+                                    <td><code>{{ payment.receipt_number }}</code></td>
+                                    <td>
+                                        <strong>{{ payment.borrowing.student.user.get_full_name }}</strong>
+                                        <br><small class="text-muted">{{ payment.borrowing.student.registration_number }}</small>
+                                    </td>
+                                    <td>{{ payment.borrowing.book.title|truncatewords:5 }}</td>
+                                    <td class="text-success"><strong>KES {{ payment.amount|floatformat:2 }}</strong></td>
+                                    <td><span class="badge bg-secondary">{{ payment.payment_method }}</span></td>
+                                    <td>{{ payment.collected_by.get_full_name }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No collections recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Outstanding Tab -->
+                <div class="tab-pane fade" id="outstanding" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Outstanding Fines by Student</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('outstanding')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Programme</th>
+                                    <th>Number of Fines</th>
+                                    <th>Total Amount</th>
+                                    <th>Oldest Fine</th>
+                                    <th>Contact</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students_with_outstanding %}
+                                <tr {% if student.total_outstanding > 500 %}class="table-danger"{% elif student.total_outstanding > 200 %}class="table-warning"{% endif %}>
+                                    <td>
+                                        <strong>{{ student.user.get_full_name }}</strong>
+                                        <br><small class="text-muted">{{ student.registration_number }}</small>
+                                    </td>
+                                    <td>{{ student.programme }}</td>
+                                    <td><span class="badge bg-danger">{{ student.fine_count }}</span></td>
+                                    <td><strong class="text-danger">KES {{ student.total_outstanding|floatformat:2 }}</strong></td>
+                                    <td>{{ student.oldest_fine_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <small>{{ student.user.email }}<br>{{ student.phone_number }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'send_fine_reminder' student.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="ri-mail-send-line"></i> Remind
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-success">
+                                        <i class="ri-checkbox-circle-line fs-3 mb-2"></i>
+                                        <p>No outstanding fines!</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Waiver Tab -->
+                <div class="tab-pane fade" id="waiver" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Fine Waivers</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('waiver')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Student</th>
+                                    <th>Book</th>
+                                    <th>Amount Waived</th>
+                                    <th>Reason</th>
+                                    <th>Approved By</th>
+                                    <th>Waived By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for waiver in recent_waivers %}
+                                <tr>
+                                    <td>{{ waiver.waived_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <strong>{{ waiver.borrowing.student.user.get_full_name }}</strong>
+                                        <br><small class="text-muted">{{ waiver.borrowing.student.registration_number }}</small>
+                                    </td>
+                                    <td>{{ waiver.borrowing.book.title|truncatewords:5 }}</td>
+                                    <td><strong class="text-info">KES {{ waiver.amount|floatformat:2 }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ waiver.reason }}</span>
+                                        {% if waiver.explanation %}
+                                        <br><small class="text-muted">{{ waiver.explanation|truncatewords:10 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if waiver.approved_by %}
+                                        {{ waiver.approved_by }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ waiver.waived_by.get_full_name }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No waivers recorded</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Export Reports</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Generate and download comprehensive fine reports</p>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-primary" onclick="exportAllReports('pdf')">
+                    <i class="ri-file-pdf-line"></i> Export as PDF
+                </button>
+                <button class="btn btn-outline-success" onclick="exportAllReports('excel')">
+                    <i class="ri-file-excel-line"></i> Export as Excel
+                </button>
+                <button class="btn btn-outline-info" onclick="exportAllReports('csv')">
+                    <i class="ri-file-list-line"></i> Export as CSV
+                </button>
+                <button class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="ri-printer-line"></i> Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportReport(reportType) {
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    const status = document.getElementById('status').value;
+    
+    let url = `{% url 'export_fine_report' %}?report_type=${reportType}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    if (status) url += `&status=${status}`;
+    
+    window.location.href = url;
+}
+
+function exportAllReports(format) {
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    const status = document.getElementById('status').value;
+    
+    let url = `{% url 'export_fine_report' %}?format=${format}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    if (status) url += `&status=${status}`;
+    
+    window.location.href = url;
+}
+</script>
+{% endblock %}

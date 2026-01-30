@@ -1,0 +1,197 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Fine Management{% endblock %}
+
+{% block page_title %}Fine Management{% endblock %}
+{% block page_subtitle %}Manage library fines and payments{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Fines</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">KES {{ total_pending }}</div>
+                    <div class="stat-label">Total Pending Fines</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="ri-check-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">KES {{ total_paid }}</div>
+                    <div class="stat-label">Total Paid Fines</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" id="finesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
+                Pending Fines ({{ pending_fines|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="paid-tab" data-bs-toggle="tab" data-bs-target="#paid" type="button" role="tab">
+                Paid Fines ({{ paid_fines|length }})
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="finesTabContent">
+        <!-- Pending Fines Tab -->
+        <div class="tab-pane fade show active" id="pending" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Pending Fines</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Book</th>
+                                    <th>Due Date</th>
+                                    <th>Return Date</th>
+                                    <th>Days Overdue</th>
+                                    <th>Fine Amount</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fine in pending_fines %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ fine.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ fine.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ fine.book.title|truncatewords:5 }}</strong>
+                                            <small class="d-block text-muted">{{ fine.book.author }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ fine.due_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {% if fine.return_date %}
+                                        {{ fine.return_date|date:"d/m/Y" }}
+                                        {% else %}
+                                        <span class="badge bg-warning">Not Returned</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">
+                                            {% widthratio fine.fine_amount 5 1 %} days
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-danger">KES {{ fine.fine_amount }}</strong>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'process_fine_payment' fine.id %}" 
+                                               class="btn btn-sm btn-success"
+                                               title="Process Payment">
+                                                <i class="ri-money-dollar-circle-line"></i> Pay
+                                            </a>
+                                            <a href="{% url 'waive_fine' fine.id %}" 
+                                               class="btn btn-sm btn-outline-secondary"
+                                               title="Waive Fine">
+                                                <i class="ri-delete-bin-line"></i> Waive
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="ri-money-dollar-circle-line fs-3 text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No pending fines</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paid Fines Tab -->
+        <div class="tab-pane fade" id="paid" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Paid Fines</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Book</th>
+                                    <th>Fine Amount</th>
+                                    <th>Payment Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fine in paid_fines %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ fine.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ fine.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ fine.book.title|truncatewords:5 }}</strong>
+                                            <small class="d-block text-muted">{{ fine.book.author }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>KES {{ fine.fine_amount }}</strong>
+                                    </td>
+                                    <td>{{ fine.updated_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <span class="badge bg-success">Paid</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="ri-check-line fs-3 text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No paid fines</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

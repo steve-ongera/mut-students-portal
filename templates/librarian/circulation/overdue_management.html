@@ -1,0 +1,199 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Overdue Books{% endblock %}
+
+{% block page_title %}Overdue Books Management{% endblock %}
+{% block page_subtitle %}Track and manage overdue borrowings{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Overdue Books</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="ri-alarm-warning-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ total_overdue }}</div>
+                    <div class="stat-label">Total Overdue</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ overdue_ranges.1-7 days }}</div>
+                    <div class="stat-label">1-7 Days</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">{{ overdue_ranges.8-14 days }}</div>
+                    <div class="stat-label">8-14 Days</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="ri-error-warning-line"></i>
+                </div>
+                <div class="stat-details">
+                    <div class="stat-value">KES {{ total_fines }}</div>
+                    <div class="stat-label">Total Fines</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue Breakdown -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Overdue by Range</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>1-7 days overdue</span>
+                            <span class="badge bg-warning">{{ overdue_ranges.1-7 days }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>8-14 days overdue</span>
+                            <span class="badge bg-warning">{{ overdue_ranges.8-14 days }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>15-30 days overdue</span>
+                            <span class="badge bg-danger">{{ overdue_ranges.15-30 days }}</span>
+                        </div>
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>30+ days overdue</span>
+                            <span class="badge bg-danger">{{ overdue_ranges.30+ days }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="alert('Send reminders functionality')">
+                            <i class="ri-mail-send-line"></i> Send Email Reminders
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="alert('Send SMS functionality')">
+                            <i class="ri-message-2-line"></i> Send SMS Reminders
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="window.print()">
+                            <i class="ri-printer-line"></i> Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overdue Books Table -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Overdue Borrowings</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Book</th>
+                            <th>Due Date</th>
+                            <th>Days Overdue</th>
+                            <th>Fine Amount</th>
+                            <th>Contact</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in overdue_borrowings %}
+                        <tr class="{% if borrowing.fine_amount > 100 %}table-danger{% else %}table-warning{% endif %}">
+                            <td>
+                                <div>
+                                    <strong>{{ borrowing.student.user.get_full_name }}</strong>
+                                    <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                                    <small class="d-block text-muted">{{ borrowing.student.programme.code }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong>{{ borrowing.book.title|truncatewords:5 }}</strong>
+                                    <small class="d-block text-muted">{{ borrowing.book.author }}</small>
+                                    <small class="d-block text-muted">ISBN: {{ borrowing.book.isbn }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="text-danger fw-bold">
+                                    {{ borrowing.due_date|date:"d/m/Y" }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-danger">
+                                    {{ borrowing.due_date|timesince|truncatewords:2 }}
+                                </span>
+                            </td>
+                            <td>
+                                <strong class="text-danger">KES {{ borrowing.fine_amount }}</strong>
+                            </td>
+                            <td>
+                                <small class="d-block">{{ borrowing.student.user.email }}</small>
+                                <small class="d-block">{{ borrowing.student.user.phone_number|default:"-" }}</small>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-primary" 
+                                            onclick="alert('Send reminder to {{ borrowing.student.user.email }}')"
+                                            title="Send Reminder">
+                                        <i class="ri-mail-line"></i>
+                                    </button>
+                                    <a href="{% url 'process_fine_payment' borrowing.id %}" 
+                                       class="btn btn-sm btn-success"
+                                       title="Process Fine">
+                                        <i class="ri-money-dollar-circle-line"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <i class="ri-check-line fs-3 text-success mb-2"></i>
+                                <p class="text-muted mb-0">No overdue books!</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

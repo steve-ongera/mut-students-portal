@@ -1,0 +1,325 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Inventory Management{% endblock %}
+
+{% block page_title %}Inventory Management{% endblock %}
+{% block page_subtitle %}Monitor and manage book stock levels{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Inventory</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" id="inventoryTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="low-stock-tab" data-bs-toggle="tab" data-bs-target="#low-stock" type="button" role="tab">
+                Low Stock ({{ low_stock|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="out-stock-tab" data-bs-toggle="tab" data-bs-target="#out-stock" type="button" role="tab">
+                Out of Stock ({{ out_of_stock|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="lost-tab" data-bs-toggle="tab" data-bs-target="#lost" type="button" role="tab">
+                Lost Books ({{ lost_books|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="damaged-tab" data-bs-toggle="tab" data-bs-target="#damaged" type="button" role="tab">
+                Damaged ({{ damaged_books|length }})
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">
+                Category Summary
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="inventoryTabContent">
+        <!-- Low Stock Tab -->
+        <div class="tab-pane fade show active" id="low-stock" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Low Stock Books</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Book</th>
+                                    <th>Category</th>
+                                    <th>Available</th>
+                                    <th>Total</th>
+                                    <th>Location</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in low_stock %}
+                                <tr class="table-warning">
+                                    <td>
+                                        <div>
+                                            <strong>{{ book.title }}</strong>
+                                            <small class="d-block text-muted">{{ book.author }}</small>
+                                            <small class="d-block text-muted">ISBN: {{ book.isbn }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ book.category.name }}</td>
+                                    <td>
+                                        <span class="badge bg-warning">{{ book.available_copies }}</span>
+                                    </td>
+                                    <td>{{ book.total_copies }}</td>
+                                    <td>{{ book.shelf_location|default:"-" }}</td>
+                                    <td>
+                                        <a href="{% url 'update_stock' book.id %}" class="btn btn-sm btn-primary">
+                                            <i class="ri-add-line"></i> Add Stock
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
+                                        <p class="text-muted mb-0">No low stock items</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Out of Stock Tab -->
+        <div class="tab-pane fade" id="out-stock" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Out of Stock Books</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Book</th>
+                                    <th>Category</th>
+                                    <th>Total Copies</th>
+                                    <th>Location</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in out_of_stock %}
+                                <tr class="table-danger">
+                                    <td>
+                                        <div>
+                                            <strong>{{ book.title }}</strong>
+                                            <small class="d-block text-muted">{{ book.author }}</small>
+                                            <small class="d-block text-muted">ISBN: {{ book.isbn }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ book.category.name }}</td>
+                                    <td>{{ book.total_copies }}</td>
+                                    <td>{{ book.shelf_location|default:"-" }}</td>
+                                    <td>
+                                        <a href="{% url 'update_stock' book.id %}" class="btn btn-sm btn-primary">
+                                            <i class="ri-add-line"></i> Add Stock
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
+                                        <p class="text-muted mb-0">No out of stock items</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lost Books Tab -->
+        <div class="tab-pane fade" id="lost" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Lost Books</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Book</th>
+                                    <th>Student</th>
+                                    <th>Borrow Date</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for borrowing in lost_books %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ borrowing.book.title }}</strong>
+                                            <small class="d-block text-muted">{{ borrowing.book.author }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ borrowing.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ borrowing.borrow_date|date:"d/m/Y" }}</td>
+                                    <td>{{ borrowing.due_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-danger">Lost</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
+                                        <p class="text-muted mb-0">No lost books</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Damaged Books Tab -->
+        <div class="tab-pane fade" id="damaged" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Damaged Books</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Book</th>
+                                    <th>Category</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in damaged_books %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ book.title }}</strong>
+                                            <small class="d-block text-muted">{{ book.author }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ book.category.name }}</td>
+                                    <td>{{ book.shelf_location|default:"-" }}</td>
+                                    <td>
+                                        <span class="badge bg-warning">Damaged</span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary">
+                                            <i class="ri-tools-line"></i> Repair
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
+                                        <p class="text-muted mb-0">No damaged books</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Summary Tab -->
+        <div class="tab-pane fade" id="summary" role="tabpanel">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Inventory by Category</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Total Books</th>
+                                    <th>Available</th>
+                                    <th>Borrowed</th>
+                                    <th>Utilization</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category in category_summary %}
+                                <tr>
+                                    <td><strong>{{ category.name }}</strong></td>
+                                    <td>{{ category.total_books|default:0 }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ category.available|default:0 }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning">{{ category.borrowed|default:0 }}</span>
+                                    </td>
+                                    <td>
+                                        {% if category.total_books > 0 %}
+                                        <div class="progress" style="height: 20px;">
+                                            {% widthratio category.borrowed category.total_books 100 as utilization %}
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ utilization }}%"
+                                                 aria-valuenow="{{ utilization }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                {{ utilization }}%
+                                            </div>
+                                        </div>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="ri-folder-line fs-3 text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No categories found</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

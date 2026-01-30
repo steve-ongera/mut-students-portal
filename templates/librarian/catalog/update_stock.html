@@ -1,0 +1,249 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Update Stock{% endblock %}
+
+{% block page_title %}Update Stock{% endblock %}
+{% block page_subtitle %}Manage book inventory{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'book_catalog_list' %}">Book Catalog</a></li>
+        <li class="breadcrumb-item active">Update Stock</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Book Information -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Book Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4>{{ book.title }}</h4>
+                            <p class="text-muted mb-2">by {{ book.author }}</p>
+                            <p class="mb-1"><strong>ISBN:</strong> {{ book.isbn }}</p>
+                            <p class="mb-1"><strong>Category:</strong> {{ book.category.name }}</p>
+                            <p class="mb-1"><strong>Publisher:</strong> {{ book.publisher|default:"N/A" }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            {% if book.cover_image %}
+                            <img src="{{ book.cover_image.url }}" alt="{{ book.title }}" class="img-fluid" style="max-height: 150px;">
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Stock Status -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Current Stock Status</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-value text-primary">{{ book.total_copies }}</div>
+                                <div class="stat-label">Total Copies</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-value text-success">{{ book.available_copies }}</div>
+                                <div class="stat-label">Available</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-card">
+                                <div class="stat-value text-warning">{{ borrowed_count }}</div>
+                                <div class="stat-label">Currently Borrowed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Update Stock Form -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Update Stock Quantity</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="stockForm">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label class="form-label">Action</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="action" id="add" value="add" checked>
+                                <label class="btn btn-outline-success" for="add">
+                                    <i class="ri-add-line"></i> Add Copies
+                                </label>
+
+                                <input type="radio" class="btn-check" name="action" id="remove" value="remove">
+                                <label class="btn btn-outline-danger" for="remove">
+                                    <i class="ri-subtract-line"></i> Remove Copies
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="quantity" class="form-label">Number of Copies <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="1" value="1" required>
+                            <small class="form-text text-muted">Enter the number of copies to add or remove</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason <span class="text-danger">*</span></label>
+                            <select class="form-select" id="reason" name="reason" required>
+                                <option value="">Select Reason</option>
+                                <optgroup label="Add Copies">
+                                    <option value="new_purchase">New Purchase</option>
+                                    <option value="donation">Donation</option>
+                                    <option value="replacement">Replacement</option>
+                                    <option value="other">Other</option>
+                                </optgroup>
+                                <optgroup label="Remove Copies">
+                                    <option value="lost">Lost</option>
+                                    <option value="damaged">Damaged Beyond Repair</option>
+                                    <option value="withdrawn">Withdrawn from Collection</option>
+                                    <option value="transferred">Transferred</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Additional Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Add any additional information..."></textarea>
+                        </div>
+
+                        <div class="alert alert-warning" id="removeWarning" style="display: none;">
+                            <i class="ri-alert-line"></i> 
+                            <strong>Warning:</strong> You can only remove up to {{ book.available_copies }} copies (currently available copies). 
+                            Borrowed copies cannot be removed from inventory.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-check-line"></i> Update Stock
+                            </button>
+                            <a href="{% url 'book_catalog_list' %}" class="btn btn-outline-secondary">
+                                <i class="ri-close-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Stock History -->
+            {% if stock_history %}
+            <div class="management-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Stock Changes</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                    <th>Quantity</th>
+                                    <th>Reason</th>
+                                    <th>Updated By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for history in stock_history %}
+                                <tr>
+                                    <td>{{ history.created_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        {% if history.action == 'add' %}
+                                        <span class="badge bg-success">Added</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Removed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if history.action == 'add' %}+{% else %}-{% endif %}{{ history.quantity }}
+                                    </td>
+                                    <td>{{ history.reason }}</td>
+                                    <td>{{ history.updated_by.get_full_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addRadio = document.getElementById('add');
+    const removeRadio = document.getElementById('remove');
+    const quantityInput = document.getElementById('quantity');
+    const reasonSelect = document.getElementById('reason');
+    const removeWarning = document.getElementById('removeWarning');
+    const availableCopies = {{ book.available_copies }};
+
+    function updateForm() {
+        if (removeRadio.checked) {
+            removeWarning.style.display = 'block';
+            quantityInput.max = availableCopies;
+            // Show only remove reasons
+            Array.from(reasonSelect.options).forEach(option => {
+                if (option.parentElement.label === 'Add Copies') {
+                    option.disabled = true;
+                    option.style.display = 'none';
+                } else if (option.parentElement.label === 'Remove Copies') {
+                    option.disabled = false;
+                    option.style.display = 'block';
+                }
+            });
+        } else {
+            removeWarning.style.display = 'none';
+            quantityInput.removeAttribute('max');
+            // Show only add reasons
+            Array.from(reasonSelect.options).forEach(option => {
+                if (option.parentElement.label === 'Remove Copies') {
+                    option.disabled = true;
+                    option.style.display = 'none';
+                } else if (option.parentElement.label === 'Add Copies') {
+                    option.disabled = false;
+                    option.style.display = 'block';
+                }
+            });
+        }
+        reasonSelect.value = '';
+    }
+
+    addRadio.addEventListener('change', updateForm);
+    removeRadio.addEventListener('change', updateForm);
+
+    // Initialize
+    updateForm();
+
+    // Validate on submit
+    document.getElementById('stockForm').addEventListener('submit', function(e) {
+        if (removeRadio.checked) {
+            const quantity = parseInt(quantityInput.value);
+            if (quantity > availableCopies) {
+                e.preventDefault();
+                alert(`Cannot remove ${quantity} copies. Only ${availableCopies} copies are available.`);
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

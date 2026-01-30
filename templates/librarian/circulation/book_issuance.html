@@ -1,0 +1,302 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Book Issuance{% endblock %}
+
+{% block page_title %}Book Issuance{% endblock %}
+{% block page_subtitle %}Issue books to students{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Book Issuance</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row">
+        <!-- Issuance Form -->
+        <div class="col-lg-5">
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Issue New Book</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="issuanceForm">
+                        {% csrf_token %}
+                        
+                        <!-- Student Search -->
+                        <div class="mb-3">
+                            <label for="studentSearch" class="form-label">Search Student</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="studentSearch" 
+                                   placeholder="Enter registration number or name..."
+                                   autocomplete="off">
+                            <input type="hidden" name="student_id" id="student_id">
+                            <div id="studentResults" class="list-group mt-2" style="display: none;"></div>
+                        </div>
+
+                        <!-- Selected Student Info -->
+                        <div id="studentInfo" class="alert alert-info" style="display: none;">
+                            <h6 class="alert-heading mb-2">Student Information</h6>
+                            <p class="mb-1"><strong>Name:</strong> <span id="studentName"></span></p>
+                            <p class="mb-1"><strong>Reg No:</strong> <span id="studentRegNo"></span></p>
+                            <p class="mb-1"><strong>Programme:</strong> <span id="studentProgramme"></span></p>
+                            <p class="mb-1"><strong>Active Borrowings:</strong> <span id="studentBorrowings"></span></p>
+                            <p class="mb-0"><strong>Overdue Books:</strong> <span id="studentOverdue"></span></p>
+                        </div>
+
+                        <!-- Book Search -->
+                        <div class="mb-3">
+                            <label for="bookSearch" class="form-label">Search Book</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="bookSearch" 
+                                   placeholder="Enter title, author, or ISBN..."
+                                   autocomplete="off">
+                            <input type="hidden" name="book_id" id="book_id">
+                            <div id="bookResults" class="list-group mt-2" style="display: none;"></div>
+                        </div>
+
+                        <!-- Selected Book Info -->
+                        <div id="bookInfo" class="alert alert-success" style="display: none;">
+                            <h6 class="alert-heading mb-2">Book Information</h6>
+                            <p class="mb-1"><strong>Title:</strong> <span id="bookTitle"></span></p>
+                            <p class="mb-1"><strong>Author:</strong> <span id="bookAuthor"></span></p>
+                            <p class="mb-1"><strong>ISBN:</strong> <span id="bookISBN"></span></p>
+                            <p class="mb-0"><strong>Available:</strong> <span id="bookAvailable"></span></p>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" id="issueBtn" disabled>
+                                <i class="ri-hand-heart-line"></i> Issue Book
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Today's Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="stat-item">
+                                <div class="stat-value">0</div>
+                                <div class="stat-label">Books Issued Today</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="stat-item">
+                                <div class="stat-value">0</div>
+                                <div class="stat-label">Books Returned Today</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Issuances -->
+        <div class="col-lg-7">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Issuances</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student</th>
+                                    <th>Book</th>
+                                    <th>Issue Date</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for issuance in recent_issuances %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ issuance.student.user.get_full_name }}</strong>
+                                            <small class="d-block text-muted">{{ issuance.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ issuance.book.title|truncatewords:5 }}</strong>
+                                            <small class="d-block text-muted">{{ issuance.book.author }}</small>
+                                        </div>
+                                    </td>
+                                    <td>{{ issuance.borrow_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="{% if issuance.due_date < today %}text-danger{% endif %}">
+                                            {{ issuance.due_date|date:"d/m/Y" }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if issuance.status == 'active' %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% elif issuance.status == 'overdue' %}
+                                        <span class="badge bg-danger">Overdue</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ issuance.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="ri-book-line fs-3 text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No recent issuances</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Student search functionality
+let studentSearchTimeout;
+document.getElementById('studentSearch').addEventListener('input', function(e) {
+    clearTimeout(studentSearchTimeout);
+    const query = e.target.value;
+    
+    if (query.length < 3) {
+        document.getElementById('studentResults').style.display = 'none';
+        return;
+    }
+    
+    studentSearchTimeout = setTimeout(() => {
+        fetch(`{% url 'search_student_for_borrowing' %}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('studentResults');
+                if (data.students.length > 0) {
+                    resultsDiv.innerHTML = data.students.map(student => `
+                        <a href="#" class="list-group-item list-group-item-action student-item" 
+                           data-id="${student.id}"
+                           data-name="${student.name}"
+                           data-regno="${student.registration_number}"
+                           data-programme="${student.programme}"
+                           data-borrowings="${student.active_borrowings}"
+                           data-overdue="${student.has_overdue}">
+                            <div>
+                                <strong>${student.name}</strong>
+                                <small class="d-block text-muted">${student.registration_number} - ${student.programme}</small>
+                                <small class="d-block">${student.active_borrowings} active borrowings</small>
+                            </div>
+                        </a>
+                    `).join('');
+                    resultsDiv.style.display = 'block';
+                    
+                    // Add click handlers
+                    document.querySelectorAll('.student-item').forEach(item => {
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            selectStudent(this.dataset);
+                        });
+                    });
+                } else {
+                    resultsDiv.innerHTML = '<div class="list-group-item">No students found</div>';
+                    resultsDiv.style.display = 'block';
+                }
+            });
+    }, 300);
+});
+
+function selectStudent(data) {
+    document.getElementById('student_id').value = data.id;
+    document.getElementById('studentName').textContent = data.name;
+    document.getElementById('studentRegNo').textContent = data.regno;
+    document.getElementById('studentProgramme').textContent = data.programme;
+    document.getElementById('studentBorrowings').textContent = data.borrowings;
+    document.getElementById('studentOverdue').textContent = data.overdue === 'true' ? 'Yes' : 'No';
+    
+    document.getElementById('studentResults').style.display = 'none';
+    document.getElementById('studentInfo').style.display = 'block';
+    
+    checkFormComplete();
+}
+
+// Book search functionality
+let bookSearchTimeout;
+document.getElementById('bookSearch').addEventListener('input', function(e) {
+    clearTimeout(bookSearchTimeout);
+    const query = e.target.value;
+    
+    if (query.length < 3) {
+        document.getElementById('bookResults').style.display = 'none';
+        return;
+    }
+    
+    bookSearchTimeout = setTimeout(() => {
+        fetch(`{% url 'search_book_for_borrowing' %}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('bookResults');
+                if (data.books.length > 0) {
+                    resultsDiv.innerHTML = data.books.map(book => `
+                        <a href="#" class="list-group-item list-group-item-action book-item" 
+                           data-id="${book.id}"
+                           data-title="${book.title}"
+                           data-author="${book.author}"
+                           data-isbn="${book.isbn}"
+                           data-available="${book.available_copies}">
+                            <div>
+                                <strong>${book.title}</strong>
+                                <small class="d-block text-muted">${book.author} - ISBN: ${book.isbn}</small>
+                                <small class="d-block">Available: ${book.available_copies}/${book.total_copies}</small>
+                            </div>
+                        </a>
+                    `).join('');
+                    resultsDiv.style.display = 'block';
+                    
+                    // Add click handlers
+                    document.querySelectorAll('.book-item').forEach(item => {
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            selectBook(this.dataset);
+                        });
+                    });
+                } else {
+                    resultsDiv.innerHTML = '<div class="list-group-item">No books found</div>';
+                    resultsDiv.style.display = 'block';
+                }
+            });
+    }, 300);
+});
+
+function selectBook(data) {
+    document.getElementById('book_id').value = data.id;
+    document.getElementById('bookTitle').textContent = data.title;
+    document.getElementById('bookAuthor').textContent = data.author;
+    document.getElementById('bookISBN').textContent = data.isbn;
+    document.getElementById('bookAvailable').textContent = data.available;
+    
+    document.getElementById('bookResults').style.display = 'none';
+    document.getElementById('bookInfo').style.display = 'block';
+    
+    checkFormComplete();
+}
+
+function checkFormComplete() {
+    const studentId = document.getElementById('student_id').value;
+    const bookId = document.getElementById('book_id').value;
+    document.getElementById('issueBtn').disabled = !(studentId && bookId);
+}
+</script>
+{% endblock %}

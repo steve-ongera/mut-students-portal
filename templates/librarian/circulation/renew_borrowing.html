@@ -1,0 +1,221 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Renew Borrowing{% endblock %}
+
+{% block page_title %}Renew Book Borrowing{% endblock %}
+{% block page_subtitle %}Extend due date for borrowed book{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'book_returns' %}">Returns Management</a></li>
+        <li class="breadcrumb-item active">Renew Borrowing</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Borrowing Information -->
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Borrowing Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Student Information</h6>
+                            <p class="mb-1"><strong>Name:</strong> {{ borrowing.student.user.get_full_name }}</p>
+                            <p class="mb-1"><strong>Registration No:</strong> {{ borrowing.student.registration_number }}</p>
+                            <p class="mb-1"><strong>Programme:</strong> {{ borrowing.student.programme }}</p>
+                            <p class="mb-1"><strong>Email:</strong> {{ borrowing.student.user.email }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Book Information</h6>
+                            <p class="mb-1"><strong>Title:</strong> {{ borrowing.book.title }}</p>
+                            <p class="mb-1"><strong>Author:</strong> {{ borrowing.book.author }}</p>
+                            <p class="mb-1"><strong>ISBN:</strong> {{ borrowing.book.isbn }}</p>
+                            <p class="mb-1"><strong>Category:</strong> {{ borrowing.book.category.name }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Issue Date:</strong></p>
+                            <p class="text-muted">{{ borrowing.borrow_date|date:"d/m/Y" }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Current Due Date:</strong></p>
+                            <p class="text-muted">{{ borrowing.due_date|date:"d/m/Y" }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <p class="mb-1"><strong>Status:</strong></p>
+                            {% if borrowing.status == 'active' %}
+                            <span class="badge bg-success">Active</span>
+                            {% elif borrowing.status == 'overdue' %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if borrowing.status == 'overdue' %}
+                    <div class="alert alert-danger mt-3">
+                        <i class="ri-alert-line"></i> 
+                        <strong>Overdue Notice:</strong> This book is {{ borrowing.days_overdue }} day(s) overdue.
+                        {% if borrowing.fine_amount > 0 %}
+                        Current fine: KES {{ borrowing.fine_amount }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    {% if borrowing.renewal_count > 0 %}
+                    <div class="alert alert-info mt-3">
+                        <i class="ri-information-line"></i> 
+                        This borrowing has been renewed {{ borrowing.renewal_count }} time(s).
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Renewal Form -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Renew Borrowing</h5>
+                </div>
+                <div class="card-body">
+                    {% if can_renew %}
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="renewal_period" class="form-label">Renewal Period <span class="text-danger">*</span></label>
+                            <select class="form-select" id="renewal_period" name="renewal_period" required>
+                                <option value="">Select renewal period</option>
+                                <option value="7">7 Days</option>
+                                <option value="14" selected>14 Days (Recommended)</option>
+                                <option value="21">21 Days</option>
+                                <option value="30">30 Days</option>
+                            </select>
+                            <small class="form-text text-muted">Select the number of days to extend the due date</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">New Due Date</label>
+                            <input type="text" class="form-control" id="newDueDate" readonly>
+                            <small class="form-text text-muted">The new due date will be calculated based on your selection</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for Renewal</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="3" placeholder="Optional: Provide a reason for this renewal"></textarea>
+                        </div>
+
+                        {% if borrowing.fine_amount > 0 %}
+                        <div class="alert alert-warning">
+                            <i class="ri-alert-line"></i>
+                            <strong>Outstanding Fine:</strong> KES {{ borrowing.fine_amount }}
+                            <p class="mb-0 mt-2">Note: Renewing this borrowing does not waive the existing fine. The student must still pay the outstanding fine amount.</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-refresh-line"></i> Renew Borrowing
+                            </button>
+                            <a href="{% url 'book_returns' %}" class="btn btn-outline-secondary">
+                                <i class="ri-close-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-danger">
+                        <i class="ri-error-warning-line"></i>
+                        <strong>Cannot Renew:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% if borrowing.renewal_count >= max_renewals %}
+                            <li>Maximum renewal limit ({{ max_renewals }}) has been reached for this borrowing.</li>
+                            {% endif %}
+                            {% if borrowing.status not in 'active,overdue' %}
+                            <li>Book has already been returned or is in an invalid state.</li>
+                            {% endif %}
+                            {% if student_has_overdue %}
+                            <li>Student has other overdue books that must be returned first.</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <a href="{% url 'book_returns' %}" class="btn btn-outline-secondary">
+                        <i class="ri-arrow-left-line"></i> Back to Returns
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Renewal History -->
+            {% if renewal_history %}
+            <div class="management-card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title">Renewal History</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Previous Due Date</th>
+                                    <th>New Due Date</th>
+                                    <th>Extended By</th>
+                                    <th>Renewed By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for history in renewal_history %}
+                                <tr>
+                                    <td>{{ history.renewed_at|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ history.previous_due_date|date:"d/m/Y" }}</td>
+                                    <td>{{ history.new_due_date|date:"d/m/Y" }}</td>
+                                    <td>{{ history.days_extended }} days</td>
+                                    <td>{{ history.renewed_by.get_full_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const renewalPeriodSelect = document.getElementById('renewal_period');
+    const newDueDateInput = document.getElementById('newDueDate');
+    const currentDueDate = new Date('{{ borrowing.due_date|date:"Y-m-d" }}');
+
+    renewalPeriodSelect.addEventListener('change', function() {
+        const days = parseInt(this.value);
+        if (days) {
+            const newDate = new Date(currentDueDate);
+            newDate.setDate(newDate.getDate() + days);
+            
+            const day = String(newDate.getDate()).padStart(2, '0');
+            const month = String(newDate.getMonth() + 1).padStart(2, '0');
+            const year = newDate.getFullYear();
+            
+            newDueDateInput.value = `${day}/${month}/${year}`;
+        } else {
+            newDueDateInput.value = '';
+        }
+    });
+
+    // Trigger initial calculation
+    if (renewalPeriodSelect.value) {
+        renewalPeriodSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+{% endblock %}

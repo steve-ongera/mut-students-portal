@@ -1,0 +1,379 @@
+{% extends 'admin/admin_base.html' %}
+{% load static %}
+
+{% block title %}Circulation Reports{% endblock %}
+
+{% block page_title %}Circulation Reports{% endblock %}
+{% block page_subtitle %}Library circulation statistics and reports{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Circulation Reports</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Report Filters -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Report Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="report_type" class="form-label">Report Type</label>
+                    <select class="form-select" id="report_type" name="report_type">
+                        <option value="all" {% if report_type == 'all' %}selected{% endif %}>All Reports</option>
+                        <option value="borrowing" {% if report_type == 'borrowing' %}selected{% endif %}>Borrowing Statistics</option>
+                        <option value="popular" {% if report_type == 'popular' %}selected{% endif %}>Popular Books</option>
+                        <option value="overdue" {% if report_type == 'overdue' %}selected{% endif %}>Overdue Analysis</option>
+                        <option value="student" {% if report_type == 'student' %}selected{% endif %}>Student Activity</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-filter-line"></i> Apply Filter
+                        </button>
+                        <a href="{% url 'circulation_reports' %}" class="btn btn-outline-secondary">
+                            <i class="ri-refresh-line"></i> Reset
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary">
+                    <i class="ri-book-open-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ total_borrowings }}</div>
+                    <div class="stat-label">Total Borrowings</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success">
+                    <i class="ri-checkbox-circle-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ returned_books }}</div>
+                    <div class="stat-label">Returned Books</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning">
+                    <i class="ri-time-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ active_borrowings }}</div>
+                    <div class="stat-label">Active Borrowings</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger">
+                    <i class="ri-error-warning-line"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ overdue_books }}</div>
+                    <div class="stat-label">Overdue Books</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reports Tabs -->
+    <div class="management-card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="borrowing-tab" data-bs-toggle="tab" data-bs-target="#borrowing" type="button" role="tab">
+                        <i class="ri-book-line"></i> Borrowing Statistics
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="popular-tab" data-bs-toggle="tab" data-bs-target="#popular" type="button" role="tab">
+                        <i class="ri-star-line"></i> Popular Books
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="category-tab" data-bs-toggle="tab" data-bs-target="#category" type="button" role="tab">
+                        <i class="ri-folders-line"></i> Category Analysis
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="student-tab" data-bs-toggle="tab" data-bs-target="#student" type="button" role="tab">
+                        <i class="ri-user-line"></i> Student Activity
+                    </button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content">
+                <!-- Borrowing Statistics Tab -->
+                <div class="tab-pane fade show active" id="borrowing" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Borrowing Trends</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('borrowing')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Period</th>
+                                    <th>Total Issued</th>
+                                    <th>Returned</th>
+                                    <th>Overdue</th>
+                                    <th>Return Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in borrowing_stats %}
+                                <tr>
+                                    <td>{{ stat.period }}</td>
+                                    <td>{{ stat.total_issued }}</td>
+                                    <td>{{ stat.returned }}</td>
+                                    <td>{{ stat.overdue }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-success" role="progressbar" 
+                                                 style="width: {{ stat.return_rate }}%">
+                                                {{ stat.return_rate }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No data available for the selected period</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Popular Books Tab -->
+                <div class="tab-pane fade" id="popular" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Most Borrowed Books</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('popular')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Book</th>
+                                    <th>Author</th>
+                                    <th>Category</th>
+                                    <th>Borrow Count</th>
+                                    <th>Average Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for book in popular_books %}
+                                <tr>
+                                    <td>
+                                        {% if forloop.counter == 1 %}
+                                        <span class="badge bg-warning">🥇</span>
+                                        {% elif forloop.counter == 2 %}
+                                        <span class="badge bg-light text-dark">🥈</span>
+                                        {% elif forloop.counter == 3 %}
+                                        <span class="badge bg-secondary">🥉</span>
+                                        {% else %}
+                                        {{ forloop.counter }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>{{ book.title }}</strong>
+                                        <br><small class="text-muted">{{ book.isbn }}</small>
+                                    </td>
+                                    <td>{{ book.author }}</td>
+                                    <td><span class="badge bg-info">{{ book.category.name }}</span></td>
+                                    <td><span class="badge bg-primary">{{ book.borrow_count }}</span></td>
+                                    <td>{{ book.avg_duration }} days</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No borrowing data available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Category Analysis Tab -->
+                <div class="tab-pane fade" id="category" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Circulation by Category</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('category')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Category</th>
+                                    <th>Total Books</th>
+                                    <th>Total Borrowings</th>
+                                    <th>Active Borrowings</th>
+                                    <th>Utilization Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for category in category_stats %}
+                                <tr>
+                                    <td><strong>{{ category.name }}</strong></td>
+                                    <td>{{ category.total_books }}</td>
+                                    <td>{{ category.total_borrowings }}</td>
+                                    <td>{{ category.active_borrowings }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar 
+                                                {% if category.utilization_rate >= 70 %}bg-success
+                                                {% elif category.utilization_rate >= 40 %}bg-warning
+                                                {% else %}bg-danger{% endif %}" 
+                                                role="progressbar" style="width: {{ category.utilization_rate }}%">
+                                                {{ category.utilization_rate }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No category data available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Student Activity Tab -->
+                <div class="tab-pane fade" id="student" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Top Active Students</h5>
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportReport('student')">
+                            <i class="ri-download-line"></i> Export
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Student</th>
+                                    <th>Programme</th>
+                                    <th>Total Borrowed</th>
+                                    <th>Currently Borrowed</th>
+                                    <th>Overdue Count</th>
+                                    <th>Total Fines</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in top_students %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        <strong>{{ student.user.get_full_name }}</strong>
+                                        <br><small class="text-muted">{{ student.registration_number }}</small>
+                                    </td>
+                                    <td>{{ student.programme }}</td>
+                                    <td><span class="badge bg-primary">{{ student.total_borrowed }}</span></td>
+                                    <td><span class="badge bg-warning">{{ student.currently_borrowed }}</span></td>
+                                    <td>
+                                        {% if student.overdue_count > 0 %}
+                                        <span class="badge bg-danger">{{ student.overdue_count }}</span>
+                                        {% else %}
+                                        <span class="badge bg-success">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if student.total_fines > 0 %}
+                                        KES {{ student.total_fines }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No student activity data available</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Export Reports</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Generate and download comprehensive circulation reports</p>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-primary" onclick="exportReport('pdf')">
+                    <i class="ri-file-pdf-line"></i> Export as PDF
+                </button>
+                <button class="btn btn-outline-success" onclick="exportReport('excel')">
+                    <i class="ri-file-excel-line"></i> Export as Excel
+                </button>
+                <button class="btn btn-outline-info" onclick="exportReport('csv')">
+                    <i class="ri-file-list-line"></i> Export as CSV
+                </button>
+                <button class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="ri-printer-line"></i> Print Report
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportReport(format) {
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    const reportType = document.getElementById('report_type').value;
+    
+    let url = `{% url 'export_circulation_report' %}?format=${format}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+    if (reportType) url += `&report_type=${reportType}`;
+    
+    window.location.href = url;
+}
+</script>
+{% endblock %}
