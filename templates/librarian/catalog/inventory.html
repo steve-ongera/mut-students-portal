@@ -3,6 +3,11 @@
 
 {% block title %}Inventory Management{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
 {% block page_title %}Inventory Management{% endblock %}
 {% block page_subtitle %}Monitor and manage book stock levels{% endblock %}
 
@@ -10,56 +15,200 @@
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Inventory</li>
+        <li class="breadcrumb-item active">Inventory Management</li>
     </ol>
 </nav>
 
 <div class="content-container">
-    <!-- Tabs -->
-    <ul class="nav nav-tabs mb-3" id="inventoryTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="low-stock-tab" data-bs-toggle="tab" data-bs-target="#low-stock" type="button" role="tab">
-                Low Stock ({{ low_stock|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="out-stock-tab" data-bs-toggle="tab" data-bs-target="#out-stock" type="button" role="tab">
-                Out of Stock ({{ out_of_stock|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="lost-tab" data-bs-toggle="tab" data-bs-target="#lost" type="button" role="tab">
-                Lost Books ({{ lost_books|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="damaged-tab" data-bs-toggle="tab" data-bs-target="#damaged" type="button" role="tab">
-                Damaged ({{ damaged_books|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">
-                Category Summary
-            </button>
-        </li>
-    </ul>
+    <!-- Inventory Overview Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Total Books -->
+        <div class="col-md-3">
+            <div class="metric-card metric-primary">
+                <div class="metric-icon">
+                    <i class="ri-stack-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ inventory_summary.total_books|default:0 }}</div>
+                    <div class="metric-label">Total Books</div>
+                </div>
+            </div>
+        </div>
 
-    <div class="tab-content" id="inventoryTabContent">
-        <!-- Low Stock Tab -->
-        <div class="tab-pane fade show active" id="low-stock" role="tabpanel">
+        <!-- Available Books -->
+        <div class="col-md-3">
+            <div class="metric-card metric-success">
+                <div class="metric-icon">
+                    <i class="ri-book-open-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ inventory_summary.available_books|default:0 }}</div>
+                    <div class="metric-label">Available Now</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Low Stock -->
+        <div class="col-md-3">
+            <div class="metric-card metric-warning">
+                <div class="metric-icon">
+                    <i class="ri-alert-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ low_stock|length|default:0 }}</div>
+                    <div class="metric-label">Low Stock</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Out of Stock -->
+        <div class="col-md-3">
+            <div class="metric-card metric-danger">
+                <div class="metric-icon">
+                    <i class="ri-indeterminate-circle-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ out_of_stock|length|default:0 }}</div>
+                    <div class="metric-label">Out of Stock</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Metrics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info-subtle">
+                    <i class="ri-bookmark-line text-info"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ inventory_summary.borrowed_books|default:0 }}</div>
+                    <div class="stat-label">Currently Borrowed</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger-subtle">
+                    <i class="ri-forbid-line text-danger"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ lost_books|length|default:0 }}</div>
+                    <div class="stat-label">Lost Books</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning-subtle">
+                    <i class="ri-hammer-line text-warning"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ damaged_books|length|default:0 }}</div>
+                    <div class="stat-label">Damaged Books</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success-subtle">
+                    <i class="ri-folder-line text-success"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ category_summary|length|default:0 }}</div>
+                    <div class="stat-label">Categories</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-4">
+        <!-- Stock Status Chart -->
+        <div class="col-lg-8">
             <div class="management-card">
                 <div class="card-header">
-                    <h5 class="card-title">Low Stock Books</h5>
+                    <h5 class="card-title">Stock Status Overview</h5>
+                    <div class="card-subtitle">Distribution of books by availability status</div>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body">
+                    <canvas id="stockStatusChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Utilization -->
+        <div class="col-lg-4">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Category Utilization</h5>
+                    <div class="card-subtitle">Top 5 most borrowed categories</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="categoryUtilizationChart" height="160"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Management Tabs -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Inventory Management</h5>
+            <div class="card-subtitle">Monitor and manage book stock levels</div>
+        </div>
+        <div class="card-body p-0">
+            <ul class="nav nav-tabs px-3 pt-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#low-stock" type="button">
+                        <i class="ri-alert-line me-2"></i>
+                        Low Stock
+                        <span class="badge bg-warning ms-2">{{ low_stock|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#out-stock" type="button">
+                        <i class="ri-indeterminate-circle-line me-2"></i>
+                        Out of Stock
+                        <span class="badge bg-danger ms-2">{{ out_of_stock|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#lost" type="button">
+                        <i class="ri-forbid-line me-2"></i>
+                        Lost Books
+                        <span class="badge bg-danger ms-2">{{ lost_books|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#damaged" type="button">
+                        <i class="ri-hammer-line me-2"></i>
+                        Damaged Books
+                        <span class="badge bg-warning ms-2">{{ damaged_books|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#summary" type="button">
+                        <i class="ri-pie-chart-line me-2"></i>
+                        Category Summary
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content p-3">
+                <!-- Low Stock -->
+                <div class="tab-pane fade show active" id="low-stock">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Book</th>
+                                    <th>Book Details</th>
                                     <th>Category</th>
-                                    <th>Available</th>
-                                    <th>Total</th>
+                                    <th>Stock Level</th>
                                     <th>Location</th>
                                     <th>Actions</th>
                                 </tr>
@@ -68,29 +217,84 @@
                                 {% for book in low_stock %}
                                 <tr class="table-warning">
                                     <td>
-                                        <div>
-                                            <strong>{{ book.title }}</strong>
-                                            <small class="d-block text-muted">{{ book.author }}</small>
-                                            <small class="d-block text-muted">ISBN: {{ book.isbn }}</small>
+                                        <div class="d-flex align-items-start">
+                                            <div class="book-cover-sm me-3">
+                                                <div class="book-cover-placeholder bg-light rounded">
+                                                    <i class="ri-book-line text-muted"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong class="d-block">{{ book.title }}</strong>
+                                                <small class="d-block text-muted">{{ book.author }}</small>
+                                                <small class="d-block text-muted mt-1">
+                                                    <i class="ri-barcode-line me-1"></i>{{ book.isbn }}
+                                                </small>
+                                                {% if book.edition %}
+                                                <small class="d-block text-muted">
+                                                    <i class="ri-stack-line me-1"></i>{{ book.edition }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     </td>
-                                    <td>{{ book.category.name }}</td>
                                     <td>
-                                        <span class="badge bg-warning">{{ book.available_copies }}</span>
+                                        <span class="badge bg-primary-subtle text-primary">
+                                            {{ book.category.name }}
+                                        </span>
                                     </td>
-                                    <td>{{ book.total_copies }}</td>
-                                    <td>{{ book.shelf_location|default:"-" }}</td>
                                     <td>
-                                        <a href="{% url 'update_stock' book.id %}" class="btn btn-sm btn-primary">
-                                            <i class="ri-add-line"></i> Add Stock
-                                        </a>
+                                        <div class="stock-indicator">
+                                            <div class="stock-level mb-1">
+                                                <span class="badge bg-warning">{{ book.available_copies }}</span>
+                                                <span class="text-muted">/ {{ book.total_copies }} available</span>
+                                            </div>
+                                            <div class="progress" style="height: 6px;">
+                                                {% widthratio book.available_copies book.total_copies 100 as stock_percent %}
+                                                <div class="progress-bar bg-warning" 
+                                                     role="progressbar" 
+                                                     style="width: {{ stock_percent }}%">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-medium">{{ book.shelf_location|default:"Not set" }}</div>
+                                            {% if book.call_number %}
+                                            <small class="text-muted">Call: {{ book.call_number }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'update_stock' book.id %}" 
+                                               class="btn btn-sm btn-primary"
+                                               title="Add Stock">
+                                                <i class="ri-add-line"></i>
+                                            </a>
+                                            <a href="{% url 'edit_book' book.id %}" 
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="Edit Book">
+                                                <i class="ri-edit-line"></i>
+                                            </a>
+                                            <a href="#" 
+                                               class="btn btn-sm btn-outline-info"
+                                               title="View Details"
+                                               data-bs-toggle="modal" 
+                                               data-bs-target="#bookDetailModal{{ book.id }}">
+                                                <i class="ri-eye-line"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-4">
-                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
-                                        <p class="text-muted mb-0">No low stock items</p>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-checkbox-circle-line fs-1 mb-3 text-success"></i>
+                                            <h5 class="fw-medium mb-2">No low stock books</h5>
+                                            <p class="mb-0">All books have sufficient stock levels</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -98,24 +302,18 @@
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Out of Stock Tab -->
-        <div class="tab-pane fade" id="out-stock" role="tabpanel">
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">Out of Stock Books</h5>
-                </div>
-                <div class="card-body p-0">
+                <!-- Out of Stock -->
+                <div class="tab-pane fade" id="out-stock">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Book</th>
+                                    <th>Book Details</th>
                                     <th>Category</th>
-                                    <th>Total Copies</th>
+                                    <th>Stock Level</th>
                                     <th>Location</th>
+                                    <th>Last Borrowed</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -123,26 +321,80 @@
                                 {% for book in out_of_stock %}
                                 <tr class="table-danger">
                                     <td>
-                                        <div>
-                                            <strong>{{ book.title }}</strong>
-                                            <small class="d-block text-muted">{{ book.author }}</small>
-                                            <small class="d-block text-muted">ISBN: {{ book.isbn }}</small>
+                                        <div class="d-flex align-items-start">
+                                            <div class="book-cover-sm me-3">
+                                                <div class="book-cover-placeholder bg-light rounded">
+                                                    <i class="ri-book-line text-muted"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong class="d-block">{{ book.title }}</strong>
+                                                <small class="d-block text-muted">{{ book.author }}</small>
+                                                <small class="d-block text-muted mt-1">
+                                                    <i class="ri-barcode-line me-1"></i>{{ book.isbn }}
+                                                </small>
+                                            </div>
                                         </div>
                                     </td>
-                                    <td>{{ book.category.name }}</td>
-                                    <td>{{ book.total_copies }}</td>
-                                    <td>{{ book.shelf_location|default:"-" }}</td>
                                     <td>
-                                        <a href="{% url 'update_stock' book.id %}" class="btn btn-sm btn-primary">
-                                            <i class="ri-add-line"></i> Add Stock
-                                        </a>
+                                        <span class="badge bg-primary-subtle text-primary">
+                                            {{ book.category.name }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="stock-indicator">
+                                            <div class="stock-level mb-1">
+                                                <span class="badge bg-danger">0</span>
+                                                <span class="text-muted">/ {{ book.total_copies }} available</span>
+                                            </div>
+                                            <div class="progress" style="height: 6px;">
+                                                <div class="progress-bar bg-danger" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-medium">{{ book.shelf_location|default:"Not set" }}</div>
+                                            {% if book.call_number %}
+                                            <small class="text-muted">Call: {{ book.call_number }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if book.last_borrowed %}
+                                        <small class="text-muted">{{ book.last_borrowed|timesince }} ago</small>
+                                        {% else %}
+                                        <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="{% url 'update_stock' book.id %}" 
+                                               class="btn btn-sm btn-primary"
+                                               title="Add Stock">
+                                                <i class="ri-add-line"></i>
+                                            </a>
+                                            <a href="{% url 'edit_book' book.id %}" 
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="Edit Book">
+                                                <i class="ri-edit-line"></i>
+                                            </a>
+                                            <a href="{% url 'book_catalog_list' %}" 
+                                               class="btn btn-sm btn-outline-info"
+                                               title="View in Catalog">
+                                                <i class="ri-external-link-line"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
-                                        <p class="text-muted mb-0">No out of stock items</p>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-checkbox-circle-line fs-1 mb-3 text-success"></i>
+                                            <h5 class="fw-medium mb-2">No out of stock books</h5>
+                                            <p class="mb-0">All books are currently available</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -150,25 +402,19 @@
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Lost Books Tab -->
-        <div class="tab-pane fade" id="lost" role="tabpanel">
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">Lost Books</h5>
-                </div>
-                <div class="card-body p-0">
+                <!-- Lost Books -->
+                <div class="tab-pane fade" id="lost">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Book</th>
-                                    <th>Student</th>
-                                    <th>Borrow Date</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
+                                    <th>Book Details</th>
+                                    <th>Student Information</th>
+                                    <th>Borrowing Period</th>
+                                    <th>Fine Amount</th>
+                                    <th>Report Date</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -176,27 +422,72 @@
                                 <tr>
                                     <td>
                                         <div>
-                                            <strong>{{ borrowing.book.title }}</strong>
+                                            <strong class="d-block">{{ borrowing.book.title|truncatewords:8 }}</strong>
                                             <small class="d-block text-muted">{{ borrowing.book.author }}</small>
+                                            <small class="d-block text-muted">
+                                                <i class="ri-barcode-line me-1"></i>{{ borrowing.book.isbn }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="student-avatar-sm me-3">
+                                                <div class="avatar-placeholder bg-danger-subtle text-danger rounded-circle d-flex align-items-center justify-content-center">
+                                                    <i class="ri-user-line"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong class="d-block">{{ borrowing.student.user.get_full_name }}</strong>
+                                                <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
                                         <div>
-                                            <strong>{{ borrowing.student.user.get_full_name }}</strong>
-                                            <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                                            <div class="fw-medium mb-1">
+                                                <i class="ri-calendar-event-line me-1 text-primary"></i>
+                                                {{ borrowing.borrow_date|date:"d M Y" }}
+                                            </div>
+                                            <div class="text-danger">
+                                                <i class="ri-calendar-2-line me-1"></i>
+                                                {{ borrowing.due_date|date:"d M Y" }}
+                                            </div>
                                         </div>
                                     </td>
-                                    <td>{{ borrowing.borrow_date|date:"d/m/Y" }}</td>
-                                    <td>{{ borrowing.due_date|date:"d/m/Y" }}</td>
                                     <td>
-                                        <span class="badge bg-danger">Lost</span>
+                                        <div class="financial-value text-danger">
+                                            <i class="ri-money-dollar-circle-line me-1"></i>
+                                            KES {{ borrowing.fine_amount|floatformat:2 }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if borrowing.updated_at %}
+                                        <small class="text-muted">{{ borrowing.updated_at|date:"d M Y" }}</small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <a href="#" class="btn btn-sm btn-outline-danger" title="Report Found">
+                                                <i class="ri-check-line"></i>
+                                            </a>
+                                            <a href="{% url 'process_fine_payment' borrowing.id %}" 
+                                               class="btn btn-sm btn-outline-warning"
+                                               title="Collect Fine">
+                                                <i class="ri-money-dollar-circle-line"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
-                                        <p class="text-muted mb-0">No lost books</p>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-checkbox-circle-line fs-1 mb-3 text-success"></i>
+                                            <h5 class="fw-medium mb-2">No lost books</h5>
+                                            <p class="mb-0">All books are accounted for</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -204,24 +495,18 @@
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Damaged Books Tab -->
-        <div class="tab-pane fade" id="damaged" role="tabpanel">
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">Damaged Books</h5>
-                </div>
-                <div class="card-body p-0">
+                <!-- Damaged Books -->
+                <div class="tab-pane fade" id="damaged">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Book</th>
+                                    <th>Book Details</th>
                                     <th>Category</th>
+                                    <th>Damage Type</th>
                                     <th>Location</th>
-                                    <th>Status</th>
+                                    <th>Report Date</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -230,26 +515,50 @@
                                 <tr>
                                     <td>
                                         <div>
-                                            <strong>{{ book.title }}</strong>
+                                            <strong class="d-block">{{ book.title|truncatewords:8 }}</strong>
                                             <small class="d-block text-muted">{{ book.author }}</small>
                                         </div>
                                     </td>
-                                    <td>{{ book.category.name }}</td>
-                                    <td>{{ book.shelf_location|default:"-" }}</td>
                                     <td>
-                                        <span class="badge bg-warning">Damaged</span>
+                                        <span class="badge bg-primary-subtle text-primary">
+                                            {{ book.category.name }}
+                                        </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-outline-primary">
-                                            <i class="ri-tools-line"></i> Repair
-                                        </button>
+                                        <span class="badge bg-warning">
+                                            {{ book.get_damage_type_display|default:"General" }}
+                                        </span>
+                                    </td>
+                                    <td>{{ book.shelf_location|default:"Not set" }}</td>
+                                    <td>
+                                        {% if book.damage_reported_date %}
+                                        <small class="text-muted">{{ book.damage_reported_date|date:"d M Y" }}</small>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-outline-primary" title="Mark as Repaired">
+                                                <i class="ri-check-line"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger" title="Discard Book">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-info" title="View Details">
+                                                <i class="ri-eye-line"></i>
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="ri-check-line fs-3 text-success mb-2"></i>
-                                        <p class="text-muted mb-0">No damaged books</p>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-checkbox-circle-line fs-1 mb-3 text-success"></i>
+                                            <h5 class="fw-medium mb-2">No damaged books</h5>
+                                            <p class="mb-0">All books are in good condition</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -257,16 +566,9 @@
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Category Summary Tab -->
-        <div class="tab-pane fade" id="summary" role="tabpanel">
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">Inventory by Category</h5>
-                </div>
-                <div class="card-body p-0">
+                <!-- Category Summary -->
+                <div class="tab-pane fade" id="summary">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
@@ -275,14 +577,20 @@
                                     <th>Total Books</th>
                                     <th>Available</th>
                                     <th>Borrowed</th>
-                                    <th>Utilization</th>
+                                    <th>Damaged/Lost</th>
+                                    <th>Utilization Rate</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for category in category_summary %}
                                 <tr>
-                                    <td><strong>{{ category.name }}</strong></td>
-                                    <td>{{ category.total_books|default:0 }}</td>
+                                    <td>
+                                        <strong class="d-block">{{ category.name }}</strong>
+                                        <small class="text-muted">{{ category.description|default:""|truncatewords:10 }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-medium">{{ category.total_books|default:0 }}</div>
+                                    </td>
                                     <td>
                                         <span class="badge bg-success">{{ category.available|default:0 }}</span>
                                     </td>
@@ -290,15 +598,24 @@
                                         <span class="badge bg-warning">{{ category.borrowed|default:0 }}</span>
                                     </td>
                                     <td>
+                                        <span class="badge bg-danger">{{ category.unavailable|default:0 }}</span>
+                                    </td>
+                                    <td>
                                         {% if category.total_books > 0 %}
-                                        <div class="progress" style="height: 20px;">
-                                            {% widthratio category.borrowed category.total_books 100 as utilization %}
-                                            <div class="progress-bar" role="progressbar" 
-                                                 style="width: {{ utilization }}%"
-                                                 aria-valuenow="{{ utilization }}" 
-                                                 aria-valuemin="0" 
-                                                 aria-valuemax="100">
-                                                {{ utilization }}%
+                                        {% widthratio category.borrowed category.total_books 100 as utilization %}
+                                        <div class="utilization-chart">
+                                            <div class="d-flex justify-content-between mb-1">
+                                                <small class="text-muted">Utilization</small>
+                                                <small class="fw-medium">{{ utilization }}%</small>
+                                            </div>
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar 
+                                                    {% if utilization > 80 %}bg-success
+                                                    {% elif utilization > 50 %}bg-primary
+                                                    {% else %}bg-info{% endif %}" 
+                                                     role="progressbar" 
+                                                     style="width: {{ utilization }}%">
+                                                </div>
                                             </div>
                                         </div>
                                         {% else %}
@@ -308,9 +625,12 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="ri-folder-line fs-3 text-muted mb-2"></i>
-                                        <p class="text-muted mb-0">No categories found</p>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-folder-line fs-1 mb-3"></i>
+                                            <h5 class="fw-medium mb-2">No categories found</h5>
+                                            <p class="mb-0">Add categories to start tracking inventory</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -321,5 +641,640 @@
             </div>
         </div>
     </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-3 mt-4">
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="{% url 'book_catalog_list' %}" class="quick-action-card">
+                                <i class="ri-book-line"></i>
+                                <span>View Catalog</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'add_book' %}" class="quick-action-card">
+                                <i class="ri-add-circle-line"></i>
+                                <span>Add New Book</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'manage_categories' %}" class="quick-action-card">
+                                <i class="ri-folder-line"></i>
+                                <span>Manage Categories</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="#" class="quick-action-card" onclick="printInventoryReport()">
+                                <i class="ri-printer-line"></i>
+                                <span>Print Report</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+
+    .metric-primary .metric-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+
+    .metric-success .metric-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .metric-warning .metric-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .metric-danger .metric-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--color-gray-200);
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+
+    /* Tabs */
+    .nav-tabs {
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        border-bottom-color: rgba(46, 125, 50, 0.3);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background: transparent;
+        border-bottom-color: var(--color-primary);
+    }
+
+    .nav-tabs .nav-link .badge {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.375rem;
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+
+    /* Table Row Status */
+    .table-warning {
+        background-color: rgba(255, 152, 0, 0.05);
+    }
+
+    .table-danger {
+        background-color: rgba(244, 67, 54, 0.05);
+    }
+
+    .table-warning:hover {
+        background-color: rgba(255, 152, 0, 0.08);
+    }
+
+    .table-danger:hover {
+        background-color: rgba(244, 67, 54, 0.08);
+    }
+
+    /* Book Cover */
+    .book-cover-sm {
+        flex-shrink: 0;
+    }
+
+    .book-cover-placeholder {
+        width: 48px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    /* Student Avatar */
+    .student-avatar-sm {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Stock Indicator */
+    .stock-indicator {
+        min-width: 120px;
+    }
+
+    .stock-level {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .progress {
+        background-color: var(--color-gray-200);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .progress-bar {
+        transition: width 0.6s ease;
+    }
+
+    /* Financial Values */
+    .financial-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 1rem;
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+        gap: 0.75rem;
+    }
+
+    .quick-action-card:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-card i {
+        font-size: 2rem;
+        color: var(--color-primary);
+    }
+
+    .quick-action-card span {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-align: center;
+    }
+
+    /* Button Styles */
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart colors
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info: '#2196F3',
+        danger: '#F44336',
+        gray: '#6c757d'
+    };
+
+    // Stock Status Chart
+    const stockCtx = document.getElementById('stockStatusChart');
+    if (stockCtx) {
+        new Chart(stockCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Available', 'Borrowed', 'Low Stock', 'Out of Stock', 'Damaged/Lost'],
+                datasets: [{
+                    label: 'Book Count',
+                    data: [
+                        {{ inventory_summary.available_books|default:0 }},
+                        {{ inventory_summary.borrowed_books|default:0 }},
+                        {{ low_stock|length|default:0 }},
+                        {{ out_of_stock|length|default:0 }},
+                        {{ lost_books|length|default:0|add:damaged_books|length|default:0 }}
+                    ],
+                    backgroundColor: [
+                        colors.success,
+                        colors.info,
+                        colors.warning,
+                        colors.danger,
+                        colors.gray
+                    ],
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Category Utilization Chart
+    const categoryCtx = document.getElementById('categoryUtilizationChart');
+    if (categoryCtx) {
+        const categoryData = [
+            {% for category in category_summary %}
+            {% if forloop.counter <= 5 %}
+            {
+                name: '{{ category.name }}',
+                borrowed: {{ category.borrowed|default:0 }},
+                total: {{ category.total_books|default:0 }}
+            },
+            {% endif %}
+            {% endfor %}
+        ];
+
+        new Chart(categoryCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryData.map(cat => cat.name),
+                datasets: [{
+                    data: categoryData.map(cat => cat.borrowed),
+                    backgroundColor: [
+                        colors.primary,
+                        colors.success,
+                        colors.info,
+                        colors.warning,
+                        colors.danger
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const cat = categoryData[context.dataIndex];
+                                const percentage = cat.total > 0 ? Math.round((cat.borrowed / cat.total) * 100) : 0;
+                                return `${context.label}: ${cat.borrowed} books (${percentage}% of stock)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+function printInventoryReport() {
+    const printWindow = window.open('', '_blank');
+    const tableContent = document.querySelector('.table-responsive').innerHTML;
+    const activeTab = document.querySelector('.tab-pane.active');
+    const tabTitle = document.querySelector('.nav-link.active').textContent.trim();
+    
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Inventory Report - ${tabTitle}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h1 { color: #2E7D32; margin-bottom: 20px; }
+                    h2 { color: #666; margin-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background-color: #f8f9fa; padding: 10px; text-align: left; border: 1px solid #dee2e6; }
+                    td { padding: 10px; border: 1px solid #dee2e6; }
+                    .text-danger { color: #dc3545; }
+                    .text-warning { color: #ffc107; }
+                    .text-success { color: #28a745; }
+                    .badge { padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+                    .bg-danger { background-color: #dc3545; color: white; }
+                    .bg-warning { background-color: #ffc107; color: black; }
+                    .bg-success { background-color: #28a745; color: white; }
+                    .progress { height: 8px; background-color: #e9ecef; border-radius: 4px; overflow: hidden; }
+                    .progress-bar { height: 100%; }
+                    @media print {
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>Inventory Management Report</h1>
+                <h2>${tabTitle}</h2>
+                <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+                <p>Total Books: {{ inventory_summary.total_books|default:0 }}</p>
+                ${tableContent}
+                <div class="no-print" style="margin-top: 20px;">
+                    <button onclick="window.print()">Print Report</button>
+                    <button onclick="window.close()">Close</button>
+                </div>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+function showAlert(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show mt-3" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.content-container');
+    const firstCard = container.querySelector('.management-card');
+    if (firstCard) {
+        firstCard.insertAdjacentHTML('beforebegin', alertHtml);
+    }
+    
+    setTimeout(() => {
+        const alert = document.querySelector('.alert-dismissible');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
 {% endblock %}

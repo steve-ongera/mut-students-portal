@@ -3,6 +3,10 @@
 
 {% block title %}Book Returns{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Book Returns{% endblock %}
 {% block page_subtitle %}Process book returns and renewals{% endblock %}
 
@@ -17,58 +21,315 @@
 <div class="content-container">
     <!-- Statistics Cards -->
     <div class="row g-3 mb-4">
+        <!-- Active Borrowings -->
         <div class="col-md-3">
-            <div class="stat-card">
-                <div class="stat-icon bg-primary">
-                    <i class="ri-book-open-line"></i>
+            <div class="metric-card metric-primary">
+                <div class="metric-icon">
+                    <i class="ri-book-mark-line"></i>
                 </div>
-                <div class="stat-details">
-                    <div class="stat-value">{{ active_borrowings|length }}</div>
-                    <div class="stat-label">Active Borrowings</div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ active_borrowings_count|default:0 }}</div>
+                    <div class="metric-label">Active Borrowings</div>
                 </div>
             </div>
         </div>
+
+        <!-- Overdue Today -->
         <div class="col-md-3">
-            <div class="stat-card">
-                <div class="stat-icon bg-danger">
+            <div class="metric-card metric-danger">
+                <div class="metric-icon">
                     <i class="ri-alarm-warning-line"></i>
                 </div>
-                <div class="stat-details">
-                    <div class="stat-value">
-                        {{ active_borrowings|length }}
-                    </div>
-                    <div class="stat-label">Overdue Today</div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ overdue_today_count|default:0 }}</div>
+                    <div class="metric-label">Overdue Today</div>
                 </div>
             </div>
         </div>
+
+        <!-- Returned Today -->
         <div class="col-md-3">
-            <div class="stat-card">
-                <div class="stat-icon bg-success">
-                    <i class="ri-check-line"></i>
+            <div class="metric-card metric-success">
+                <div class="metric-icon">
+                    <i class="ri-checkbox-circle-line"></i>
                 </div>
-                <div class="stat-details">
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">Returned Today</div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ returned_today_count|default:0 }}</div>
+                    <div class="metric-label">Returned Today</div>
                 </div>
             </div>
         </div>
+
+        <!-- Pending Fines -->
         <div class="col-md-3">
-            <div class="stat-card">
-                <div class="stat-icon bg-warning">
+            <div class="metric-card metric-warning">
+                <div class="metric-icon">
                     <i class="ri-money-dollar-circle-line"></i>
                 </div>
-                <div class="stat-details">
-                    <div class="stat-value">0</div>
-                    <div class="stat-label">Fines Pending</div>
+                <div class="metric-content">
+                    <div class="metric-value">KES {{ pending_fines_amount|default:0|floatformat:2 }}</div>
+                    <div class="metric-label">Pending Fines</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Active Borrowings Table -->
+    <!-- Quick Actions -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="#" class="quick-action-card" id="quickReturnBtn">
+                                <i class="ri-qr-scan-line"></i>
+                                <span>Quick Return</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="#" class="quick-action-card" id="bulkReturnBtn">
+                                <i class="ri-stack-line"></i>
+                                <span>Bulk Returns</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'book_issuance' %}" class="quick-action-card">
+                                <i class="ri-hand-heart-line"></i>
+                                <span>Issue Book</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'fine_management' %}" class="quick-action-card">
+                                <i class="ri-money-dollar-circle-line"></i>
+                                <span>Manage Fines</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Return Modal -->
+    <div class="modal fade" id="quickReturnModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Quick Book Return</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Enter Borrowing ID or Scan QR</label>
+                        <input type="text" class="form-control" id="borrowingSearch" placeholder="Enter borrowing ID...">
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="ri-information-line me-2"></i>
+                        Enter the borrowing ID or scan the book's QR code to quickly process returns.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="processQuickReturn()">Process Return</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Borrowings Management -->
     <div class="management-card">
         <div class="card-header">
             <h5 class="card-title">Active Borrowings</h5>
+            <div class="card-subtitle">Currently borrowed books awaiting return</div>
+        </div>
+        <div class="card-body p-0">
+            <!-- Search and Filter -->
+            <div class="p-3 border-bottom">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">
+                                <i class="ri-search-line text-muted"></i>
+                            </span>
+                            <input type="text" class="form-control" id="searchBorrowings" placeholder="Search by student, book, or ISBN...">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex gap-2">
+                            <select class="form-select" id="filterStatus">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="overdue">Overdue</option>
+                                <option value="near_due">Near Due</option>
+                            </select>
+                            <button class="btn btn-outline-primary" onclick="filterBorrowings()">
+                                <i class="ri-filter-line"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Borrowings Table -->
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Student Details</th>
+                            <th>Book Details</th>
+                            <th>Borrowing Period</th>
+                            <th>Due Status</th>
+                            <th>Fine Amount</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for borrowing in active_borrowings %}
+                        <tr class="{% if borrowing.status == 'overdue' %}table-danger{% elif borrowing.due_today %}table-warning{% endif %}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="student-avatar-sm me-3">
+                                        <div class="avatar-placeholder {% if borrowing.status == 'overdue' %}bg-danger-subtle text-danger{% else %}bg-primary-subtle text-primary{% endif %} rounded-circle d-flex align-items-center justify-content-center">
+                                            <i class="ri-user-line"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <strong class="d-block">{{ borrowing.student.user.get_full_name }}</strong>
+                                        <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
+                                        <small class="d-block text-muted">{{ borrowing.student.programme.name|default:"-" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <strong class="d-block">{{ borrowing.book.title|truncatewords:8 }}</strong>
+                                    <small class="d-block text-muted">{{ borrowing.book.author }}</small>
+                                    <small class="d-block text-muted">
+                                        <i class="ri-barcode-line me-1"></i>{{ borrowing.book.isbn }}
+                                    </small>
+                                    {% if borrowing.book.available_copies < 2 %}
+                                    <small class="badge bg-warning-subtle text-warning">
+                                        <i class="ri-alert-line me-1"></i>Low Stock
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="fw-medium mb-1">
+                                        <i class="ri-calendar-event-line me-1 text-primary"></i>
+                                        {{ borrowing.borrow_date|date:"d M Y" }}
+                                    </div>
+                                    <div class="{% if borrowing.status == 'overdue' %}text-danger{% elif borrowing.due_today %}text-warning{% else %}text-muted{% endif %}">
+                                        <i class="ri-calendar-2-line me-1"></i>
+                                        {{ borrowing.due_date|date:"d M Y" }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                {% if borrowing.status == 'overdue' %}
+                                <span class="badge bg-danger">
+                                    <i class="ri-alarm-warning-line me-1"></i>
+                                    {{ borrowing.due_date|timesince }} overdue
+                                </span>
+                                {% elif borrowing.due_today %}
+                                <span class="badge bg-warning">
+                                    <i class="ri-alarm-line me-1"></i>
+                                    Due Today
+                                </span>
+                                {% else %}
+                                <span class="badge bg-success">
+                                    <i class="ri-time-line me-1"></i>
+                                    {{ borrowing.due_date|timeuntil }} left
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if borrowing.fine_amount > 0 %}
+                                <div class="financial-value text-danger">
+                                    <i class="ri-money-dollar-circle-line me-1"></i>
+                                    KES {{ borrowing.fine_amount|floatformat:2 }}
+                                </div>
+                                {% if borrowing.fine_paid %}
+                                <small class="badge bg-success-subtle text-success">
+                                    <i class="ri-check-line me-1"></i>Paid
+                                </small>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <form method="post" class="return-form" data-borrowing-id="{{ borrowing.id }}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="borrowing_id" value="{{ borrowing.id }}">
+                                        <button type="submit" 
+                                                class="btn btn-sm btn-success"
+                                                title="Return Book"
+                                                onclick="return confirmReturn('{{ borrowing.book.title }}', '{{ borrowing.student.user.get_full_name }}')">
+                                            <i class="ri-check-line"></i>
+                                        </button>
+                                    </form>
+                                    {% if borrowing.status == 'active' and not borrowing.due_today %}
+                                    <a href="{% url 'renew_borrowing' borrowing.id %}" 
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="Renew Borrowing">
+                                        <i class="ri-refresh-line"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if borrowing.fine_amount > 0 and not borrowing.fine_paid %}
+                                    <a href="{% url 'process_fine_payment' borrowing.id %}" 
+                                       class="btn btn-sm btn-outline-danger"
+                                       title="Pay Fine">
+                                        <i class="ri-money-dollar-circle-line"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="ri-checkbox-circle-line fs-1 mb-3 text-success"></i>
+                                    <h5 class="fw-medium mb-2">No active borrowings</h5>
+                                    <p class="mb-0">All books have been returned</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table Footer -->
+            <div class="p-3 border-top">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            Showing {{ active_borrowings|length }} of {{ total_borrowings|default:0 }} borrowings
+                        </small>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="printReturnsReport()">
+                            <i class="ri-printer-line me-2"></i>Print Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Returns -->
+    {% if recent_returns %}
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Recent Returns (Today)</h5>
+            <div class="card-subtitle">Books returned today</div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -77,86 +338,25 @@
                         <tr>
                             <th>Student</th>
                             <th>Book</th>
-                            <th>Borrow Date</th>
-                            <th>Due Date</th>
-                            <th>Days</th>
-                            <th>Status</th>
-                            <th>Fine</th>
-                            <th>Actions</th>
+                            <th>Return Time</th>
+                            <th>Fine Collected</th>
+                            <th>Returned By</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for borrowing in active_borrowings %}
-                        <tr class="{% if borrowing.status == 'overdue' %}table-danger{% endif %}">
-                            <td>
-                                <div>
-                                    <strong>{{ borrowing.student.user.get_full_name }}</strong>
-                                    <small class="d-block text-muted">{{ borrowing.student.registration_number }}</small>
-                                </div>
-                            </td>
-                            <td>
-                                <div>
-                                    <strong>{{ borrowing.book.title|truncatewords:5 }}</strong>
-                                    <small class="d-block text-muted">{{ borrowing.book.author }}</small>
-                                    <small class="d-block text-muted">ISBN: {{ borrowing.book.isbn }}</small>
-                                </div>
-                            </td>
-                            <td>{{ borrowing.borrow_date|date:"d/m/Y" }}</td>
-                            <td>
-                                <span class="{% if borrowing.status == 'overdue' %}text-danger fw-bold{% endif %}">
-                                    {{ borrowing.due_date|date:"d/m/Y" }}
-                                </span>
-                            </td>
-                            <td>
-                                {% if borrowing.status == 'overdue' %}
-                                <span class="badge bg-danger">
-                                    {{ borrowing.due_date|timesince|truncatewords:1 }} overdue
-                                </span>
-                                {% else %}
-                                <span class="badge bg-success">
-                                    {{ borrowing.due_date|timeuntil|truncatewords:1 }} left
-                                </span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if borrowing.status == 'active' %}
-                                <span class="badge bg-success">Active</span>
-                                {% else %}
-                                <span class="badge bg-danger">Overdue</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if borrowing.fine_amount > 0 %}
-                                <span class="text-danger fw-bold">KES {{ borrowing.fine_amount }}</span>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <form method="post" style="display: inline;">
-                                        {% csrf_token %}
-                                        <input type="hidden" name="borrowing_id" value="{{ borrowing.id }}">
-                                        <button type="submit" class="btn btn-sm btn-success" title="Return Book">
-                                            <i class="ri-check-line"></i>
-                                        </button>
-                                    </form>
-                                    {% if borrowing.status == 'active' %}
-                                    <a href="{% url 'renew_borrowing' borrowing.id %}" 
-                                       class="btn btn-sm btn-outline-primary"
-                                       title="Renew">
-                                        <i class="ri-refresh-line"></i>
-                                    </a>
-                                    {% endif %}
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
+                        {% for return in recent_returns %}
                         <tr>
-                            <td colspan="8" class="text-center py-4">
-                                <i class="ri-book-line fs-3 text-muted mb-2"></i>
-                                <p class="text-muted mb-0">No active borrowings</p>
+                            <td>{{ return.student.user.get_full_name }}</td>
+                            <td>{{ return.book.title|truncatewords:5 }}</td>
+                            <td>{{ return.return_date|date:"H:i" }}</td>
+                            <td>
+                                {% if return.fine_amount > 0 %}
+                                <span class="text-success">KES {{ return.fine_amount|floatformat:2 }}</span>
+                                {% else %}
+                                <span class="text-muted">No fine</span>
+                                {% endif %}
                             </td>
+                            <td>{{ return.returned_by.get_full_name|default:"System" }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -164,5 +364,507 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+
+    .metric-primary .metric-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+
+    .metric-success .metric-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .metric-warning .metric-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .metric-danger .metric-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 1rem;
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+        gap: 0.75rem;
+    }
+
+    .quick-action-card:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-card i {
+        font-size: 2rem;
+        color: var(--color-primary);
+    }
+
+    .quick-action-card span {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-align: center;
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+
+    /* Table Row Status */
+    .table-danger {
+        background-color: rgba(244, 67, 54, 0.05);
+    }
+
+    .table-warning {
+        background-color: rgba(255, 152, 0, 0.05);
+    }
+
+    .table-danger:hover {
+        background-color: rgba(244, 67, 54, 0.08);
+    }
+
+    .table-warning:hover {
+        background-color: rgba(255, 152, 0, 0.08);
+    }
+
+    /* Student Avatar */
+    .student-avatar-sm {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        font-size: 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Financial Values */
+    .financial-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Button Styles */
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Form Controls */
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+    }
+
+    .input-group-text {
+        border-color: var(--color-gray-300);
+        background: white;
+    }
+
+    /* Alert Styles */
+    .alert {
+        border: none;
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-left: 4px solid var(--color-info);
+    }
+
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Quick Return Modal
+    const quickReturnBtn = document.getElementById('quickReturnBtn');
+    if (quickReturnBtn) {
+        quickReturnBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const modal = new bootstrap.Modal(document.getElementById('quickReturnModal'));
+            modal.show();
+        });
+    }
+
+    // Bulk Return Modal
+    const bulkReturnBtn = document.getElementById('bulkReturnBtn');
+    if (bulkReturnBtn) {
+        bulkReturnBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            showAlert('Bulk return feature coming soon!', 'info');
+        });
+    }
+
+    // Search functionality
+    const searchInput = document.getElementById('searchBorrowings');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', function(e) {
+            if (e.key === 'Enter') {
+                filterBorrowings();
+            }
+        });
+    }
+
+    // Add loading state to return buttons
+    const returnForms = document.querySelectorAll('.return-form');
+    returnForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalHtml = submitBtn.innerHTML;
+            submitBtn.innerHTML = '<i class="ri-loader-4-line"></i>';
+            submitBtn.disabled = true;
+            
+            // Re-enable button after 5 seconds if form submission fails
+            setTimeout(() => {
+                if (submitBtn.disabled) {
+                    submitBtn.innerHTML = originalHtml;
+                    submitBtn.disabled = false;
+                    showAlert('Return processing timeout. Please try again.', 'warning');
+                }
+            }, 5000);
+        });
+    });
+});
+
+function filterBorrowings() {
+    const searchText = document.getElementById('searchBorrowings').value.toLowerCase();
+    const statusFilter = document.getElementById('filterStatus').value;
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const studentName = row.querySelector('td:nth-child(1) strong').textContent.toLowerCase();
+        const regNumber = row.querySelector('td:nth-child(1) small.text-muted').textContent.toLowerCase();
+        const bookTitle = row.querySelector('td:nth-child(2) strong').textContent.toLowerCase();
+        const bookAuthor = row.querySelector('td:nth-child(2) small.text-muted').textContent.toLowerCase();
+        const isbn = row.querySelector('td:nth-child(2) .text-muted .ri-barcode-line')?.parentElement.textContent.toLowerCase() || '';
+        
+        const matchesSearch = studentName.includes(searchText) || 
+                              regNumber.includes(searchText) || 
+                              bookTitle.includes(searchText) || 
+                              bookAuthor.includes(searchText) ||
+                              isbn.includes(searchText);
+        
+        let matchesStatus = true;
+        if (statusFilter) {
+            const dueStatus = row.querySelector('td:nth-child(4) .badge').textContent.toLowerCase();
+            if (statusFilter === 'active' && (dueStatus.includes('overdue') || dueStatus.includes('today'))) {
+                matchesStatus = false;
+            } else if (statusFilter === 'overdue' && !dueStatus.includes('overdue')) {
+                matchesStatus = false;
+            } else if (statusFilter === 'near_due' && !dueStatus.includes('today')) {
+                matchesStatus = false;
+            }
+        }
+        
+        row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+    });
+    
+    // Show/hide empty message
+    const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none');
+    const emptyRow = document.querySelector('tbody tr td[colspan]');
+    if (emptyRow) {
+        emptyRow.parentElement.style.display = visibleRows.length === 0 ? '' : 'none';
+    }
+}
+
+function processQuickReturn() {
+    const borrowingId = document.getElementById('borrowingSearch').value.trim();
+    
+    if (!borrowingId) {
+        showAlert('Please enter a borrowing ID', 'warning');
+        return;
+    }
+    
+    // Simulate quick return processing
+    const modal = bootstrap.Modal.getInstance(document.getElementById('quickReturnModal'));
+    modal.hide();
+    
+    showAlert(`Processing return for borrowing ID: ${borrowingId}...`, 'info');
+    
+    // In a real implementation, this would make an API call
+    setTimeout(() => {
+        showAlert(`Book return processed successfully for ID: ${borrowingId}`, 'success');
+        // Reload page after successful return
+        setTimeout(() => location.reload(), 2000);
+    }, 1500);
+}
+
+function confirmReturn(bookTitle, studentName) {
+    return confirm(`Are you sure you want to process return for:\n\nBook: ${bookTitle}\nStudent: ${studentName}\n\nThis action cannot be undone.`);
+}
+
+function printReturnsReport() {
+    // Create a printable version of the table
+    const printWindow = window.open('', '_blank');
+    const tableContent = document.querySelector('.table-responsive').innerHTML;
+    
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Book Returns Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h1 { color: #2E7D32; margin-bottom: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th { background-color: #f8f9fa; padding: 10px; text-align: left; border: 1px solid #dee2e6; }
+                    td { padding: 10px; border: 1px solid #dee2e6; }
+                    .text-danger { color: #dc3545; }
+                    .text-warning { color: #ffc107; }
+                    .text-success { color: #28a745; }
+                    .badge { padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+                    .bg-danger { background-color: #dc3545; color: white; }
+                    .bg-warning { background-color: #ffc107; color: black; }
+                    .bg-success { background-color: #28a745; color: white; }
+                    @media print {
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <h1>Book Returns Report</h1>
+                <p>Generated on: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
+                <p>Total Active Borrowings: ${document.querySelectorAll('tbody tr').length}</p>
+                ${tableContent}
+                <div class="no-print" style="margin-top: 20px;">
+                    <button onclick="window.print()">Print Report</button>
+                    <button onclick="window.close()">Close</button>
+                </div>
+            </body>
+        </html>
+    `);
+    printWindow.document.close();
+}
+
+function showAlert(message, type) {
+    // Remove existing alerts
+    const existingAlert = document.querySelector('.alert-dismissible:not(.modal .alert)');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+    
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show mt-3" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.content-container');
+    const firstCard = container.querySelector('.management-card');
+    if (firstCard) {
+        firstCard.insertAdjacentHTML('beforebegin', alertHtml);
+    }
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        const alert = document.querySelector('.alert-dismissible');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
 {% endblock %}

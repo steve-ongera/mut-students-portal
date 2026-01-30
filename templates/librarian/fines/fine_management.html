@@ -3,6 +3,10 @@
 
 {% block title %}Fine Management{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Fine Management{% endblock %}
 {% block page_subtitle %}Manage library fines and payments{% endblock %}
 
@@ -10,68 +14,147 @@
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
         <li class="breadcrumb-item"><a href="{% url 'librarian_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active">Fines</li>
+        <li class="breadcrumb-item active">Fine Management</li>
     </ol>
 </nav>
 
 <div class="content-container">
-    <!-- Summary Cards -->
+    <!-- Financial Overview Cards -->
     <div class="row g-3 mb-4">
-        <div class="col-md-6">
-            <div class="stat-card">
-                <div class="stat-icon bg-warning">
+        <!-- Total Pending Fines -->
+        <div class="col-md-3">
+            <div class="metric-card metric-danger">
+                <div class="metric-icon">
                     <i class="ri-money-dollar-circle-line"></i>
                 </div>
-                <div class="stat-details">
-                    <div class="stat-value">KES {{ total_pending }}</div>
-                    <div class="stat-label">Total Pending Fines</div>
+                <div class="metric-content">
+                    <div class="metric-value">KES {{ total_pending|default:0|floatformat:2 }}</div>
+                    <div class="metric-label">Pending Fines</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="stat-card">
-                <div class="stat-icon bg-success">
-                    <i class="ri-check-line"></i>
+
+        <!-- Total Paid Fines -->
+        <div class="col-md-3">
+            <div class="metric-card metric-success">
+                <div class="metric-icon">
+                    <i class="ri-bank-card-line"></i>
                 </div>
-                <div class="stat-details">
-                    <div class="stat-value">KES {{ total_paid }}</div>
-                    <div class="stat-label">Total Paid Fines</div>
+                <div class="metric-content">
+                    <div class="metric-value">KES {{ total_paid|default:0|floatformat:2 }}</div>
+                    <div class="metric-label">Paid Fines</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today's Collections -->
+        <div class="col-md-3">
+            <div class="metric-card metric-primary">
+                <div class="metric-icon">
+                    <i class="ri-calendar-check-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">KES {{ today_collections|default:0|floatformat:2 }}</div>
+                    <div class="metric-label">Today's Collections</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Students with Fines -->
+        <div class="col-md-3">
+            <div class="metric-card metric-warning">
+                <div class="metric-icon">
+                    <i class="ri-user-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ students_with_fines|default:0 }}</div>
+                    <div class="metric-label">Students with Fines</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabs -->
-    <ul class="nav nav-tabs mb-3" id="finesTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">
-                Pending Fines ({{ pending_fines|length }})
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="paid-tab" data-bs-toggle="tab" data-bs-target="#paid" type="button" role="tab">
-                Paid Fines ({{ paid_fines|length }})
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content" id="finesTabContent">
-        <!-- Pending Fines Tab -->
-        <div class="tab-pane fade show active" id="pending" role="tabpanel">
+    <!-- Quick Actions -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
             <div class="management-card">
                 <div class="card-header">
-                    <h5 class="card-title">Pending Fines</h5>
+                    <h5 class="card-title">Quick Actions</h5>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="#" class="quick-action-card" data-bs-toggle="modal" data-bs-target="#bulkPaymentModal">
+                                <i class="ri-money-dollar-circle-line"></i>
+                                <span>Bulk Payment</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="#" class="quick-action-card" data-bs-toggle="modal" data-bs-target="#exportModal">
+                                <i class="ri-download-line"></i>
+                                <span>Export Report</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'book_issuance' %}" class="quick-action-card">
+                                <i class="ri-book-mark-line"></i>
+                                <span>Book Issuance</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'book_returns' %}" class="quick-action-card">
+                                <i class="ri-checkbox-circle-line"></i>
+                                <span>Book Returns</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fines Management Tabs -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Fine Management</h5>
+            <div class="card-subtitle">Manage pending and paid fines</div>
+        </div>
+        <div class="card-body p-0">
+            <ul class="nav nav-tabs px-3 pt-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#pending" type="button">
+                        <i class="ri-money-dollar-circle-line me-2"></i>
+                        Pending Fines
+                        <span class="badge bg-danger ms-2">{{ pending_fines|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#paid" type="button">
+                        <i class="ri-checkbox-circle-line me-2"></i>
+                        Paid Fines
+                        <span class="badge bg-success ms-2">{{ paid_fines|length }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#waived" type="button">
+                        <i class="ri-delete-bin-line me-2"></i>
+                        Waived Fines
+                        <span class="badge bg-secondary ms-2">{{ waived_fines|length|default:0 }}</span>
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content p-3">
+                <!-- Pending Fines -->
+                <div class="tab-pane fade show active" id="pending">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Student</th>
-                                    <th>Book</th>
-                                    <th>Due Date</th>
-                                    <th>Return Date</th>
-                                    <th>Days Overdue</th>
+                                    <th>Student Details</th>
+                                    <th>Book Details</th>
+                                    <th>Due & Return Dates</th>
+                                    <th>Overdue Period</th>
                                     <th>Fine Amount</th>
                                     <th>Actions</th>
                                 </tr>
@@ -80,53 +163,96 @@
                                 {% for fine in pending_fines %}
                                 <tr>
                                     <td>
-                                        <div>
-                                            <strong>{{ fine.student.user.get_full_name }}</strong>
-                                            <small class="d-block text-muted">{{ fine.student.registration_number }}</small>
+                                        <div class="d-flex align-items-center">
+                                            <div class="student-avatar-sm me-3">
+                                                <div class="avatar-placeholder bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center">
+                                                    <i class="ri-user-line"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong class="d-block">{{ fine.student.user.get_full_name }}</strong>
+                                                <small class="d-block text-muted">{{ fine.student.registration_number }}</small>
+                                                <small class="d-block text-muted">{{ fine.student.programme.name|default:"No programme" }}</small>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
                                         <div>
-                                            <strong>{{ fine.book.title|truncatewords:5 }}</strong>
+                                            <strong class="d-block">{{ fine.book.title|truncatewords:8 }}</strong>
                                             <small class="d-block text-muted">{{ fine.book.author }}</small>
+                                            <small class="d-block text-muted">
+                                                <i class="ri-barcode-line me-1"></i>{{ fine.book.isbn }}
+                                            </small>
                                         </div>
                                     </td>
-                                    <td>{{ fine.due_date|date:"d/m/Y" }}</td>
                                     <td>
-                                        {% if fine.return_date %}
-                                        {{ fine.return_date|date:"d/m/Y" }}
-                                        {% else %}
-                                        <span class="badge bg-warning">Not Returned</span>
-                                        {% endif %}
+                                        <div>
+                                            <div class="fw-medium mb-1">
+                                                <i class="ri-calendar-event-line me-1 text-danger"></i>
+                                                Due: {{ fine.due_date|date:"d M Y" }}
+                                            </div>
+                                            <div>
+                                                {% if fine.return_date %}
+                                                <i class="ri-checkbox-circle-line me-1 text-success"></i>
+                                                Returned: {{ fine.return_date|date:"d M Y" }}
+                                                {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="ri-alert-line me-1"></i>Not Returned
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
-                                        <span class="badge bg-danger">
-                                            {% widthratio fine.fine_amount 5 1 %} days
-                                        </span>
+                                        <div class="overdue-indicator">
+                                            {% if fine.return_date %}
+                                                {% with overdue_days=fine.due_date|timesince:fine.return_date %}
+                                                <span class="badge bg-danger">{{ overdue_days }}</span>
+                                                {% endwith %}
+                                            {% else %}
+                                                <span class="badge bg-danger">
+                                                    {{ fine.due_date|timesince }} overdue
+                                                </span>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                     <td>
-                                        <strong class="text-danger">KES {{ fine.fine_amount }}</strong>
+                                        <div class="financial-value text-danger">
+                                            <i class="ri-money-dollar-circle-line me-1"></i>
+                                            KES {{ fine.fine_amount|floatformat:2 }}
+                                        </div>
                                     </td>
                                     <td>
                                         <div class="d-flex gap-1">
                                             <a href="{% url 'process_fine_payment' fine.id %}" 
                                                class="btn btn-sm btn-success"
                                                title="Process Payment">
-                                                <i class="ri-money-dollar-circle-line"></i> Pay
+                                                <i class="ri-money-dollar-circle-line"></i>
                                             </a>
                                             <a href="{% url 'waive_fine' fine.id %}" 
                                                class="btn btn-sm btn-outline-secondary"
-                                               title="Waive Fine">
-                                                <i class="ri-delete-bin-line"></i> Waive
+                                               title="Waive Fine"
+                                               onclick="return confirm('Are you sure you want to waive this fine?')">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </a>
+                                            <a href="#" 
+                                               class="btn btn-sm btn-outline-info"
+                                               title="View Details"
+                                               data-bs-toggle="modal" 
+                                               data-bs-target="#fineDetailModal{{ fine.id }}">
+                                                <i class="ri-eye-line"></i>
                                             </a>
                                         </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="7" class="text-center py-4">
-                                        <i class="ri-money-dollar-circle-line fs-3 text-muted mb-2"></i>
-                                        <p class="text-muted mb-0">No pending fines</p>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-checkbox-circle-line fs-1 mb-3 text-success"></i>
+                                            <h5 class="fw-medium mb-2">No pending fines</h5>
+                                            <p class="mb-0">Great! All fines have been settled</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -134,24 +260,17 @@
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Paid Fines Tab -->
-        <div class="tab-pane fade" id="paid" role="tabpanel">
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">Paid Fines</h5>
-                </div>
-                <div class="card-body p-0">
+                <!-- Paid Fines -->
+                <div class="tab-pane fade" id="paid">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Student</th>
-                                    <th>Book</th>
+                                    <th>Student Details</th>
+                                    <th>Book Details</th>
                                     <th>Fine Amount</th>
-                                    <th>Payment Date</th>
+                                    <th>Payment Details</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -159,30 +278,112 @@
                                 {% for fine in paid_fines %}
                                 <tr>
                                     <td>
-                                        <div>
-                                            <strong>{{ fine.student.user.get_full_name }}</strong>
-                                            <small class="d-block text-muted">{{ fine.student.registration_number }}</small>
+                                        <div class="d-flex align-items-center">
+                                            <div class="student-avatar-sm me-3">
+                                                <div class="avatar-placeholder bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center">
+                                                    <i class="ri-user-line"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong class="d-block">{{ fine.student.user.get_full_name }}</strong>
+                                                <small class="d-block text-muted">{{ fine.student.registration_number }}</small>
+                                            </div>
                                         </div>
                                     </td>
                                     <td>
                                         <div>
-                                            <strong>{{ fine.book.title|truncatewords:5 }}</strong>
+                                            <strong class="d-block">{{ fine.book.title|truncatewords:8 }}</strong>
                                             <small class="d-block text-muted">{{ fine.book.author }}</small>
                                         </div>
                                     </td>
                                     <td>
-                                        <strong>KES {{ fine.fine_amount }}</strong>
+                                        <div class="financial-value text-success">
+                                            <strong>KES {{ fine.fine_amount|floatformat:2 }}</strong>
+                                        </div>
                                     </td>
-                                    <td>{{ fine.updated_at|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-medium mb-1">
+                                                <i class="ri-calendar-check-line me-1"></i>
+                                                {{ fine.updated_at|date:"d M Y, H:i" }}
+                                            </div>
+                                            <small class="text-muted">Receipt: {{ fine.receipt_number|default:"N/A" }}</small>
+                                        </div>
+                                    </td>
                                     <td>
                                         <span class="badge bg-success">Paid</span>
+                                        {% if fine.payment_method %}
+                                        <small class="d-block text-muted">{{ fine.payment_method }}</small>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center py-4">
-                                        <i class="ri-check-line fs-3 text-muted mb-2"></i>
-                                        <p class="text-muted mb-0">No paid fines</p>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-inbox-line fs-1 mb-3"></i>
+                                            <h5 class="fw-medium mb-2">No paid fines</h5>
+                                            <p class="mb-0">No fine payments have been recorded yet</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Waived Fines -->
+                <div class="tab-pane fade" id="waived">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Student Details</th>
+                                    <th>Book Details</th>
+                                    <th>Fine Amount</th>
+                                    <th>Waived By</th>
+                                    <th>Waived Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fine in waived_fines %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="student-avatar-sm me-3">
+                                                <div class="avatar-placeholder bg-secondary-subtle text-secondary rounded-circle d-flex align-items-center justify-content-center">
+                                                    <i class="ri-user-line"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <strong class="d-block">{{ fine.student.user.get_full_name }}</strong>
+                                                <small class="d-block text-muted">{{ fine.student.registration_number }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong class="d-block">{{ fine.book.title|truncatewords:8 }}</strong>
+                                            <small class="d-block text-muted">{{ fine.book.author }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="financial-value text-secondary">
+                                            <s>KES {{ fine.fine_amount|floatformat:2 }}</s>
+                                        </div>
+                                    </td>
+                                    <td>{{ fine.waived_by.get_full_name|default:"System" }}</td>
+                                    <td>{{ fine.updated_at|date:"d M Y, H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5">
+                                        <div class="text-muted">
+                                            <i class="ri-delete-bin-line fs-1 mb-3"></i>
+                                            <h5 class="fw-medium mb-2">No waived fines</h5>
+                                            <p class="mb-0">No fines have been waived yet</p>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -194,4 +395,364 @@
         </div>
     </div>
 </div>
+
+<!-- Modals -->
+<div class="modal fade" id="bulkPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Fine Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Process bulk payments for multiple fines at once.</p>
+                <div class="alert alert-info">
+                    <i class="ri-information-line me-2"></i>
+                    Select students to process their fines collectively.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="exportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Export Fines Report</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Select Report Type</label>
+                    <select class="form-select">
+                        <option value="pending">Pending Fines</option>
+                        <option value="paid">Paid Fines</option>
+                        <option value="all">All Fines</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Format</label>
+                    <select class="form-select">
+                        <option value="excel">Excel (.xlsx)</option>
+                        <option value="pdf">PDF (.pdf)</option>
+                        <option value="csv">CSV (.csv)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Export Report</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+
+    .metric-primary .metric-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+
+    .metric-success .metric-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .metric-warning .metric-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .metric-danger .metric-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    /* Tabs */
+    .nav-tabs {
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        border-bottom-color: rgba(46, 125, 50, 0.3);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background: transparent;
+        border-bottom-color: var(--color-primary);
+    }
+
+    .nav-tabs .nav-link .badge {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.375rem;
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+
+    /* Student Avatar */
+    .student-avatar-sm {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        font-size: 1.25rem;
+    }
+
+    /* Financial Values */
+    .financial-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+
+    /* Overdue Indicator */
+    .overdue-indicator .badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 1rem;
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+        gap: 0.75rem;
+    }
+
+    .quick-action-card:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-card i {
+        font-size: 2rem;
+        color: var(--color-primary);
+    }
+
+    .quick-action-card span {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-align: center;
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+
+    /* Button Styles */
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+</style>
 {% endblock %}

@@ -3,6 +3,10 @@
 
 {% block title %}Add New Book{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Add New Book{% endblock %}
 {% block page_subtitle %}Add a new book to the library catalog{% endblock %}
 
@@ -16,123 +20,971 @@
 </nav>
 
 <div class="content-container">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="management-card">
-                <div class="card-header">
-                    <h5 class="card-title">Book Information</h5>
+    <!-- Quick Stats -->
+    <div class="row g-3 mb-4">
+        <!-- Total Books -->
+        <div class="col-md-3">
+            <div class="metric-card metric-primary">
+                <div class="metric-icon">
+                    <i class="ri-book-line"></i>
                 </div>
-                <div class="card-body">
-                    <form method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        
-                        <!-- Basic Information -->
-                        <div class="mb-4">
-                            <h6 class="mb-3">Basic Information</h6>
-                            
-                            <div class="mb-3">
-                                <label for="isbn" class="form-label">ISBN <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="isbn" name="isbn" required>
-                                <small class="form-text text-muted">International Standard Book Number</small>
+                <div class="metric-content">
+                    <div class="metric-value">{{ total_books|default:0 }}</div>
+                    <div class="metric-label">Total Books</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="col-md-3">
+            <div class="metric-card metric-success">
+                <div class="metric-icon">
+                    <i class="ri-folder-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ total_categories|default:0 }}</div>
+                    <div class="metric-label">Categories</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Additions -->
+        <div class="col-md-3">
+            <div class="metric-card metric-warning">
+                <div class="metric-icon">
+                    <i class="ri-add-circle-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ recent_additions|default:0 }}</div>
+                    <div class="metric-label">Added This Month</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Copies -->
+        <div class="col-md-3">
+            <div class="metric-card metric-info">
+                <div class="metric-icon">
+                    <i class="ri-stack-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ available_copies|default:0 }}</div>
+                    <div class="metric-label">Available Copies</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Form -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Add New Book</h5>
+            <div class="card-subtitle">Enter book details to add to the library catalog</div>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" id="addBookForm">
+                {% csrf_token %}
+                
+                <!-- Form Steps Indicator -->
+                <div class="form-steps mb-5">
+                    <div class="step active">
+                        <div class="step-number">1</div>
+                        <div class="step-label">Basic Info</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-label">Library Info</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-label">Additional Info</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-label">Review & Save</div>
+                    </div>
+                </div>
+
+                <!-- Basic Information -->
+                <div class="form-section mb-5">
+                    <div class="section-header mb-4">
+                        <h5 class="fw-semibold">
+                            <i class="ri-information-line me-2 text-primary"></i>
+                            Basic Information
+                        </h5>
+                        <p class="text-muted mb-0">Enter the core details about the book</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- ISBN -->
+                        <div class="col-md-6">
+                            <label for="isbn" class="form-label fw-semibold">
+                                <i class="ri-barcode-line me-1 text-primary"></i>
+                                ISBN
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-barcode-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="isbn" 
+                                       name="isbn" 
+                                       required
+                                       placeholder="Enter ISBN number">
                             </div>
+                            <small class="form-text text-muted">International Standard Book Number (required)</small>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="title" name="title" required>
-                            </div>
+                        <!-- Category -->
+                        <div class="col-md-6">
+                            <label for="category" class="form-label fw-semibold">
+                                <i class="ri-folder-line me-1 text-primary"></i>
+                                Category
+                                <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="">Select a category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Choose the appropriate category</small>
+                        </div>
 
-                            <div class="mb-3">
-                                <label for="author" class="form-label">Author <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="author" name="author" required>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="publisher" class="form-label">Publisher</label>
-                                    <input type="text" class="form-control" id="publisher" name="publisher">
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-                                    <label for="publication_year" class="form-label">Publication Year</label>
-                                    <input type="number" class="form-control" id="publication_year" name="publication_year" min="1900" max="2100">
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="edition" class="form-label">Edition</label>
-                                    <input type="text" class="form-control" id="edition" name="edition" placeholder="e.g., 2nd Edition">
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-                                    <label for="category" class="form-label">Category <span class="text-danger">*</span></label>
-                                    <select class="form-select" id="category" name="category" required>
-                                        <option value="">Select Category</option>
-                                        {% for category in categories %}
-                                        <option value="{{ category.id }}">{{ category.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
+                        <!-- Title -->
+                        <div class="col-12">
+                            <label for="title" class="form-label fw-semibold">
+                                <i class="ri-book-line me-1 text-primary"></i>
+                                Book Title
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-book-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="title" 
+                                       name="title" 
+                                       required
+                                       placeholder="Enter book title">
                             </div>
                         </div>
 
-                        <!-- Library Information -->
-                        <div class="mb-4">
-                            <h6 class="mb-3">Library Information</h6>
-                            
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="total_copies" class="form-label">Total Copies</label>
-                                    <input type="number" class="form-control" id="total_copies" name="total_copies" value="1" min="1">
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-                                    <label for="price" class="form-label">Price (KES)</label>
-                                    <input type="number" step="0.01" class="form-control" id="price" name="price">
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="shelf_location" class="form-label">Shelf Location</label>
-                                    <input type="text" class="form-control" id="shelf_location" name="shelf_location" placeholder="e.g., A-12-5">
-                                </div>
-
-                                <div class="col-md-6 mb-3">
-                                    <label for="call_number" class="form-label">Call Number</label>
-                                    <input type="text" class="form-control" id="call_number" name="call_number">
-                                </div>
+                        <!-- Author -->
+                        <div class="col-md-6">
+                            <label for="author" class="form-label fw-semibold">
+                                <i class="ri-user-line me-1 text-primary"></i>
+                                Author
+                                <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-user-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="author" 
+                                       name="author" 
+                                       required
+                                       placeholder="Enter author name">
                             </div>
                         </div>
 
-                        <!-- Additional Information -->
-                        <div class="mb-4">
-                            <h6 class="mb-3">Additional Information</h6>
-                            
-                            <div class="mb-3">
-                                <label for="description" class="form-label">Description</label>
-                                <textarea class="form-control" id="description" name="description" rows="4"></textarea>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="cover_image" class="form-label">Cover Image</label>
-                                <input type="file" class="form-control" id="cover_image" name="cover_image" accept="image/*">
-                                <small class="form-text text-muted">Upload book cover image (optional)</small>
+                        <!-- Publisher -->
+                        <div class="col-md-6">
+                            <label for="publisher" class="form-label fw-semibold">
+                                <i class="ri-building-line me-1 text-primary"></i>
+                                Publisher
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-building-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="publisher" 
+                                       name="publisher"
+                                       placeholder="Enter publisher name">
                             </div>
                         </div>
 
+                        <!-- Publication Year & Edition -->
+                        <div class="col-md-6">
+                            <label for="publication_year" class="form-label fw-semibold">
+                                <i class="ri-calendar-line me-1 text-primary"></i>
+                                Publication Year
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-calendar-line text-muted"></i>
+                                </span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="publication_year" 
+                                       name="publication_year" 
+                                       min="1900" 
+                                       max="2100"
+                                       placeholder="YYYY">
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="edition" class="form-label fw-semibold">
+                                <i class="ri-stack-line me-1 text-primary"></i>
+                                Edition
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-stack-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="edition" 
+                                       name="edition" 
+                                       placeholder="e.g., 2nd Edition">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Library Information -->
+                <div class="form-section mb-5">
+                    <div class="section-header mb-4">
+                        <h5 class="fw-semibold">
+                            <i class="ri-stack-line me-2 text-primary"></i>
+                            Library Information
+                        </h5>
+                        <p class="text-muted mb-0">Details about inventory and location</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Total Copies -->
+                        <div class="col-md-6">
+                            <label for="total_copies" class="form-label fw-semibold">
+                                <i class="ri-copies-line me-1 text-primary"></i>
+                                Total Copies
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-copies-line text-muted"></i>
+                                </span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="total_copies" 
+                                       name="total_copies" 
+                                       value="1" 
+                                       min="1">
+                            </div>
+                            <small class="form-text text-muted">Number of copies to add to inventory</small>
+                        </div>
+
+                        <!-- Price -->
+                        <div class="col-md-6">
+                            <label for="price" class="form-label fw-semibold">
+                                <i class="ri-money-dollar-circle-line me-1 text-primary"></i>
+                                Price (KES)
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-money-dollar-circle-line text-muted"></i>
+                                </span>
+                                <input type="number" 
+                                       step="0.01" 
+                                       class="form-control" 
+                                       id="price" 
+                                       name="price"
+                                       placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <!-- Shelf Location -->
+                        <div class="col-md-6">
+                            <label for="shelf_location" class="form-label fw-semibold">
+                                <i class="ri-map-pin-line me-1 text-primary"></i>
+                                Shelf Location
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-map-pin-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="shelf_location" 
+                                       name="shelf_location" 
+                                       placeholder="e.g., A-12-5">
+                            </div>
+                            <small class="form-text text-muted">Physical location in the library</small>
+                        </div>
+
+                        <!-- Call Number -->
+                        <div class="col-md-6">
+                            <label for="call_number" class="form-label fw-semibold">
+                                <i class="ri-numbers-line me-1 text-primary"></i>
+                                Call Number
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-numbers-line text-muted"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="call_number" 
+                                       name="call_number"
+                                       placeholder="Library classification number">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Information -->
+                <div class="form-section mb-5">
+                    <div class="section-header mb-4">
+                        <h5 class="fw-semibold">
+                            <i class="ri-file-text-line me-2 text-primary"></i>
+                            Additional Information
+                        </h5>
+                        <p class="text-muted mb-0">Optional details and book cover</p>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- Description -->
+                        <div class="col-12">
+                            <label for="description" class="form-label fw-semibold">
+                                <i class="ri-file-text-line me-1 text-primary"></i>
+                                Description
+                            </label>
+                            <textarea class="form-control" 
+                                      id="description" 
+                                      name="description" 
+                                      rows="4"
+                                      placeholder="Enter book description or summary..."></textarea>
+                            <small class="form-text text-muted">Brief description of the book's content</small>
+                        </div>
+
+                        <!-- Cover Image -->
+                        <div class="col-12">
+                            <label for="cover_image" class="form-label fw-semibold">
+                                <i class="ri-image-line me-1 text-primary"></i>
+                                Cover Image
+                            </label>
+                            <div class="file-upload-container">
+                                <div class="file-upload-area" id="fileUploadArea">
+                                    <i class="ri-upload-cloud-line fs-2 text-muted mb-3"></i>
+                                    <h6 class="fw-semibold mb-2">Drop book cover image here</h6>
+                                    <p class="text-muted mb-3">or click to browse</p>
+                                    <input type="file" 
+                                           class="form-control d-none" 
+                                           id="cover_image" 
+                                           name="cover_image" 
+                                           accept="image/*">
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('cover_image').click()">
+                                        <i class="ri-folder-open-line me-2"></i> Browse Files
+                                    </button>
+                                </div>
+                                <div id="filePreview" class="mt-3" style="display: none;"></div>
+                                <small class="form-text text-muted">Upload book cover image (JPG, PNG, GIF - Max 5MB)</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <div class="alert alert-info mb-4">
+                        <div class="d-flex">
+                            <i class="ri-information-line fs-4 me-3"></i>
+                            <div>
+                                <h6 class="alert-heading mb-2">Before Submitting</h6>
+                                <p class="mb-0">Please review all information carefully. Once added, the book will be immediately available in the catalog.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'book_catalog_list' %}" class="btn btn-outline-secondary">
+                            <i class="ri-close-line me-2"></i> Cancel
+                        </a>
                         <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="ri-save-line"></i> Add Book
+                            <button type="reset" class="btn btn-outline-secondary">
+                                <i class="ri-refresh-line me-2"></i> Reset Form
                             </button>
-                            <a href="{% url 'book_catalog_list' %}" class="btn btn-outline-secondary">
-                                <i class="ri-close-line"></i> Cancel
-                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-save-line me-2"></i> Add Book to Library
+                            </button>
                         </div>
-                    </form>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quick Tips -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Quick Tips</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="tip-item">
+                        <i class="ri-barcode-line text-primary"></i>
+                        <h6 class="fw-semibold mb-2">ISBN Accuracy</h6>
+                        <p class="text-muted mb-0">Ensure ISBN is correct for accurate cataloging</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="tip-item">
+                        <i class="ri-stack-line text-primary"></i>
+                        <h6 class="fw-semibold mb-2">Multiple Copies</h6>
+                        <p class="text-muted mb-0">Add multiple copies for popular titles</p>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="tip-item">
+                        <i class="ri-map-pin-line text-primary"></i>
+                        <h6 class="fw-semibold mb-2">Shelf Location</h6>
+                        <p class="text-muted mb-0">Use consistent format for easy retrieval</p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+
+    .metric-primary .metric-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+
+    .metric-success .metric-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .metric-warning .metric-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .metric-info .metric-icon {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Form Steps */
+    .form-steps {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        padding: 0 1rem;
+    }
+
+    .form-steps:before {
+        content: '';
+        position: absolute;
+        top: 1rem;
+        left: 2rem;
+        right: 2rem;
+        height: 2px;
+        background: var(--color-gray-200);
+        z-index: 1;
+    }
+
+    .step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .step-number {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        background: var(--color-gray-200);
+        color: var(--color-gray-600);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .step.active .step-number {
+        background: var(--color-primary);
+        color: white;
+        transform: scale(1.1);
+    }
+
+    .step-label {
+        font-size: 0.75rem;
+        font-weight: 500;
+        color: var(--color-gray-600);
+        text-align: center;
+    }
+
+    .step.active .step-label {
+        color: var(--color-primary);
+        font-weight: 600;
+    }
+
+    /* Form Sections */
+    .form-section {
+        padding: 1.5rem;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        background: var(--color-gray-100);
+    }
+
+    .section-header {
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--color-primary);
+    }
+
+    /* Form Controls */
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+    }
+
+    .input-group-text {
+        border-color: var(--color-gray-300);
+        background: white;
+    }
+
+    .form-label {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-label i {
+        margin-right: 0.5rem;
+    }
+
+    /* File Upload */
+    .file-upload-area {
+        border: 2px dashed var(--color-gray-300);
+        border-radius: var(--radius-md);
+        padding: 2rem;
+        text-align: center;
+        background: white;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .file-upload-area:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+    }
+
+    .file-upload-area.dragover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.05);
+    }
+
+    /* File Preview */
+    #filePreview img {
+        max-width: 200px;
+        max-height: 200px;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+    }
+
+    /* Tip Items */
+    .tip-item {
+        text-align: center;
+        padding: 1.5rem;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+
+    .tip-item:hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+
+    .tip-item i {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    /* Alert Styles */
+    .alert {
+        border: none;
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-left: 4px solid var(--color-info);
+    }
+
+    /* Form Actions */
+    .form-actions {
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        .form-steps {
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .form-steps:before {
+            display: none;
+        }
+        
+        .step {
+            flex: 1;
+            min-width: 120px;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // File upload handling
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const coverImageInput = document.getElementById('cover_image');
+    const filePreview = document.getElementById('filePreview');
+
+    // Click to upload
+    fileUploadArea.addEventListener('click', function() {
+        coverImageInput.click();
+    });
+
+    // Drag and drop
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        fileUploadArea.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight() {
+        fileUploadArea.classList.add('dragover');
+    }
+
+    function unhighlight() {
+        fileUploadArea.classList.remove('dragover');
+    }
+
+    // Handle dropped files
+    fileUploadArea.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
+    }
+
+    // Handle file input change
+    coverImageInput.addEventListener('change', function() {
+        handleFiles(this.files);
+    });
+
+    function handleFiles(files) {
+        if (files.length > 0) {
+            const file = files[0];
+            
+            // Validate file type
+            if (!file.type.match('image.*')) {
+                showAlert('Please select an image file (JPG, PNG, GIF)', 'danger');
+                return;
+            }
+            
+            // Validate file size (5MB max)
+            if (file.size > 5 * 1024 * 1024) {
+                showAlert('File size must be less than 5MB', 'danger');
+                return;
+            }
+            
+            // Preview image
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                filePreview.innerHTML = `
+                    <div class="d-flex align-items-center gap-3">
+                        <img src="${e.target.result}" alt="Book cover preview" class="img-thumbnail">
+                        <div>
+                            <h6 class="fw-semibold mb-1">${file.name}</h6>
+                            <p class="text-muted mb-1">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeImage()">
+                                <i class="ri-delete-bin-line me-1"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+                filePreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // ISBN validation
+    const isbnInput = document.getElementById('isbn');
+    isbnInput.addEventListener('blur', function() {
+        const isbn = this.value.replace(/[-\s]/g, '');
+        if (isbn && (isbn.length === 10 || isbn.length === 13)) {
+            if (validateISBN(isbn)) {
+                this.classList.add('is-valid');
+                this.classList.remove('is-invalid');
+            } else {
+                this.classList.add('is-invalid');
+                this.classList.remove('is-valid');
+                showAlert('Invalid ISBN format', 'warning');
+            }
+        }
+    });
+
+    function validateISBN(isbn) {
+        // Simple ISBN validation - can be enhanced
+        if (isbn.length === 10) {
+            // ISBN-10 validation
+            let sum = 0;
+            for (let i = 0; i < 9; i++) {
+                sum += (i + 1) * parseInt(isbn[i]);
+            }
+            const checkDigit = sum % 11;
+            return checkDigit === (isbn[9] === 'X' ? 10 : parseInt(isbn[9]));
+        } else if (isbn.length === 13) {
+            // ISBN-13 validation
+            let sum = 0;
+            for (let i = 0; i < 12; i++) {
+                sum += (i % 2 === 0 ? 1 : 3) * parseInt(isbn[i]);
+            }
+            const checkDigit = (10 - (sum % 10)) % 10;
+            return checkDigit === parseInt(isbn[12]);
+        }
+        return false;
+    }
+
+    // Form submission
+    document.getElementById('addBookForm').addEventListener('submit', function(e) {
+        // Validate required fields
+        const requiredFields = ['isbn', 'title', 'author', 'category'];
+        let isValid = true;
+        
+        requiredFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            showAlert('Please fill in all required fields marked with *', 'danger');
+            return;
+        }
+        
+        // Additional validation
+        const publicationYear = document.getElementById('publication_year').value;
+        if (publicationYear) {
+            const year = parseInt(publicationYear);
+            const currentYear = new Date().getFullYear();
+            if (year < 1900 || year > currentYear + 1) {
+                e.preventDefault();
+                showAlert('Please enter a valid publication year between 1900 and ' + (currentYear + 1), 'danger');
+                return;
+            }
+        }
+        
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="ri-loader-4-line me-2"></i> Adding Book...';
+        submitBtn.disabled = true;
+    });
+
+    // Alert function
+    function showAlert(message, type) {
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show mt-3" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        const form = document.getElementById('addBookForm');
+        const existingAlert = form.querySelector('.alert-dismissible');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+        
+        form.insertAdjacentHTML('afterbegin', alertHtml);
+        
+        setTimeout(() => {
+            const alert = form.querySelector('.alert-dismissible');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+
+    // Remove image function
+    window.removeImage = function() {
+        filePreview.innerHTML = '';
+        filePreview.style.display = 'none';
+        coverImageInput.value = '';
+    };
+});
+</script>
 {% endblock %}

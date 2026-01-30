@@ -3854,27 +3854,37 @@ def overdue_management(request):
     
     # Group by days overdue
     overdue_ranges = {
-        '1-7 days': overdue_borrowings.filter(
+        'range_1_7': overdue_borrowings.filter(
             due_date__gte=timezone.now().date() - timedelta(days=7)
         ).count(),
-        '8-14 days': overdue_borrowings.filter(
+
+        'range_8_14': overdue_borrowings.filter(
             due_date__lt=timezone.now().date() - timedelta(days=7),
             due_date__gte=timezone.now().date() - timedelta(days=14)
         ).count(),
-        '15-30 days': overdue_borrowings.filter(
+
+        'range_15_30': overdue_borrowings.filter(
             due_date__lt=timezone.now().date() - timedelta(days=14),
             due_date__gte=timezone.now().date() - timedelta(days=30)
         ).count(),
-        '30+ days': overdue_borrowings.filter(
+
+        'range_30_plus': overdue_borrowings.filter(
             due_date__lt=timezone.now().date() - timedelta(days=30)
         ).count(),
     }
     
+    average_fine = Decimal('0.00')
+
+    if total_overdue > 0:
+        average_fine = total_fines / total_overdue
+
+
     context = {
         'overdue_borrowings': overdue_borrowings,
         'total_overdue': total_overdue,
         'total_fines': total_fines,
         'overdue_ranges': overdue_ranges,
+        'average_fine': average_fine,
     }
     
     return render(request, 'librarian/circulation/overdue_management.html', context)

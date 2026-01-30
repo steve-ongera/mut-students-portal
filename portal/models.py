@@ -1324,13 +1324,26 @@ class BookBorrowing(models.Model):
         if self.return_date:
             days_overdue = (self.return_date.date() - self.due_date).days
         else:
-            from django.utils import timezone
             days_overdue = (timezone.now().date() - self.due_date).days
         
         if days_overdue > 0:
             self.fine_amount = Decimal(days_overdue * 5)  # 5 KES per day
             self.status = 'overdue'
             self.save()
+
+    @property
+    def days_overdue(self):
+        """Number of days the book is overdue"""
+        if self.due_date and self.due_date < timezone.now().date():
+            return (timezone.now().date() - self.due_date).days
+        return 0
+
+    @property
+    def fine_per_day(self):
+        """KES charged per overdue day"""
+        if self.days_overdue > 0:
+            return self.fine_amount / Decimal(self.days_overdue)
+        return Decimal('0.00')
 
     def __str__(self):
         return f"{self.student.registration_number} - {self.book.title} ({self.borrow_date})"

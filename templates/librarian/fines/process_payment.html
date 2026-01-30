@@ -3,6 +3,10 @@
 
 {% block title %}Process Fine Payment{% endblock %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
 {% block page_title %}Process Fine Payment{% endblock %}
 {% block page_subtitle %}Record payment for library fine{% endblock %}
 
@@ -16,87 +20,185 @@
 </nav>
 
 <div class="content-container">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <!-- Fine Details -->
+    <!-- Payment Summary Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Outstanding Fine -->
+        <div class="col-md-4">
+            <div class="metric-card metric-danger">
+                <div class="metric-icon">
+                    <i class="ri-money-dollar-circle-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">KES {{ borrowing.fine_amount|floatformat:2 }}</div>
+                    <div class="metric-label">Outstanding Fine</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overdue Duration -->
+        <div class="col-md-4">
+            <div class="metric-card metric-warning">
+                <div class="metric-icon">
+                    <i class="ri-calendar-2-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ days_overdue }}</div>
+                    <div class="metric-label">Days Overdue</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fine Rate -->
+        <div class="col-md-4">
+            <div class="metric-card metric-info">
+                <div class="metric-icon">
+                    <i class="ri-speed-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">KES 5/day</div>
+                    <div class="metric-label">Fine Rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Left Column: Student & Book Info -->
+        <div class="col-lg-6">
+            <!-- Student Information -->
             <div class="management-card mb-4">
                 <div class="card-header">
-                    <h5 class="card-title">Fine Details</h5>
+                    <h5 class="card-title">Student Information</h5>
+                    <div class="card-subtitle">Details of the student with fine</div>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Student Information</h6>
-                            <p class="mb-1"><strong>Name:</strong> {{ borrowing.student.user.get_full_name }}</p>
-                            <p class="mb-1"><strong>Registration No:</strong> {{ borrowing.student.registration_number }}</p>
-                            <p class="mb-1"><strong>Programme:</strong> {{ borrowing.student.programme }}</p>
-                            <p class="mb-1"><strong>Email:</strong> {{ borrowing.student.user.email }}</p>
-                            <p class="mb-1"><strong>Phone:</strong> {{ borrowing.student.phone_number }}</p>
+                    <div class="d-flex align-items-start mb-4">
+                        <div class="student-avatar-lg me-3">
+                            <div class="avatar-placeholder bg-danger-subtle text-danger rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="ri-user-line"></i>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            <h6>Book Information</h6>
-                            <p class="mb-1"><strong>Title:</strong> {{ borrowing.book.title }}</p>
-                            <p class="mb-1"><strong>Author:</strong> {{ borrowing.book.author }}</p>
-                            <p class="mb-1"><strong>ISBN:</strong> {{ borrowing.book.isbn }}</p>
+                        <div>
+                            <h5 class="fw-semibold mb-1">{{ borrowing.student.user.get_full_name }}</h5>
+                            <p class="text-muted mb-2">{{ borrowing.student.registration_number }}</p>
+                            <div class="d-flex gap-3">
+                                <span class="badge bg-primary-subtle text-primary">
+                                    <i class="ri-graduation-cap-line me-1"></i>
+                                    {{ borrowing.student.programme.name|default:"No programme" }}
+                                </span>
+                                <span class="badge bg-info-subtle text-info">
+                                    <i class="ri-book-mark-line me-1"></i>
+                                    {{ student_active_borrowings|default:0 }} active
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Borrow Date:</strong></p>
-                            <p class="text-muted">{{ borrowing.borrow_date|date:"d/m/Y" }}</p>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <i class="ri-mail-line text-muted me-2"></i>
+                                <div>
+                                    <small class="text-muted">Email</small>
+                                    <div class="fw-medium">{{ borrowing.student.user.email|default:"Not provided" }}</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Due Date:</strong></p>
-                            <p class="text-muted">{{ borrowing.due_date|date:"d/m/Y" }}</p>
-                        </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Return Date:</strong></p>
-                            <p class="text-muted">
-                                {% if borrowing.return_date %}
-                                {{ borrowing.return_date|date:"d/m/Y" }}
-                                {% else %}
-                                Not returned yet
-                                {% endif %}
-                            </p>
-                        </div>
-                        <div class="col-md-3">
-                            <p class="mb-1"><strong>Days Overdue:</strong></p>
-                            <p class="text-danger">{{ days_overdue }} day(s)</p>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <i class="ri-phone-line text-muted me-2"></i>
+                                <div>
+                                    <small class="text-muted">Phone</small>
+                                    <div class="fw-medium">{{ borrowing.student.phone_number|default:"Not provided" }}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Fine Amount -->
-            <div class="management-card mb-4">
-                <div class="card-header bg-danger text-white">
-                    <h5 class="card-title mb-0">Outstanding Fine</h5>
+            <!-- Book Information -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Book Information</h5>
+                    <div class="card-subtitle">Book associated with this fine</div>
                 </div>
-                <div class="card-body text-center">
-                    <h2 class="text-danger mb-2">KES {{ borrowing.fine_amount }}</h2>
-                    <p class="text-muted mb-0">Fine Rate: KES 5 per day overdue</p>
+                <div class="card-body">
+                    <div class="d-flex align-items-start">
+                        <div class="book-cover-sm me-3">
+                            <div class="book-cover-placeholder bg-light rounded">
+                                <i class="ri-book-line text-muted"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h6 class="fw-semibold mb-1">{{ borrowing.book.title }}</h6>
+                            <p class="text-muted mb-2">{{ borrowing.book.author }}</p>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-light text-dark">
+                                    <i class="ri-barcode-line me-1"></i>
+                                    {{ borrowing.book.isbn }}
+                                </span>
+                                <span class="badge bg-primary-subtle text-primary">
+                                    {{ borrowing.book.category.name }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Payment Form -->
+        <!-- Right Column: Payment Form -->
+        <div class="col-lg-6">
             <div class="management-card">
                 <div class="card-header">
                     <h5 class="card-title">Record Payment</h5>
+                    <div class="card-subtitle">Enter payment details to process fine</div>
                 </div>
                 <div class="card-body">
-                    <form method="post">
+                    <form method="post" id="paymentForm">
                         {% csrf_token %}
                         
-                        <div class="mb-3">
-                            <label for="amount_paid" class="form-label">Amount Paid (KES) <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" class="form-control" id="amount_paid" name="amount_paid" 
-                                   value="{{ borrowing.fine_amount }}" min="0" max="{{ borrowing.fine_amount }}" required>
-                            <small class="form-text text-muted">Enter the amount received from the student</small>
+                        <!-- Payment Summary -->
+                        <div class="alert alert-danger mb-4">
+                            <div class="d-flex align-items-center">
+                                <i class="ri-money-dollar-circle-line fs-4 me-3"></i>
+                                <div>
+                                    <h6 class="alert-heading mb-1">Payment Required</h6>
+                                    <div class="d-flex align-items-baseline">
+                                        <div class="fs-3 fw-bold me-2">KES {{ borrowing.fine_amount|floatformat:2 }}</div>
+                                        <small class="text-muted">({{ days_overdue }} days × KES 5/day)</small>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="payment_method" class="form-label">Payment Method <span class="text-danger">*</span></label>
+                        <!-- Amount Paid -->
+                        <div class="mb-4">
+                            <label for="amount_paid" class="form-label fw-semibold">Amount Paid (KES)</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-money-dollar-circle-line text-primary"></i>
+                                </span>
+                                <input type="number" 
+                                       step="0.01" 
+                                       class="form-control" 
+                                       id="amount_paid" 
+                                       name="amount_paid" 
+                                       value="{{ borrowing.fine_amount|floatformat:2 }}" 
+                                       min="0" 
+                                       max="{{ borrowing.fine_amount }}"
+                                       required>
+                            </div>
+                            <small class="form-text text-muted d-flex justify-content-between mt-1">
+                                <span>Enter amount received from student</span>
+                                <span class="text-danger">Max: KES {{ borrowing.fine_amount|floatformat:2 }}</span>
+                            </small>
+                        </div>
+
+                        <!-- Payment Method -->
+                        <div class="mb-4">
+                            <label for="payment_method" class="form-label fw-semibold">Payment Method</label>
                             <select class="form-select" id="payment_method" name="payment_method" required>
                                 <option value="">Select payment method</option>
                                 <option value="cash">Cash</option>
@@ -107,112 +209,572 @@
                             </select>
                         </div>
 
-                        <div class="mb-3" id="transactionRefDiv" style="display: none;">
-                            <label for="transaction_reference" class="form-label">Transaction Reference</label>
-                            <input type="text" class="form-control" id="transaction_reference" name="transaction_reference" 
-                                   placeholder="e.g., M-Pesa code, transaction ID">
-                            <small class="form-text text-muted">Provide transaction reference for non-cash payments</small>
+                        <!-- Transaction Reference (conditional) -->
+                        <div class="mb-4" id="transactionRefDiv" style="display: none;">
+                            <label for="transaction_reference" class="form-label fw-semibold">Transaction Reference</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-file-text-line text-primary"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="transaction_reference" 
+                                       name="transaction_reference" 
+                                       placeholder="e.g., M-Pesa code, transaction ID">
+                            </div>
+                            <small class="form-text text-muted">Required for non-cash payments</small>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="receipt_number" class="form-label">Receipt Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="receipt_number" name="receipt_number" 
-                                   value="{{ suggested_receipt_number }}" required>
+                        <!-- Receipt Number -->
+                        <div class="mb-4">
+                            <label for="receipt_number" class="form-label fw-semibold">Receipt Number</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white">
+                                    <i class="ri-receipt-line text-primary"></i>
+                                </span>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="receipt_number" 
+                                       name="receipt_number" 
+                                       value="{{ suggested_receipt_number }}" 
+                                       required>
+                            </div>
                             <small class="form-text text-muted">Official receipt number for this transaction</small>
                         </div>
 
-                        <div class="mb-3">
-                            <label for="notes" class="form-label">Payment Notes</label>
-                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                        <!-- Payment Notes -->
+                        <div class="mb-4">
+                            <label for="notes" class="form-label fw-semibold">Payment Notes</label>
+                            <textarea class="form-control" 
+                                      id="notes" 
+                                      name="notes" 
+                                      rows="3" 
                                       placeholder="Any additional notes about this payment..."></textarea>
                         </div>
 
-                        <div class="alert alert-info">
-                            <i class="ri-information-line"></i>
-                            <strong>Note:</strong> Processing this payment will:
-                            <ul class="mb-0 mt-2">
-                                <li>Mark the fine as paid in the system</li>
-                                <li>Generate a payment receipt for the student</li>
-                                <li>Update the student's fine history</li>
-                                <li>Send payment confirmation email to the student</li>
-                            </ul>
-                        </div>
-
-                        <div class="form-check mb-3">
+                        <!-- Email Notification -->
+                        <div class="form-check mb-4">
                             <input class="form-check-input" type="checkbox" id="send_receipt" name="send_receipt" checked>
-                            <label class="form-check-label" for="send_receipt">
-                                Send receipt to student via email
+                            <label class="form-check-label fw-medium" for="send_receipt">
+                                <i class="ri-mail-line me-2"></i>
+                                Send payment receipt to student via email
                             </label>
                         </div>
 
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-success">
-                                <i class="ri-check-line"></i> Process Payment
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="ri-check-line me-2"></i> Process Payment
                             </button>
                             <a href="{% url 'fine_management' %}" class="btn btn-outline-secondary">
-                                <i class="ri-close-line"></i> Cancel
+                                <i class="ri-close-line me-2"></i> Cancel Payment
                             </a>
+                        </div>
+
+                        <!-- Information Alert -->
+                        <div class="alert alert-info mt-4">
+                            <div class="d-flex">
+                                <i class="ri-information-line fs-4 me-3"></i>
+                                <div>
+                                    <h6 class="alert-heading mb-2">Payment Processing</h6>
+                                    <p class="mb-1">Processing this payment will:</p>
+                                    <ul class="mb-0 ps-3">
+                                        <li>Mark the fine as paid in the system</li>
+                                        <li>Generate a payment receipt for the student</li>
+                                        <li>Update the student's fine history</li>
+                                        <li>Send payment confirmation email (if selected)</li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
 
-            <!-- Student's Fine History -->
-            {% if student_fine_history %}
-            <div class="management-card mt-4">
-                <div class="card-header">
-                    <h5 class="card-title">Student's Fine History</h5>
+    <!-- Student's Fine History -->
+    {% if student_fine_history %}
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Student's Fine History</h5>
+            <div class="card-subtitle">Previous fine records for this student</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Book Details</th>
+                            <th>Due Date</th>
+                            <th>Return Date</th>
+                            <th>Fine Amount</th>
+                            <th>Payment Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fine in student_fine_history %}
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong class="d-block">{{ fine.book.title|truncatewords:8 }}</strong>
+                                    <small class="d-block text-muted">{{ fine.book.author }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-medium">{{ fine.due_date|date:"d M Y" }}</div>
+                            </td>
+                            <td>
+                                {% if fine.return_date %}
+                                <div class="text-success">{{ fine.return_date|date:"d M Y" }}</div>
+                                {% else %}
+                                <span class="badge bg-warning">Not returned</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="financial-value {% if fine.fine_paid %}text-success{% else %}text-danger{% endif %}">
+                                    KES {{ fine.fine_amount|floatformat:2 }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if fine.fine_paid %}
+                                <span class="badge bg-success">
+                                    <i class="ri-check-line me-1"></i>Paid
+                                </span>
+                                {% if fine.fine_payment_date %}
+                                <small class="d-block text-muted">{{ fine.fine_payment_date|date:"d M Y" }}</small>
+                                {% endif %}
+                                {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="ri-close-line me-1"></i>Pending
+                                </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5">
+                                <div class="text-muted">
+                                    <i class="ri-checkbox-circle-line fs-1 mb-3 text-success"></i>
+                                    <h5 class="fw-medium mb-2">No previous fines</h5>
+                                    <p class="mb-0">This is the student's first fine</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Timeline Information -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Fine Timeline</h5>
+            <div class="card-subtitle">Key dates for this fine</div>
+        </div>
+        <div class="card-body">
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-icon bg-primary">
+                        <i class="ri-book-mark-line"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <h6>Book Borrowed</h6>
+                        <p class="text-muted mb-0">{{ borrowing.borrow_date|date:"d M Y, H:i" }}</p>
+                    </div>
                 </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Book</th>
-                                    <th>Due Date</th>
-                                    <th>Fine Amount</th>
-                                    <th>Payment Date</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for fine in student_fine_history %}
-                                <tr>
-                                    <td>{{ fine.book.title|truncatewords:5 }}</td>
-                                    <td>{{ fine.due_date|date:"d/m/Y" }}</td>
-                                    <td>KES {{ fine.fine_amount }}</td>
-                                    <td>
-                                        {% if fine.fine_payment_date %}
-                                        {{ fine.fine_payment_date|date:"d/m/Y" }}
-                                        {% else %}
-                                        <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if fine.fine_paid %}
-                                        <span class="badge bg-success">Paid</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Pending</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                <div class="timeline-item">
+                    <div class="timeline-icon bg-warning">
+                        <i class="ri-calendar-event-line"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <h6>Due Date</h6>
+                        <p class="text-muted mb-0">{{ borrowing.due_date|date:"d M Y" }}</p>
+                    </div>
+                </div>
+                {% if borrowing.return_date %}
+                <div class="timeline-item">
+                    <div class="timeline-icon bg-info">
+                        <i class="ri-checkbox-circle-line"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <h6>Book Returned</h6>
+                        <p class="text-muted mb-0">{{ borrowing.return_date|date:"d M Y, H:i" }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="timeline-item">
+                    <div class="timeline-icon bg-danger">
+                        <i class="ri-money-dollar-circle-line"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <h6>Fine Generated</h6>
+                        <p class="text-muted mb-0">{{ days_overdue }} days overdue (KES {{ borrowing.fine_amount|floatformat:2 }})</p>
                     </div>
                 </div>
             </div>
-            {% endif %}
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+
+    .metric-primary .metric-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+
+    .metric-success .metric-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .metric-warning .metric-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .metric-danger .metric-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .metric-info .metric-icon {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Student Avatar */
+    .student-avatar-lg {
+        width: 80px;
+        height: 80px;
+        flex-shrink: 0;
+    }
+
+    .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+    }
+
+    .student-avatar-sm {
+        width: 48px;
+        height: 48px;
+        flex-shrink: 0;
+    }
+
+    /* Book Cover */
+    .book-cover-sm {
+        flex-shrink: 0;
+    }
+
+    .book-cover-placeholder {
+        width: 60px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    /* Info Items */
+    .info-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 0.75rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-sm);
+        margin-bottom: 0.5rem;
+    }
+
+    .info-item i {
+        font-size: 1.25rem;
+        margin-top: 0.125rem;
+    }
+
+    /* Financial Values */
+    .financial-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+
+    /* Timeline */
+    .timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .timeline:before {
+        content: '';
+        position: absolute;
+        left: 1rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--color-gray-200);
+    }
+
+    .timeline-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+        padding-left: 1rem;
+    }
+
+    .timeline-icon {
+        position: absolute;
+        left: -1rem;
+        top: 0;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1rem;
+    }
+
+    .timeline-content {
+        padding-left: 1rem;
+    }
+
+    .timeline-content h6 {
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Form Styles */
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+    }
+
+    .input-group-text {
+        border-color: var(--color-gray-300);
+    }
+
+    /* Alert Styles */
+    .alert {
+        border: none;
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+    }
+
+    .alert-danger {
+        background-color: rgba(244, 67, 54, 0.1);
+        border-left: 4px solid var(--color-danger);
+    }
+
+    .alert-info {
+        background-color: rgba(33, 150, 243, 0.1);
+        border-left: 4px solid var(--color-info);
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+
+    /* Badge Styles */
+    .badge {
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding: 0.25rem 0.5rem;
+    }
+
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+
+    /* Button Styles */
+    .btn-lg {
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const paymentMethodSelect = document.getElementById('payment_method');
     const transactionRefDiv = document.getElementById('transactionRefDiv');
     const transactionRefInput = document.getElementById('transaction_reference');
+    const amountPaidInput = document.getElementById('amount_paid');
+    const maxAmount = parseFloat(amountPaidInput.max);
 
+    // Payment method change handler
     paymentMethodSelect.addEventListener('change', function() {
         if (this.value && this.value !== 'cash') {
             transactionRefDiv.style.display = 'block';
@@ -224,19 +786,96 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Validate amount paid
-    const amountPaidInput = document.getElementById('amount_paid');
-    const maxAmount = parseFloat(amountPaidInput.max);
-
+    // Amount validation
     amountPaidInput.addEventListener('input', function() {
-        const value = parseFloat(this.value);
+        const value = parseFloat(this.value) || 0;
+        
         if (value > maxAmount) {
-            this.value = maxAmount;
-        }
-        if (value < 0) {
+            this.value = maxAmount.toFixed(2);
+            showAlert('Amount cannot exceed the fine amount of KES ' + maxAmount.toFixed(2), 'warning');
+        } else if (value < 0) {
             this.value = 0;
         }
+        
+        // Update visual feedback
+        updateAmountFeedback(value);
     });
+
+    // Form submission validation
+    document.getElementById('paymentForm').addEventListener('submit', function(e) {
+        const amountPaid = parseFloat(amountPaidInput.value) || 0;
+        const paymentMethod = paymentMethodSelect.value;
+        
+        if (amountPaid <= 0) {
+            e.preventDefault();
+            showAlert('Please enter a valid payment amount.', 'danger');
+            return;
+        }
+        
+        if (!paymentMethod) {
+            e.preventDefault();
+            showAlert('Please select a payment method.', 'danger');
+            return;
+        }
+        
+        if (paymentMethod !== 'cash' && !transactionRefInput.value.trim()) {
+            e.preventDefault();
+            showAlert('Transaction reference is required for ' + paymentMethod + ' payments.', 'danger');
+            return;
+        }
+        
+        // Show confirmation for partial payments
+        if (amountPaid < maxAmount) {
+            const confirmed = confirm(`You are recording a partial payment of KES ${amountPaid.toFixed(2)} instead of the full amount KES ${maxAmount.toFixed(2)}. Are you sure you want to proceed?`);
+            if (!confirmed) {
+                e.preventDefault();
+            }
+        }
+    });
+
+    function updateAmountFeedback(amount) {
+        const fineAmount = maxAmount;
+        const percentage = (amount / fineAmount) * 100;
+        
+        // Remove existing feedback classes
+        amountPaidInput.classList.remove('is-valid', 'is-invalid');
+        
+        if (amount === fineAmount) {
+            amountPaidInput.classList.add('is-valid');
+        } else if (amount > fineAmount) {
+            amountPaidInput.classList.add('is-invalid');
+        }
+    }
+
+    function showAlert(message, type) {
+        // Remove any existing alerts
+        const existingAlert = document.querySelector('.alert-dismissible');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+        
+        const alertHtml = `
+            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        const form = document.getElementById('paymentForm');
+        form.insertAdjacentHTML('afterbegin', alertHtml);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            const alert = document.querySelector('.alert-dismissible');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+
+    // Initialize form validation
+    updateAmountFeedback(parseFloat(amountPaidInput.value) || 0);
 });
 </script>
 {% endblock %}
