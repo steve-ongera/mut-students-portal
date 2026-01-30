@@ -117,7 +117,7 @@ def redirect_user_dashboard(user):
     
     # Librarian
     elif role == 'librarian':
-        return redirect('library_dashboard')
+        return redirect('librarian_dashboard')
     
     # Hostel Warden
     elif role == 'hostel_warden':
@@ -2741,11 +2741,1173 @@ def registrar_dashboard(request):
     return render(request, 'registrar/dashboard.html', context)
 
 
-@login_required
-def library_dashboard(request):
-    context = {'page_title': 'Library Dashboard'}
-    return render(request, 'library/dashboard.html', context)
+"""
+Librarian Views for University Management System
+Handles all library management functionality
+"""
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.db.models import Q, Count, Sum, Avg, F, ExpressionWrapper, DecimalField
+from django.utils import timezone
+from django.http import JsonResponse, HttpResponse
+from datetime import datetime, timedelta
+from decimal import Decimal
+from django.core.paginator import Paginator
+from django.db.models.functions import TruncMonth, TruncWeek
+
+# Import models
+from .models import (
+    User, Student, Book, BookCategory, BookBorrowing,
+    AcademicYear, Semester, Programme, Department, School
+)
+
+
+# ============= HELPER FUNCTIONS =============
+
+def is_librarian(user):
+    """Check if user is a librarian"""
+    return user.is_authenticated and user.role == 'librarian'
+
+
+# ============= DASHBOARD =============
+
+@login_required
+@user_passes_test(is_librarian)
+def librarian_dashboard(request):
+    """Main librarian dashboard with key metrics and statistics"""
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # ===== KEY METRICS =====
+    
+    # Total books in library
+    total_books = Book.objects.aggregate(
+        total_copies=Sum('total_copies')
+    )['total_copies'] or 0
+    
+    # Available books
+    available_books = Book.objects.aggregate(
+        available=Sum('available_copies')
+    )['available'] or 0
+    
+    # Currently borrowed books
+    borrowed_books = BookBorrowing.objects.filter(
+        status='active'
+    ).count()
+    
+    # Overdue books
+    overdue_books = BookBorrowing.objects.filter(
+        status__in=['active', 'overdue'],
+        due_date__lt=timezone.now().date()
+    ).count()
+    
+    # Total categories
+    total_categories = BookCategory.objects.count()
+    
+    # Active borrowers (students with active borrowings)
+    active_borrowers = BookBorrowing.objects.filter(
+        status='active'
+    ).values('student').distinct().count()
+    
+    # ===== RECENT ACTIVITIES =====
+    
+    # Recent borrowings (last 10)
+    recent_borrowings = BookBorrowing.objects.select_related(
+        'student__user', 'book', 'issued_by'
+    ).order_by('-borrow_date')[:10]
+    
+    # Recent returns (last 10)
+    recent_returns = BookBorrowing.objects.filter(
+        status='returned'
+    ).select_related(
+        'student__user', 'book', 'returned_to'
+    ).order_by('-return_date')[:10]
+    
+    # Pending fine payments
+    pending_fines = BookBorrowing.objects.filter(
+        fine_amount__gt=0,
+        fine_paid=False
+    ).select_related('student__user', 'book').order_by('-fine_amount')[:10]
+    
+    # ===== STATISTICS FOR CHARTS =====
+    
+    # Borrowing trends (last 6 months)
+    six_months_ago = timezone.now() - timedelta(days=180)
+    monthly_borrowings = BookBorrowing.objects.filter(
+        borrow_date__gte=six_months_ago
+    ).annotate(
+        month=TruncMonth('borrow_date')
+    ).values('month').annotate(
+        count=Count('id')
+    ).order_by('month')
+    
+    # Popular categories
+    popular_categories = BookCategory.objects.annotate(
+        borrowing_count=Count('books__borrowings')
+    ).order_by('-borrowing_count')[:5]
+    
+    # Most borrowed books
+    popular_books = Book.objects.annotate(
+        borrow_count=Count('borrowings')
+    ).order_by('-borrow_count')[:10]
+    
+    # Collection distribution by category
+    collection_distribution = BookCategory.objects.annotate(
+        total_books=Sum('books__total_copies')
+    ).order_by('-total_books')[:10]
+    
+    # ===== ALERTS & NOTIFICATIONS =====
+    
+    # Books low on stock (available copies < 2)
+    low_stock_books = Book.objects.filter(
+        available_copies__lt=2,
+        available_copies__gt=0
+    ).count()
+    
+    # Books out of stock
+    out_of_stock = Book.objects.filter(available_copies=0).count()
+    
+    # Books needing attention (damaged, lost)
+    books_needing_attention = BookBorrowing.objects.filter(
+        status__in=['lost', 'damaged']
+    ).count()
+    
+    # ===== FINANCIAL SUMMARY =====
+    
+    # Total fines collected (current semester)
+    if current_semester:
+        fines_collected = BookBorrowing.objects.filter(
+            semester=current_semester,
+            fine_paid=True
+        ).aggregate(
+            total=Sum('fine_amount')
+        )['total'] or Decimal('0.00')
+        
+        fines_pending = BookBorrowing.objects.filter(
+            semester=current_semester,
+            fine_paid=False
+        ).aggregate(
+            total=Sum('fine_amount')
+        )['total'] or Decimal('0.00')
+    else:
+        fines_collected = Decimal('0.00')
+        fines_pending = Decimal('0.00')
+    
+    # ===== QUICK ACTIONS DATA =====
+    
+    # Students with cleared fees (eligible to borrow)
+    eligible_students_count = Student.objects.filter(
+        student_status='active',
+        fee_balances__is_cleared=True
+    ).distinct().count()
+    
+    context = {
+        # Academic info
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        
+        # Key metrics
+        'total_books': total_books,
+        'available_books': available_books,
+        'borrowed_books': borrowed_books,
+        'overdue_books': overdue_books,
+        'total_categories': total_categories,
+        'active_borrowers': active_borrowers,
+        
+        # Recent activities
+        'recent_borrowings': recent_borrowings,
+        'recent_returns': recent_returns,
+        'pending_fines': pending_fines,
+        
+        # Statistics
+        'monthly_borrowings': monthly_borrowings,
+        'popular_categories': popular_categories,
+        'popular_books': popular_books,
+        'collection_distribution': collection_distribution,
+        
+        # Alerts
+        'low_stock_books': low_stock_books,
+        'out_of_stock': out_of_stock,
+        'books_needing_attention': books_needing_attention,
+        
+        # Financial
+        'fines_collected': fines_collected,
+        'fines_pending': fines_pending,
+        
+        # Quick actions
+        'eligible_students_count': eligible_students_count,
+    }
+    
+    return render(request, 'librarian/dashboard.html', context)
+
+
+# ============= CATALOG MANAGEMENT =============
+
+@login_required
+@user_passes_test(is_librarian)
+def book_catalog_list(request):
+    """List all books with search and filter"""
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    category_id = request.GET.get('category', '')
+    status = request.GET.get('status', '')
+    sort_by = request.GET.get('sort', 'title')
+    
+    # Base queryset
+    books = Book.objects.select_related('category').annotate(
+        borrow_count=Count('borrowings')
+    )
+    
+    # Apply search
+    if search_query:
+        books = books.filter(
+            Q(title__icontains=search_query) |
+            Q(author__icontains=search_query) |
+            Q(isbn__icontains=search_query) |
+            Q(publisher__icontains=search_query)
+        )
+    
+    # Apply category filter
+    if category_id:
+        books = books.filter(category_id=category_id)
+    
+    # Apply status filter
+    if status:
+        books = books.filter(status=status)
+    
+    # Apply sorting
+    if sort_by == 'title':
+        books = books.order_by('title')
+    elif sort_by == 'author':
+        books = books.order_by('author')
+    elif sort_by == 'popularity':
+        books = books.order_by('-borrow_count')
+    elif sort_by == 'newest':
+        books = books.order_by('-acquisition_date')
+    
+    # Pagination
+    paginator = Paginator(books, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get all categories for filter dropdown
+    categories = BookCategory.objects.all()
+    
+    context = {
+        'page_obj': page_obj,
+        'categories': categories,
+        'search_query': search_query,
+        'selected_category': category_id,
+        'selected_status': status,
+        'sort_by': sort_by,
+    }
+    
+    return render(request, 'librarian/catalog/book_list.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def add_book(request):
+    """Add new book to catalog"""
+    
+    if request.method == 'POST':
+        # Extract form data
+        isbn = request.POST.get('isbn')
+        title = request.POST.get('title')
+        author = request.POST.get('author')
+        publisher = request.POST.get('publisher', '')
+        publication_year = request.POST.get('publication_year')
+        edition = request.POST.get('edition', '')
+        category_id = request.POST.get('category')
+        total_copies = request.POST.get('total_copies', 1)
+        shelf_location = request.POST.get('shelf_location', '')
+        call_number = request.POST.get('call_number', '')
+        description = request.POST.get('description', '')
+        price = request.POST.get('price')
+        cover_image = request.FILES.get('cover_image')
+        
+        # Validate required fields
+        if not all([isbn, title, author, category_id]):
+            messages.error(request, 'Please fill in all required fields.')
+            return redirect('add_book')
+        
+        # Check if ISBN already exists
+        if Book.objects.filter(isbn=isbn).exists():
+            messages.error(request, f'Book with ISBN {isbn} already exists.')
+            return redirect('add_book')
+        
+        try:
+            # Create book
+            book = Book.objects.create(
+                isbn=isbn,
+                title=title,
+                author=author,
+                publisher=publisher,
+                publication_year=int(publication_year) if publication_year else None,
+                edition=edition,
+                category_id=category_id,
+                total_copies=int(total_copies),
+                available_copies=int(total_copies),
+                shelf_location=shelf_location,
+                call_number=call_number,
+                description=description,
+                price=Decimal(price) if price else None,
+                cover_image=cover_image,
+                acquisition_date=timezone.now().date(),
+                status='available'
+            )
+            
+            messages.success(request, f'Book "{title}" added successfully!')
+            return redirect('book_catalog_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error adding book: {str(e)}')
+            return redirect('add_book')
+    
+    # GET request - show form
+    categories = BookCategory.objects.all()
+    
+    context = {
+        'categories': categories,
+    }
+    
+    return render(request, 'librarian/catalog/add_book.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def edit_book(request, book_id):
+    """Edit existing book"""
+    
+    book = get_object_or_404(Book, id=book_id)
+    
+    if request.method == 'POST':
+        # Update book details
+        book.title = request.POST.get('title')
+        book.author = request.POST.get('author')
+        book.publisher = request.POST.get('publisher', '')
+        book.publication_year = request.POST.get('publication_year')
+        book.edition = request.POST.get('edition', '')
+        book.category_id = request.POST.get('category')
+        book.shelf_location = request.POST.get('shelf_location', '')
+        book.call_number = request.POST.get('call_number', '')
+        book.description = request.POST.get('description', '')
+        book.price = request.POST.get('price')
+        book.status = request.POST.get('status')
+        
+        if 'cover_image' in request.FILES:
+            book.cover_image = request.FILES['cover_image']
+        
+        try:
+            book.save()
+            messages.success(request, 'Book updated successfully!')
+            return redirect('book_catalog_list')
+        except Exception as e:
+            messages.error(request, f'Error updating book: {str(e)}')
+    
+    categories = BookCategory.objects.all()
+    
+    context = {
+        'book': book,
+        'categories': categories,
+    }
+    
+    return render(request, 'librarian/catalog/edit_book.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def manage_categories(request):
+    """Manage book categories"""
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add':
+            name = request.POST.get('name')
+            code = request.POST.get('code')
+            description = request.POST.get('description', '')
+            parent_id = request.POST.get('parent_category')
+            
+            try:
+                BookCategory.objects.create(
+                    name=name,
+                    code=code,
+                    description=description,
+                    parent_category_id=parent_id if parent_id else None
+                )
+                messages.success(request, f'Category "{name}" created successfully!')
+            except Exception as e:
+                messages.error(request, f'Error creating category: {str(e)}')
+        
+        elif action == 'edit':
+            category_id = request.POST.get('category_id')
+            category = get_object_or_404(BookCategory, id=category_id)
+            category.name = request.POST.get('name')
+            category.description = request.POST.get('description', '')
+            category.save()
+            messages.success(request, 'Category updated successfully!')
+        
+        return redirect('manage_categories')
+    
+    # GET request
+    categories = BookCategory.objects.annotate(
+        book_count=Count('books'),
+        subcategory_count=Count('subcategories')
+    ).order_by('name')
+    
+    context = {
+        'categories': categories,
+    }
+    
+    return render(request, 'librarian/catalog/manage_categories.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def inventory_management(request):
+    """Manage book inventory and stock levels"""
+    
+    # Books needing attention
+    low_stock = Book.objects.filter(
+        available_copies__lte=2,
+        available_copies__gt=0
+    ).select_related('category')
+    
+    out_of_stock = Book.objects.filter(
+        available_copies=0
+    ).select_related('category')
+    
+    # Lost and damaged books
+    lost_books = BookBorrowing.objects.filter(
+        status='lost'
+    ).select_related('book', 'student__user')
+    
+    damaged_books = Book.objects.filter(
+        status='damaged'
+    ).select_related('category')
+    
+    # Inventory summary by category
+    category_summary = BookCategory.objects.annotate(
+        total_books=Sum('books__total_copies'),
+        available=Sum('books__available_copies'),
+        borrowed=Sum('books__total_copies') - Sum('books__available_copies')
+    ).order_by('name')
+    
+    context = {
+        'low_stock': low_stock,
+        'out_of_stock': out_of_stock,
+        'lost_books': lost_books,
+        'damaged_books': damaged_books,
+        'category_summary': category_summary,
+    }
+    
+    return render(request, 'librarian/catalog/inventory.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def update_stock(request, book_id):
+    """Update book stock quantities"""
+    
+    book = get_object_or_404(Book, id=book_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        quantity = int(request.POST.get('quantity', 0))
+        
+        if action == 'add':
+            book.total_copies += quantity
+            book.available_copies += quantity
+            messages.success(request, f'Added {quantity} copies to "{book.title}"')
+        
+        elif action == 'remove':
+            if book.available_copies >= quantity:
+                book.total_copies -= quantity
+                book.available_copies -= quantity
+                messages.success(request, f'Removed {quantity} copies from "{book.title}"')
+            else:
+                messages.error(request, 'Cannot remove more copies than available')
+        
+        elif action == 'adjust':
+            new_total = int(request.POST.get('new_total'))
+            new_available = int(request.POST.get('new_available'))
+            
+            if new_available <= new_total:
+                book.total_copies = new_total
+                book.available_copies = new_available
+                messages.success(request, 'Stock quantities updated')
+            else:
+                messages.error(request, 'Available copies cannot exceed total copies')
+        
+        book.save()
+        return redirect('inventory_management')
+    
+    context = {
+        'book': book,
+    }
+    
+    return render(request, 'librarian/catalog/update_stock.html', context)
+
+
+# ============= CIRCULATION =============
+
+@login_required
+@user_passes_test(is_librarian)
+def book_issuance(request):
+    """Issue books to students"""
+    
+    if request.method == 'POST':
+        student_id = request.POST.get('student_id')
+        book_id = request.POST.get('book_id')
+        
+        try:
+            student = Student.objects.get(id=student_id)
+            book = Book.objects.get(id=book_id)
+            current_semester = Semester.objects.filter(is_current=True).first()
+            current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+            
+            # Check if student is eligible (fee cleared, not suspended)
+            if student.student_status != 'active':
+                messages.error(request, 'Student is not active. Cannot issue book.')
+                return redirect('book_issuance')
+            
+            # Check if student has any overdue books
+            overdue = BookBorrowing.objects.filter(
+                student=student,
+                status__in=['active', 'overdue'],
+                due_date__lt=timezone.now().date()
+            ).exists()
+            
+            if overdue:
+                messages.error(request, 'Student has overdue books. Clear them first.')
+                return redirect('book_issuance')
+            
+            # Check if student has unpaid fines
+            unpaid_fines = BookBorrowing.objects.filter(
+                student=student,
+                fine_amount__gt=0,
+                fine_paid=False
+            ).exists()
+            
+            if unpaid_fines:
+                messages.error(request, 'Student has unpaid fines. Clear them first.')
+                return redirect('book_issuance')
+            
+            # Check if book is available
+            if book.available_copies < 1:
+                messages.error(request, 'Book is not available.')
+                return redirect('book_issuance')
+            
+            # Check borrowing limit (e.g., max 3 books)
+            active_borrowings = BookBorrowing.objects.filter(
+                student=student,
+                status='active'
+            ).count()
+            
+            if active_borrowings >= 3:
+                messages.error(request, 'Student has reached borrowing limit (3 books).')
+                return redirect('book_issuance')
+            
+            # Create borrowing record
+            due_date = timezone.now().date() + timedelta(days=14)  # 2 weeks
+            
+            borrowing = BookBorrowing.objects.create(
+                student=student,
+                book=book,
+                academic_year=current_academic_year,
+                semester=current_semester,
+                due_date=due_date,
+                status='active',
+                issued_by=request.user
+            )
+            
+            # Update book availability
+            book.available_copies -= 1
+            if book.available_copies == 0:
+                book.status = 'borrowed'
+            book.save()
+            
+            messages.success(
+                request, 
+                f'Book "{book.title}" issued to {student.user.get_full_name()}. '
+                f'Due date: {due_date.strftime("%d/%m/%Y")}'
+            )
+            
+            return redirect('book_issuance')
+            
+        except Student.DoesNotExist:
+            messages.error(request, 'Student not found.')
+        except Book.DoesNotExist:
+            messages.error(request, 'Book not found.')
+        except Exception as e:
+            messages.error(request, f'Error issuing book: {str(e)}')
+        
+        return redirect('book_issuance')
+    
+    # GET request - show issuance form
+    # Recent issuances
+    recent_issuances = BookBorrowing.objects.filter(
+        status='active'
+    ).select_related(
+        'student__user', 'book', 'issued_by'
+    ).order_by('-borrow_date')[:20]
+    
+    context = {
+        'recent_issuances': recent_issuances,
+    }
+    
+    return render(request, 'librarian/circulation/book_issuance.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def search_student_for_borrowing(request):
+    """AJAX endpoint to search for students"""
+    
+    query = request.GET.get('q', '')
+    
+    if len(query) < 3:
+        return JsonResponse({'students': []})
+    
+    students = Student.objects.filter(
+        Q(registration_number__icontains=query) |
+        Q(user__first_name__icontains=query) |
+        Q(user__last_name__icontains=query) |
+        Q(user__email__icontains=query),
+        student_status='active'
+    ).select_related('user', 'programme')[:10]
+    
+    student_list = []
+    for student in students:
+        # Check active borrowings
+        active_count = BookBorrowing.objects.filter(
+            student=student,
+            status='active'
+        ).count()
+        
+        # Check overdue
+        has_overdue = BookBorrowing.objects.filter(
+            student=student,
+            status__in=['active', 'overdue'],
+            due_date__lt=timezone.now().date()
+        ).exists()
+        
+        student_list.append({
+            'id': student.id,
+            'registration_number': student.registration_number,
+            'name': student.user.get_full_name(),
+            'programme': student.programme.name,
+            'active_borrowings': active_count,
+            'has_overdue': has_overdue,
+        })
+    
+    return JsonResponse({'students': student_list})
+
+
+@login_required
+@user_passes_test(is_librarian)
+def search_book_for_borrowing(request):
+    """AJAX endpoint to search for books"""
+    
+    query = request.GET.get('q', '')
+    
+    if len(query) < 3:
+        return JsonResponse({'books': []})
+    
+    books = Book.objects.filter(
+        Q(title__icontains=query) |
+        Q(author__icontains=query) |
+        Q(isbn__icontains=query),
+        available_copies__gt=0
+    ).select_related('category')[:10]
+    
+    book_list = []
+    for book in books:
+        book_list.append({
+            'id': book.id,
+            'isbn': book.isbn,
+            'title': book.title,
+            'author': book.author,
+            'category': book.category.name,
+            'available_copies': book.available_copies,
+            'total_copies': book.total_copies,
+        })
+    
+    return JsonResponse({'books': book_list})
+
+
+@login_required
+@user_passes_test(is_librarian)
+def book_returns(request):
+    """Process book returns"""
+    
+    if request.method == 'POST':
+        borrowing_id = request.POST.get('borrowing_id')
+        
+        try:
+            borrowing = BookBorrowing.objects.get(id=borrowing_id)
+            
+            # Calculate fine if overdue
+            if borrowing.due_date < timezone.now().date():
+                borrowing.calculate_fine()
+            
+            # Update borrowing record
+            borrowing.return_date = timezone.now()
+            borrowing.status = 'returned'
+            borrowing.returned_to = request.user
+            borrowing.save()
+            
+            # Update book availability
+            book = borrowing.book
+            book.available_copies += 1
+            if book.status == 'borrowed':
+                book.status = 'available'
+            book.save()
+            
+            if borrowing.fine_amount > 0:
+                messages.warning(
+                    request,
+                    f'Book returned. Fine of KES {borrowing.fine_amount} is pending payment.'
+                )
+            else:
+                messages.success(request, 'Book returned successfully!')
+            
+            return redirect('book_returns')
+            
+        except BookBorrowing.DoesNotExist:
+            messages.error(request, 'Borrowing record not found.')
+        except Exception as e:
+            messages.error(request, f'Error processing return: {str(e)}')
+        
+        return redirect('book_returns')
+    
+    # GET request - show active borrowings
+    active_borrowings = BookBorrowing.objects.filter(
+        status='active'
+    ).select_related(
+        'student__user', 'book', 'issued_by'
+    ).order_by('due_date')
+    
+    # Mark overdue
+    for borrowing in active_borrowings:
+        if borrowing.due_date < timezone.now().date():
+            borrowing.status = 'overdue'
+            borrowing.save()
+    
+    # Refresh queryset
+    active_borrowings = BookBorrowing.objects.filter(
+        status__in=['active', 'overdue']
+    ).select_related(
+        'student__user', 'book', 'issued_by'
+    ).order_by('due_date')
+    
+    context = {
+        'active_borrowings': active_borrowings,
+    }
+    
+    return render(request, 'librarian/circulation/book_returns.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def renew_borrowing(request, borrowing_id):
+    """Renew a book borrowing"""
+    
+    borrowing = get_object_or_404(BookBorrowing, id=borrowing_id)
+    
+    if request.method == 'POST':
+        # Check if student is eligible for renewal
+        if borrowing.status == 'overdue':
+            messages.error(request, 'Cannot renew overdue books. Please return first.')
+            return redirect('book_returns')
+        
+        # Extend due date by 14 days
+        borrowing.due_date = borrowing.due_date + timedelta(days=14)
+        borrowing.save()
+        
+        messages.success(
+            request,
+            f'Borrowing renewed. New due date: {borrowing.due_date.strftime("%d/%m/%Y")}'
+        )
+        
+        return redirect('book_returns')
+    
+    context = {
+        'borrowing': borrowing,
+    }
+    
+    return render(request, 'librarian/circulation/renew_borrowing.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def overdue_management(request):
+    """Manage overdue books"""
+    
+    # Get all overdue borrowings
+    overdue_borrowings = BookBorrowing.objects.filter(
+        status__in=['active', 'overdue'],
+        due_date__lt=timezone.now().date()
+    ).select_related(
+        'student__user', 'book'
+    ).order_by('due_date')
+    
+    # Calculate fines for all overdue
+    for borrowing in overdue_borrowings:
+        borrowing.calculate_fine()
+        if borrowing.status != 'overdue':
+            borrowing.status = 'overdue'
+            borrowing.save()
+    
+    # Summary statistics
+    total_overdue = overdue_borrowings.count()
+    total_fines = overdue_borrowings.aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    # Group by days overdue
+    overdue_ranges = {
+        '1-7 days': overdue_borrowings.filter(
+            due_date__gte=timezone.now().date() - timedelta(days=7)
+        ).count(),
+        '8-14 days': overdue_borrowings.filter(
+            due_date__lt=timezone.now().date() - timedelta(days=7),
+            due_date__gte=timezone.now().date() - timedelta(days=14)
+        ).count(),
+        '15-30 days': overdue_borrowings.filter(
+            due_date__lt=timezone.now().date() - timedelta(days=14),
+            due_date__gte=timezone.now().date() - timedelta(days=30)
+        ).count(),
+        '30+ days': overdue_borrowings.filter(
+            due_date__lt=timezone.now().date() - timedelta(days=30)
+        ).count(),
+    }
+    
+    context = {
+        'overdue_borrowings': overdue_borrowings,
+        'total_overdue': total_overdue,
+        'total_fines': total_fines,
+        'overdue_ranges': overdue_ranges,
+    }
+    
+    return render(request, 'librarian/circulation/overdue_management.html', context)
+
+
+# ============= FINES & PAYMENTS =============
+
+@login_required
+@user_passes_test(is_librarian)
+def fine_management(request):
+    """Manage library fines"""
+    
+    # Pending fines
+    pending_fines = BookBorrowing.objects.filter(
+        fine_amount__gt=0,
+        fine_paid=False
+    ).select_related('student__user', 'book').order_by('-fine_amount')
+    
+    # Paid fines (recent)
+    paid_fines = BookBorrowing.objects.filter(
+        fine_amount__gt=0,
+        fine_paid=True
+    ).select_related('student__user', 'book').order_by('-updated_at')[:50]
+    
+    # Summary
+    total_pending = pending_fines.aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    total_paid = paid_fines.aggregate(
+        total=Sum('fine_amount')
+    )['total'] or Decimal('0.00')
+    
+    context = {
+        'pending_fines': pending_fines,
+        'paid_fines': paid_fines,
+        'total_pending': total_pending,
+        'total_paid': total_paid,
+    }
+    
+    return render(request, 'librarian/fines/fine_management.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def process_fine_payment(request, borrowing_id):
+    """Process fine payment"""
+    
+    borrowing = get_object_or_404(BookBorrowing, id=borrowing_id)
+    
+    if request.method == 'POST':
+        payment_method = request.POST.get('payment_method')
+        amount_paid = Decimal(request.POST.get('amount_paid'))
+        
+        if amount_paid >= borrowing.fine_amount:
+            borrowing.fine_paid = True
+            borrowing.save()
+            
+            messages.success(
+                request,
+                f'Fine payment of KES {amount_paid} recorded successfully.'
+            )
+        else:
+            messages.error(
+                request,
+                f'Amount paid (KES {amount_paid}) is less than fine amount (KES {borrowing.fine_amount}).'
+            )
+        
+        return redirect('fine_management')
+    
+    context = {
+        'borrowing': borrowing,
+    }
+    
+    return render(request, 'librarian/fines/process_payment.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def waive_fine(request, borrowing_id):
+    """Waive a fine (requires approval)"""
+    
+    borrowing = get_object_or_404(BookBorrowing, id=borrowing_id)
+    
+    if request.method == 'POST':
+        reason = request.POST.get('reason')
+        
+        if not reason:
+            messages.error(request, 'Please provide a reason for waiving the fine.')
+            return redirect('waive_fine', borrowing_id=borrowing_id)
+        
+        # Waive the fine
+        borrowing.fine_amount = Decimal('0.00')
+        borrowing.fine_paid = True
+        borrowing.remarks = f'Fine waived by {request.user.get_full_name()}. Reason: {reason}'
+        borrowing.save()
+        
+        messages.success(request, 'Fine waived successfully.')
+        return redirect('fine_management')
+    
+    context = {
+        'borrowing': borrowing,
+    }
+    
+    return render(request, 'librarian/fines/waive_fine.html', context)
+
+
+# ============= LIBRARY REPORTS =============
+
+@login_required
+@user_passes_test(is_librarian)
+def library_reports(request):
+    """Main reports dashboard"""
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    context = {
+        'current_semester': current_semester,
+        'current_academic_year': current_academic_year,
+    }
+    
+    return render(request, 'librarian/reports/reports_dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def usage_statistics(request):
+    """Generate usage statistics report"""
+    
+    # Date range filter
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    if not start_date:
+        start_date = (timezone.now() - timedelta(days=30)).date()
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    
+    if not end_date:
+        end_date = timezone.now().date()
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Filter borrowings
+    borrowings = BookBorrowing.objects.filter(
+        borrow_date__gte=start_date,
+        borrow_date__lte=end_date
+    )
+    
+    # Total statistics
+    total_borrowings = borrowings.count()
+    total_returns = borrowings.filter(status='returned').count()
+    total_active = borrowings.filter(status='active').count()
+    total_overdue = borrowings.filter(status='overdue').count()
+    
+    # Unique borrowers
+    unique_borrowers = borrowings.values('student').distinct().count()
+    
+    # Most active borrowers
+    top_borrowers = borrowings.values(
+        'student__registration_number',
+        'student__user__first_name',
+        'student__user__last_name'
+    ).annotate(
+        borrow_count=Count('id')
+    ).order_by('-borrow_count')[:10]
+    
+    # Daily borrowing trend
+    daily_trend = borrowings.annotate(
+        date=F('borrow_date')
+    ).values('date').annotate(
+        count=Count('id')
+    ).order_by('date')
+    
+    # Category-wise usage
+    category_usage = borrowings.values(
+        'book__category__name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    context = {
+        'start_date': start_date,
+        'end_date': end_date,
+        'total_borrowings': total_borrowings,
+        'total_returns': total_returns,
+        'total_active': total_active,
+        'total_overdue': total_overdue,
+        'unique_borrowers': unique_borrowers,
+        'top_borrowers': top_borrowers,
+        'daily_trend': daily_trend,
+        'category_usage': category_usage,
+    }
+    
+    return render(request, 'librarian/reports/usage_statistics.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def collection_analysis(request):
+    """Analyze library collection"""
+    
+    # Total collection
+    total_books = Book.objects.aggregate(
+        total=Sum('total_copies')
+    )['total'] or 0
+    
+    # By category
+    category_breakdown = BookCategory.objects.annotate(
+        total_books=Sum('books__total_copies'),
+        available_books=Sum('books__available_copies'),
+        unique_titles=Count('books')
+    ).order_by('-total_books')
+    
+    # By publication year
+    year_distribution = Book.objects.values('publication_year').annotate(
+        count=Count('id')
+    ).order_by('-publication_year')[:20]
+    
+    # Popular vs unpopular books
+    popular_books = Book.objects.annotate(
+        borrow_count=Count('borrowings')
+    ).filter(borrow_count__gt=0).order_by('-borrow_count')[:20]
+    
+    unpopular_books = Book.objects.annotate(
+        borrow_count=Count('borrowings')
+    ).filter(borrow_count=0).order_by('acquisition_date')[:20]
+    
+    # Condition analysis
+    condition_summary = {
+        'available': Book.objects.filter(status='available').count(),
+        'borrowed': Book.objects.filter(status='borrowed').count(),
+        'reserved': Book.objects.filter(status='reserved').count(),
+        'maintenance': Book.objects.filter(status='maintenance').count(),
+        'lost': Book.objects.filter(status='lost').count(),
+        'damaged': Book.objects.filter(status='damaged').count(),
+    }
+    
+    context = {
+        'total_books': total_books,
+        'category_breakdown': category_breakdown,
+        'year_distribution': year_distribution,
+        'popular_books': popular_books,
+        'unpopular_books': unpopular_books,
+        'condition_summary': condition_summary,
+    }
+    
+    return render(request, 'librarian/reports/collection_analysis.html', context)
+
+
+@login_required
+@user_passes_test(is_librarian)
+def circulation_report(request):
+    """Detailed circulation report"""
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if current_semester:
+        # Semester borrowings
+        semester_borrowings = BookBorrowing.objects.filter(
+            semester=current_semester
+        )
+        
+        total_issued = semester_borrowings.count()
+        total_returned = semester_borrowings.filter(status='returned').count()
+        currently_borrowed = semester_borrowings.filter(status='active').count()
+        overdue_count = semester_borrowings.filter(status='overdue').count()
+        
+        # Programme-wise circulation
+        programme_circulation = semester_borrowings.values(
+            'student__programme__name'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')
+        
+        # Department-wise
+        department_circulation = semester_borrowings.values(
+            'student__programme__department__name'
+        ).annotate(
+            count=Count('id')
+        ).order_by('-count')
+        
+        # Year of study
+        year_circulation = semester_borrowings.values(
+            'student__current_year'
+        ).annotate(
+            count=Count('id')
+        ).order_by('student__current_year')
+        
+    else:
+        total_issued = 0
+        total_returned = 0
+        currently_borrowed = 0
+        overdue_count = 0
+        programme_circulation = []
+        department_circulation = []
+        year_circulation = []
+    
+    context = {
+        'current_semester': current_semester,
+        'total_issued': total_issued,
+        'total_returned': total_returned,
+        'currently_borrowed': currently_borrowed,
+        'overdue_count': overdue_count,
+        'programme_circulation': programme_circulation,
+        'department_circulation': department_circulation,
+        'year_circulation': year_circulation,
+    }
+    
+    return render(request, 'librarian/reports/circulation_report.html', context)
+
+
+# Continue in next file for remaining views...
 
 @login_required
 def hostel_dashboard(request):

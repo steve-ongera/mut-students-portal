@@ -15,7 +15,7 @@ urlpatterns = [
     path('hod/dashboard/', views.hod_dashboard, name='hod_dashboard'),
     path('finance/dashboard/', views.finance_dashboard, name='finance_dashboard'),
     path('registrar/dashboard/', views.registrar_dashboard, name='registrar_dashboard'),
-    path('library/dashboard/', views.library_dashboard, name='library_dashboard'),
+    path('library/dashboard/', views.librarian_dashboard, name='librarian_dashboard'),
     path('hostel/dashboard/', views.hostel_dashboard, name='hostel_dashboard'),
     path('procurement/dashboard/', views.procurement_dashboard, name='procurement_dashboard'),
     
@@ -601,5 +601,33 @@ urlpatterns = [
     path('api/unit-enrollments/<int:enrollment_id>/reject/', views.individual_reject_enrollment, name='individual_reject_enrollment'),
     path('api/unit-enrollments/statistics/', views.get_enrollment_statistics, name='get_enrollment_statistics'),
 
+    # ============= CATALOG MANAGEMENT =============
+    path('catalog/', views.book_catalog_list, name='book_catalog_list'),
+    path('catalog/add/', views.add_book, name='add_book'),
+    path('catalog/edit/<int:book_id>/', views.edit_book, name='edit_book'),
+    path('catalog/categories/', views.manage_categories, name='manage_categories'),
+    path('catalog/inventory/', views.inventory_management, name='inventory_management'),
+    path('catalog/inventory/update/<int:book_id>/', views.update_stock, name='update_stock'),
+    
+    # ============= CIRCULATION =============
+    path('circulation/issue/', views.book_issuance, name='book_issuance'),
+    path('circulation/returns/', views.book_returns, name='book_returns'),
+    path('circulation/renew/<int:borrowing_id>/', views.renew_borrowing, name='renew_borrowing'),
+    path('circulation/overdue/', views.overdue_management, name='overdue_management'),
+    
+    # AJAX endpoints for circulation
+    path('api/search-student/', views.search_student_for_borrowing, name='search_student_for_borrowing'),
+    path('api/search-book/', views.search_book_for_borrowing, name='search_book_for_borrowing'),
+    
+    # ============= FINES & PAYMENTS =============
+    path('fines/', views.fine_management, name='fine_management'),
+    path('fines/payment/<int:borrowing_id>/', views.process_fine_payment, name='process_fine_payment'),
+    path('fines/waive/<int:borrowing_id>/', views.waive_fine, name='waive_fine'),
+    
+    # ============= REPORTS =============
+    path('reports/', views.library_reports, name='library_reports'),
+    path('reports/usage/', views.usage_statistics, name='usage_statistics'),
+    path('reports/collection/', views.collection_analysis, name='collection_analysis'),
+    path('reports/circulation/', views.circulation_report, name='circulation_report'),
        
 ]
