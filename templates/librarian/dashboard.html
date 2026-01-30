@@ -1,0 +1,1162 @@
+{% extends 'librarian/librarian_base.html' %}
+{% load static %}
+
+{% block title %}Librarian Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block page_title %}Library Management Dashboard{% endblock %}
+{% block page_subtitle %}Overview of library operations, book borrowings, and statistics{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Library</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Academic Period Info -->
+    <div class="alert alert-info mb-4">
+        <div class="d-flex align-items-center">
+            <i class="ri-calendar-line fs-4 me-3"></i>
+            <div>
+                <strong>Current Academic Period:</strong> 
+                {{ current_academic_year.name }} - {{ current_semester.name }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics Row -->
+    <div class="row g-3 mb-4">
+        <!-- Total Books -->
+        <div class="col-md-3">
+            <div class="metric-card metric-primary">
+                <div class="metric-icon">
+                    <i class="ri-book-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ total_books|default:0 }}</div>
+                    <div class="metric-label">Total Books</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Available Books -->
+        <div class="col-md-3">
+            <div class="metric-card metric-success">
+                <div class="metric-icon">
+                    <i class="ri-book-open-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ available_books|default:0 }}</div>
+                    <div class="metric-label">Available Books</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Currently Borrowed -->
+        <div class="col-md-3">
+            <div class="metric-card metric-warning">
+                <div class="metric-icon">
+                    <i class="ri-book-mark-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ borrowed_books|default:0 }}</div>
+                    <div class="metric-label">Currently Borrowed</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overdue Books -->
+        <div class="col-md-3">
+            <div class="metric-card metric-danger">
+                <div class="metric-icon">
+                    <i class="ri-alarm-warning-line"></i>
+                </div>
+                <div class="metric-content">
+                    <div class="metric-value">{{ overdue_books|default:0 }}</div>
+                    <div class="metric-label">Overdue Books</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Metrics Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info-subtle">
+                    <i class="ri-folder-line text-info"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ total_categories|default:0 }}</div>
+                    <div class="stat-label">Book Categories</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary-subtle">
+                    <i class="ri-user-line text-primary"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ active_borrowers|default:0 }}</div>
+                    <div class="stat-label">Active Borrowers</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-danger-subtle">
+                    <i class="ri-alert-line text-danger"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ low_stock_books|default:0 }}</div>
+                    <div class="stat-label">Low Stock Books</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning-subtle">
+                    <i class="ri-close-circle-line text-warning"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-value">{{ out_of_stock|default:0 }}</div>
+                    <div class="stat-label">Out of Stock</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row g-3 mb-4">
+        <!-- Borrowing Trends Chart -->
+        <div class="col-lg-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Borrowing Trends (Last 6 Months)</h5>
+                    <div class="card-subtitle">Monthly borrowing statistics</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="borrowingTrendsChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Popular Categories Chart -->
+        <div class="col-lg-4">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Popular Categories</h5>
+                    <div class="card-subtitle">Top 5 most borrowed</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="popularCategoriesChart" height="160"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary & Collection Distribution -->
+    <div class="row g-3 mb-4">
+        <!-- Financial Summary -->
+        <div class="col-lg-4">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Financial Summary</h5>
+                    <div class="card-subtitle">{{ current_semester.name }}</div>
+                </div>
+                <div class="card-body">
+                    <div class="financial-item">
+                        <div class="financial-label">
+                            <i class="ri-money-dollar-circle-line text-success me-2"></i>
+                            Fines Collected
+                        </div>
+                        <div class="financial-value text-success">
+                            KES {{ fines_collected|default:0|floatformat:2 }}
+                        </div>
+                    </div>
+                    <div class="financial-item mt-3">
+                        <div class="financial-label">
+                            <i class="ri-money-dollar-circle-line text-warning me-2"></i>
+                            Pending Fines
+                        </div>
+                        <div class="financial-value text-warning">
+                            KES {{ fines_pending|default:0|floatformat:2 }}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="financial-item">
+                        <div class="financial-label">
+                            <i class="ri-group-line text-primary me-2"></i>
+                            Eligible Students
+                        </div>
+                        <div class="financial-value text-primary">
+                            {{ eligible_students_count|default:0 }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collection Distribution -->
+        <div class="col-lg-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Collection Distribution</h5>
+                    <div class="card-subtitle">Books by category</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="collectionDistributionChart" height="80"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts & Notifications -->
+    {% if low_stock_books or out_of_stock or books_needing_attention %}
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="management-card border-warning">
+                <div class="card-header bg-warning-subtle">
+                    <h5 class="card-title text-warning">
+                        <i class="ri-alert-line me-2"></i>
+                        Alerts & Notifications
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% if low_stock_books %}
+                        <div class="col-md-4">
+                            <div class="alert-item alert-warning">
+                                <i class="ri-error-warning-line"></i>
+                                <div>
+                                    <strong>{{ low_stock_books }}</strong> book(s) low on stock
+                                    <small class="d-block text-muted">Available copies < 2</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if out_of_stock %}
+                        <div class="col-md-4">
+                            <div class="alert-item alert-danger">
+                                <i class="ri-close-circle-line"></i>
+                                <div>
+                                    <strong>{{ out_of_stock }}</strong> book(s) out of stock
+                                    <small class="d-block text-muted">No copies available</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if books_needing_attention %}
+                        <div class="col-md-4">
+                            <div class="alert-item alert-info">
+                                <i class="ri-tools-line"></i>
+                                <div>
+                                    <strong>{{ books_needing_attention }}</strong> book(s) need attention
+                                    <small class="d-block text-muted">Lost or damaged</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Activities Tabs -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Activities</h5>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="nav nav-tabs px-3 pt-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#borrowings" type="button">
+                                <i class="ri-book-mark-line me-2"></i>Recent Borrowings
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#returns" type="button">
+                                <i class="ri-checkbox-circle-line me-2"></i>Recent Returns
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#fines" type="button">
+                                <i class="ri-money-dollar-circle-line me-2"></i>Pending Fines
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#popular" type="button">
+                                <i class="ri-star-line me-2"></i>Popular Books
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content p-3">
+                        <!-- Recent Borrowings -->
+                        <div class="tab-pane fade show active" id="borrowings">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Book</th>
+                                            <th>Borrow Date</th>
+                                            <th>Due Date</th>
+                                            <th>Status</th>
+                                            <th>Issued By</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for borrowing in recent_borrowings %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="student-avatar-sm me-2">
+                                                        <img src="{% if borrowing.student.user.profile_picture %}{{ borrowing.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                             alt="{{ borrowing.student.user.get_full_name }}" 
+                                                             class="rounded-circle">
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-medium">{{ borrowing.student.registration_number }}</div>
+                                                        <small class="text-muted">{{ borrowing.student.user.get_full_name }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="fw-medium">{{ borrowing.book.title|truncatechars:40 }}</div>
+                                                <small class="text-muted">{{ borrowing.book.isbn }}</small>
+                                            </td>
+                                            <td>{{ borrowing.borrow_date|date:"d M Y, H:i" }}</td>
+                                            <td>{{ borrowing.due_date|date:"d M Y" }}</td>
+                                            <td>
+                                                {% if borrowing.status == 'active' %}
+                                                <span class="badge bg-success">Active</span>
+                                                {% elif borrowing.status == 'overdue' %}
+                                                <span class="badge bg-danger">Overdue</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ borrowing.issued_by.get_full_name|default:"N/A" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                <i class="ri-inbox-line fs-3 d-block mb-2"></i>
+                                                No recent borrowings
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Recent Returns -->
+                        <div class="tab-pane fade" id="returns">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Book</th>
+                                            <th>Return Date</th>
+                                            <th>Due Date</th>
+                                            <th>Fine</th>
+                                            <th>Returned To</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for return in recent_returns %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="student-avatar-sm me-2">
+                                                        <img src="{% if return.student.user.profile_picture %}{{ return.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                             alt="{{ return.student.user.get_full_name }}" 
+                                                             class="rounded-circle">
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-medium">{{ return.student.registration_number }}</div>
+                                                        <small class="text-muted">{{ return.student.user.get_full_name }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="fw-medium">{{ return.book.title|truncatechars:40 }}</div>
+                                                <small class="text-muted">{{ return.book.isbn }}</small>
+                                            </td>
+                                            <td>{{ return.return_date|date:"d M Y, H:i" }}</td>
+                                            <td>{{ return.due_date|date:"d M Y" }}</td>
+                                            <td>
+                                                {% if return.fine_amount > 0 %}
+                                                <span class="text-danger">KES {{ return.fine_amount }}</span>
+                                                {% if return.fine_paid %}
+                                                <span class="badge bg-success-subtle text-success ms-1">Paid</span>
+                                                {% else %}
+                                                <span class="badge bg-warning-subtle text-warning ms-1">Unpaid</span>
+                                                {% endif %}
+                                                {% else %}
+                                                <span class="text-success">No Fine</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ return.returned_to.get_full_name|default:"N/A" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                <i class="ri-inbox-line fs-3 d-block mb-2"></i>
+                                                No recent returns
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Pending Fines -->
+                        <div class="tab-pane fade" id="fines">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Book</th>
+                                            <th>Due Date</th>
+                                            <th>Days Overdue</th>
+                                            <th>Fine Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for fine in pending_fines %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="student-avatar-sm me-2">
+                                                        <img src="{% if fine.student.user.profile_picture %}{{ fine.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                             alt="{{ fine.student.user.get_full_name }}" 
+                                                             class="rounded-circle">
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-medium">{{ fine.student.registration_number }}</div>
+                                                        <small class="text-muted">{{ fine.student.user.get_full_name }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="fw-medium">{{ fine.book.title|truncatechars:40 }}</div>
+                                                <small class="text-muted">{{ fine.book.isbn }}</small>
+                                            </td>
+                                            <td>{{ fine.due_date|date:"d M Y" }}</td>
+                                            <td>
+                                                <span class="badge bg-danger">
+                                                    {{ fine.due_date|timesince }} ago
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <strong class="text-danger">KES {{ fine.fine_amount }}</strong>
+                                            </td>
+                                            <td>
+                                                {% if fine.fine_paid %}
+                                                <span class="badge bg-success">Paid</span>
+                                                {% else %}
+                                                <span class="badge bg-warning">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                <i class="ri-checkbox-circle-line fs-3 d-block mb-2 text-success"></i>
+                                                No pending fines
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Popular Books -->
+                        <div class="tab-pane fade" id="popular">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Book Details</th>
+                                            <th>Author</th>
+                                            <th>Category</th>
+                                            <th>Times Borrowed</th>
+                                            <th>Available Copies</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for book in popular_books %}
+                                        <tr>
+                                            <td>
+                                                <div class="rank-badge">
+                                                    {{ forloop.counter }}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="fw-medium">{{ book.title }}</div>
+                                                <small class="text-muted">ISBN: {{ book.isbn }}</small>
+                                            </td>
+                                            <td>{{ book.author }}</td>
+                                            <td>
+                                                <span class="badge bg-primary-subtle text-primary">
+                                                    {{ book.category.name }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <strong class="text-primary">{{ book.borrow_count }}</strong> times
+                                            </td>
+                                            <td>
+                                                {% if book.available_copies > 0 %}
+                                                <span class="text-success">{{ book.available_copies }}/{{ book.total_copies }}</span>
+                                                {% else %}
+                                                <span class="text-danger">Out of Stock</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center py-4 text-muted">
+                                                <i class="ri-inbox-line fs-3 d-block mb-2"></i>
+                                                No borrowing data available
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="{% url 'book_issuance' %}" class="quick-action-card">
+                                <i class="ri-book-mark-line"></i>
+                                <span>Issue Book</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'book_returns' %}" class="quick-action-card">
+                                <i class="ri-checkbox-circle-line"></i>
+                                <span>Return Book</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'add_book' %}" class="quick-action-card">
+                                <i class="ri-add-circle-line"></i>
+                                <span>Add New Book</span>
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'library_reports' %}" class="quick-action-card">
+                                <i class="ri-file-chart-line"></i>
+                                <span>View Reports</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        box-shadow: var(--shadow-md);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .metric-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        flex-shrink: 0;
+    }
+
+    .metric-primary .metric-icon {
+        background: rgba(46, 125, 50, 0.1);
+        color: var(--color-primary);
+    }
+
+    .metric-success .metric-icon {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+
+    .metric-warning .metric-icon {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+
+    .metric-danger .metric-icon {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .metric-content {
+        flex: 1;
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        border: 1px solid var(--color-gray-200);
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        border-color: var(--color-primary);
+        box-shadow: var(--shadow-sm);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .stat-content {
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+
+    /* Management Cards */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Financial Summary */
+    .financial-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+    }
+
+    .financial-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        display: flex;
+        align-items: center;
+    }
+
+    .financial-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    /* Alert Items */
+    .alert-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        border-left: 4px solid;
+    }
+
+    .alert-item i {
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+
+    .alert-warning {
+        background: rgba(255, 152, 0, 0.1);
+        border-color: var(--color-warning);
+        color: var(--color-warning);
+    }
+
+    .alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        border-color: var(--color-danger);
+        color: var(--color-danger);
+    }
+
+    .alert-info {
+        background: rgba(33, 150, 243, 0.1);
+        border-color: var(--color-info);
+        color: var(--color-info);
+    }
+
+    /* Tabs */
+    .nav-tabs {
+        border-bottom: 2px solid var(--color-gray-200);
+    }
+
+    .nav-tabs .nav-link {
+        border: none;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.2s ease;
+    }
+
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        border-bottom-color: rgba(46, 125, 50, 0.3);
+    }
+
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background: transparent;
+        border-bottom-color: var(--color-primary);
+    }
+
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+
+    /* Student Avatar Small */
+    .student-avatar-sm {
+        width: 32px;
+        height: 32px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar-sm img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+
+    /* Rank Badge */
+    .rank-badge {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: var(--color-primary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+    }
+
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+        background: white;
+        border: 2px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+        gap: 0.75rem;
+    }
+
+    .quick-action-card:hover {
+        border-color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.02);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .quick-action-card i {
+        font-size: 2.5rem;
+        color: var(--color-primary);
+    }
+
+    .quick-action-card span {
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-align: center;
+    }
+
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart colors
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info: '#2196F3',
+        danger: '#F44336',
+        gray: '#6c757d'
+    };
+
+    // Borrowing Trends Chart
+    const borrowingCtx = document.getElementById('borrowingTrendsChart');
+    if (borrowingCtx) {
+        new Chart(borrowingCtx, {
+            type: 'line',
+            data: {
+                labels: [
+                    {% for item in monthly_borrowings %}
+                    '{{ item.month|date:"M Y" }}'{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Borrowings',
+                    data: [
+                        {% for item in monthly_borrowings %}
+                        {{ item.count }}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    borderColor: colors.primary,
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 14 },
+                        bodyFont: { size: 13 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Popular Categories Chart
+    const categoriesCtx = document.getElementById('popularCategoriesChart');
+    if (categoriesCtx) {
+        new Chart(categoriesCtx, {
+            type: 'doughnut',
+            data: {
+                labels: [
+                    {% for category in popular_categories %}
+                    '{{ category.name }}'{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    data: [
+                        {% for category in popular_categories %}
+                        {{ category.borrowing_count }}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    backgroundColor: [
+                        colors.primary,
+                        colors.success,
+                        colors.info,
+                        colors.warning,
+                        colors.danger
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12
+                    }
+                }
+            }
+        });
+    }
+
+    // Collection Distribution Chart
+    const collectionCtx = document.getElementById('collectionDistributionChart');
+    if (collectionCtx) {
+        new Chart(collectionCtx, {
+            type: 'bar',
+            data: {
+                labels: [
+                    {% for item in collection_distribution %}
+                    '{{ item.name }}'{% if not forloop.last %},{% endif %}
+                    {% endfor %}
+                ],
+                datasets: [{
+                    label: 'Total Books',
+                    data: [
+                        {% for item in collection_distribution %}
+                        {{ item.total_books|default:0 }}{% if not forloop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    backgroundColor: colors.primary,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}
