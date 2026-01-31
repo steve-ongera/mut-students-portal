@@ -2758,7 +2758,11 @@ from .models import (
 
 @login_required
 def finance_dashboard(request):
-    """Finance Officer Dashboard"""
+    """Finance Officer Dashboard with visualizations"""
+    from datetime import timedelta
+    from django.db.models.functions import TruncDate
+    import json
+    
     # Get current academic year and semester
     current_academic_year = AcademicYear.objects.filter(is_current=True).first()
     current_semester = Semester.objects.filter(is_current=True).first()
@@ -2833,6 +2837,60 @@ def finance_dashboard(request):
         total_balance=Sum('balance')
     )
     
+    # ============= GRAPH DATA =============
+    
+    # GRAPH 1: Daily Collections Trend (Last 30 days)
+    thirty_days_ago = today - timedelta(days=30)
+    daily_collections = FeePayment.objects.filter(
+        payment_date__date__gte=thirty_days_ago,
+        status='completed'
+    ).annotate(
+        date=TruncDate('payment_date')
+    ).values('date').annotate(
+        total=Sum('amount')
+    ).order_by('date')
+    
+    # Format for Chart.js
+    collections_dates = [item['date'].strftime('%Y-%m-%d') for item in daily_collections]
+    collections_amounts = [float(item['total']) for item in daily_collections]
+    
+    daily_collections_data = {
+        'labels': collections_dates,
+        'data': collections_amounts
+    }
+    
+    # GRAPH 2: Payment Methods Distribution (Pie Chart)
+    payment_methods_chart = []
+    for method in payment_methods:
+        payment_methods_chart.append({
+            'method': method['payment_method'].upper(),
+            'amount': float(method['total']),
+            'count': method['count']
+        })
+    
+    payment_methods_data = {
+        'labels': [item['method'] for item in payment_methods_chart],
+        'data': [item['amount'] for item in payment_methods_chart],
+        'counts': [item['count'] for item in payment_methods_chart]
+    }
+    
+    # GRAPH 3: Top 10 Programmes by Collections (Bar Chart)
+    programme_chart_data = {
+        'labels': [item['student__programme__code'] for item in programme_collections],
+        'data': [float(item['total']) for item in programme_collections],
+        'counts': [item['count'] for item in programme_collections]
+    }
+    
+    # BONUS GRAPH 4: Fee Clearance Status (Donut Chart)
+    clearance_data = {
+        'labels': ['Cleared', 'Outstanding'],
+        'data': [students_cleared, total_students - students_cleared],
+        'percentages': [
+            round((students_cleared / total_students * 100), 1) if total_students > 0 else 0,
+            round(((total_students - students_cleared) / total_students * 100), 1) if total_students > 0 else 0
+        ]
+    }
+    
     context = {
         'current_academic_year': current_academic_year,
         'current_semester': current_semester,
@@ -2847,10 +2905,15 @@ def finance_dashboard(request):
         'programme_collections': programme_collections,
         'pending_payments': pending_payments,
         'budget_overview': budget_overview,
+        
+        # Graph data (JSON stringified for JavaScript)
+        'daily_collections_data': json.dumps(daily_collections_data),
+        'payment_methods_data': json.dumps(payment_methods_data),
+        'programme_chart_data': json.dumps(programme_chart_data),
+        'clearance_data': json.dumps(clearance_data),
     }
     
     return render(request, 'finance/dashboard.html', context)
-
 
 # ============= FEE MANAGEMENT =============
 

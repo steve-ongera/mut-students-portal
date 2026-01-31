@@ -1,111 +1,255 @@
-﻿{% extends "finance/finance_base.html" %}
-
+﻿{% extends 'finance/finance_base.html' %}
 {% load static %}
 
 {% block title %}Finance Dashboard{% endblock %}
 
 {% block extra_css %}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 {% endblock %}
 
-{% block page_title %}Finance Dashboard{% endblock %}
-{% block page_subtitle %}Monitor collections, payments, and financial performance{% endblock %}
-
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Finance</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Finance Dashboard</h1>
+                <p class="text-muted mb-0">Monitor collections, payments, and financial performance</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_academic_year.name }} • {{ current_semester.name }}
+                </div>
+                <p class="small text-muted mt-2">Last login: {% now "F j, Y, g:i a" %}</p>
+            </div>
+        </div>
+    </div>
 
-<div class="content-container">
-    <!-- Statistics Cards -->
-    <div class="row g-3 mb-4">
-        <!-- Today's Collections -->
-        <div class="col-xl-3 col-md-6">
-            <div class="management-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted mb-1 small">Today's Collections</p>
-                            <h3 class="mb-0 fw-bold">KES {{ today_collections|floatformat:2 }}</h3>
-                        </div>
-                        <div class="icon-box bg-success-subtle">
-                            <i class="ri-money-dollar-circle-line text-success fs-4"></i>
-                        </div>
+    <!-- Key Metrics Grid -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-money-dollar-circle-line text-success"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">KES {{ today_collections|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Today's Collections</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-arrow-up-line text-success me-1"></i>
+                    <span class="small text-muted">Payment collections</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-bank-card-line text-primary"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">KES {{ monthly_collections|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Monthly Collections</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">This month</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-danger-subtle">
+                        <i class="ri-alert-line text-danger"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">KES {{ outstanding_fees|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Outstanding Fees</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-alert-line text-danger me-1"></i>
+                    <span class="small text-muted">Total balances</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-checkbox-circle-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ clearance_percentage|floatformat:1|default:0 }}%</h3>
+                        <p class="metric-label mb-0">Clearance Rate</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">{{ students_cleared }}/{{ total_students }} students</span>
                 </div>
             </div>
         </div>
 
-        <!-- Monthly Collections -->
-        <div class="col-xl-3 col-md-6">
-            <div class="management-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted mb-1 small">Monthly Collections</p>
-                            <h3 class="mb-0 fw-bold">KES {{ monthly_collections|floatformat:2 }}</h3>
-                        </div>
-                        <div class="icon-box bg-primary-subtle">
-                            <i class="ri-bank-card-line text-primary fs-4"></i>
-                        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-purple-subtle">
+                        <i class="ri-file-list-line text-purple"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ pending_payments|default:0 }}</h3>
+                        <p class="metric-label mb-0">Pending Payments</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-time-line text-warning me-1"></i>
+                    <span class="small text-muted">Awaiting verification</span>
                 </div>
             </div>
         </div>
 
-        <!-- Outstanding Fees -->
-        <div class="col-xl-3 col-md-6">
-            <div class="management-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted mb-1 small">Outstanding Fees</p>
-                            <h3 class="mb-0 fw-bold text-danger">KES {{ outstanding_fees|floatformat:2 }}</h3>
-                        </div>
-                        <div class="icon-box bg-danger-subtle">
-                            <i class="ri-alert-line text-danger fs-4"></i>
-                        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-teal-subtle">
+                        <i class="ri-wallet-3-line text-teal"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">KES {{ budget_overview.total_allocation|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Budget Allocation</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Total budget</span>
                 </div>
             </div>
         </div>
 
-        <!-- Clearance Rate -->
-        <div class="col-xl-3 col-md-6">
-            <div class="management-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <p class="text-muted mb-1 small">Clearance Rate</p>
-                            <h3 class="mb-0 fw-bold">{{ clearance_percentage|floatformat:1 }}%</h3>
-                            <small class="text-muted">{{ students_cleared }}/{{ total_students }} students</small>
-                        </div>
-                        <div class="icon-box bg-info-subtle">
-                            <i class="ri-checkbox-circle-line text-info fs-4"></i>
-                        </div>
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-indigo-subtle">
+                        <i class="ri-pie-chart-line text-indigo"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">KES {{ budget_overview.total_spent|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Budget Spent</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-arrow-down-line text-warning me-1"></i>
+                    <span class="small text-muted">Expenditure</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-gray-subtle">
+                        <i class="ri-funds-line text-gray"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">KES {{ budget_overview.total_balance|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Budget Balance</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Remaining funds</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row g-3">
+    <!-- Charts Section Row 1 -->
+    <div class="row g-4 mb-5">
+        <!-- Daily Collections Trend -->
+        <div class="col-xl-8">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Daily Collections Trend</h5>
+                    <div class="card-subtitle">Last 30 Days Payment Activity</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="dailyCollectionsChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fee Clearance Status -->
+        <div class="col-xl-4">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Fee Clearance Status</h5>
+                    <div class="card-subtitle">Current Semester</div>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="clearanceChart" height="180"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section Row 2 -->
+    <div class="row g-4 mb-5">
+        <!-- Payment Methods Distribution -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Methods Distribution</h5>
+                    <div class="card-subtitle">This Month</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="paymentMethodsChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Programmes by Collections -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Top Programmes by Collections</h5>
+                    <div class="card-subtitle">This Month</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="programmesChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Payments & Payment Methods Breakdown -->
+    <div class="row g-4 mb-5">
         <!-- Recent Payments -->
-        <div class="col-lg-8">
-            <div class="management-card">
+        <div class="col-xl-8">
+            <div class="analytics-card">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title">Recent Payments</h5>
+                        <div>
+                            <h5 class="card-title">Recent Payments</h5>
+                            <div class="card-subtitle">Latest transactions</div>
+                        </div>
                         <a href="{% url 'payment_list' %}" class="btn btn-sm btn-outline-primary">
                             View All
                         </a>
                     </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
+                    <div class="activity-table">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
@@ -140,12 +284,12 @@
                                     </td>
                                     <td class="pe-4">
                                         {% if payment.status == 'completed' %}
-                                        <span class="status-badge status-active">
+                                        <span class="status-badge status-completed">
                                             <i class="ri-checkbox-circle-fill me-1"></i>
                                             Completed
                                         </span>
                                         {% else %}
-                                        <span class="status-badge status-deferred">
+                                        <span class="status-badge status-pending">
                                             {{ payment.get_status_display }}
                                         </span>
                                         {% endif %}
@@ -153,11 +297,9 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-4">
-                                        <div class="text-muted">
-                                            <i class="ri-inbox-line fs-3 d-block mb-2"></i>
-                                            No recent payments
-                                        </div>
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <i class="ri-inbox-line fs-1 mb-3 d-block"></i>
+                                        No recent payments
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -169,9 +311,9 @@
         </div>
 
         <!-- Quick Actions & Stats -->
-        <div class="col-lg-4">
+        <div class="col-xl-4">
             <!-- Quick Actions -->
-            <div class="management-card mb-3">
+            <div class="analytics-card mb-3">
                 <div class="card-header">
                     <h5 class="card-title">Quick Actions</h5>
                 </div>
@@ -198,7 +340,7 @@
             </div>
 
             <!-- Payment Methods Breakdown -->
-            <div class="management-card">
+            <div class="analytics-card">
                 <div class="card-header">
                     <h5 class="card-title">Payment Methods</h5>
                     <div class="card-subtitle">This Month</div>
@@ -213,7 +355,7 @@
                         <div class="progress" style="height: 6px;">
                             <div class="progress-bar bg-success" 
                                  role="progressbar" 
-                                 style="width: {{ method.total|floatformat:0 }}%">
+                                 style="width: {{ method.percentage|default:0 }}%">
                             </div>
                         </div>
                         <small class="text-muted">KES {{ method.total|floatformat:2 }}</small>
@@ -226,16 +368,16 @@
         </div>
     </div>
 
-    <!-- Programme Collections -->
-    <div class="row g-3 mt-1">
+    <!-- Programme Collections Table -->
+    <div class="row g-4 mb-5">
         <div class="col-12">
-            <div class="management-card">
+            <div class="analytics-card">
                 <div class="card-header">
-                    <h5 class="card-title">Top Collections by Programme</h5>
+                    <h5 class="card-title">Collections by Programme</h5>
                     <div class="card-subtitle">This Month</div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
+                    <div class="activity-table">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
@@ -266,11 +408,9 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center py-4">
-                                        <div class="text-muted">
-                                            <i class="ri-inbox-line fs-3 d-block mb-2"></i>
-                                            No collection data available
-                                        </div>
+                                    <td colspan="4" class="text-center py-5 text-muted">
+                                        <i class="ri-inbox-line fs-1 mb-3 d-block"></i>
+                                        No collection data available
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -284,9 +424,9 @@
 
     <!-- Budget Overview -->
     {% if budget_overview %}
-    <div class="row g-3 mt-1">
+    <div class="row g-4">
         <div class="col-12">
-            <div class="management-card">
+            <div class="analytics-card">
                 <div class="card-header">
                     <h5 class="card-title">Budget Overview</h5>
                     <div class="card-subtitle">{{ current_academic_year.name }}</div>
@@ -317,25 +457,10 @@
         </div>
     </div>
     {% endif %}
-
-    <!-- Pending Payments Alert -->
-    {% if pending_payments > 0 %}
-    <div class="row g-3 mt-1">
-        <div class="col-12">
-            <div class="alert alert-warning d-flex align-items-center">
-                <i class="ri-alert-line fs-4 me-3"></i>
-                <div>
-                    <strong>Pending Payments:</strong> You have {{ pending_payments }} payment(s) pending verification.
-                    <a href="{% url 'payment_list' %}?status=pending" class="alert-link ms-2">View Now</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <style>
-    /* Use the same styles from student management template */
+    /* Base Styles */
     :root {
         --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         --radius-sm: 6px;
@@ -345,13 +470,12 @@
         --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
         --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
         --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
         --color-success: #4CAF50;
         --color-warning: #FF9800;
         --color-info: #2196F3;
-        --color-danger: #F44336;
         --color-gray-100: #f8f9fa;
         --color-gray-200: #e9ecef;
-        --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
     }
@@ -361,33 +485,66 @@
         font-weight: 400;
     }
     
-    .content-container {
+    .dashboard-container {
         padding: 0 0.5rem;
     }
     
-    .breadcrumb {
-        background: transparent;
-        padding: 0.75rem 0;
-        margin-bottom: 1rem;
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
         border-bottom: 1px solid var(--color-gray-200);
     }
     
-    .breadcrumb-item a {
-        color: var(--color-gray-600);
-        text-decoration: none;
-        transition: color 0.2s ease;
-    }
-    
-    .breadcrumb-item a:hover {
-        color: var(--color-primary);
-    }
-    
-    .breadcrumb-item.active {
+    .dashboard-header h1 {
+        font-weight: 600;
         color: var(--color-gray-800);
-        font-weight: 500;
     }
     
-    .management-card {
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
         background: white;
         border: 1px solid var(--color-gray-200);
         border-radius: var(--radius-lg);
@@ -395,61 +552,55 @@
         height: 100%;
     }
     
-    .management-card .card-header {
+    .card-header {
         padding: 1.25rem 1.5rem;
         border-bottom: 1px solid var(--color-gray-200);
         background: var(--color-gray-100);
     }
     
-    .management-card .card-title {
+    .card-title {
         font-size: 1rem;
         font-weight: 600;
         color: var(--color-gray-800);
         margin-bottom: 0.25rem;
     }
     
-    .management-card .card-subtitle {
+    .card-subtitle {
         font-size: 0.8125rem;
         color: var(--color-gray-600);
     }
     
-    .management-card .card-body {
+    .card-body {
         padding: 1.5rem;
     }
     
-    .icon-box {
-        width: 48px;
-        height: 48px;
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    /* Activity Table */
+    .activity-table {
+        overflow-x: auto;
     }
     
-    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
-    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
-    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
-    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .activity-table .table {
+        margin-bottom: 0;
+    }
     
-    .table thead th {
+    .activity-table th {
         font-size: 0.8125rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         color: var(--color-gray-600);
         border-top: none;
-        border-bottom: 1px solid var(--color-gray-200);
         padding: 1rem 0.75rem;
         background: var(--color-gray-100);
     }
     
-    .table tbody td {
-        padding: 1rem 0.75rem;
+    .activity-table td {
+        padding: 1.125rem 0.75rem;
         vertical-align: middle;
         border-color: var(--color-gray-200);
     }
     
-    .table tbody tr:hover {
+    .activity-table tbody tr:hover {
         background-color: rgba(46, 125, 50, 0.02);
     }
     
@@ -464,18 +615,312 @@
         letter-spacing: 0.3px;
     }
     
-    .status-active {
+    .status-completed,
+    .status-approved {
         background: rgba(76, 175, 80, 0.1);
         color: var(--color-success);
     }
     
-    .status-deferred {
+    .status-pending {
         background: rgba(255, 152, 0, 0.1);
         color: var(--color-warning);
+    }
+    
+    .status-rejected {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
     }
     
     .progress {
         background-color: var(--color-gray-200);
     }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    .bg-purple-subtle { background-color: rgba(156, 39, 176, 0.08); }
+    .bg-teal-subtle { background-color: rgba(0, 150, 136, 0.08); }
+    .bg-indigo-subtle { background-color: rgba(63, 81, 181, 0.08); }
+    .bg-gray-subtle { background-color: rgba(96, 125, 139, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: #F44336; }
+    .text-purple { color: #9C27B0; }
+    .text-teal { color: #009688; }
+    .text-indigo { color: #3F51B5; }
+    .text-gray { color: #607D8B; }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#6c757d';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 6;
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+    Chart.defaults.plugins.legend.labels.padding = 20;
+    
+    // Professional Color Palette
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info: '#2196F3',
+        danger: '#F44336',
+        purple: '#9C27B0',
+        teal: '#009688',
+        indigo: '#3F51B5'
+    };
+
+    // Parse data from Django context
+    const dailyCollectionsData = JSON.parse('{{ daily_collections_data|safe }}');
+    const paymentMethodsData = JSON.parse('{{ payment_methods_data|safe }}');
+    const programmeChartData = JSON.parse('{{ programme_chart_data|safe }}');
+    const clearanceData = JSON.parse('{{ clearance_data|safe }}');
+
+    // Chart 1: Daily Collections Trend (Line Chart)
+    const dailyCtx = document.getElementById('dailyCollectionsChart');
+    if (dailyCtx) {
+        new Chart(dailyCtx, {
+            type: 'line',
+            data: {
+                labels: dailyCollectionsData.labels,
+                datasets: [{
+                    label: 'Collections (KES)',
+                    data: dailyCollectionsData.data,
+                    borderColor: colors.primary,
+                    backgroundColor: 'rgba(46, 125, 50, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: colors.primary,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return 'KES ' + context.parsed.y.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 2: Payment Methods Distribution (Pie Chart)
+    const methodsCtx = document.getElementById('paymentMethodsChart');
+    if (methodsCtx) {
+        new Chart(methodsCtx, {
+            type: 'pie',
+            data: {
+                labels: paymentMethodsData.labels,
+                datasets: [{
+                    data: paymentMethodsData.data,
+                    backgroundColor: [
+                        colors.primary,
+                        colors.info,
+                        colors.warning,
+                        colors.success,
+                        colors.purple
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const count = paymentMethodsData.counts[context.dataIndex];
+                                return [
+                                    label + ': KES ' + value.toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }),
+                                    count + ' transactions'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 3: Top Programmes (Horizontal Bar Chart)
+    const programmesCtx = document.getElementById('programmesChart');
+    if (programmesCtx) {
+        new Chart(programmesCtx, {
+            type: 'bar',
+            data: {
+                labels: programmeChartData.labels,
+                datasets: [{
+                    label: 'Collections (KES)',
+                    data: programmeChartData.data,
+                    backgroundColor: colors.success,
+                    borderColor: colors.primary,
+                    borderWidth: 1,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const count = programmeChartData.counts[context.dataIndex];
+                                return [
+                                    'Amount: KES ' + context.parsed.x.toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    }),
+                                    'Transactions: ' + count
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 4: Fee Clearance Status (Donut Chart)
+    const clearanceCtx = document.getElementById('clearanceChart');
+    if (clearanceCtx) {
+        new Chart(clearanceCtx, {
+            type: 'doughnut',
+            data: {
+                labels: clearanceData.labels,
+                datasets: [{
+                    data: clearanceData.data,
+                    backgroundColor: [colors.success, colors.danger],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const percentage = clearanceData.percentages[context.dataIndex];
+                                return [
+                                    label + ': ' + value + ' students',
+                                    percentage + '%'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
