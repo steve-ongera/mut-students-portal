@@ -1,46 +1,263 @@
-﻿{% extends 'hostel/hostel_base.html' %}
+{% extends 'hostel/hostel_base.html' %}
 {% load static %}
 
-{% block title %} - Hostel Management{% endblock %}
+{% block title %}Hostel Warden Dashboard{% endblock %}
+
+{% block page_title %}Hostel Warden Dashboard{% endblock %}
+{% block page_subtitle %}Overview of hostel occupancy, applications, and maintenance{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-home mr-2"></i>
-                        
-                    </h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
-                </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Overview</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Statistics Cards Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <!-- Your content will go here -->
-                    <div class="text-center py-5">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Content Coming Soon</h4>
-                        <p class="text-muted">This page is under development.</p>
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted mb-0">Total Capacity</h6>
+                        <i class="ri-hotel-line fs-4 text-primary"></i>
+                    </div>
+                    <h2 class="mb-0">{{ total_capacity }}</h2>
+                    <small class="text-muted">Available beds</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted mb-0">Occupied Beds</h6>
+                        <i class="ri-user-location-line fs-4 text-success"></i>
+                    </div>
+                    <h2 class="mb-0">{{ occupied_beds }}</h2>
+                    <small class="text-muted">Currently occupied</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted mb-0">Available Beds</h6>
+                        <i class="ri-checkbox-blank-circle-line fs-4 text-info"></i>
+                    </div>
+                    <h2 class="mb-0">{{ available_beds }}</h2>
+                    <small class="text-muted">Ready for allocation</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="text-muted mb-0">Occupancy Rate</h6>
+                        <i class="ri-pie-chart-line fs-4 text-warning"></i>
+                    </div>
+                    <h2 class="mb-0">{{ occupancy_rate }}%</h2>
+                    <small class="text-muted">Current occupancy</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Applications</h6>
+                            <h3 class="mb-0">{{ pending_applications }}</h3>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="ri-file-list-3-line fs-3 text-primary"></i>
+                        </div>
                     </div>
                 </div>
-                <div class="card-footer">
-                    <small class="text-muted">Hostel Management System</small>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Maintenance</h6>
+                            <h3 class="mb-0">{{ pending_maintenance }}</h3>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded">
+                            <i class="ri-tools-line fs-3 text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-muted mb-1">Fee Collection Rate</h6>
+                            <h3 class="mb-0">{{ fee_collection_rate }}%</h3>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded">
+                            <i class="ri-money-dollar-circle-line fs-3 text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hostel Statistics Table -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h5 class="mb-0">Hostel Statistics</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Hostel Name</th>
+                                    <th>Total Rooms</th>
+                                    <th>Total Beds</th>
+                                    <th>Occupied</th>
+                                    <th>Available</th>
+                                    <th>Occupancy Rate</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in hostel_stats %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ stat.hostel.name }}</strong>
+                                        <small class="d-block text-muted">{{ stat.hostel.code }}</small>
+                                    </td>
+                                    <td>{{ stat.total_rooms }}</td>
+                                    <td>{{ stat.total_beds }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ stat.occupied }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ stat.available }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar {% if stat.occupancy_rate >= 80 %}bg-success{% elif stat.occupancy_rate >= 50 %}bg-warning{% else %}bg-info{% endif %}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ stat.occupancy_rate }}%">
+                                                {{ stat.occupancy_rate }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'hostel_profile' stat.hostel.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="ri-eye-line"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <p class="text-muted mb-0">No hostel data available</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Applications and Maintenance -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Applications</h5>
+                    <a href="{% url 'new_applications' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for app in recent_applications %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ app.student.registration_number }}</h6>
+                                    <p class="mb-1 text-muted small">{{ app.student.user.get_full_name }}</p>
+                                    <small class="text-muted">
+                                        {{ app.hostel.name }} - {{ app.get_preferred_room_type_display }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-{{ app.status }} mb-1">{{ app.get_status_display }}</span>
+                                    <small class="d-block text-muted">{{ app.application_date|date:"M d, Y" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="list-group-item text-center py-4">
+                            <p class="text-muted mb-0">No recent applications</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Maintenance Requests</h5>
+                    <a href="{% url 'maintenance_requests' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for req in recent_maintenance %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ req.request_number }}</h6>
+                                    <p class="mb-1 text-muted small">{{ req.get_request_type_display }}</p>
+                                    <small class="text-muted">
+                                        {{ req.allocation.bed.room.hostel.name }} - Room {{ req.allocation.bed.room.room_number }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-{% if req.status == 'pending' %}warning{% elif req.status == 'in_progress' %}info{% else %}success{% endif %} mb-1">
+                                        {{ req.get_status_display }}
+                                    </span>
+                                    <small class="d-block text-muted">{{ req.created_at|date:"M d, Y" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="list-group-item text-center py-4">
+                            <p class="text-muted mb-0">No recent maintenance requests</p>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// JavaScript for this specific page will go here
-.ready(function() {
-    console.log(' page loaded');
-});
-</script>
 {% endblock %}

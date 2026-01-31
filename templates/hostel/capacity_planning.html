@@ -1,46 +1,90 @@
-﻿{% extends 'hostel/hostel_base.html' %}
+{% extends 'hostel/hostel_base.html' %}
 {% load static %}
 
-{% block title %} - Hostel Management{% endblock %}
+{% block title %}Capacity Planning{% endblock %}
+{% block page_title %}Capacity Planning{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-home mr-2"></i>
-                        
-                    </h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
-                        </button>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Capacity Planning</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <h1 class="h3 mb-4">Capacity Planning & Forecasting</h1>
+
+    {% for capacity in hostel_capacity %}
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">{{ capacity.hostel.name }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3>{{ capacity.total_beds }}</h3>
+                        <p class="text-muted mb-0">Total Beds</p>
                     </div>
                 </div>
-                <div class="card-body">
-                    <!-- Your content will go here -->
-                    <div class="text-center py-5">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Content Coming Soon</h4>
-                        <p class="text-muted">This page is under development.</p>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3 class="text-success">{{ capacity.occupied }}</h3>
+                        <p class="text-muted mb-0">Occupied</p>
                     </div>
                 </div>
-                <div class="card-footer">
-                    <small class="text-muted">Hostel Management System</small>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3 class="text-info">{{ capacity.available }}</h3>
+                        <p class="text-muted mb-0">Available</p>
+                    </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <h3>{{ capacity.occupancy_rate }}%</h3>
+                        <p class="text-muted mb-0">Occupancy Rate</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress mb-3" style="height: 25px;">
+                <div class="progress-bar bg-success" style="width: {{ capacity.occupancy_rate }}%">
+                    {{ capacity.occupancy_rate }}%
+                </div>
+            </div>
+
+            <h6 class="mt-4">Breakdown by Room Type</h6>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Room Type</th>
+                            <th>Total</th>
+                            <th>Occupied</th>
+                            <th>Available</th>
+                            <th>Occupancy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for breakdown in capacity.room_type_breakdown %}
+                        <tr>
+                            <td>{{ breakdown.type }}</td>
+                            <td>{{ breakdown.total }}</td>
+                            <td>{{ breakdown.occupied }}</td>
+                            <td>{{ breakdown.available }}</td>
+                            <td>{{ breakdown.occupancy }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="alert alert-info mt-3">
+                <strong>Pending Applications:</strong> {{ capacity.pending_applications }}
             </div>
         </div>
     </div>
+    {% endfor %}
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// JavaScript for this specific page will go here
-.ready(function() {
-    console.log(' page loaded');
-});
-</script>
 {% endblock %}

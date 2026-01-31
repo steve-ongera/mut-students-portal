@@ -1,46 +1,77 @@
-﻿{% extends 'hostel/hostel_base.html' %}
+{% extends 'hostel/hostel_base.html' %}
 {% load static %}
 
-{% block title %} - Hostel Management{% endblock %}
+{% block title %}Add New Room{% endblock %}
+{% block page_title %}Add New Room{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-home mr-2"></i>
-                        
-                    </h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'room_management' %}">Room Management</a></li>
+        <li class="breadcrumb-item active">Add Room</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Room Details</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Your content will go here -->
-                    <div class="text-center py-5">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Content Coming Soon</h4>
-                        <p class="text-muted">This page is under development.</p>
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <small class="text-muted">Hostel Management System</small>
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Hostel *</label>
+                                <select name="hostel" class="form-select" required>
+                                    <option value="">Select Hostel</option>
+                                    {% for hostel in warden_hostels %}
+                                    <option value="{{ hostel.id }}">{{ hostel.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Room Number *</label>
+                                <input type="text" name="room_number" class="form-control" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Floor *</label>
+                                <input type="number" name="floor" class="form-control" min="0" max="20" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Room Type *</label>
+                                <select name="room_type" class="form-select" required>
+                                    {% for type_code, type_name in room_types %}
+                                    <option value="{{ type_code }}">{{ type_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Capacity *</label>
+                                <input type="number" name="capacity" class="form-control" min="1" max="10" required>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    <input type="checkbox" name="has_bathroom" class="form-check-input" id="bathroom">
+                                    <label class="form-check-label" for="bathroom">Has Bathroom</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="checkbox" name="has_balcony" class="form-check-input" id="balcony">
+                                    <label class="form-check-label" for="balcony">Has Balcony</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">Add Room</button>
+                            <a href="{% url 'room_management' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-// JavaScript for this specific page will go here
-.ready(function() {
-    console.log(' page loaded');
-});
-</script>
 {% endblock %}

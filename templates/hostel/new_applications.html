@@ -1,46 +1,88 @@
-﻿{% extends 'hostel/hostel_base.html' %}
+{% extends 'hostel/hostel_base.html' %}
 {% load static %}
 
-{% block title %} - Hostel Management{% endblock %}
+{% block title %}New Applications{% endblock %}
+{% block page_title %}New Hostel Applications{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-home mr-2"></i>
-                        
-                    </h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <!-- Your content will go here -->
-                    <div class="text-center py-5">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Content Coming Soon</h4>
-                        <p class="text-muted">This page is under development.</p>
-                    </div>
-                </div>
-                <div class="card-footer">
-                    <small class="text-muted">Hostel Management System</small>
-                </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">New Applications</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <h1 class="h3 mb-4">New Hostel Applications</h1>
+
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Application Date</th>
+                            <th>Student</th>
+                            <th>Registration No.</th>
+                            <th>Hostel</th>
+                            <th>Room Type</th>
+                            <th>Booking Fee</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for app in page_obj %}
+                        <tr>
+                            <td>{{ app.application_date|date:"M d, Y" }}</td>
+                            <td>{{ app.student.user.get_full_name }}</td>
+                            <td>{{ app.student.registration_number }}</td>
+                            <td>{{ app.hostel.name }}</td>
+                            <td>{{ app.get_preferred_room_type_display }}</td>
+                            <td>
+                                {% if app.booking_fee_paid %}
+                                <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                <span class="badge bg-warning">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'application_review' app.id %}" class="btn btn-sm btn-primary">
+                                    Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <p class="text-muted mb-0">No new applications</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-// JavaScript for this specific page will go here
-.ready(function() {
-    console.log(' page loaded');
-});
-</script>
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+            {% endif %}
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }}</span>
+            </li>
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}

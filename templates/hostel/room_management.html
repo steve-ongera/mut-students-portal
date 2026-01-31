@@ -1,46 +1,168 @@
-﻿{% extends 'hostel/hostel_base.html' %}
+{% extends 'hostel/hostel_base.html' %}
 {% load static %}
 
-{% block title %} - Hostel Management{% endblock %}
+{% block title %}Room Management{% endblock %}
+{% block page_title %}Room Management{% endblock %}
+{% block page_subtitle %}Manage hostel rooms and their status{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-home mr-2"></i>
-                        
-                    </h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Room Management</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Room Management</h1>
+        <a href="{% url 'add_room' %}" class="btn btn-primary">
+            <i class="ri-add-line me-2"></i>Add New Room
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Hostel</label>
+                    <select name="hostel" class="form-select">
+                        <option value="">All Hostels</option>
+                        {% for hostel in warden_hostels %}
+                        <option value="{{ hostel.id }}" {% if hostel_filter == hostel.id|stringformat:"i" %}selected{% endif %}>
+                            {{ hostel.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-body">
-                    <!-- Your content will go here -->
-                    <div class="text-center py-5">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Content Coming Soon</h4>
-                        <p class="text-muted">This page is under development.</p>
-                    </div>
+                <div class="col-md-2">
+                    <label class="form-label">Floor</label>
+                    <select name="floor" class="form-select">
+                        <option value="">All Floors</option>
+                        {% for floor in floors %}
+                        <option value="{{ floor }}" {% if floor_filter == floor|stringformat:"i" %}selected{% endif %}>
+                            Floor {{ floor }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-footer">
-                    <small class="text-muted">Hostel Management System</small>
+                <div class="col-md-3">
+                    <label class="form-label">Room Type</label>
+                    <select name="room_type" class="form-select">
+                        <option value="">All Types</option>
+                        {% for type_code, type_name in room_types %}
+                        <option value="{{ type_code }}" {% if room_type_filter == type_code %}selected{% endif %}>
+                            {{ type_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
+                <div class="col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Rooms Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Hostel</th>
+                            <th>Room Number</th>
+                            <th>Floor</th>
+                            <th>Type</th>
+                            <th>Capacity</th>
+                            <th>Bathroom</th>
+                            <th>Balcony</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for room in page_obj %}
+                        <tr>
+                            <td>{{ room.hostel.name }}</td>
+                            <td><strong>{{ room.room_number }}</strong></td>
+                            <td>{{ room.floor }}</td>
+                            <td>{{ room.get_room_type_display }}</td>
+                            <td>{{ room.capacity }}</td>
+                            <td>
+                                {% if room.has_bathroom %}
+                                <i class="ri-check-line text-success"></i>
+                                {% else %}
+                                <i class="ri-close-line text-danger"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if room.has_balcony %}
+                                <i class="ri-check-line text-success"></i>
+                                {% else %}
+                                <i class="ri-close-line text-danger"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if room.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" title="View">
+                                        <i class="ri-eye-line"></i>
+                                    </button>
+                                    <button class="btn btn-outline-warning" title="Edit">
+                                        <i class="ri-edit-line"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                <p class="text-muted mb-0">No rooms found</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-// JavaScript for this specific page will go here
-.ready(function() {
-    console.log(' page loaded');
-});
-</script>
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+            {% endif %}
+            <li class="page-item active">
+                <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}

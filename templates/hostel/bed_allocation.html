@@ -1,46 +1,112 @@
-﻿{% extends 'hostel/hostel_base.html' %}
+{% extends 'hostel/hostel_base.html' %}
 {% load static %}
 
-{% block title %} - Hostel Management{% endblock %}
+{% block title %}Bed Allocation{% endblock %}
+{% block page_title %}Bed Allocation Management{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-home mr-2"></i>
-                        
-                    </h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Bed Allocation</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <h1 class="h3 mb-4">Bed Allocation Management</h1>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Hostel</label>
+                    <select name="hostel" class="form-select">
+                        <option value="">All Hostels</option>
+                        {% for hostel in warden_hostels %}
+                        <option value="{{ hostel.id }}">{{ hostel.name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-body">
-                    <!-- Your content will go here -->
-                    <div class="text-center py-5">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Content Coming Soon</h4>
-                        <p class="text-muted">This page is under development.</p>
-                    </div>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        {% for status_code, status_name in bed_statuses %}
+                        <option value="{{ status_code }}">{{ status_name }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="card-footer">
-                    <small class="text-muted">Hostel Management System</small>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
                 </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Beds Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Hostel</th>
+                            <th>Room</th>
+                            <th>Bed Number</th>
+                            <th>Status</th>
+                            <th>Occupant</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bed in page_obj %}
+                        <tr>
+                            <td>{{ bed.room.hostel.name }}</td>
+                            <td>Room {{ bed.room.room_number }} (Floor {{ bed.room.floor }})</td>
+                            <td><strong>{{ bed.bed_number }}</strong></td>
+                            <td>
+                                <span class="badge bg-{% if bed.status == 'available' %}success{% elif bed.status == 'occupied' %}warning{% elif bed.status == 'reserved' %}info{% else %}secondary{% endif %}">
+                                    {{ bed.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if bed.current_allocation %}
+                                {{ bed.current_allocation.student.registration_number }}
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary">View</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
-<script>
-// JavaScript for this specific page will go here
-.ready(function() {
-    console.log(' page loaded');
-});
-</script>
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+            {% endif %}
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }}</span>
+            </li>
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
 {% endblock %}

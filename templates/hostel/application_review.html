@@ -1,46 +1,149 @@
-﻿{% extends 'hostel/hostel_base.html' %}
+{% extends 'hostel/hostel_base.html' %}
 {% load static %}
 
-{% block title %} - Hostel Management{% endblock %}
+{% block title %}Review Application{% endblock %}
+{% block page_title %}Review Hostel Application{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'new_applications' %}">Applications</a></li>
+        <li class="breadcrumb-item active">Review</li>
+    </ol>
+</nav>
+
+<div class="content-container">
     <div class="row">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-home mr-2"></i>
-                        
-                    </h3>
-                    <div class="card-tools">
-                        <button type="button" class="btn btn-tool" data-card-widget="collapse">
-                            <i class="fas fa-minus"></i>
-                        </button>
-                    </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Application Details</h5>
                 </div>
                 <div class="card-body">
-                    <!-- Your content will go here -->
-                    <div class="text-center py-5">
-                        <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-                        <h4 class="text-muted">Content Coming Soon</h4>
-                        <p class="text-muted">This page is under development.</p>
-                    </div>
+                    <table class="table table-borderless">
+                        <tr>
+                            <th width="40%">Student:</th>
+                            <td>{{ application.student.user.get_full_name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Registration No:</th>
+                            <td>{{ application.student.registration_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>Programme:</th>
+                            <td>{{ application.student.programme.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Hostel:</th>
+                            <td>{{ application.hostel.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Preferred Room Type:</th>
+                            <td>{{ application.get_preferred_room_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>Application Date:</th>
+                            <td>{{ application.application_date|date:"M d, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <th>Booking Fee:</th>
+                            <td>
+                                {% if application.booking_fee_paid %}
+                                <span class="badge bg-success">Paid</span>
+                                <br>
+                                <small class="text-muted">Ref: {{ application.payment_reference }}</small>
+                                {% else %}
+                                <span class="badge bg-warning">Not Paid</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Status:</th>
+                            <td><span class="badge bg-info">{{ application.get_status_display }}</span></td>
+                        </tr>
+                    </table>
                 </div>
-                <div class="card-footer">
-                    <small class="text-muted">Hostel Management System</small>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Available Beds</h5>
+                </div>
+                <div class="card-body">
+                    {% if available_beds %}
+                    <div class="list-group">
+                        {% for bed in available_beds %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>Room {{ bed.room.room_number }}</strong> - Bed {{ bed.bed_number }}
+                                    <br>
+                                    <small class="text-muted">Floor {{ bed.room.floor }}</small>
+                                </div>
+                                <button class="btn btn-sm btn-success" onclick="allocateBed({{ application.id }}, {{ bed.id }})">
+                                    Allocate
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted">No available beds for selected room type</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
 
-{% block scripts %}
+    <div class="card">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">Review Action</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label class="form-label">Remarks</label>
+                    <textarea name="remarks" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" name="action" value="approve" class="btn btn-success">
+                        <i class="ri-check-line me-2"></i>Approve
+                    </button>
+                    <button type="submit" name="action" value="reject" class="btn btn-danger">
+                        <i class="ri-close-line me-2"></i>Reject
+                    </button>
+                    <a href="{% url 'new_applications' %}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
-// JavaScript for this specific page will go here
-.ready(function() {
-    console.log(' page loaded');
-});
+function allocateBed(applicationId, bedId) {
+    if (confirm('Are you sure you want to allocate this bed?')) {
+        fetch('{% url "allocate_bed_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: `application_id=${applicationId}&bed_id=${bedId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    }
+}
 </script>
 {% endblock %}
