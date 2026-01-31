@@ -668,5 +668,80 @@ urlpatterns = [
     
     # ============= EXPORTS =============
     path('finance/export/debtors-csv/', views.export_debtors_csv, name='export_debtors_csv'),
+    
+    # ============= HOSTEL MANAGEMENT =============
+    path('hostel/profile/', views.hostel_profile, name='hostel_profile'),
+    path('hostel/profile/<int:hostel_id>/', views.hostel_profile, name='hostel_profile'),
+    path('rooms/', views.room_management, name='room_management'),
+    path('rooms/add/', views.add_room, name='add_room'),
+    path('beds/allocation/', views.bed_allocation_management, name='bed_allocation'),
+    path('capacity/planning/', views.capacity_planning, name='capacity_planning'),
+    path('hostel/rules/', views.hostel_rules, name='hostel_rules'),
+    
+    # ============= APPLICATIONS =============
+    path('applications/new/', views.new_applications, name='new_applications'),
+    path('applications/review/<int:application_id>/', views.application_review, name='application_review'),
+    path('applications/approved/', views.approved_applications, name='approved_applications'),
+    path('applications/rejected/', views.rejected_applications, name='rejected_applications'),
+    path('applications/waiting-list/', views.waiting_list, name='waiting_list'),
+    
+    # ============= OCCUPANCY MANAGEMENT =============
+    path('occupancy/current/', views.current_occupants, name='current_occupants'),
+    path('occupancy/vacant/', views.vacant_rooms, name='vacant_rooms'),
+    path('occupancy/rate/', views.occupancy_rate, name='occupancy_rate'),
+    path('occupancy/check-in-out/', views.check_in_check_out, name='check_in_check_out'),
+    path('occupancy/transfers/', views.room_transfers, name='room_transfers'),
+    
+    # ============= MAINTENANCE =============
+    path('maintenance/requests/', views.maintenance_requests, name='maintenance_requests'),
+    path('maintenance/request/<int:request_id>/', views.maintenance_request_detail, name='maintenance_request_detail'),
+    path('maintenance/work-orders/', views.work_orders, name='work_orders'),
+    path('maintenance/preventive/', views.preventive_maintenance, name='preventive_maintenance'),
+    path('maintenance/schedule/', views.maintenance_schedule, name='maintenance_schedule'),
+    path('maintenance/facility-inspection/', views.facility_inspection, name='facility_inspection'),
+    
+    # ============= HOSTEL FEES =============
+    path('fees/structure/', views.fee_structure, name='fee_structure'),
+    path('fees/collection/', views.fee_collection, name='fee_collection'),
+    path('fees/outstanding/', views.outstanding_fees, name='outstanding_fees'),
+    path('fees/receipts/', views.receipts, name='receipts'),
+    path('fees/refunds/', views.refunds, name='refunds'),
+    
+    # ============= SECURITY & SAFETY =============
+    path('security/personnel/', views.security_personnel, name='security_personnel'),
+    path('security/visitors/', views.visitor_management, name='visitor_management'),
+    path('security/emergency-procedures/', views.emergency_procedures, name='emergency_procedures'),
+    path('security/incidents/', views.incident_reports, name='incident_reports'),
+    path('security/safety-inspections/', views.safety_inspections, name='safety_inspections'),
+    
+    # ============= STUDENT WELFARE =============
+    path('welfare/issues/', views.welfare_issues, name='welfare_issues'),
+    path('welfare/counseling/', views.counseling_services, name='counseling_services'),
+    path('welfare/health/', views.health_services, name='health_services'),
+    path('welfare/recreation/', views.recreational_activities, name='recreational_activities'),
+    path('welfare/complaints/', views.student_complaints, name='student_complaints'),
+    
+    # ============= DISCIPLINARY MATTERS =============
+    path('disciplinary/violations/', views.rule_violations, name='rule_violations'),
+    path('disciplinary/cases/', views.disciplinary_cases, name='disciplinary_cases'),
+    path('disciplinary/warnings/', views.warning_letters, name='warning_letters'),
+    path('disciplinary/suspensions/', views.suspensions, name='suspensions'),
+    path('disciplinary/records/', views.disciplinary_records, name='disciplinary_records'),
+    
+    # ============= REPORTS =============
+    path('reports/occupancy/', views.occupancy_reports, name='occupancy_reports'),
+    path('reports/financial/', views.financial_reports, name='financial_reports'),
+    path('reports/maintenance/', views.maintenance_reports, name='maintenance_reports'),
+    path('reports/incidents/', views.incident_reports_summary, name='incident_reports_summary'),
+    path('reports/monthly/', views.monthly_reports, name='monthly_reports'),
+    
+    # ============= AJAX/API ENDPOINTS =============
+    path('ajax/available-beds/', views.get_available_beds_ajax, name='get_available_beds_ajax'),
+    path('ajax/allocate-bed/', views.allocate_bed_ajax, name='allocate_bed_ajax'),
+    path('ajax/update-maintenance/', views.update_maintenance_status_ajax, name='update_maintenance_status_ajax'),
+    
+    # ============= EXPORT FUNCTIONS =============
+    path('export/occupancy/', views.export_occupancy_report, name='export_occupancy_report'),
+    path('export/maintenance/', views.export_maintenance_report, name='export_maintenance_report'),
        
 ]

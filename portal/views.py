@@ -5499,10 +5499,1971 @@ def circulation_report(request):
 
 # Continue in next file for remaining views...
 
+"""
+Hostel Warden Views
+All views for hostel management functionality
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Sum, Avg
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+# Import your models (adjust the import path based on your project structure)
+from .models import (
+    Hostel, HostelRoom, HostelBed, HostelApplication, HostelAllocation,
+    HostelFeeStructure, HostelImage, HostelRoomImage, BedReservation,
+    MpesaPayment, SMSNotification, HostelReview, HostelMaintenanceRequest,
+    Student, AcademicYear, Semester, User
+)
+
+
+# ============= DASHBOARD =============
+
 @login_required
 def hostel_dashboard(request):
-    context = {'page_title': 'Hostel Dashboard'}
-    return render(request, 'hostel/dashboard.html', context)
+    """Main hostel warden dashboard"""
+    try:
+        # Get current academic year and semester
+        current_year = AcademicYear.objects.filter(is_current=True).first()
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        # Get warden's hostels
+        warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+        
+        # Overall statistics
+        total_capacity = warden_hostels.aggregate(
+            total=Sum('total_capacity')
+        )['total'] or 0
+        
+        # Get occupied beds count
+        occupied_beds = HostelAllocation.objects.filter(
+            bed__room__hostel__in=warden_hostels,
+            academic_year=current_year,
+            semester=current_semester,
+            is_active=True
+        ).count()
+        
+        # Calculate occupancy rate
+        occupancy_rate = (occupied_beds / total_capacity * 100) if total_capacity > 0 else 0
+        
+        # Pending applications
+        pending_applications = HostelApplication.objects.filter(
+            hostel__in=warden_hostels,
+            status='pending',
+            academic_year=current_year,
+            semester=current_semester
+        ).count()
+        
+        # Maintenance requests (pending/in progress)
+        pending_maintenance = HostelMaintenanceRequest.objects.filter(
+            allocation__bed__room__hostel__in=warden_hostels,
+            status__in=['pending', 'acknowledged', 'in_progress']
+        ).count()
+        
+        # Recent applications (last 7 days)
+        week_ago = timezone.now() - timedelta(days=7)
+        recent_applications = HostelApplication.objects.filter(
+            hostel__in=warden_hostels,
+            application_date__gte=week_ago
+        ).select_related('student', 'hostel').order_by('-application_date')[:10]
+        
+        # Room availability by hostel
+        hostel_stats = []
+        for hostel in warden_hostels:
+            total_rooms = HostelRoom.objects.filter(hostel=hostel, is_active=True).count()
+            total_beds = HostelBed.objects.filter(
+                room__hostel=hostel,
+                academic_year=current_year,
+                is_active=True
+            ).count()
+            
+            occupied = HostelAllocation.objects.filter(
+                bed__room__hostel=hostel,
+                academic_year=current_year,
+                semester=current_semester,
+                is_active=True
+            ).count()
+            
+            available = total_beds - occupied
+            occupancy = (occupied / total_beds * 100) if total_beds > 0 else 0
+            
+            hostel_stats.append({
+                'hostel': hostel,
+                'total_rooms': total_rooms,
+                'total_beds': total_beds,
+                'occupied': occupied,
+                'available': available,
+                'occupancy_rate': round(occupancy, 1)
+            })
+        
+        # Recent maintenance requests
+        recent_maintenance = HostelMaintenanceRequest.objects.filter(
+            allocation__bed__room__hostel__in=warden_hostels
+        ).select_related(
+            'student', 'allocation__bed__room__hostel'
+        ).order_by('-created_at')[:10]
+        
+        # Fee collection statistics
+        total_expected_fees = HostelAllocation.objects.filter(
+            bed__room__hostel__in=warden_hostels,
+            academic_year=current_year,
+            semester=current_semester,
+            is_active=True
+        ).count()
+        
+        fees_paid_count = HostelAllocation.objects.filter(
+            bed__room__hostel__in=warden_hostels,
+            academic_year=current_year,
+            semester=current_semester,
+            is_active=True,
+            fee_paid=True
+        ).count()
+        
+        fee_collection_rate = (fees_paid_count / total_expected_fees * 100) if total_expected_fees > 0 else 0
+        
+        context = {
+            'current_year': current_year,
+            'current_semester': current_semester,
+            'warden_hostels': warden_hostels,
+            'total_capacity': total_capacity,
+            'occupied_beds': occupied_beds,
+            'available_beds': total_capacity - occupied_beds,
+            'occupancy_rate': round(occupancy_rate, 1),
+            'pending_applications': pending_applications,
+            'pending_maintenance': pending_maintenance,
+            'hostel_stats': hostel_stats,
+            'recent_applications': recent_applications,
+            'recent_maintenance': recent_maintenance,
+            'fee_collection_rate': round(fee_collection_rate, 1),
+            'fees_paid_count': fees_paid_count,
+            'total_expected_fees': total_expected_fees,
+        }
+        
+        return render(request, 'hostel/warden_dashboard.html', context)
+        
+    except Exception as e:
+        messages.error(request, f'Error loading dashboard: {str(e)}')
+        return render(request, 'hostel/warden_dashboard.html', {})
+
+
+# ============= HOSTEL MANAGEMENT =============
+
+@login_required
+def hostel_profile(request, hostel_id=None):
+    """View and edit hostel profile"""
+    if hostel_id:
+        hostel = get_object_or_404(Hostel, id=hostel_id, warden=request.user)
+    else:
+        # Get first hostel for this warden
+        hostel = Hostel.objects.filter(warden=request.user).first()
+        if not hostel:
+            messages.warning(request, 'No hostel assigned to you.')
+            return redirect('hostel_warden_dashboard')
+    
+    if request.method == 'POST':
+        # Update hostel details
+        hostel.description = request.POST.get('description', '')
+        hostel.amenities = request.POST.get('amenities', '')
+        hostel.location = request.POST.get('location', '')
+        hostel.save()
+        messages.success(request, 'Hostel profile updated successfully.')
+        return redirect('hostel_profile', hostel_id=hostel.id)
+    
+    # Get hostel statistics
+    total_rooms = HostelRoom.objects.filter(hostel=hostel, is_active=True).count()
+    total_beds = HostelBed.objects.filter(room__hostel=hostel, is_active=True).count()
+    
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    occupied_beds = HostelAllocation.objects.filter(
+        bed__room__hostel=hostel,
+        academic_year=current_year,
+        semester=current_semester,
+        is_active=True
+    ).count()
+    
+    # Get hostel images
+    images = HostelImage.objects.filter(hostel=hostel).order_by('display_order', '-is_primary')
+    
+    context = {
+        'hostel': hostel,
+        'total_rooms': total_rooms,
+        'total_beds': total_beds,
+        'occupied_beds': occupied_beds,
+        'available_beds': total_beds - occupied_beds,
+        'images': images,
+    }
+    
+    return render(request, 'hostel/hostel_profile.html', context)
+
+
+@login_required
+def room_management(request):
+    """Manage hostel rooms"""
+    # Get warden's hostels
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # Filter options
+    hostel_filter = request.GET.get('hostel', '')
+    floor_filter = request.GET.get('floor', '')
+    room_type_filter = request.GET.get('room_type', '')
+    status_filter = request.GET.get('status', '')
+    
+    # Build query
+    rooms = HostelRoom.objects.filter(hostel__in=warden_hostels)
+    
+    if hostel_filter:
+        rooms = rooms.filter(hostel_id=hostel_filter)
+    if floor_filter:
+        rooms = rooms.filter(floor=floor_filter)
+    if room_type_filter:
+        rooms = rooms.filter(room_type=room_type_filter)
+    if status_filter == 'active':
+        rooms = rooms.filter(is_active=True)
+    elif status_filter == 'inactive':
+        rooms = rooms.filter(is_active=False)
+    
+    rooms = rooms.select_related('hostel').order_by('hostel', 'floor', 'room_number')
+    
+    # Pagination
+    paginator = Paginator(rooms, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get unique floors for filter
+    floors = HostelRoom.objects.filter(
+        hostel__in=warden_hostels
+    ).values_list('floor', flat=True).distinct().order_by('floor')
+    
+    context = {
+        'page_obj': page_obj,
+        'warden_hostels': warden_hostels,
+        'floors': floors,
+        'room_types': HostelRoom.ROOM_TYPES,
+        'hostel_filter': hostel_filter,
+        'floor_filter': floor_filter,
+        'room_type_filter': room_type_filter,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'hostel/room_management.html', context)
+
+
+@login_required
+def add_room(request):
+    """Add new room"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    if request.method == 'POST':
+        hostel_id = request.POST.get('hostel')
+        room_number = request.POST.get('room_number')
+        floor = request.POST.get('floor')
+        room_type = request.POST.get('room_type')
+        capacity = request.POST.get('capacity')
+        has_bathroom = request.POST.get('has_bathroom') == 'on'
+        has_balcony = request.POST.get('has_balcony') == 'on'
+        
+        try:
+            hostel = Hostel.objects.get(id=hostel_id, warden=request.user)
+            
+            # Check if room number already exists
+            if HostelRoom.objects.filter(hostel=hostel, room_number=room_number).exists():
+                messages.error(request, f'Room {room_number} already exists in {hostel.name}.')
+                return redirect('add_room')
+            
+            room = HostelRoom.objects.create(
+                hostel=hostel,
+                room_number=room_number,
+                floor=int(floor),
+                room_type=room_type,
+                capacity=int(capacity),
+                has_bathroom=has_bathroom,
+                has_balcony=has_balcony,
+                is_active=True
+            )
+            
+            messages.success(request, f'Room {room_number} added successfully.')
+            return redirect('room_management')
+            
+        except Exception as e:
+            messages.error(request, f'Error adding room: {str(e)}')
+    
+    context = {
+        'warden_hostels': warden_hostels,
+        'room_types': HostelRoom.ROOM_TYPES,
+    }
+    
+    return render(request, 'hostel/add_room.html', context)
+
+
+@login_required
+def bed_allocation_management(request):
+    """Manage bed allocations"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Filters
+    hostel_filter = request.GET.get('hostel', '')
+    room_filter = request.GET.get('room', '')
+    status_filter = request.GET.get('status', '')
+    
+    # Get beds
+    beds = HostelBed.objects.filter(
+        room__hostel__in=warden_hostels,
+        academic_year=current_year
+    ).select_related('room__hostel')
+    
+    if hostel_filter:
+        beds = beds.filter(room__hostel_id=hostel_filter)
+    if room_filter:
+        beds = beds.filter(room_id=room_filter)
+    if status_filter:
+        beds = beds.filter(status=status_filter)
+    
+    beds = beds.order_by('room__hostel', 'room__floor', 'room__room_number', 'bed_number')
+    
+    # Pagination
+    paginator = Paginator(beds, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get allocation info for each bed
+    for bed in page_obj:
+        bed.current_allocation = HostelAllocation.objects.filter(
+            bed=bed,
+            academic_year=current_year,
+            semester=current_semester,
+            is_active=True
+        ).select_related('student').first()
+    
+    context = {
+        'page_obj': page_obj,
+        'warden_hostels': warden_hostels,
+        'bed_statuses': HostelBed.BED_STATUS,
+        'current_year': current_year,
+        'current_semester': current_semester,
+        'hostel_filter': hostel_filter,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'hostel/bed_allocation.html', context)
+
+
+@login_required
+def capacity_planning(request):
+    """Capacity planning and forecasting"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    hostel_capacity = []
+    
+    for hostel in warden_hostels:
+        # Total capacity
+        total_beds = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year,
+            is_active=True
+        ).count()
+        
+        # Occupied
+        occupied = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year,
+            status='occupied'
+        ).count()
+        
+        # Available
+        available = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year,
+            status='available'
+        ).count()
+        
+        # Reserved
+        reserved = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year,
+            status='reserved'
+        ).count()
+        
+        # Maintenance
+        maintenance = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year,
+            status='maintenance'
+        ).count()
+        
+        # Pending applications
+        pending = HostelApplication.objects.filter(
+            hostel=hostel,
+            academic_year=current_year,
+            status='pending'
+        ).count()
+        
+        # Calculate occupancy rate
+        occupancy_rate = (occupied / total_beds * 100) if total_beds > 0 else 0
+        
+        # Breakdown by room type
+        room_type_breakdown = []
+        for room_type, room_type_name in HostelRoom.ROOM_TYPES:
+            type_beds = HostelBed.objects.filter(
+                room__hostel=hostel,
+                room__room_type=room_type,
+                academic_year=current_year,
+                is_active=True
+            ).count()
+            
+            type_occupied = HostelBed.objects.filter(
+                room__hostel=hostel,
+                room__room_type=room_type,
+                academic_year=current_year,
+                status='occupied'
+            ).count()
+            
+            room_type_breakdown.append({
+                'type': room_type_name,
+                'total': type_beds,
+                'occupied': type_occupied,
+                'available': type_beds - type_occupied,
+                'occupancy': (type_occupied / type_beds * 100) if type_beds > 0 else 0
+            })
+        
+        hostel_capacity.append({
+            'hostel': hostel,
+            'total_beds': total_beds,
+            'occupied': occupied,
+            'available': available,
+            'reserved': reserved,
+            'maintenance': maintenance,
+            'pending_applications': pending,
+            'occupancy_rate': round(occupancy_rate, 1),
+            'room_type_breakdown': room_type_breakdown
+        })
+    
+    context = {
+        'hostel_capacity': hostel_capacity,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/capacity_planning.html', context)
+
+
+@login_required
+def hostel_rules(request):
+    """Manage hostel rules and regulations"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # In a real implementation, you'd have a HostelRules model
+    # For now, we'll use a simple context
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/hostel_rules.html', context)
+
+
+# ============= APPLICATIONS =============
+
+@login_required
+def new_applications(request):
+    """View new hostel applications"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    applications = HostelApplication.objects.filter(
+        hostel__in=warden_hostels,
+        status='pending',
+        academic_year=current_year,
+        semester=current_semester
+    ).select_related('student', 'hostel').order_by('-application_date')
+    
+    # Pagination
+    paginator = Paginator(applications, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/new_applications.html', context)
+
+
+@login_required
+def application_review(request, application_id):
+    """Review and approve/reject application"""
+    application = get_object_or_404(
+        HostelApplication,
+        id=application_id,
+        hostel__warden=request.user
+    )
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        remarks = request.POST.get('remarks', '')
+        
+        if action == 'approve':
+            application.status = 'approved'
+            application.approved_by = request.user
+            application.approved_date = timezone.now()
+            application.remarks = remarks
+            application.save()
+            
+            messages.success(request, f'Application for {application.student.registration_number} approved.')
+            
+        elif action == 'reject':
+            application.status = 'rejected'
+            application.approved_by = request.user
+            application.approved_date = timezone.now()
+            application.remarks = remarks
+            application.save()
+            
+            messages.warning(request, f'Application for {application.student.registration_number} rejected.')
+        
+        return redirect('new_applications')
+    
+    # Check available beds
+    available_beds = HostelBed.objects.filter(
+        room__hostel=application.hostel,
+        room__room_type=application.preferred_room_type,
+        academic_year=application.academic_year,
+        status='available',
+        is_active=True
+    ).select_related('room').order_by('room__floor', 'room__room_number', 'bed_number')
+    
+    context = {
+        'application': application,
+        'available_beds': available_beds,
+    }
+    
+    return render(request, 'hostel/application_review.html', context)
+
+
+@login_required
+def approved_applications(request):
+    """View approved applications"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    applications = HostelApplication.objects.filter(
+        hostel__in=warden_hostels,
+        status='approved',
+        academic_year=current_year
+    ).select_related('student', 'hostel', 'approved_by').order_by('-approved_date')
+    
+    paginator = Paginator(applications, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/approved_applications.html', context)
+
+
+@login_required
+def rejected_applications(request):
+    """View rejected applications"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    applications = HostelApplication.objects.filter(
+        hostel__in=warden_hostels,
+        status='rejected',
+        academic_year=current_year
+    ).select_related('student', 'hostel', 'approved_by').order_by('-approved_date')
+    
+    paginator = Paginator(applications, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/rejected_applications.html', context)
+
+
+@login_required
+def waiting_list(request):
+    """View applications on waiting list"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Applications that are approved but not yet allocated
+    applications = HostelApplication.objects.filter(
+        hostel__in=warden_hostels,
+        status='approved',
+        academic_year=current_year
+    ).exclude(
+        student__in=HostelAllocation.objects.filter(
+            academic_year=current_year,
+            is_active=True
+        ).values_list('student_id', flat=True)
+    ).select_related('student', 'hostel').order_by('application_date')
+    
+    paginator = Paginator(applications, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/waiting_list.html', context)
+
+
+# ============= OCCUPANCY MANAGEMENT =============
+
+@login_required
+def current_occupants(request):
+    """View current hostel occupants"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Filters
+    hostel_filter = request.GET.get('hostel', '')
+    search = request.GET.get('search', '')
+    
+    allocations = HostelAllocation.objects.filter(
+        bed__room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        semester=current_semester,
+        is_active=True
+    ).select_related('student', 'bed__room__hostel', 'bed__room')
+    
+    if hostel_filter:
+        allocations = allocations.filter(bed__room__hostel_id=hostel_filter)
+    
+    if search:
+        allocations = allocations.filter(
+            Q(student__registration_number__icontains=search) |
+            Q(student__user__first_name__icontains=search) |
+            Q(student__user__last_name__icontains=search)
+        )
+    
+    allocations = allocations.order_by('bed__room__hostel', 'bed__room__room_number', 'bed__bed_number')
+    
+    paginator = Paginator(allocations, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'warden_hostels': warden_hostels,
+        'current_year': current_year,
+        'current_semester': current_semester,
+        'hostel_filter': hostel_filter,
+        'search': search,
+    }
+    
+    return render(request, 'hostel/current_occupants.html', context)
+
+
+@login_required
+def vacant_rooms(request):
+    """View vacant rooms and beds"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get available beds
+    available_beds = HostelBed.objects.filter(
+        room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        status='available',
+        is_active=True
+    ).select_related('room__hostel').order_by('room__hostel', 'room__floor', 'room__room_number')
+    
+    # Group by room
+    rooms_data = {}
+    for bed in available_beds:
+        room_key = f"{bed.room.hostel.name} - Room {bed.room.room_number}"
+        if room_key not in rooms_data:
+            rooms_data[room_key] = {
+                'room': bed.room,
+                'beds': []
+            }
+        rooms_data[room_key]['beds'].append(bed)
+    
+    context = {
+        'rooms_data': rooms_data,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/vacant_rooms.html', context)
+
+
+@login_required
+def occupancy_rate(request):
+    """View occupancy rate statistics"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get statistics by hostel
+    hostel_stats = []
+    for hostel in warden_hostels:
+        total_beds = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year,
+            is_active=True
+        ).count()
+        
+        occupied = HostelAllocation.objects.filter(
+            bed__room__hostel=hostel,
+            academic_year=current_year,
+            semester=current_semester,
+            is_active=True
+        ).count()
+        
+        occupancy = (occupied / total_beds * 100) if total_beds > 0 else 0
+        
+        # By floor
+        floor_stats = []
+        floors = HostelRoom.objects.filter(hostel=hostel).values_list('floor', flat=True).distinct()
+        
+        for floor in floors:
+            floor_beds = HostelBed.objects.filter(
+                room__hostel=hostel,
+                room__floor=floor,
+                academic_year=current_year,
+                is_active=True
+            ).count()
+            
+            floor_occupied = HostelAllocation.objects.filter(
+                bed__room__hostel=hostel,
+                bed__room__floor=floor,
+                academic_year=current_year,
+                semester=current_semester,
+                is_active=True
+            ).count()
+            
+            floor_occupancy = (floor_occupied / floor_beds * 100) if floor_beds > 0 else 0
+            
+            floor_stats.append({
+                'floor': floor,
+                'total': floor_beds,
+                'occupied': floor_occupied,
+                'occupancy': round(floor_occupancy, 1)
+            })
+        
+        hostel_stats.append({
+            'hostel': hostel,
+            'total_beds': total_beds,
+            'occupied': occupied,
+            'available': total_beds - occupied,
+            'occupancy_rate': round(occupancy, 1),
+            'floor_stats': floor_stats
+        })
+    
+    context = {
+        'hostel_stats': hostel_stats,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/occupancy_rate.html', context)
+
+
+@login_required
+def check_in_check_out(request):
+    """Manage student check-in and check-out"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        allocation_id = request.POST.get('allocation_id')
+        
+        try:
+            allocation = HostelAllocation.objects.get(
+                id=allocation_id,
+                bed__room__hostel__in=warden_hostels
+            )
+            
+            if action == 'check_in':
+                allocation.check_in_date = timezone.now()
+                allocation.save()
+                messages.success(request, f'Student {allocation.student.registration_number} checked in successfully.')
+                
+            elif action == 'check_out':
+                allocation.check_out_date = timezone.now()
+                allocation.is_active = False
+                allocation.save()
+                
+                # Update bed status
+                allocation.bed.status = 'available'
+                allocation.bed.save()
+                
+                messages.success(request, f'Student {allocation.student.registration_number} checked out successfully.')
+        
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+        
+        return redirect('check_in_check_out')
+    
+    # Recent allocations without check-in
+    pending_checkin = HostelAllocation.objects.filter(
+        bed__room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        semester=current_semester,
+        is_active=True,
+        check_in_date__isnull=True
+    ).select_related('student', 'bed__room__hostel', 'bed__room').order_by('-allocation_date')[:20]
+    
+    # Recent check-ins
+    recent_checkins = HostelAllocation.objects.filter(
+        bed__room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        semester=current_semester,
+        check_in_date__isnull=False
+    ).select_related('student', 'bed__room__hostel', 'bed__room').order_by('-check_in_date')[:20]
+    
+    # Recent check-outs
+    recent_checkouts = HostelAllocation.objects.filter(
+        bed__room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        semester=current_semester,
+        check_out_date__isnull=False
+    ).select_related('student', 'bed__room__hostel', 'bed__room').order_by('-check_out_date')[:20]
+    
+    context = {
+        'pending_checkin': pending_checkin,
+        'recent_checkins': recent_checkins,
+        'recent_checkouts': recent_checkouts,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/check_in_check_out.html', context)
+
+
+@login_required
+def room_transfers(request):
+    """Manage room/bed transfers"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if request.method == 'POST':
+        allocation_id = request.POST.get('allocation_id')
+        new_bed_id = request.POST.get('new_bed_id')
+        reason = request.POST.get('reason', '')
+        
+        try:
+            allocation = HostelAllocation.objects.get(
+                id=allocation_id,
+                bed__room__hostel__in=warden_hostels
+            )
+            
+            new_bed = HostelBed.objects.get(id=new_bed_id)
+            
+            # Check if new bed is available
+            if new_bed.status != 'available':
+                messages.error(request, 'Selected bed is not available.')
+                return redirect('room_transfers')
+            
+            # Update old bed
+            old_bed = allocation.bed
+            old_bed.status = 'available'
+            old_bed.save()
+            
+            # Update allocation
+            allocation.bed = new_bed
+            allocation.remarks = f"Transferred from {old_bed.room.room_number}-{old_bed.bed_number}. Reason: {reason}"
+            allocation.save()
+            
+            # Update new bed
+            new_bed.status = 'occupied'
+            new_bed.save()
+            
+            messages.success(request, f'Student {allocation.student.registration_number} transferred successfully.')
+            
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+        
+        return redirect('room_transfers')
+    
+    # Current allocations
+    allocations = HostelAllocation.objects.filter(
+        bed__room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        semester=current_semester,
+        is_active=True
+    ).select_related('student', 'bed__room__hostel', 'bed__room').order_by('bed__room__hostel')
+    
+    # Available beds for transfer
+    available_beds = HostelBed.objects.filter(
+        room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        status='available',
+        is_active=True
+    ).select_related('room__hostel')
+    
+    context = {
+        'allocations': allocations,
+        'available_beds': available_beds,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/room_transfers.html', context)
+
+
+# ============= MAINTENANCE =============
+
+@login_required
+def maintenance_requests(request):
+    """View all maintenance requests"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # Filters
+    status_filter = request.GET.get('status', '')
+    priority_filter = request.GET.get('priority', '')
+    type_filter = request.GET.get('type', '')
+    
+    requests_qs = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels
+    ).select_related('student', 'allocation__bed__room__hostel', 'assigned_to')
+    
+    if status_filter:
+        requests_qs = requests_qs.filter(status=status_filter)
+    if priority_filter:
+        requests_qs = requests_qs.filter(priority=priority_filter)
+    if type_filter:
+        requests_qs = requests_qs.filter(request_type=type_filter)
+    
+    requests_qs = requests_qs.order_by('-created_at')
+    
+    paginator = Paginator(requests_qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'statuses': HostelMaintenanceRequest.STATUS,
+        'priorities': HostelMaintenanceRequest.PRIORITY,
+        'request_types': HostelMaintenanceRequest.REQUEST_TYPE,
+        'status_filter': status_filter,
+        'priority_filter': priority_filter,
+        'type_filter': type_filter,
+    }
+    
+    return render(request, 'hostel/maintenance_requests.html', context)
+
+
+@login_required
+def maintenance_request_detail(request, request_id):
+    """View and update maintenance request"""
+    maint_request = get_object_or_404(
+        HostelMaintenanceRequest,
+        id=request_id,
+        allocation__bed__room__hostel__warden=request.user
+    )
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'acknowledge':
+            maint_request.status = 'acknowledged'
+            maint_request.acknowledged_at = timezone.now()
+            maint_request.save()
+            messages.success(request, 'Request acknowledged.')
+            
+        elif action == 'start':
+            maint_request.status = 'in_progress'
+            maint_request.started_at = timezone.now()
+            assigned_to_id = request.POST.get('assigned_to')
+            if assigned_to_id:
+                maint_request.assigned_to_id = assigned_to_id
+            maint_request.save()
+            messages.success(request, 'Work started on request.')
+            
+        elif action == 'complete':
+            maint_request.status = 'completed'
+            maint_request.completed_at = timezone.now()
+            maint_request.resolution_notes = request.POST.get('resolution_notes', '')
+            maint_request.save()
+            messages.success(request, 'Request completed.')
+        
+        return redirect('maintenance_request_detail', request_id=request_id)
+    
+    # Get maintenance staff (users with appropriate roles)
+    maintenance_staff = User.objects.filter(
+        role__in=['hostel_warden', 'store']
+    )
+    
+    context = {
+        'maint_request': maint_request,
+        'maintenance_staff': maintenance_staff,
+    }
+    
+    return render(request, 'hostel/maintenance_request_detail.html', context)
+
+
+@login_required
+def work_orders(request):
+    """View work orders (in progress maintenance)"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    work_orders = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels,
+        status='in_progress'
+    ).select_related(
+        'student', 'allocation__bed__room__hostel', 'assigned_to'
+    ).order_by('priority', '-started_at')
+    
+    context = {
+        'work_orders': work_orders,
+    }
+    
+    return render(request, 'hostel/work_orders.html', context)
+
+
+@login_required
+def preventive_maintenance(request):
+    """Preventive maintenance schedule"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would typically involve a separate PreventiveMaintenance model
+    # For now, we'll show a schedule template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/preventive_maintenance.html', context)
+
+
+@login_required
+def maintenance_schedule(request):
+    """Maintenance schedule calendar"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # Get upcoming maintenance
+    upcoming = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels,
+        status__in=['acknowledged', 'in_progress']
+    ).select_related(
+        'student', 'allocation__bed__room__hostel', 'assigned_to'
+    ).order_by('priority', 'created_at')
+    
+    context = {
+        'upcoming': upcoming,
+    }
+    
+    return render(request, 'hostel/maintenance_schedule.html', context)
+
+
+@login_required
+def facility_inspection(request):
+    """Facility inspection records"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a FacilityInspection model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/facility_inspection.html', context)
+
+
+# ============= HOSTEL FEES =============
+
+@login_required
+def fee_structure(request):
+    """View hostel fee structure"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    fee_structures = HostelFeeStructure.objects.filter(
+        hostel__in=warden_hostels,
+        academic_year=current_year,
+        is_active=True
+    ).select_related('hostel', 'academic_year', 'semester').order_by('hostel', 'room_type')
+    
+    context = {
+        'fee_structures': fee_structures,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/fee_structure.html', context)
+
+
+@login_required
+def fee_collection(request):
+    """View fee collection status"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get all allocations with fee status
+    allocations = HostelAllocation.objects.filter(
+        bed__room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        semester=current_semester,
+        is_active=True
+    ).select_related('student', 'bed__room__hostel').order_by('fee_paid', 'allocation_date')
+    
+    # Statistics
+    total_students = allocations.count()
+    paid_count = allocations.filter(fee_paid=True).count()
+    unpaid_count = total_students - paid_count
+    collection_rate = (paid_count / total_students * 100) if total_students > 0 else 0
+    
+    paginator = Paginator(allocations, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'total_students': total_students,
+        'paid_count': paid_count,
+        'unpaid_count': unpaid_count,
+        'collection_rate': round(collection_rate, 1),
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/fee_collection.html', context)
+
+
+@login_required
+def outstanding_fees(request):
+    """View students with outstanding fees"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    outstanding = HostelAllocation.objects.filter(
+        bed__room__hostel__in=warden_hostels,
+        academic_year=current_year,
+        semester=current_semester,
+        is_active=True,
+        fee_paid=False
+    ).select_related('student', 'bed__room__hostel').order_by('allocation_date')
+    
+    paginator = Paginator(outstanding, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/outstanding_fees.html', context)
+
+
+@login_required
+def receipts(request):
+    """View payment receipts"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get M-Pesa payments related to these hostels
+    payments = MpesaPayment.objects.filter(
+        hostel_application__hostel__in=warden_hostels,
+        status='success'
+    ).select_related('student', 'hostel_application__hostel').order_by('-transaction_date')
+    
+    # Search
+    search = request.GET.get('search', '')
+    if search:
+        payments = payments.filter(
+            Q(student__registration_number__icontains=search) |
+            Q(mpesa_receipt_number__icontains=search)
+        )
+    
+    paginator = Paginator(payments, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/receipts.html', context)
+
+
+@login_required
+def refunds(request):
+    """Manage refunds"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a HostelRefund model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/refunds.html', context)
+
+
+# Continue in next part...
+"""
+Hostel Warden Views - Part 2
+Security, Welfare, Disciplinary, and Reports
+"""
+
+# ============= SECURITY & SAFETY =============
+
+@login_required
+def security_personnel(request):
+    """Manage security personnel"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a SecurityPersonnel model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/security_personnel.html', context)
+
+
+@login_required
+def visitor_management(request):
+    """Manage visitor records"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a VisitorLog model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/visitor_management.html', context)
+
+
+@login_required
+def emergency_procedures(request):
+    """Emergency procedures and protocols"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/emergency_procedures.html', context)
+
+
+@login_required
+def incident_reports(request):
+    """Security incident reports"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve an IncidentReport model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/incident_reports.html', context)
+
+
+@login_required
+def safety_inspections(request):
+    """Safety inspection records"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a SafetyInspection model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/safety_inspections.html', context)
+
+
+# ============= STUDENT WELFARE =============
+
+@login_required
+def welfare_issues(request):
+    """Track student welfare issues"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get students in warden's hostels
+    hostel_students = Student.objects.filter(
+        hostel_allocations__bed__room__hostel__in=warden_hostels,
+        hostel_allocations__academic_year=current_year,
+        hostel_allocations__semester=current_semester,
+        hostel_allocations__is_active=True
+    ).distinct()
+    
+    # Get advising notes for these students
+    welfare_notes = AdvisingNote.objects.filter(
+        student__in=hostel_students,
+        note_type__in=['personal', 'general']
+    ).select_related('student', 'lecturer').order_by('-created_at')[:50]
+    
+    context = {
+        'welfare_notes': welfare_notes,
+        'warden_hostels': warden_hostels,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/welfare_issues.html', context)
+
+
+@login_required
+def counseling_services(request):
+    """Counseling services information"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/counseling_services.html', context)
+
+
+@login_required
+def health_services(request):
+    """Health services information"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/health_services.html', context)
+
+
+@login_required
+def recreational_activities(request):
+    """Recreational activities and events"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # Get hostel-related events
+    hostel_events = Event.objects.filter(
+        event_type__in=['social', 'sports', 'cultural']
+    ).order_by('-start_date')[:20]
+    
+    context = {
+        'hostel_events': hostel_events,
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/recreational_activities.html', context)
+
+
+@login_required
+def student_complaints(request):
+    """Student complaints and feedback"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get students in warden's hostels
+    hostel_students = Student.objects.filter(
+        hostel_allocations__bed__room__hostel__in=warden_hostels,
+        hostel_allocations__academic_year=current_year,
+        hostel_allocations__semester=current_semester,
+        hostel_allocations__is_active=True
+    ).distinct()
+    
+    # Get support tickets from these students
+    complaints = SupportTicket.objects.filter(
+        student__in=hostel_students,
+        category='hostel'
+    ).select_related('student', 'assigned_to').order_by('-created_at')
+    
+    paginator = Paginator(complaints, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'warden_hostels': warden_hostels,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/student_complaints.html', context)
+
+
+# ============= DISCIPLINARY MATTERS =============
+
+@login_required
+def rule_violations(request):
+    """Track hostel rule violations"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a HostelRuleViolation model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/rule_violations.html', context)
+
+
+@login_required
+def disciplinary_cases(request):
+    """Manage disciplinary cases"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a HostelDisciplinaryCase model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/disciplinary_cases.html', context)
+
+
+@login_required
+def warning_letters(request):
+    """Warning letters issued"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve a WarningLetter model
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/warning_letters.html', context)
+
+
+@login_required
+def suspensions(request):
+    """Hostel suspensions"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would involve tracking students suspended from hostels
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/suspensions.html', context)
+
+
+@login_required
+def disciplinary_records(request):
+    """Complete disciplinary records"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would compile all disciplinary records
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/disciplinary_records.html', context)
+
+
+# ============= REPORTS =============
+
+@login_required
+def occupancy_reports(request):
+    """Generate occupancy reports"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Date range filter
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    
+    # Get historical data
+    all_years = AcademicYear.objects.all().order_by('-start_date')[:5]
+    
+    occupancy_trends = []
+    for year in all_years:
+        for semester in year.semesters.all():
+            for hostel in warden_hostels:
+                total_beds = HostelBed.objects.filter(
+                    room__hostel=hostel,
+                    academic_year=year,
+                    is_active=True
+                ).count()
+                
+                occupied = HostelAllocation.objects.filter(
+                    bed__room__hostel=hostel,
+                    academic_year=year,
+                    semester=semester,
+                    is_active=True
+                ).count()
+                
+                occupancy = (occupied / total_beds * 100) if total_beds > 0 else 0
+                
+                occupancy_trends.append({
+                    'year': year,
+                    'semester': semester,
+                    'hostel': hostel,
+                    'total_beds': total_beds,
+                    'occupied': occupied,
+                    'occupancy_rate': round(occupancy, 1)
+                })
+    
+    context = {
+        'occupancy_trends': occupancy_trends,
+        'warden_hostels': warden_hostels,
+        'current_year': current_year,
+    }
+    
+    return render(request, 'hostel/occupancy_reports.html', context)
+
+
+@login_required
+def financial_reports(request):
+    """Generate financial reports"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    financial_summary = []
+    
+    for hostel in warden_hostels:
+        # Get fee structure
+        fee_structures = HostelFeeStructure.objects.filter(
+            hostel=hostel,
+            academic_year=current_year,
+            semester=current_semester,
+            is_active=True
+        )
+        
+        total_expected = Decimal('0.00')
+        total_collected = Decimal('0.00')
+        
+        for fee_struct in fee_structures:
+            # Count students in this room type
+            students_count = HostelAllocation.objects.filter(
+                bed__room__hostel=hostel,
+                bed__room__room_type=fee_struct.room_type,
+                academic_year=current_year,
+                semester=current_semester,
+                is_active=True
+            ).count()
+            
+            expected = fee_struct.fee_amount * students_count
+            total_expected += expected
+            
+            # Count paid
+            paid_count = HostelAllocation.objects.filter(
+                bed__room__hostel=hostel,
+                bed__room__room_type=fee_struct.room_type,
+                academic_year=current_year,
+                semester=current_semester,
+                is_active=True,
+                fee_paid=True
+            ).count()
+            
+            collected = fee_struct.fee_amount * paid_count
+            total_collected += collected
+        
+        collection_rate = (total_collected / total_expected * 100) if total_expected > 0 else 0
+        
+        financial_summary.append({
+            'hostel': hostel,
+            'total_expected': total_expected,
+            'total_collected': total_collected,
+            'balance': total_expected - total_collected,
+            'collection_rate': round(collection_rate, 1)
+        })
+    
+    context = {
+        'financial_summary': financial_summary,
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/financial_reports.html', context)
+
+
+@login_required
+def maintenance_reports(request):
+    """Generate maintenance reports"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # Summary statistics
+    total_requests = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels
+    ).count()
+    
+    pending = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels,
+        status='pending'
+    ).count()
+    
+    in_progress = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels,
+        status='in_progress'
+    ).count()
+    
+    completed = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels,
+        status='completed'
+    ).count()
+    
+    # By type
+    by_type = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels
+    ).values('request_type').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # By priority
+    by_priority = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels
+    ).values('priority').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Recent completed
+    recent_completed = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels,
+        status='completed'
+    ).select_related(
+        'student', 'allocation__bed__room__hostel'
+    ).order_by('-completed_at')[:20]
+    
+    context = {
+        'total_requests': total_requests,
+        'pending': pending,
+        'in_progress': in_progress,
+        'completed': completed,
+        'by_type': by_type,
+        'by_priority': by_priority,
+        'recent_completed': recent_completed,
+    }
+    
+    return render(request, 'hostel/maintenance_reports.html', context)
+
+
+@login_required
+def incident_reports_summary(request):
+    """Summary of incident reports"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    # This would compile incident statistics
+    # For now, showing a template
+    
+    context = {
+        'warden_hostels': warden_hostels,
+    }
+    
+    return render(request, 'hostel/incident_reports_summary.html', context)
+
+
+@login_required
+def monthly_reports(request):
+    """Generate monthly reports"""
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get month filter
+    month = request.GET.get('month', timezone.now().month)
+    year = request.GET.get('year', timezone.now().year)
+    
+    # Start and end of month
+    start_date = datetime(int(year), int(month), 1)
+    if int(month) == 12:
+        end_date = datetime(int(year) + 1, 1, 1)
+    else:
+        end_date = datetime(int(year), int(month) + 1, 1)
+    
+    monthly_stats = []
+    
+    for hostel in warden_hostels:
+        # New applications
+        new_applications = HostelApplication.objects.filter(
+            hostel=hostel,
+            application_date__gte=start_date,
+            application_date__lt=end_date
+        ).count()
+        
+        # New allocations
+        new_allocations = HostelAllocation.objects.filter(
+            bed__room__hostel=hostel,
+            allocation_date__gte=start_date,
+            allocation_date__lt=end_date
+        ).count()
+        
+        # Maintenance requests
+        maintenance_count = HostelMaintenanceRequest.objects.filter(
+            allocation__bed__room__hostel=hostel,
+            created_at__gte=start_date,
+            created_at__lt=end_date
+        ).count()
+        
+        # Check-ins
+        checkins = HostelAllocation.objects.filter(
+            bed__room__hostel=hostel,
+            check_in_date__gte=start_date,
+            check_in_date__lt=end_date
+        ).count()
+        
+        # Check-outs
+        checkouts = HostelAllocation.objects.filter(
+            bed__room__hostel=hostel,
+            check_out_date__gte=start_date,
+            check_out_date__lt=end_date
+        ).count()
+        
+        monthly_stats.append({
+            'hostel': hostel,
+            'new_applications': new_applications,
+            'new_allocations': new_allocations,
+            'maintenance_count': maintenance_count,
+            'checkins': checkins,
+            'checkouts': checkouts,
+        })
+    
+    context = {
+        'monthly_stats': monthly_stats,
+        'month': int(month),
+        'year': int(year),
+        'current_year': current_year,
+        'current_semester': current_semester,
+    }
+    
+    return render(request, 'hostel/monthly_reports.html', context)
+
+
+# ============= AJAX/API ENDPOINTS =============
+
+@login_required
+def get_available_beds_ajax(request):
+    """AJAX endpoint to get available beds for a hostel/room type"""
+    hostel_id = request.GET.get('hostel_id')
+    room_type = request.GET.get('room_type')
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    beds = HostelBed.objects.filter(
+        room__hostel_id=hostel_id,
+        room__room_type=room_type,
+        academic_year=current_year,
+        status='available',
+        is_active=True
+    ).select_related('room').values(
+        'id',
+        'room__room_number',
+        'bed_number',
+        'room__floor'
+    )
+    
+    return JsonResponse({
+        'beds': list(beds)
+    })
+
+
+@login_required
+def allocate_bed_ajax(request):
+    """AJAX endpoint to allocate bed to student"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    try:
+        application_id = request.POST.get('application_id')
+        bed_id = request.POST.get('bed_id')
+        
+        application = HostelApplication.objects.get(
+            id=application_id,
+            hostel__warden=request.user
+        )
+        
+        bed = HostelBed.objects.get(id=bed_id)
+        
+        # Check if bed is available
+        if bed.status != 'available':
+            return JsonResponse({
+                'success': False,
+                'error': 'Bed is not available'
+            })
+        
+        # Create allocation
+        allocation = HostelAllocation.objects.create(
+            student=application.student,
+            bed=bed,
+            academic_year=application.academic_year,
+            semester=application.semester,
+            allocation_date=timezone.now(),
+            is_active=True,
+            fee_paid=application.booking_fee_paid,
+            payment_reference=application.payment_reference,
+            allocated_by=request.user,
+            remarks=f'Allocated from application {application.id}'
+        )
+        
+        # Update bed status
+        bed.status = 'occupied'
+        bed.save()
+        
+        # Update application status (optional)
+        # application.status = 'allocated'
+        # application.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Bed allocated successfully to {application.student.registration_number}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@login_required
+def update_maintenance_status_ajax(request):
+    """AJAX endpoint to update maintenance request status"""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
+    
+    try:
+        request_id = request.POST.get('request_id')
+        new_status = request.POST.get('status')
+        
+        maint_request = HostelMaintenanceRequest.objects.get(
+            id=request_id,
+            allocation__bed__room__hostel__warden=request.user
+        )
+        
+        maint_request.status = new_status
+        
+        if new_status == 'acknowledged':
+            maint_request.acknowledged_at = timezone.now()
+        elif new_status == 'in_progress':
+            maint_request.started_at = timezone.now()
+        elif new_status == 'completed':
+            maint_request.completed_at = timezone.now()
+        
+        maint_request.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Status updated successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+# ============= EXPORT FUNCTIONS =============
+
+@login_required
+def export_occupancy_report(request):
+    """Export occupancy report to CSV"""
+    import csv
+    from django.utils.text import slugify
+    
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="occupancy_report_{timezone.now().strftime("%Y%m%d")}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Hostel', 'Total Beds', 'Occupied', 'Available', 'Occupancy Rate (%)'])
+    
+    for hostel in warden_hostels:
+        total_beds = HostelBed.objects.filter(
+            room__hostel=hostel,
+            academic_year=current_year,
+            is_active=True
+        ).count()
+        
+        occupied = HostelAllocation.objects.filter(
+            bed__room__hostel=hostel,
+            academic_year=current_year,
+            semester=current_semester,
+            is_active=True
+        ).count()
+        
+        occupancy = (occupied / total_beds * 100) if total_beds > 0 else 0
+        
+        writer.writerow([
+            hostel.name,
+            total_beds,
+            occupied,
+            total_beds - occupied,
+            round(occupancy, 1)
+        ])
+    
+    return response
+
+
+@login_required
+def export_maintenance_report(request):
+    """Export maintenance report to CSV"""
+    import csv
+    
+    warden_hostels = Hostel.objects.filter(warden=request.user, is_active=True)
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="maintenance_report_{timezone.now().strftime("%Y%m%d")}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Request Number', 'Student', 'Hostel', 'Room', 'Type', 
+        'Priority', 'Status', 'Created', 'Completed'
+    ])
+    
+    requests = HostelMaintenanceRequest.objects.filter(
+        allocation__bed__room__hostel__in=warden_hostels
+    ).select_related(
+        'student', 'allocation__bed__room__hostel', 'allocation__bed__room'
+    ).order_by('-created_at')
+    
+    for req in requests:
+        writer.writerow([
+            req.request_number,
+            req.student.registration_number,
+            req.allocation.bed.room.hostel.name,
+            req.allocation.bed.room.room_number,
+            req.get_request_type_display(),
+            req.get_priority_display(),
+            req.get_status_display(),
+            req.created_at.strftime('%Y-%m-%d'),
+            req.completed_at.strftime('%Y-%m-%d') if req.completed_at else 'N/A'
+        ])
+    
+    return response
 
 
 @login_required
