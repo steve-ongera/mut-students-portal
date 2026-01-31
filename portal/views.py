@@ -2729,11 +2729,836 @@ def hod_dashboard(request):
     return render(request, 'hod/dashboard.html', context)
 
 
+"""
+Finance Department Views
+Complete views for finance officer functionality
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Sum, Count, Q, F, Avg
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+from decimal import Decimal
+from datetime import datetime, timedelta
+import json
+
+# Import models
+from .models import (
+    Student, FeeStructure, FeePayment, FeeBalance,
+    Programme, AcademicYear, Semester, User,
+    School, Department, SchoolBudget, BudgetAllocation,
+    ExpenditureTracking, RevenueSource
+)
+
+
+# ============= DASHBOARD =============
+
 @login_required
 def finance_dashboard(request):
-    context = {'page_title': 'Finance Dashboard'}
+    """Finance Officer Dashboard"""
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Today's collections
+    today = timezone.now().date()
+    today_collections = FeePayment.objects.filter(
+        payment_date__date=today,
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # Monthly collections
+    month_start = today.replace(day=1)
+    monthly_collections = FeePayment.objects.filter(
+        payment_date__date__gte=month_start,
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    # Total outstanding fees
+    outstanding_fees = FeeBalance.objects.filter(
+        is_cleared=False,
+        semester=current_semester
+    ).aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
+    
+    # Payment statistics
+    total_students = Student.objects.filter(student_status='active').count()
+    students_cleared = FeeBalance.objects.filter(
+        is_cleared=True,
+        semester=current_semester
+    ).count()
+    
+    # Recent payments
+    recent_payments = FeePayment.objects.select_related(
+        'student', 'student__user', 'semester'
+    ).filter(
+        status='completed'
+    ).order_by('-payment_date')[:10]
+    
+    # Payment method breakdown
+    payment_methods = FeePayment.objects.filter(
+        payment_date__date__gte=month_start,
+        status='completed'
+    ).values('payment_method').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    )
+    
+    # Fee collection by programme
+    programme_collections = FeePayment.objects.filter(
+        payment_date__date__gte=month_start,
+        status='completed'
+    ).values(
+        'student__programme__name',
+        'student__programme__code'
+    ).annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')[:10]
+    
+    # Pending payments
+    pending_payments = FeePayment.objects.filter(
+        status='pending'
+    ).count()
+    
+    # Budget overview
+    budget_overview = SchoolBudget.objects.filter(
+        financial_year=current_academic_year,
+        status='active'
+    ).aggregate(
+        total_allocation=Sum('total_allocation'),
+        total_spent=Sum('amount_spent'),
+        total_balance=Sum('balance')
+    )
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'today_collections': today_collections,
+        'monthly_collections': monthly_collections,
+        'outstanding_fees': outstanding_fees,
+        'total_students': total_students,
+        'students_cleared': students_cleared,
+        'clearance_percentage': (students_cleared / total_students * 100) if total_students > 0 else 0,
+        'recent_payments': recent_payments,
+        'payment_methods': payment_methods,
+        'programme_collections': programme_collections,
+        'pending_payments': pending_payments,
+        'budget_overview': budget_overview,
+    }
+    
     return render(request, 'finance/dashboard.html', context)
 
+
+# ============= FEE MANAGEMENT =============
+
+@login_required
+def fee_structure_list(request):
+    """List all fee structures"""
+    fee_structures = FeeStructure.objects.select_related(
+        'programme', 'academic_year'
+    ).filter(is_active=True).order_by(
+        '-academic_year__start_date',
+        'programme__name',
+        'year_of_study',
+        'semester_number'
+    )
+    
+    # Filters
+    programme_id = request.GET.get('programme')
+    academic_year_id = request.GET.get('academic_year')
+    year_of_study = request.GET.get('year_of_study')
+    
+    if programme_id:
+        fee_structures = fee_structures.filter(programme_id=programme_id)
+    if academic_year_id:
+        fee_structures = fee_structures.filter(academic_year_id=academic_year_id)
+    if year_of_study:
+        fee_structures = fee_structures.filter(year_of_study=year_of_study)
+    
+    # Pagination
+    paginator = Paginator(fee_structures, 20)
+    page = request.GET.get('page')
+    fee_structures = paginator.get_page(page)
+    
+    context = {
+        'fee_structures': fee_structures,
+        'programmes': Programme.objects.filter(is_active=True),
+        'academic_years': AcademicYear.objects.filter(is_active=True),
+    }
+    
+    return render(request, 'finance/fee_structure/list.html', context)
+
+
+@login_required
+def fee_structure_create(request):
+    """Create new fee structure"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            programme_id = request.POST.get('programme')
+            academic_year_id = request.POST.get('academic_year')
+            year_of_study = request.POST.get('year_of_study')
+            semester_number = request.POST.get('semester_number')
+            
+            # Create fee structure
+            fee_structure = FeeStructure.objects.create(
+                programme_id=programme_id,
+                academic_year_id=academic_year_id,
+                year_of_study=year_of_study,
+                semester_number=semester_number,
+                tuition_fee=Decimal(request.POST.get('tuition_fee', '0.00')),
+                activity_fee=Decimal(request.POST.get('activity_fee', '0.00')),
+                examination_fee=Decimal(request.POST.get('examination_fee', '0.00')),
+                library_fee=Decimal(request.POST.get('library_fee', '0.00')),
+                medical_fee=Decimal(request.POST.get('medical_fee', '0.00')),
+                technology_fee=Decimal(request.POST.get('technology_fee', '0.00')),
+                other_fees=Decimal(request.POST.get('other_fees', '0.00')),
+            )
+            
+            messages.success(request, f'Fee structure created successfully. Total: KES {fee_structure.total_fee:,.2f}')
+            return redirect('fee_structure_list')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating fee structure: {str(e)}')
+    
+    context = {
+        'programmes': Programme.objects.filter(is_active=True),
+        'academic_years': AcademicYear.objects.filter(is_active=True),
+        'semester_choices': Semester.SEMESTER_NAMES,
+    }
+    
+    return render(request, 'finance/fee_structure/create.html', context)
+
+
+@login_required
+def student_balances(request):
+    """View student fee balances"""
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    balances = FeeBalance.objects.select_related(
+        'student', 'student__user', 'student__programme', 'semester'
+    ).filter(semester=current_semester)
+    
+    # Filters
+    programme_id = request.GET.get('programme')
+    year_of_study = request.GET.get('year_of_study')
+    status = request.GET.get('status')
+    search = request.GET.get('search')
+    
+    if programme_id:
+        balances = balances.filter(student__programme_id=programme_id)
+    if year_of_study:
+        balances = balances.filter(student__current_year=year_of_study)
+    if status == 'cleared':
+        balances = balances.filter(is_cleared=True)
+    elif status == 'owing':
+        balances = balances.filter(is_cleared=False)
+    if search:
+        balances = balances.filter(
+            Q(student__registration_number__icontains=search) |
+            Q(student__user__first_name__icontains=search) |
+            Q(student__user__last_name__icontains=search)
+        )
+    
+    # Order by balance (highest first)
+    balances = balances.order_by('-balance')
+    
+    # Statistics
+    total_fees = balances.aggregate(total=Sum('total_fees'))['total'] or Decimal('0.00')
+    total_paid = balances.aggregate(total=Sum('amount_paid'))['total'] or Decimal('0.00')
+    total_balance = balances.aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
+    
+    # Pagination
+    paginator = Paginator(balances, 50)
+    page = request.GET.get('page')
+    balances = paginator.get_page(page)
+    
+    context = {
+        'balances': balances,
+        'current_semester': current_semester,
+        'programmes': Programme.objects.filter(is_active=True),
+        'total_fees': total_fees,
+        'total_paid': total_paid,
+        'total_balance': total_balance,
+    }
+    
+    return render(request, 'finance/student_balances/list.html', context)
+
+
+@login_required
+def student_balance_detail(request, student_id):
+    """View detailed student balance"""
+    student = get_object_or_404(Student.objects.select_related('user', 'programme'), id=student_id)
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Current balance
+    current_balance = FeeBalance.objects.filter(
+        student=student,
+        semester=current_semester
+    ).first()
+    
+    # Payment history
+    payment_history = FeePayment.objects.filter(
+        student=student
+    ).select_related('semester', 'academic_year').order_by('-payment_date')
+    
+    # All balances
+    all_balances = FeeBalance.objects.filter(
+        student=student
+    ).select_related('semester', 'academic_year').order_by('-semester__start_date')
+    
+    context = {
+        'student': student,
+        'current_balance': current_balance,
+        'payment_history': payment_history,
+        'all_balances': all_balances,
+    }
+    
+    return render(request, 'finance/student_balances/detail.html', context)
+
+
+# ============= PAYMENT PROCESSING =============
+
+@login_required
+def payment_processing(request):
+    """Process fee payments"""
+    if request.method == 'POST':
+        try:
+            student_id = request.POST.get('student_id')
+            amount = Decimal(request.POST.get('amount'))
+            payment_method = request.POST.get('payment_method')
+            transaction_reference = request.POST.get('transaction_reference')
+            
+            student = Student.objects.get(id=student_id)
+            current_semester = Semester.objects.filter(is_current=True).first()
+            current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+            
+            # Get or create fee balance
+            fee_balance, created = FeeBalance.objects.get_or_create(
+                student=student,
+                semester=current_semester,
+                academic_year=current_academic_year,
+                defaults={'total_fees': Decimal('0.00')}
+            )
+            
+            # Get fee structure
+            fee_structure = FeeStructure.objects.filter(
+                programme=student.programme,
+                academic_year=current_academic_year,
+                year_of_study=student.current_year,
+                semester_number=student.current_semester
+            ).first()
+            
+            if not fee_structure:
+                messages.error(request, 'Fee structure not found for this student')
+                return redirect('payment_processing')
+            
+            # Generate receipt number
+            year = timezone.now().year
+            last_payment = FeePayment.objects.filter(
+                receipt_number__startswith=f'REC-{year}-'
+            ).order_by('-id').first()
+            
+            if last_payment and last_payment.receipt_number:
+                last_num = int(last_payment.receipt_number.split('-')[-1])
+                receipt_number = f'REC-{year}-{last_num + 1:06d}'
+            else:
+                receipt_number = f'REC-{year}-000001'
+            
+            # Create payment
+            payment = FeePayment.objects.create(
+                student=student,
+                semester=current_semester,
+                academic_year=current_academic_year,
+                fee_structure=fee_structure,
+                amount=amount,
+                payment_method=payment_method,
+                transaction_reference=transaction_reference,
+                payment_date=timezone.now(),
+                status='completed',
+                receipt_number=receipt_number,
+                processed_by=request.user
+            )
+            
+            # Update balance
+            fee_balance.total_fees = fee_structure.total_fee
+            fee_balance.amount_paid = F('amount_paid') + amount
+            fee_balance.last_payment_date = timezone.now()
+            fee_balance.save()
+            fee_balance.refresh_from_db()
+            
+            messages.success(request, f'Payment processed successfully. Receipt No: {receipt_number}')
+            return redirect('payment_receipt', payment_id=payment.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error processing payment: {str(e)}')
+    
+    # Get students for selection
+    students = Student.objects.filter(
+        student_status='active'
+    ).select_related('user', 'programme')
+    
+    context = {
+        'students': students,
+        'payment_methods': FeePayment.PAYMENT_METHODS,
+    }
+    
+    return render(request, 'finance/payments/process.html', context)
+
+
+@login_required
+def payment_receipt(request, payment_id):
+    """Generate payment receipt"""
+    payment = get_object_or_404(
+        FeePayment.objects.select_related(
+            'student', 'student__user', 'student__programme',
+            'semester', 'academic_year', 'fee_structure'
+        ),
+        id=payment_id
+    )
+    
+    context = {
+        'payment': payment,
+    }
+    
+    return render(request, 'finance/payments/receipt.html', context)
+
+
+@login_required
+def payment_list(request):
+    """List all payments"""
+    payments = FeePayment.objects.select_related(
+        'student', 'student__user', 'semester', 'processed_by'
+    ).all()
+    
+    # Filters
+    status = request.GET.get('status')
+    payment_method = request.GET.get('payment_method')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    search = request.GET.get('search')
+    
+    if status:
+        payments = payments.filter(status=status)
+    if payment_method:
+        payments = payments.filter(payment_method=payment_method)
+    if date_from:
+        payments = payments.filter(payment_date__date__gte=date_from)
+    if date_to:
+        payments = payments.filter(payment_date__date__lte=date_to)
+    if search:
+        payments = payments.filter(
+            Q(student__registration_number__icontains=search) |
+            Q(transaction_reference__icontains=search) |
+            Q(receipt_number__icontains=search)
+        )
+    
+    payments = payments.order_by('-payment_date')
+    
+    # Statistics
+    stats = payments.aggregate(
+        total_amount=Sum('amount'),
+        count=Count('id')
+    )
+    
+    # Pagination
+    paginator = Paginator(payments, 50)
+    page = request.GET.get('page')
+    payments = paginator.get_page(page)
+    
+    context = {
+        'payments': payments,
+        'stats': stats,
+        'payment_statuses': FeePayment.PAYMENT_STATUS,
+        'payment_methods': FeePayment.PAYMENT_METHODS,
+    }
+    
+    return render(request, 'finance/payments/list.html', context)
+
+
+# ============= FINANCIAL REPORTING =============
+
+@login_required
+def daily_collections_report(request):
+    """Daily collections report"""
+    selected_date = request.GET.get('date', timezone.now().date())
+    if isinstance(selected_date, str):
+        selected_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
+    
+    payments = FeePayment.objects.filter(
+        payment_date__date=selected_date,
+        status='completed'
+    ).select_related('student', 'student__user', 'processed_by')
+    
+    # Summary by payment method
+    summary_by_method = payments.values('payment_method').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    )
+    
+    # Total collections
+    total_collections = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    context = {
+        'selected_date': selected_date,
+        'payments': payments,
+        'summary_by_method': summary_by_method,
+        'total_collections': total_collections,
+        'payment_count': payments.count(),
+    }
+    
+    return render(request, 'finance/reports/daily_collections.html', context)
+
+
+@login_required
+def monthly_collections_report(request):
+    """Monthly collections report"""
+    # Get current month or selected month
+    year = int(request.GET.get('year', timezone.now().year))
+    month = int(request.GET.get('month', timezone.now().month))
+    
+    # Calculate date range
+    start_date = datetime(year, month, 1).date()
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1).date()
+    else:
+        end_date = datetime(year, month + 1, 1).date()
+    
+    payments = FeePayment.objects.filter(
+        payment_date__date__gte=start_date,
+        payment_date__date__lt=end_date,
+        status='completed'
+    )
+    
+    # Daily breakdown
+    daily_collections = payments.extra(
+        select={'day': 'DATE(payment_date)'}
+    ).values('day').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('day')
+    
+    # Summary by payment method
+    summary_by_method = payments.values('payment_method').annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    )
+    
+    # Summary by programme
+    summary_by_programme = payments.values(
+        'student__programme__name'
+    ).annotate(
+        total=Sum('amount'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    # Total collections
+    total_collections = payments.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    context = {
+        'year': year,
+        'month': month,
+        'month_name': datetime(year, month, 1).strftime('%B'),
+        'daily_collections': daily_collections,
+        'summary_by_method': summary_by_method,
+        'summary_by_programme': summary_by_programme,
+        'total_collections': total_collections,
+        'payment_count': payments.count(),
+    }
+    
+    return render(request, 'finance/reports/monthly_collections.html', context)
+
+
+@login_required
+def revenue_analysis(request):
+    """Revenue analysis and trends"""
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Revenue by source
+    revenue_by_source = RevenueSource.objects.filter(
+        academic_year=current_academic_year
+    ).values('revenue_type').annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+    
+    # Revenue by school
+    revenue_by_school = RevenueSource.objects.filter(
+        academic_year=current_academic_year
+    ).values(
+        'school__name', 'school__code'
+    ).annotate(
+        total=Sum('amount')
+    ).order_by('-total')
+    
+    # Monthly trend
+    monthly_revenue = RevenueSource.objects.filter(
+        academic_year=current_academic_year
+    ).extra(
+        select={'month': "EXTRACT(month FROM received_date)"}
+    ).values('month').annotate(
+        total=Sum('amount')
+    ).order_by('month')
+    
+    # Fee collections
+    fee_collections = FeePayment.objects.filter(
+        academic_year=current_academic_year,
+        status='completed'
+    ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'revenue_by_source': revenue_by_source,
+        'revenue_by_school': revenue_by_school,
+        'monthly_revenue': monthly_revenue,
+        'fee_collections': fee_collections,
+    }
+    
+    return render(request, 'finance/reports/revenue_analysis.html', context)
+
+
+@login_required
+def debtors_report(request):
+    """Debtors (outstanding balances) report"""
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    debtors = FeeBalance.objects.filter(
+        is_cleared=False,
+        semester=current_semester
+    ).select_related(
+        'student', 'student__user', 'student__programme'
+    ).order_by('-balance')
+    
+    # Categorize by amount owed
+    high_debtors = debtors.filter(balance__gte=50000)  # >= 50,000
+    medium_debtors = debtors.filter(balance__gte=20000, balance__lt=50000)  # 20k-50k
+    low_debtors = debtors.filter(balance__lt=20000)  # < 20k
+    
+    # Summary statistics
+    total_outstanding = debtors.aggregate(total=Sum('balance'))['total'] or Decimal('0.00')
+    total_students = debtors.count()
+    average_debt = total_outstanding / total_students if total_students > 0 else Decimal('0.00')
+    
+    # By programme
+    by_programme = debtors.values(
+        'student__programme__name'
+    ).annotate(
+        total=Sum('balance'),
+        count=Count('id')
+    ).order_by('-total')
+    
+    # Pagination
+    paginator = Paginator(debtors, 50)
+    page = request.GET.get('page')
+    debtors_page = paginator.get_page(page)
+    
+    context = {
+        'debtors': debtors_page,
+        'high_debtors_count': high_debtors.count(),
+        'medium_debtors_count': medium_debtors.count(),
+        'low_debtors_count': low_debtors.count(),
+        'total_outstanding': total_outstanding,
+        'total_students': total_students,
+        'average_debt': average_debt,
+        'by_programme': by_programme,
+    }
+    
+    return render(request, 'finance/reports/debtors.html', context)
+
+
+# ============= BUDGET MANAGEMENT =============
+
+@login_required
+def budget_list(request):
+    """List school budgets"""
+    budgets = SchoolBudget.objects.select_related(
+        'school', 'financial_year'
+    ).filter(is_active=True).order_by('-financial_year__start_date', 'school__name')
+    
+    context = {
+        'budgets': budgets,
+    }
+    
+    return render(request, 'finance/budget/list.html', context)
+
+
+@login_required
+def budget_detail(request, budget_id):
+    """View budget details"""
+    budget = get_object_or_404(
+        SchoolBudget.objects.select_related('school', 'financial_year'),
+        id=budget_id
+    )
+    
+    # Department allocations
+    allocations = BudgetAllocation.objects.filter(
+        school_budget=budget
+    ).select_related('department').order_by('department__name')
+    
+    # Expenditures
+    expenditures = ExpenditureTracking.objects.filter(
+        budget_allocation__school_budget=budget
+    ).select_related('budget_allocation__department').order_by('-transaction_date')[:20]
+    
+    # Statistics
+    total_allocated = allocations.aggregate(total=Sum('allocation_amount'))['total'] or Decimal('0.00')
+    total_utilized = allocations.aggregate(total=Sum('amount_utilized'))['total'] or Decimal('0.00')
+    
+    context = {
+        'budget': budget,
+        'allocations': allocations,
+        'expenditures': expenditures,
+        'total_allocated': total_allocated,
+        'total_utilized': total_utilized,
+    }
+    
+    return render(request, 'finance/budget/detail.html', context)
+
+
+@login_required
+def expenditure_tracking(request):
+    """Track expenditures"""
+    expenditures = ExpenditureTracking.objects.select_related(
+        'budget_allocation', 'budget_allocation__department',
+        'requested_by', 'approved_by'
+    ).all()
+    
+    # Filters
+    status = request.GET.get('status')
+    expenditure_type = request.GET.get('expenditure_type')
+    department_id = request.GET.get('department')
+    date_from = request.GET.get('date_from')
+    date_to = request.GET.get('date_to')
+    
+    if status:
+        expenditures = expenditures.filter(status=status)
+    if expenditure_type:
+        expenditures = expenditures.filter(expenditure_type=expenditure_type)
+    if department_id:
+        expenditures = expenditures.filter(budget_allocation__department_id=department_id)
+    if date_from:
+        expenditures = expenditures.filter(transaction_date__gte=date_from)
+    if date_to:
+        expenditures = expenditures.filter(transaction_date__lte=date_to)
+    
+    expenditures = expenditures.order_by('-transaction_date')
+    
+    # Statistics
+    stats = expenditures.aggregate(
+        total_amount=Sum('amount'),
+        count=Count('id')
+    )
+    
+    # Pagination
+    paginator = Paginator(expenditures, 50)
+    page = request.GET.get('page')
+    expenditures = paginator.get_page(page)
+    
+    context = {
+        'expenditures': expenditures,
+        'stats': stats,
+        'departments': Department.objects.filter(is_active=True),
+        'expenditure_types': ExpenditureTracking.EXPENDITURE_TYPE,
+        'payment_statuses': ExpenditureTracking.PAYMENT_STATUS,
+    }
+    
+    return render(request, 'finance/expenditure/list.html', context)
+
+
+# ============= AJAX/API ENDPOINTS =============
+
+@login_required
+def get_student_balance(request, student_id):
+    """Get student balance (AJAX)"""
+    try:
+        student = Student.objects.get(id=student_id)
+        current_semester = Semester.objects.filter(is_current=True).first()
+        
+        balance = FeeBalance.objects.filter(
+            student=student,
+            semester=current_semester
+        ).first()
+        
+        if balance:
+            data = {
+                'success': True,
+                'student_name': student.user.get_full_name(),
+                'registration_number': student.registration_number,
+                'programme': student.programme.name,
+                'total_fees': str(balance.total_fees),
+                'amount_paid': str(balance.amount_paid),
+                'balance': str(balance.balance),
+                'is_cleared': balance.is_cleared,
+            }
+        else:
+            data = {
+                'success': False,
+                'message': 'No balance record found for current semester'
+            }
+        
+        return JsonResponse(data)
+    except Student.DoesNotExist:
+        return JsonResponse({'success': False, 'message': 'Student not found'})
+
+
+@login_required
+def search_students(request):
+    """Search students (AJAX)"""
+    query = request.GET.get('q', '')
+    
+    students = Student.objects.filter(
+        Q(registration_number__icontains=query) |
+        Q(user__first_name__icontains=query) |
+        Q(user__last_name__icontains=query),
+        student_status='active'
+    ).select_related('user', 'programme')[:10]
+    
+    results = [{
+        'id': s.id,
+        'registration_number': s.registration_number,
+        'name': s.user.get_full_name(),
+        'programme': s.programme.name,
+    } for s in students]
+    
+    return JsonResponse({'results': results})
+
+
+# ============= EXPORTS =============
+
+@login_required
+def export_debtors_csv(request):
+    """Export debtors list to CSV"""
+    import csv
+    from django.http import HttpResponse
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    debtors = FeeBalance.objects.filter(
+        is_cleared=False,
+        semester=current_semester
+    ).select_related('student', 'student__user', 'student__programme')
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="debtors_{timezone.now().date()}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Registration Number', 'Student Name', 'Programme', 
+                    'Total Fees', 'Amount Paid', 'Balance', 'Last Payment Date'])
+    
+    for balance in debtors:
+        writer.writerow([
+            balance.student.registration_number,
+            balance.student.user.get_full_name(),
+            balance.student.programme.name,
+            balance.total_fees,
+            balance.amount_paid,
+            balance.balance,
+            balance.last_payment_date or 'N/A'
+        ])
+    
+    return response
 
 @login_required
 def registrar_dashboard(request):

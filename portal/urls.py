@@ -631,5 +631,35 @@ urlpatterns = [
     path('reports/usage/', views.usage_statistics, name='usage_statistics'),
     path('reports/collection/', views.collection_analysis, name='collection_analysis'),
     path('reports/circulation/', views.circulation_report, name='circulation_report'),
+    
+    # ============= FEE MANAGEMENT =============
+    path('finance/fee-structure/', views.fee_structure_list, name='fee_structure_list'),
+    path('finance/fee-structure/create/', views.fee_structure_create, name='fee_structure_create'),
+    
+    path('finance/student-balances/', views.student_balances, name='student_balances'),
+    path('finance/student-balances/<int:student_id>/', views.student_balance_detail, name='student_balance_detail'),
+    
+    # ============= PAYMENT PROCESSING =============
+    path('finance/payment/process/', views.payment_processing, name='payment_processing'),
+    path('finance/payment/receipt/<int:payment_id>/', views.payment_receipt, name='payment_receipt'),
+    path('finance/payments/', views.payment_list, name='payment_list'),
+    
+    # ============= FINANCIAL REPORTING =============
+    path('finance/reports/daily-collections/', views.daily_collections_report, name='daily_collections_report'),
+    path('finance/reports/monthly-collections/', views.monthly_collections_report, name='monthly_collections_report'),
+    path('finance/reports/revenue-analysis/', views.revenue_analysis, name='revenue_analysis'),
+    path('finance/reports/debtors/', views.debtors_report, name='debtors_report'),
+    
+    # ============= BUDGET MANAGEMENT =============
+    path('finance/budget/', views.budget_list, name='budget_list'),
+    path('finance/budget/<int:budget_id>/', views.budget_detail, name='budget_detail'),
+    path('finance/expenditure/', views.expenditure_tracking, name='expenditure_tracking'),
+    
+    # ============= AJAX/API ENDPOINTS =============
+    path('finance/api/student-balance/<int:student_id>/', views.get_student_balance, name='get_student_balance'),
+    path('finance/api/search-students/', views.search_students, name='search_students'),
+    
+    # ============= EXPORTS =============
+    path('finance/export/debtors-csv/', views.export_debtors_csv, name='export_debtors_csv'),
        
 ]
