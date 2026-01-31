@@ -5664,7 +5664,7 @@ def hostel_profile(request, hostel_id=None):
         hostel = Hostel.objects.filter(warden=request.user).first()
         if not hostel:
             messages.warning(request, 'No hostel assigned to you.')
-            return redirect('hostel_warden_dashboard')
+            return redirect('hostel_dashboard')
     
     if request.method == 'POST':
         # Update hostel details
