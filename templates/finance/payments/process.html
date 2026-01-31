@@ -1,4 +1,390 @@
 ﻿{% extends "finance/finance_base.html" %}
-{% block content %}
+{% load static %}
 
+{% block title %}Process Payment{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block page_title %}Process Payment{% endblock %}
+{% block page_subtitle %}Record fee payment for a student{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Finance</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Process Payment</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <div class="row">
+        <!-- Payment Form -->
+        <div class="col-lg-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="paymentForm">
+                        {% csrf_token %}
+                        
+                        <!-- Student Selection -->
+                        <div class="mb-4">
+                            <label for="studentSelect" class="form-label fw-medium">Select Student <span class="text-danger">*</span></label>
+                            <select class="form-select" id="studentSelect" name="student_id" required>
+                                <option value="">Search and select student...</option>
+                                {% for student in students %}
+                                <option value="{{ student.id }}" 
+                                        data-reg="{{ student.registration_number }}"
+                                        data-name="{{ student.user.get_full_name }}"
+                                        data-programme="{{ student.programme.name }}">
+                                    {{ student.registration_number }} - {{ student.user.get_full_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Start typing registration number or student name</small>
+                        </div>
+
+                        <!-- Student Info Display (Hidden initially) -->
+                        <div id="studentInfo" class="alert alert-info" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Registration Number</small>
+                                    <strong id="displayRegNumber">-</strong>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block">Programme</small>
+                                    <strong id="displayProgramme">-</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Balance Information (Loaded via AJAX) -->
+                        <div id="balanceInfo" class="mb-4" style="display: none;">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-subtitle mb-3 text-muted">Current Balance</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <small class="text-muted d-block">Total Fees</small>
+                                            <h5 class="mb-0 text-primary">KES <span id="displayTotalFees">0.00</span></h5>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted d-block">Amount Paid</small>
+                                            <h5 class="mb-0 text-success">KES <span id="displayAmountPaid">0.00</span></h5>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <small class="text-muted d-block">Balance</small>
+                                            <h5 class="mb-0 text-danger">KES <span id="displayBalance">0.00</span></h5>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Details -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="amount" class="form-label fw-medium">Amount <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">KES</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="amount" 
+                                           name="amount" 
+                                           step="0.01" 
+                                           min="1"
+                                           placeholder="0.00" 
+                                           required>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="paymentMethod" class="form-label fw-medium">Payment Method <span class="text-danger">*</span></label>
+                                <select class="form-select" id="paymentMethod" name="payment_method" required>
+                                    <option value="">Select method...</option>
+                                    {% for method_code, method_name in payment_methods %}
+                                    <option value="{{ method_code }}">{{ method_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="transactionRef" class="form-label fw-medium">Transaction Reference <span class="text-danger">*</span></label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="transactionRef" 
+                                   name="transaction_reference" 
+                                   placeholder="e.g., MPESA123456, CHQ789, TRX001" 
+                                   required>
+                            <small class="text-muted">Enter M-Pesa code, cheque number, or bank transaction ID</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="remarks" class="form-label fw-medium">Remarks (Optional)</label>
+                            <textarea class="form-control" 
+                                      id="remarks" 
+                                      name="remarks" 
+                                      rows="3" 
+                                      placeholder="Add any additional notes..."></textarea>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex gap-2 justify-content-end">
+                            <a href="{% url 'finance_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="ri-close-line me-1"></i>
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="ri-check-line me-1"></i>
+                                Process Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help & Quick Links -->
+        <div class="col-lg-4">
+            <!-- Quick Guide -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-information-line me-2"></i>
+                        Quick Guide
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ol class="ps-3 mb-0 small">
+                        <li class="mb-2">Select the student from the dropdown</li>
+                        <li class="mb-2">Review their current balance</li>
+                        <li class="mb-2">Enter the payment amount</li>
+                        <li class="mb-2">Choose payment method</li>
+                        <li class="mb-2">Enter transaction reference</li>
+                        <li class="mb-0">Click "Process Payment" to complete</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Payment Methods Info -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-wallet-line me-2"></i>
+                        Payment Methods
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0 small">
+                        <li class="mb-2">
+                            <i class="ri-smartphone-line text-success me-2"></i>
+                            <strong>M-Pesa:</strong> Use M-Pesa code
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-bank-line text-primary me-2"></i>
+                            <strong>Bank:</strong> Bank slip number
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-money-dollar-circle-line text-warning me-2"></i>
+                            <strong>Cash:</strong> Generate receipt number
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-file-list-line text-info me-2"></i>
+                            <strong>Cheque:</strong> Cheque number
+                        </li>
+                        <li class="mb-0">
+                            <i class="ri-bank-card-line text-danger me-2"></i>
+                            <strong>Card:</strong> Last 4 digits
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Recent Payments -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="ri-history-line me-2"></i>
+                        Recent Payments
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item px-0 py-2 border-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">Today</small>
+                                <small class="badge bg-success">0 payments</small>
+                            </div>
+                        </div>
+                        <div class="list-group-item px-0 py-2 border-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">This Week</small>
+                                <small class="badge bg-primary">0 payments</small>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="{% url 'payment_list' %}" class="btn btn-sm btn-outline-primary w-100 mt-2">
+                        View All Payments
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-lg: 12px;
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover { color: var(--color-primary); }
+    .breadcrumb-item.active { color: var(--color-gray-800); font-weight: 500; }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0;
+    }
+    
+    .management-card .card-body { padding: 1.5rem; }
+    
+    .form-label.fw-medium { font-weight: 500; }
+    
+    .select2-container--default .select2-selection--single {
+        height: 38px;
+        border: 1px solid var(--color-gray-200);
+        border-radius: 6px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 36px;
+    }
+</style>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Initialize Select2
+    $('#studentSelect').select2({
+        placeholder: 'Search by registration number or name',
+        allowClear: true,
+        width: '100%'
+    });
+    
+    // Handle student selection
+    $('#studentSelect').on('change', function() {
+        const studentId = $(this).val();
+        const selectedOption = $(this).find('option:selected');
+        
+        if (studentId) {
+            // Show student info
+            $('#displayRegNumber').text(selectedOption.data('reg'));
+            $('#displayProgramme').text(selectedOption.data('programme'));
+            $('#studentInfo').slideDown();
+            
+            // Fetch balance via AJAX
+            $.ajax({
+                url: `/finance/api/student-balance/${studentId}/`,
+                method: 'GET',
+                success: function(response) {
+                    if (response.success) {
+                        $('#displayTotalFees').text(parseFloat(response.total_fees).toFixed(2));
+                        $('#displayAmountPaid').text(parseFloat(response.amount_paid).toFixed(2));
+                        $('#displayBalance').text(parseFloat(response.balance).toFixed(2));
+                        $('#balanceInfo').slideDown();
+                        
+                        // Auto-fill amount with balance
+                        $('#amount').val(response.balance);
+                    }
+                },
+                error: function() {
+                    alert('Error fetching student balance');
+                }
+            });
+        } else {
+            $('#studentInfo').slideUp();
+            $('#balanceInfo').slideUp();
+            $('#amount').val('');
+        }
+    });
+    
+    // Form validation
+    $('#paymentForm').on('submit', function(e) {
+        const studentId = $('#studentSelect').val();
+        const amount = parseFloat($('#amount').val());
+        
+        if (!studentId) {
+            e.preventDefault();
+            alert('Please select a student');
+            return false;
+        }
+        
+        if (!amount || amount <= 0) {
+            e.preventDefault();
+            alert('Please enter a valid amount');
+            return false;
+        }
+        
+        // Confirm submission
+        const confirmed = confirm(`Process payment of KES ${amount.toFixed(2)}?`);
+        if (!confirmed) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // Disable button to prevent double submission
+        $('#submitBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Processing...');
+    });
+});
+</script>
 {% endblock %}

@@ -1,4 +1,548 @@
 ﻿{% extends "finance/finance_base.html" %}
-{% block content %}
 
+{% load static %}
+
+{% block title %}Student Balances{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Student Fee Balances{% endblock %}
+{% block page_subtitle %}View and manage student fee balances{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Finance</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Student Balances</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Student Fee Balances</h1>
+                <p class="text-muted mb-0">{{ current_semester.name }} - {{ current_semester.academic_year.name }}</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-group-line me-2"></i>
+                    {{ balances.paginator.count }} student(s)
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Total Fees</p>
+                            <h4 class="mb-0 fw-bold">KES {{ total_fees|floatformat:2 }}</h4>
+                        </div>
+                        <div class="icon-box bg-primary-subtle">
+                            <i class="ri-file-list-3-line text-primary fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Amount Paid</p>
+                            <h4 class="mb-0 fw-bold text-success">KES {{ total_paid|floatformat:2 }}</h4>
+                        </div>
+                        <div class="icon-box bg-success-subtle">
+                            <i class="ri-checkbox-circle-line text-success fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Outstanding Balance</p>
+                            <h4 class="mb-0 fw-bold text-danger">KES {{ total_balance|floatformat:2 }}</h4>
+                        </div>
+                        <div class="icon-box bg-danger-subtle">
+                            <i class="ri-alert-line text-danger fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter and Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Actions</h5>
+        </div>
+        <div class="card-body">
+            <!-- Search Section -->
+            <form method="get" class="mb-4">
+                <div class="search-container">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number or student name..." 
+                               value="{{ request.GET.search }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Action Buttons -->
+            <div class="action-buttons d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" 
+                            data-bs-toggle="modal" 
+                            data-bs-target="#filterModal">
+                        <i class="ri-filter-line fs-5"></i>
+                        <span>Filter</span>
+                    </button>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'payment_processing' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                        <i class="ri-add-line fs-5"></i>
+                        <span>Process Payment</span>
+                    </a>
+                    <a href="{% url 'export_debtors_csv' %}" class="btn btn-sm btn-success d-flex align-items-center gap-1">
+                        <i class="ri-download-line fs-5"></i>
+                        <span>Export CSV</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Balances Table Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Student Balances</h5>
+            <div class="card-subtitle">Showing {{ balances|length }} of {{ balances.paginator.count }} students</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Registration No.</th>
+                            <th>Student Details</th>
+                            <th>Programme</th>
+                            <th>Year/Sem</th>
+                            <th>Total Fees</th>
+                            <th>Amount Paid</th>
+                            <th>Balance</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for balance in balances %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="registration-number">
+                                    <strong>{{ balance.student.registration_number }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-3">
+                                            <img src="{% if balance.student.user.profile_picture %}{{ balance.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ balance.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ balance.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ balance.student.user.email }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ balance.student.programme.code }}</strong>
+                                    <small class="text-muted">{{ balance.student.programme.name|truncatechars:25 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="academic-info">
+                                    <span class="badge bg-info-subtle text-info mb-1">Year {{ balance.student.current_year }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary">Sem {{ balance.student.current_semester }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <strong class="text-primary">KES {{ balance.total_fees|floatformat:2 }}</strong>
+                            </td>
+                            <td>
+                                <strong class="text-success">KES {{ balance.amount_paid|floatformat:2 }}</strong>
+                            </td>
+                            <td>
+                                <strong class="{% if balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    KES {{ balance.balance|floatformat:2 }}
+                                </strong>
+                            </td>
+                            <td>
+                                {% if balance.is_cleared %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Cleared
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-error-warning-fill me-1"></i>
+                                    Owing
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'student_balance_detail' balance.student.id %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="View Details"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'payment_processing' %}?student={{ balance.student.id }}" 
+                                           class="btn btn-icon btn-outline-success btn-sm" 
+                                           title="Process Payment"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-money-dollar-circle-line"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-inbox-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No student balances found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your search or filter criteria</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if balances.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if balances.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ balances.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.programme %}&programme={{ request.GET.programme }}{% endif %}{% if request.GET.year %}&year={{ request.GET.year }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for i in balances.paginator.page_range %}
+                    {% if balances.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > balances.number|add:'-3' and i < balances.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" 
+                           href="?page={{ i }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.programme %}&programme={{ request.GET.programme }}{% endif %}{% if request.GET.year %}&year={{ request.GET.year }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                            {{ i }}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if balances.has_next %}
+                <li class="page-item">
+                    <a class="page-link" 
+                       href="?page={{ balances.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.programme %}&programme={{ request.GET.programme }}{% endif %}{% if request.GET.year %}&year={{ request.GET.year }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Filter Modal -->
+<div class="modal fade" id="filterModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="get">
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Balances</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Programme</label>
+                            <select name="programme" class="form-select">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}" 
+                                        {% if request.GET.programme == programme.id|stringformat:"i" %}selected{% endif %}>
+                                    {{ programme.code }} - {{ programme.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Year of Study</label>
+                            <select name="year" class="form-select">
+                                <option value="">All Years</option>
+                                {% for year in "1234567" %}
+                                <option value="{{ year }}" 
+                                        {% if request.GET.year == year %}selected{% endif %}>
+                                    Year {{ year }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="cleared" {% if request.GET.status == 'cleared' %}selected{% endif %}>Cleared</option>
+                                <option value="owing" {% if request.GET.status == 'owing' %}selected{% endif %}>Owing</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'student_balances' %}" class="btn btn-outline-secondary">Clear Filters</a>
+                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Reuse styles from student management and dashboard */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover { color: var(--color-primary); }
+    .breadcrumb-item.active { color: var(--color-gray-800); font-weight: 500; }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body { padding: 1.5rem; }
+    
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .search-container .input-group {
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .student-avatar {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items-center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover { transform: translateY(-2px); }
+    
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

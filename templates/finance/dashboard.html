@@ -1,4 +1,481 @@
 ﻿{% extends "finance/finance_base.html" %}
-{% block content %}
 
+{% load static %}
+
+{% block title %}Finance Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Finance Dashboard{% endblock %}
+{% block page_subtitle %}Monitor collections, payments, and financial performance{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Finance</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4">
+        <!-- Today's Collections -->
+        <div class="col-xl-3 col-md-6">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Today's Collections</p>
+                            <h3 class="mb-0 fw-bold">KES {{ today_collections|floatformat:2 }}</h3>
+                        </div>
+                        <div class="icon-box bg-success-subtle">
+                            <i class="ri-money-dollar-circle-line text-success fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Collections -->
+        <div class="col-xl-3 col-md-6">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Monthly Collections</p>
+                            <h3 class="mb-0 fw-bold">KES {{ monthly_collections|floatformat:2 }}</h3>
+                        </div>
+                        <div class="icon-box bg-primary-subtle">
+                            <i class="ri-bank-card-line text-primary fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Outstanding Fees -->
+        <div class="col-xl-3 col-md-6">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Outstanding Fees</p>
+                            <h3 class="mb-0 fw-bold text-danger">KES {{ outstanding_fees|floatformat:2 }}</h3>
+                        </div>
+                        <div class="icon-box bg-danger-subtle">
+                            <i class="ri-alert-line text-danger fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Clearance Rate -->
+        <div class="col-xl-3 col-md-6">
+            <div class="management-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <p class="text-muted mb-1 small">Clearance Rate</p>
+                            <h3 class="mb-0 fw-bold">{{ clearance_percentage|floatformat:1 }}%</h3>
+                            <small class="text-muted">{{ students_cleared }}/{{ total_students }} students</small>
+                        </div>
+                        <div class="icon-box bg-info-subtle">
+                            <i class="ri-checkbox-circle-line text-info fs-4"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Recent Payments -->
+        <div class="col-lg-8">
+            <div class="management-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title">Recent Payments</h5>
+                        <a href="{% url 'payment_list' %}" class="btn btn-sm btn-outline-primary">
+                            View All
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Receipt No.</th>
+                                    <th>Student</th>
+                                    <th>Amount</th>
+                                    <th>Method</th>
+                                    <th>Date</th>
+                                    <th class="pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payment in recent_payments %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <strong class="text-primary">{{ payment.receipt_number }}</strong>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-medium">{{ payment.student.user.get_full_name }}</div>
+                                            <small class="text-muted">{{ payment.student.registration_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong>KES {{ payment.amount|floatformat:2 }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ payment.get_payment_method_display }}</span>
+                                    </td>
+                                    <td>
+                                        <small>{{ payment.payment_date|date:"d M Y, h:i A" }}</small>
+                                    </td>
+                                    <td class="pe-4">
+                                        {% if payment.status == 'completed' %}
+                                        <span class="status-badge status-active">
+                                            <i class="ri-checkbox-circle-fill me-1"></i>
+                                            Completed
+                                        </span>
+                                        {% else %}
+                                        <span class="status-badge status-deferred">
+                                            {{ payment.get_status_display }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="ri-inbox-line fs-3 d-block mb-2"></i>
+                                            No recent payments
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions & Stats -->
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="management-card mb-3">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'payment_processing' %}" class="btn btn-primary d-flex align-items-center justify-content-center gap-2">
+                            <i class="ri-add-line"></i>
+                            Process Payment
+                        </a>
+                        <a href="{% url 'student_balances' %}" class="btn btn-outline-primary d-flex align-items-center justify-content-center gap-2">
+                            <i class="ri-list-check"></i>
+                            View Balances
+                        </a>
+                        <a href="{% url 'daily_collections_report' %}" class="btn btn-outline-secondary d-flex align-items-center justify-content-center gap-2">
+                            <i class="ri-file-chart-line"></i>
+                            Daily Report
+                        </a>
+                        <a href="{% url 'debtors_report' %}" class="btn btn-outline-danger d-flex align-items-center justify-content-center gap-2">
+                            <i class="ri-alert-line"></i>
+                            Debtors Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Methods Breakdown -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Payment Methods</h5>
+                    <div class="card-subtitle">This Month</div>
+                </div>
+                <div class="card-body">
+                    {% for method in payment_methods %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small fw-medium">{{ method.payment_method|upper }}</span>
+                            <span class="small text-muted">{{ method.count }} transactions</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" 
+                                 role="progressbar" 
+                                 style="width: {{ method.total|floatformat:0 }}%">
+                            </div>
+                        </div>
+                        <small class="text-muted">KES {{ method.total|floatformat:2 }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0 small">No payment data available</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Programme Collections -->
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Top Collections by Programme</h5>
+                    <div class="card-subtitle">This Month</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Programme</th>
+                                    <th>Collections</th>
+                                    <th>Transactions</th>
+                                    <th class="pe-4">Average</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prog in programme_collections %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div>
+                                            <div class="fw-medium">{{ prog.student__programme__code }}</div>
+                                            <small class="text-muted">{{ prog.student__programme__name|truncatechars:40 }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">KES {{ prog.total|floatformat:2 }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-light text-dark">{{ prog.count }}</span>
+                                    </td>
+                                    <td class="pe-4">
+                                        <span class="text-muted">KES {% widthratio prog.total prog.count 1 %}</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="text-muted">
+                                            <i class="ri-inbox-line fs-3 d-block mb-2"></i>
+                                            No collection data available
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Budget Overview -->
+    {% if budget_overview %}
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Budget Overview</h5>
+                    <div class="card-subtitle">{{ current_academic_year.name }}</div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <small class="text-muted d-block mb-1">Total Allocation</small>
+                                <h4 class="mb-0 text-primary">KES {{ budget_overview.total_allocation|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <small class="text-muted d-block mb-1">Amount Spent</small>
+                                <h4 class="mb-0 text-warning">KES {{ budget_overview.total_spent|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center p-3 border rounded">
+                                <small class="text-muted d-block mb-1">Balance</small>
+                                <h4 class="mb-0 text-success">KES {{ budget_overview.total_balance|floatformat:2 }}</h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pending Payments Alert -->
+    {% if pending_payments > 0 %}
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="alert alert-warning d-flex align-items-center">
+                <i class="ri-alert-line fs-4 me-3"></i>
+                <div>
+                    <strong>Pending Payments:</strong> You have {{ pending_payments }} payment(s) pending verification.
+                    <a href="{% url 'payment_list' %}?status=pending" class="alert-link ms-2">View Now</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    /* Use the same styles from student management template */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+    
+    .breadcrumb-item a:hover {
+        color: var(--color-primary);
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body {
+        padding: 1.5rem;
+    }
+    
+    .icon-box {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items-center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-deferred {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .progress {
+        background-color: var(--color-gray-200);
+    }
+</style>
 {% endblock %}
