@@ -1,19 +1,13 @@
 ﻿{% extends 'finance/finance_base.html' %}
 {% load static %}
 
-{% block title %}Fee Structures{% endblock %}
+{% block title %}Fee Structure Management{% endblock %}
 
 {% block extra_css %}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
     :root {
         --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        --radius-sm: 6px;
-        --radius-md: 8px;
-        --radius-lg: 12px;
-        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
-        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
         --color-primary: #2E7D32;
         --color-success: #4CAF50;
         --color-warning: #FF9800;
@@ -24,13 +18,42 @@
         --color-gray-300: #dee2e6;
         --color-gray-600: #6c757d;
         --color-gray-800: #343a40;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
     }
     
     body {
         font-family: var(--font-family);
-        background-color: #f5f5f5;
+        background-color: #f5f7fa;
     }
     
+    .content-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item.active {
+        color: var(--color-gray-800);
+        font-weight: 500;
+    }
+    
+    /* Page Header */
     .page-header {
         background: white;
         padding: 1.5rem;
@@ -39,18 +62,39 @@
         box-shadow: var(--shadow-sm);
     }
     
-    .page-title {
-        font-size: 1.5rem;
+    /* Management Card */
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
         font-weight: 600;
         color: var(--color-gray-800);
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.25rem;
     }
     
-    .page-subtitle {
-        color: var(--color-gray-600);
+    .card-subtitle {
         font-size: 0.875rem;
+        color: var(--color-gray-600);
     }
     
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Stats Grid */
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -80,110 +124,359 @@
         color: var(--color-gray-800);
     }
     
-    .filters-card {
-        background: white;
+    /* Fee Structure Grid */
+    .fee-structure-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.25rem;
         padding: 1.5rem;
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
-        margin-bottom: 1.5rem;
     }
     
-    .filter-section {
-        margin-bottom: 1rem;
-    }
-    
-    .filter-section:last-child {
-        margin-bottom: 0;
-    }
-    
-    .filter-label {
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: var(--color-gray-800);
-        margin-bottom: 0.5rem;
-    }
-    
-    .form-select,
-    .form-control {
-        border: 1px solid var(--color-gray-300);
-        border-radius: var(--radius-sm);
-        padding: 0.5rem 0.75rem;
-        font-size: 0.875rem;
-        transition: all 0.2s ease;
-    }
-    
-    .form-select:focus,
-    .form-control:focus {
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
-        outline: none;
-    }
-    
-    .btn {
-        padding: 0.5rem 1rem;
-        border-radius: var(--radius-sm);
-        font-size: 0.875rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
-        border: none;
-        cursor: pointer;
-    }
-    
-    .btn-primary {
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .btn-primary:hover {
-        background: #1B5E20;
-    }
-    
-    .btn-outline-primary {
-        background: transparent;
-        border: 1px solid var(--color-primary);
-        color: var(--color-primary);
-    }
-    
-    .btn-outline-primary:hover {
-        background: var(--color-primary);
-        color: white;
-    }
-    
-    .btn-success {
-        background: var(--color-success);
-        color: white;
-    }
-    
-    .btn-info {
-        background: var(--color-info);
-        color: white;
-    }
-    
-    .btn-sm {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.8125rem;
-    }
-    
-    .content-card {
+    .fee-structure-card {
         background: white;
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-sm);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
         overflow: hidden;
     }
     
-    .card-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid var(--color-gray-200);
-        background: var(--color-gray-100);
+    .fee-structure-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--color-primary);
+        transform: scaleY(0);
+        transition: transform 0.3s ease;
     }
     
-    .card-title {
+    .fee-structure-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        border-color: var(--color-primary);
+    }
+    
+    .fee-structure-card:hover::before {
+        transform: scaleY(1);
+    }
+    
+    .programme-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .programme-code {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--color-primary);
+        background: rgba(46, 125, 50, 0.08);
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+    }
+    
+    .programme-name {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin: 0.5rem 0;
+        line-height: 1.4;
+    }
+    
+    .academic-info {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .info-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.625rem;
+        border-radius: 20px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .badge-year {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .badge-semester {
+        background: rgba(156, 39, 176, 0.1);
+        color: #9C27B0;
+    }
+    
+    /* Fee Breakdown - Vertical Layout */
+    .fee-breakdown {
+        margin-top: 1rem;
+    }
+    
+    .fee-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.625rem 0;
+        border-bottom: 1px solid var(--color-gray-100);
+    }
+    
+    .fee-item:last-child {
+        border-bottom: none;
+    }
+    
+    .fee-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .fee-label i {
+        font-size: 1rem;
+        color: var(--color-gray-500);
+    }
+    
+    .fee-amount {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    .total-fee {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 2px solid var(--color-gray-300);
+    }
+    
+    .total-fee .fee-label {
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+    }
+    
+    .total-fee .fee-amount {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+    
+    /* Card Actions */
+    .card-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--color-gray-200);
+    }
+    
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        background: linear-gradient(135deg, var(--color-primary) 0%, #1B5E20 100%);
+        color: white;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 1.5rem;
+        border-bottom: none;
+    }
+    
+    .modal-title {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .modal-title i {
+        font-size: 1.5rem;
+    }
+    
+    .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+    
+    .btn-close:hover {
+        opacity: 1;
+    }
+    
+    .modal-body {
+        padding: 2rem 1.5rem;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    /* Vertical Form Layout in Modal */
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .form-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-gray-200);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-title i {
+        color: var(--color-primary);
+    }
+    
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+    
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-700);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.9375rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    .input-group-text {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        font-weight: 600;
+        color: var(--color-gray-700);
+    }
+    
+    /* Fee Summary in Modal */
+    .fee-summary {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        margin-top: 1.5rem;
+    }
+    
+    .summary-title {
         font-size: 1rem;
         font-weight: 600;
         color: var(--color-gray-800);
-        margin: 0;
+        margin-bottom: 1rem;
     }
     
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+        font-size: 0.875rem;
+    }
+    
+    .summary-item:last-of-type {
+        border-bottom: none;
+    }
+    
+    .summary-total {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        margin-top: 0.75rem;
+        border-top: 2px solid var(--color-gray-300);
+        font-size: 1.125rem;
+        font-weight: 700;
+    }
+    
+    .summary-total .amount {
+        color: var(--color-primary);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        color: var(--color-gray-300);
+        margin-bottom: 1rem;
+    }
+    
+    .empty-state h5 {
+        color: var(--color-gray-600);
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    .empty-state p {
+        color: var(--color-gray-500);
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .btn {
+        border-radius: var(--radius-sm);
+        font-weight: 500;
+        padding: 0.625rem 1.25rem;
+        transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Nav Tabs */
     .nav-tabs {
         border-bottom: 2px solid var(--color-gray-200);
         padding: 0 1.5rem;
@@ -220,6 +513,7 @@
         padding: 1.5rem;
     }
     
+    /* Table */
     .table-responsive {
         overflow-x: auto;
     }
@@ -251,6 +545,7 @@
         background-color: rgba(46, 125, 50, 0.02);
     }
     
+    /* Badge */
     .badge {
         padding: 0.25rem 0.75rem;
         border-radius: 20px;
@@ -275,181 +570,67 @@
         color: var(--color-warning);
     }
     
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        color: var(--color-gray-600);
-    }
-    
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.3;
-    }
-    
+    /* Pagination */
     .pagination {
-        margin-top: 1.5rem;
-        display: flex;
-        justify-content: center;
-        gap: 0.25rem;
+        margin-top: 2rem;
     }
     
-    .pagination .page-link {
-        padding: 0.5rem 0.75rem;
-        border: 1px solid var(--color-gray-300);
+    .page-link {
+        border: 1px solid var(--color-gray-200);
         color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
         border-radius: var(--radius-sm);
-        text-decoration: none;
     }
     
-    .pagination .page-link:hover {
-        background: var(--color-gray-100);
-    }
-    
-    .pagination .page-item.active .page-link {
+    .page-item.active .page-link {
         background: var(--color-primary);
-        color: white;
         border-color: var(--color-primary);
     }
     
-    .action-buttons {
-        display: flex;
-        gap: 0.5rem;
+    /* Filter Section */
+    .filter-section {
+        margin-bottom: 1rem;
     }
     
-    .modal {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 1000;
-        align-items: center;
-        justify-content: center;
+    .filter-section:last-child {
+        margin-bottom: 0;
     }
     
-    .modal.show {
-        display: flex;
-    }
-    
-    .modal-dialog {
-        background: white;
-        border-radius: var(--radius-lg);
-        width: 90%;
-        max-width: 600px;
-        max-height: 90vh;
-        overflow-y: auto;
-    }
-    
-    .modal-header {
-        padding: 1.25rem 1.5rem;
-        border-bottom: 1px solid var(--color-gray-200);
-    }
-    
-    .modal-title {
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: var(--color-gray-800);
-    }
-    
-    .modal-body {
-        padding: 1.5rem;
-    }
-    
-    .modal-footer {
-        padding: 1rem 1.5rem;
-        border-top: 1px solid var(--color-gray-200);
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.75rem;
-    }
-    
-    .form-group {
-        margin-bottom: 1.25rem;
-    }
-    
-    .form-group label {
-        display: block;
+    .filter-label {
         font-size: 0.875rem;
         font-weight: 500;
         color: var(--color-gray-800);
         margin-bottom: 0.5rem;
     }
-    
-    .form-group .text-muted {
-        font-size: 0.75rem;
-        color: var(--color-gray-600);
-        margin-top: 0.25rem;
-    }
-    
-    .fee-breakdown {
-        background: var(--color-gray-100);
-        padding: 1rem;
-        border-radius: var(--radius-sm);
-        margin-top: 1rem;
-    }
-    
-    .fee-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--color-gray-300);
-    }
-    
-    .fee-item:last-child {
-        border-bottom: none;
-        font-weight: 600;
-        color: var(--color-primary);
-    }
-    
-    .alert {
-        padding: 0.75rem 1rem;
-        border-radius: var(--radius-sm);
-        margin-bottom: 1rem;
-    }
-    
-    .alert-success {
-        background: rgba(76, 175, 80, 0.1);
-        color: var(--color-success);
-        border-left: 4px solid var(--color-success);
-    }
-    
-    .alert-danger {
-        background: rgba(244, 67, 54, 0.1);
-        color: var(--color-danger);
-        border-left: 4px solid var(--color-danger);
-    }
-    
-    .close-btn {
-        background: transparent;
-        border: none;
-        font-size: 1.5rem;
-        cursor: pointer;
-        color: var(--color-gray-600);
-        padding: 0;
-        line-height: 1;
-    }
 </style>
 {% endblock %}
 
+{% block page_title %}Fee Structure Management{% endblock %}
+{% block page_subtitle %}Manage programme fees by year and semester{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'finance_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Finance</a></li>
+        <li class="breadcrumb-item active">Fee Structures</li>
+    </ol>
+</nav>
+
+<div class="content-container">
     <!-- Page Header -->
-    <div class="page-header">
-        <div class="d-flex justify-content-between align-items-center">
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
             <div>
-                <h1 class="page-title">Fee Structures</h1>
-                <p class="page-subtitle">Manage programme fee structures by academic year and semester</p>
+                <h1 class="h3 fw-semibold mb-2">Fee Structure Management</h1>
+                <p class="text-muted mb-0">Manage programme fees by academic year and semester</p>
             </div>
-            <div class="d-flex gap-2">
-                <button class="btn btn-outline-primary" onclick="openDuplicateModal()">
-                    <i class="ri-file-copy-line me-2"></i>Duplicate Fees
-                </button>
-                <button class="btn btn-primary" onclick="openCreateModal()">
-                    <i class="ri-add-line me-2"></i>Add Fee Structure
-                </button>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_academic_year.name }} • {{ current_semester.name }}
+                </span>
             </div>
         </div>
     </div>
@@ -472,85 +653,101 @@
         {% endif %}
     </div>
 
-    <!-- Filters -->
-    <div class="filters-card">
-        <form method="get" id="filterForm">
-            <div class="row g-3">
-                <div class="col-md-3">
-                    <div class="filter-section">
-                        <label class="filter-label">Academic Year</label>
-                        <select name="academic_year" class="form-select" id="academicYearFilter" onchange="this.form.submit()">
-                            <option value="">All Years</option>
-                            {% for year in academic_years %}
-                            <option value="{{ year.id }}" {% if year.id|stringformat:"s" == filter_academic_year %}selected{% endif %}>
-                                {{ year.name }}
-                                {% if year.is_current %}(Current){% endif %}
-                            </option>
-                            {% endfor %}
-                        </select>
+    <!-- Filters & Actions Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters & Actions</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" id="filterForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="filter-section">
+                            <label class="filter-label">Academic Year</label>
+                            <select name="academic_year" class="form-select" id="academicYearFilter" onchange="this.form.submit()">
+                                <option value="">All Years</option>
+                                {% for year in academic_years %}
+                                <option value="{{ year.id }}" {% if year.id|stringformat:"s" == filter_academic_year %}selected{% endif %}>
+                                    {{ year.name }}
+                                    {% if year.is_current %}(Current){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="filter-section">
+                            <label class="filter-label">Programme</label>
+                            <select name="programme" class="form-select" id="programmeFilter" onchange="handleProgrammeChange()">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}" 
+                                        data-years="{{ programme.duration_years }}"
+                                        {% if programme.id|stringformat:"s" == filter_programme %}selected{% endif %}>
+                                    {{ programme.code }} - {{ programme.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <div class="filter-section">
+                            <label class="filter-label">Semester</label>
+                            <select name="semester" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Semesters</option>
+                                {% for value, label in semester_options %}
+                                <option value="{{ value }}" {% if value == filter_semester %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <div class="filter-section">
+                            <label class="filter-label">Year of Study</label>
+                            <select name="year_of_study" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Years</option>
+                                {% for year in year_options %}
+                                <option value="{{ year }}" {% if year|stringformat:"s" == filter_year %}selected{% endif %}>
+                                    Year {{ year }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <div class="filter-section">
+                            <label class="filter-label">&nbsp;</label>
+                            <button type="button" class="btn btn-outline-primary w-100" onclick="clearFilters()">
+                                <i class="ri-refresh-line me-2"></i>Clear
+                            </button>
+                        </div>
                     </div>
                 </div>
+            </form>
 
-                <div class="col-md-3">
-                    <div class="filter-section">
-                        <label class="filter-label">Programme</label>
-                        <select name="programme" class="form-select" id="programmeFilter" onchange="handleProgrammeChange()">
-                            <option value="">All Programmes</option>
-                            {% for programme in programmes %}
-                            <option value="{{ programme.id }}" 
-                                    data-years="{{ programme.duration_years }}"
-                                    {% if programme.id|stringformat:"s" == filter_programme %}selected{% endif %}>
-                                {{ programme.code }} - {{ programme.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-md-2">
-                    <div class="filter-section">
-                        <label class="filter-label">Semester</label>
-                        <select name="semester" class="form-select" onchange="this.form.submit()">
-                            <option value="">All Semesters</option>
-                            {% for value, label in semester_options %}
-                            <option value="{{ value }}" {% if value == filter_semester %}selected{% endif %}>
-                                {{ label }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-md-2">
-                    <div class="filter-section">
-                        <label class="filter-label">Year of Study</label>
-                        <select name="year_of_study" class="form-select" onchange="this.form.submit()">
-                            <option value="">All Years</option>
-                            {% for year in year_options %}
-                            <option value="{{ year }}" {% if year|stringformat:"s" == filter_year %}selected{% endif %}>
-                                Year {{ year }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-md-2">
-                    <div class="filter-section">
-                        <label class="filter-label">&nbsp;</label>
-                        <button type="button" class="btn btn-outline-primary w-100" onclick="clearFilters()">
-                            <i class="ri-refresh-line me-2"></i>Clear
-                        </button>
-                    </div>
+            <div class="action-buttons d-flex justify-content-end align-items-center mt-3">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#duplicateModal">
+                        <i class="ri-file-copy-line me-1"></i> Duplicate Fees
+                    </button>
+                    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addFeeStructureModal">
+                        <i class="ri-add-line me-1"></i> Add Fee Structure
+                    </button>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
 
     <!-- Content -->
     {% if selected_programme %}
     <!-- Tabbed View for Selected Programme -->
-    <div class="content-card">
+    <div class="management-card">
         <div class="card-header">
             <h5 class="card-title">
                 {{ selected_programme.code }} - {{ selected_programme.name }}
@@ -610,10 +807,19 @@
                                 <td><strong>KES {{ fee.total_fee|floatformat:2 }}</strong></td>
                                 <td>
                                     <div class="action-buttons">
-                                        <button class="btn btn-sm btn-info" onclick="editFeeStructure({{ fee.id }})">
+                                        <button class="btn btn-icon btn-sm btn-outline-info" 
+                                                onclick="viewFeeStructure({{ fee.id }})"
+                                                title="View Details">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                        <button class="btn btn-icon btn-sm btn-outline-warning" 
+                                                onclick="editFeeStructure({{ fee.id }})"
+                                                title="Edit">
                                             <i class="ri-edit-line"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-outline-primary" onclick="deleteFeeStructure({{ fee.id }})">
+                                        <button class="btn btn-icon btn-sm btn-outline-danger" 
+                                                onclick="deleteFeeStructure({{ fee.id }})"
+                                                title="Delete">
                                             <i class="ri-delete-bin-line"></i>
                                         </button>
                                     </div>
@@ -637,131 +843,187 @@
         </div>
     </div>
     {% else %}
-    <!-- Table View for All Fee Structures -->
-    <div class="content-card">
+    <!-- Grid View for All Fee Structures -->
+    <div class="management-card">
         <div class="card-header">
             <h5 class="card-title">All Fee Structures</h5>
+            <div class="card-subtitle">Showing {{ fee_structures|length }} structures</div>
         </div>
         
         {% if fee_structures %}
-        <div class="table-responsive">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Programme</th>
-                        <th>Academic Year</th>
-                        <th>Year</th>
-                        <th>Semester</th>
-                        <th>Tuition Fee</th>
-                        <th>Other Fees</th>
-                        <th>Total Fee</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for fee in fee_structures %}
-                    <tr>
-                        <td>
-                            <div>
-                                <strong>{{ fee.programme.code }}</strong>
-                                <div class="text-muted small">{{ fee.programme.name|truncatechars:40 }}</div>
-                            </div>
-                        </td>
-                        <td>
-                            {{ fee.academic_year.name }}
-                            {% if fee.academic_year.is_current %}
-                            <span class="badge badge-success">Current</span>
-                            {% endif %}
-                        </td>
-                        <td><span class="badge badge-primary">Year {{ fee.year_of_study }}</span></td>
-                        <td><span class="badge badge-warning">Sem {{ fee.semester_number }}</span></td>
-                        <td>KES {{ fee.tuition_fee|floatformat:2 }}</td>
-                        <td>
-                            KES {% widthratio fee.total_fee 1 1 %}
-                            {% widthratio fee.tuition_fee 1 -1 %}
-                        </td>
-                        <td><strong>KES {{ fee.total_fee|floatformat:2 }}</strong></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="btn btn-sm btn-info" onclick="editFeeStructure({{ fee.id }})">
-                                    <i class="ri-edit-line"></i>
-                                </button>
-                                <button class="btn btn-sm btn-outline-primary" onclick="deleteFeeStructure({{ fee.id }})">
-                                    <i class="ri-delete-bin-line"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Pagination -->
-        {% if fee_structures.has_other_pages %}
-        <nav class="pagination">
-            {% if fee_structures.has_previous %}
-            <a href="?page={{ fee_structures.previous_page_number }}&{{ request.GET.urlencode }}" class="page-link">
-                <i class="ri-arrow-left-s-line"></i>
-            </a>
-            {% endif %}
-
-            {% for num in fee_structures.paginator.page_range %}
-            {% if fee_structures.number == num %}
-            <span class="page-link active">{{ num }}</span>
-            {% elif num > fee_structures.number|add:'-3' and num < fee_structures.number|add:'3' %}
-            <a href="?page={{ num }}&{{ request.GET.urlencode }}" class="page-link">{{ num }}</a>
-            {% endif %}
+        <div class="fee-structure-grid">
+            {% for structure in fee_structures %}
+            <div class="fee-structure-card" onclick="viewFeeStructure({{ structure.id }})">
+                <div class="programme-header">
+                    <div class="flex-grow-1">
+                        <div class="programme-code">{{ structure.programme.code }}</div>
+                        <h6 class="programme-name">{{ structure.programme.name|truncatechars:40 }}</h6>
+                        <small class="text-muted">{{ structure.programme.department.name }}</small>
+                    </div>
+                </div>
+                
+                <div class="academic-info">
+                    <span class="info-badge badge-year">
+                        <i class="ri-calendar-line"></i> {{ structure.academic_year.name }}
+                    </span>
+                    <span class="info-badge badge-year">
+                        <i class="ri-book-open-line"></i> Year {{ structure.year_of_study }}
+                    </span>
+                    <span class="info-badge badge-semester">
+                        <i class="ri-calendar-check-line"></i> Sem {{ structure.semester_number }}
+                    </span>
+                </div>
+                
+                <!-- Vertical Fee Breakdown -->
+                <div class="fee-breakdown">
+                    <div class="fee-item">
+                        <span class="fee-label">
+                            <i class="ri-book-2-line"></i> Tuition Fee
+                        </span>
+                        <span class="fee-amount">KES {{ structure.tuition_fee|floatformat:2|default:"0.00" }}</span>
+                    </div>
+                    <div class="fee-item">
+                        <span class="fee-label">
+                            <i class="ri-group-line"></i> Activity Fee
+                        </span>
+                        <span class="fee-amount">KES {{ structure.activity_fee|floatformat:2|default:"0.00" }}</span>
+                    </div>
+                    <div class="fee-item">
+                        <span class="fee-label">
+                            <i class="ri-file-list-line"></i> Examination Fee
+                        </span>
+                        <span class="fee-amount">KES {{ structure.examination_fee|floatformat:2|default:"0.00" }}</span>
+                    </div>
+                    <div class="fee-item">
+                        <span class="fee-label">
+                            <i class="ri-book-line"></i> Library Fee
+                        </span>
+                        <span class="fee-amount">KES {{ structure.library_fee|floatformat:2|default:"0.00" }}</span>
+                    </div>
+                    <div class="fee-item">
+                        <span class="fee-label">
+                            <i class="ri-heart-pulse-line"></i> Medical Fee
+                        </span>
+                        <span class="fee-amount">KES {{ structure.medical_fee|floatformat:2|default:"0.00" }}</span>
+                    </div>
+                    <div class="fee-item">
+                        <span class="fee-label">
+                            <i class="ri-computer-line"></i> Technology Fee
+                        </span>
+                        <span class="fee-amount">KES {{ structure.technology_fee|floatformat:2|default:"0.00" }}</span>
+                    </div>
+                    {% if structure.other_fees > 0 %}
+                    <div class="fee-item">
+                        <span class="fee-label">
+                            <i class="ri-more-line"></i> Other Fees
+                        </span>
+                        <span class="fee-amount">KES {{ structure.other_fees|floatformat:2|default:"0.00" }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="fee-item total-fee">
+                        <span class="fee-label">
+                            <i class="ri-money-dollar-circle-line"></i> Total Fee
+                        </span>
+                        <span class="fee-amount">KES {{ structure.total_fee|floatformat:2 }}</span>
+                    </div>
+                </div>
+                
+                <!-- Card Actions -->
+                <div class="card-actions" onclick="event.stopPropagation()">
+                    <button class="btn btn-icon btn-sm btn-outline-info" 
+                            onclick="viewFeeStructure({{ structure.id }})"
+                            title="View Details">
+                        <i class="ri-eye-line"></i>
+                    </button>
+                    <button class="btn btn-icon btn-sm btn-outline-warning" 
+                            onclick="editFeeStructure({{ structure.id }})"
+                            title="Edit">
+                        <i class="ri-edit-line"></i>
+                    </button>
+                    <button class="btn btn-icon btn-sm btn-outline-secondary" 
+                            onclick="duplicateFeeStructure({{ structure.id }})"
+                            title="Duplicate">
+                        <i class="ri-file-copy-line"></i>
+                    </button>
+                    <button class="btn btn-icon btn-sm btn-outline-danger" 
+                            onclick="deleteFeeStructure({{ structure.id }})"
+                            title="Delete">
+                        <i class="ri-delete-bin-line"></i>
+                    </button>
+                </div>
+            </div>
             {% endfor %}
-
-            {% if fee_structures.has_next %}
-            <a href="?page={{ fee_structures.next_page_number }}&{{ request.GET.urlencode }}" class="page-link">
-                <i class="ri-arrow-right-s-line"></i>
-            </a>
-            {% endif %}
-        </nav>
-        {% endif %}
+        </div>
         {% else %}
         <div class="empty-state">
-            <i class="ri-inbox-line"></i>
-            <p>No fee structures found</p>
-            <p class="small text-muted">Try adjusting your filters or create a new fee structure</p>
+            <i class="ri-money-dollar-circle-line"></i>
+            <h5>No fee structures found</h5>
+            <p>Create your first fee structure to get started</p>
+            <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addFeeStructureModal">
+                <i class="ri-add-line me-1"></i> Add Fee Structure
+            </button>
         </div>
         {% endif %}
     </div>
     {% endif %}
+
+    <!-- Pagination -->
+    {% if fee_structures.has_other_pages %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if fee_structures.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ fee_structures.previous_page_number }}">
+                    <i class="ri-arrow-left-line"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for i in fee_structures.paginator.page_range %}
+            <li class="page-item {% if fee_structures.number == i %}active{% endif %}">
+                <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+            </li>
+            {% endfor %}
+            
+            {% if fee_structures.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ fee_structures.next_page_number }}">
+                    <i class="ri-arrow-right-line"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 
-<!-- Create/Edit Fee Structure Modal -->
-<div class="modal" id="feeStructureModal">
-    <div class="modal-dialog">
-        <div class="modal-header">
-            <h5 class="modal-title" id="modalTitle">Add Fee Structure</h5>
-            <button type="button" class="close-btn" onclick="closeModal('feeStructureModal')">&times;</button>
-        </div>
-        <form id="feeStructureForm" onsubmit="saveFeeStructure(event)">
-            <div class="modal-body">
-                <div id="modalAlert"></div>
-                
-                <input type="hidden" id="feeStructureId" name="id">
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Academic Year <span class="text-danger">*</span></label>
-                            <select class="form-select" id="modalAcademicYear" name="academic_year_id" required>
-                                {% for year in academic_years %}
-                                <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
-                                    {{ year.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
+<!-- Add Fee Structure Modal (Vertical Form) -->
+<div class="modal fade" id="addFeeStructureModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" id="addFeeForm" onsubmit="saveFeeStructure(event)">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="ri-add-circle-line"></i>
+                        Add New Fee Structure
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="modalAlert"></div>
+                    
+                    <!-- Programme Selection Section -->
+                    <div class="form-section">
+                        <div class="section-title">
+                            <i class="ri-bookmark-line"></i>
+                            Programme Information
                         </div>
-                    </div>
-                    <div class="col-md-6">
+                        
                         <div class="form-group">
-                            <label>Programme <span class="text-danger">*</span></label>
-                            <select class="form-select" id="modalProgramme" name="programme_id" required>
+                            <label class="form-label">Programme *</label>
+                            <select name="programme_id" id="modalProgramme" class="form-select" required>
                                 <option value="">Select Programme</option>
                                 {% for programme in programmes %}
                                 <option value="{{ programme.id }}">
@@ -770,176 +1032,273 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Academic Year *</label>
+                                    <select name="academic_year_id" id="modalAcademicYear" class="form-select" required>
+                                        <option value="">Select Year</option>
+                                        {% for year in academic_years %}
+                                        <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                                            {{ year.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">Year *</label>
+                                    <select name="year_of_study" id="modalYear" class="form-select" required>
+                                        {% for year in year_options %}
+                                        <option value="{{ year }}">Year {{ year }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group">
+                                    <label class="form-label">Semester *</label>
+                                    <select name="semester_number" id="modalSemester" class="form-select" required>
+                                        {% for value, name in semester_options %}
+                                        <option value="{{ value }}">Sem {{ value }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Fee Components Section - Vertical Layout -->
+                    <div class="form-section">
+                        <div class="section-title">
+                            <i class="ri-money-dollar-circle-line"></i>
+                            Fee Components
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Tuition Fee (KES) *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" step="0.01" name="tuition_fee" id="tuitionFee"
+                                       class="form-control fee-input" 
+                                       placeholder="50000.00" required onchange="calculateTotal()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Activity Fee (KES)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" step="0.01" name="activity_fee" id="activityFee"
+                                       class="form-control fee-input" 
+                                       placeholder="2000.00" value="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Examination Fee (KES)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" step="0.01" name="examination_fee" id="examinationFee"
+                                       class="form-control fee-input" 
+                                       placeholder="3000.00" value="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Library Fee (KES)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" step="0.01" name="library_fee" id="libraryFee"
+                                       class="form-control fee-input" 
+                                       placeholder="1500.00" value="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Medical Fee (KES)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" step="0.01" name="medical_fee" id="medicalFee"
+                                       class="form-control fee-input" 
+                                       placeholder="2500.00" value="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Technology Fee (KES)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" step="0.01" name="technology_fee" id="technologyFee"
+                                       class="form-control fee-input" 
+                                       placeholder="1000.00" value="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Other Fees (KES)</label>
+                            <div class="input-group">
+                                <span class="input-group-text">KES</span>
+                                <input type="number" step="0.01" name="other_fees" id="otherFees"
+                                       class="form-control fee-input" 
+                                       placeholder="0.00" value="0" onchange="calculateTotal()">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Fee Summary -->
+                    <div class="fee-summary">
+                        <div class="summary-title">Fee Summary</div>
+                        <div class="summary-item">
+                            <span>Tuition Fee:</span>
+                            <span id="summaryTuition">KES 0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Activity Fee:</span>
+                            <span id="summaryActivity">KES 0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Examination Fee:</span>
+                            <span id="summaryExamination">KES 0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Library Fee:</span>
+                            <span id="summaryLibrary">KES 0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Medical Fee:</span>
+                            <span id="summaryMedical">KES 0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Technology Fee:</span>
+                            <span id="summaryTechnology">KES 0.00</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Other Fees:</span>
+                            <span id="summaryOther">KES 0.00</span>
+                        </div>
+                        <div class="summary-total">
+                            <span>Total Fee:</span>
+                            <span class="amount" id="summaryTotal">KES 0.00</span>
+                        </div>
                     </div>
                 </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Year of Study <span class="text-danger">*</span></label>
-                            <select class="form-select" id="modalYear" name="year_of_study" required>
-                                {% for year in year_options %}
-                                <option value="{{ year }}">Year {{ year }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Semester <span class="text-danger">*</span></label>
-                            <select class="form-select" id="modalSemester" name="semester_number" required>
-                                {% for value, label in semester_options %}
-                                <option value="{{ value }}">{{ label }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-1"></i> Create Fee Structure
+                    </button>
                 </div>
-
-                <hr>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Tuition Fee <span class="text-danger">*</span></label>
-                            <input type="number" step="0.01" class="form-control" id="tuitionFee" 
-                                   name="tuition_fee" required onchange="calculateTotal()">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Activity Fee</label>
-                            <input type="number" step="0.01" class="form-control" id="activityFee" 
-                                   name="activity_fee" value="0" onchange="calculateTotal()">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Examination Fee</label>
-                            <input type="number" step="0.01" class="form-control" id="examinationFee" 
-                                   name="examination_fee" value="0" onchange="calculateTotal()">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Library Fee</label>
-                            <input type="number" step="0.01" class="form-control" id="libraryFee" 
-                                   name="library_fee" value="0" onchange="calculateTotal()">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Medical Fee</label>
-                            <input type="number" step="0.01" class="form-control" id="medicalFee" 
-                                   name="medical_fee" value="0" onchange="calculateTotal()">
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="form-group">
-                            <label>Technology Fee</label>
-                            <input type="number" step="0.01" class="form-control" id="technologyFee" 
-                                   name="technology_fee" value="0" onchange="calculateTotal()">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Other Fees</label>
-                    <input type="number" step="0.01" class="form-control" id="otherFees" 
-                           name="other_fees" value="0" onchange="calculateTotal()">
-                </div>
-
-                <div class="fee-breakdown">
-                    <div class="fee-item">
-                        <span>Total Fee:</span>
-                        <strong id="totalFeeDisplay">KES 0.00</strong>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-primary" onclick="closeModal('feeStructureModal')">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-primary">
-                    <i class="ri-save-line me-2"></i>Save Fee Structure
-                </button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 
 <!-- Duplicate Fee Structure Modal -->
-<div class="modal" id="duplicateModal">
-    <div class="modal-dialog">
-        <div class="modal-header">
-            <h5 class="modal-title">Duplicate Fee Structures</h5>
-            <button type="button" class="close-btn" onclick="closeModal('duplicateModal')">&times;</button>
+<div class="modal fade" id="duplicateModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="duplicateForm" onsubmit="duplicateFees(event)">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="ri-file-copy-line"></i>
+                        Duplicate Fee Structures
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="duplicateAlert"></div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Source Academic Year *</label>
+                        <select class="form-select" name="source_academic_year_id" required>
+                            {% for year in academic_years %}
+                            <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
+                                {{ year.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Target Academic Year *</label>
+                        <select class="form-select" name="target_academic_year_id" required>
+                            {% for year in academic_years %}
+                            <option value="{{ year.id }}">{{ year.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Programme (Optional)</label>
+                        <select class="form-select" name="programme_id">
+                            <option value="">All Programmes</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}">
+                                {{ programme.code }} - {{ programme.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Leave blank to duplicate all programmes</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Fee Increase Percentage</label>
+                        <input type="number" step="0.01" class="form-control" 
+                               name="increase_percentage" value="0" min="0" max="100">
+                        <small class="text-muted">Enter 0 for no increase, 10 for 10% increase, etc.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="ri-file-copy-line me-1"></i> Duplicate Fees
+                    </button>
+                </div>
+            </form>
         </div>
-        <form id="duplicateForm" onsubmit="duplicateFees(event)">
-            <div class="modal-body">
-                <div id="duplicateAlert"></div>
-                
-                <div class="form-group">
-                    <label>Source Academic Year <span class="text-danger">*</span></label>
-                    <select class="form-select" name="source_academic_year_id" required>
-                        {% for year in academic_years %}
-                        <option value="{{ year.id }}" {% if year.is_current %}selected{% endif %}>
-                            {{ year.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Target Academic Year <span class="text-danger">*</span></label>
-                    <select class="form-select" name="target_academic_year_id" required>
-                        {% for year in academic_years %}
-                        <option value="{{ year.id }}">{{ year.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label>Programme (Optional)</label>
-                    <select class="form-select" name="programme_id">
-                        <option value="">All Programmes</option>
-                        {% for programme in programmes %}
-                        <option value="{{ programme.id }}">
-                            {{ programme.code }} - {{ programme.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                    <small class="text-muted">Leave blank to duplicate all programmes</small>
-                </div>
-
-                <div class="form-group">
-                    <label>Fee Increase Percentage</label>
-                    <input type="number" step="0.01" class="form-control" 
-                           name="increase_percentage" value="0" min="0" max="100">
-                    <small class="text-muted">Enter 0 for no increase, 10 for 10% increase, etc.</small>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-primary" onclick="closeModal('duplicateModal')">
-                    Cancel
-                </button>
-                <button type="submit" class="btn btn-success">
-                    <i class="ri-file-copy-line me-2"></i>Duplicate Fees
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 
+<!-- View Fee Structure Modal -->
+<div class="modal fade" id="viewFeeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="ri-eye-line"></i>
+                    Fee Structure Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewFeeContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Global variables
-let currentFeeStructureId = null;
+// ============================================
+// FEE STRUCTURE MANAGEMENT JAVASCRIPT
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Fee Structure Management initialized');
+    calculateTotal();
+});
 
 // Handle programme change
 function handleProgrammeChange() {
@@ -948,52 +1307,55 @@ function handleProgrammeChange() {
 
 // Clear filters
 function clearFilters() {
-    window.location.href = '{% url "fee_structure_list" %}';
-}
-
-// Open create modal
-function openCreateModal() {
-    currentFeeStructureId = null;
-    document.getElementById('modalTitle').textContent = 'Add Fee Structure';
-    document.getElementById('feeStructureForm').reset();
-    document.getElementById('feeStructureId').value = '';
-    
-    {% if filter_programme %}
-    document.getElementById('modalProgramme').value = '{{ filter_programme }}';
-    {% endif %}
-    
-    {% if filter_academic_year %}
-    document.getElementById('modalAcademicYear').value = '{{ filter_academic_year }}';
-    {% endif %}
-    
-    calculateTotal();
-    openModal('feeStructureModal');
+    window.location.href = '{% url "finance_fee_structure_list" %}';
 }
 
 // Open create modal for specific year
 function openCreateModalForYear(year) {
-    openCreateModal();
+    const modal = new bootstrap.Modal(document.getElementById('addFeeStructureModal'));
     document.getElementById('modalYear').value = year;
-}
-
-// Open duplicate modal
-function openDuplicateModal() {
-    document.getElementById('duplicateForm').reset();
-    openModal('duplicateModal');
+    {% if filter_programme %}
+    document.getElementById('modalProgramme').value = '{{ filter_programme }}';
+    {% endif %}
+    modal.show();
 }
 
 // Calculate total fee
+function formatCurrency(value) {
+    return new Intl.NumberFormat('en-KE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value || 0);
+}
+
 function calculateTotal() {
-    const tuition = parseFloat(document.getElementById('tuitionFee').value) || 0;
-    const activity = parseFloat(document.getElementById('activityFee').value) || 0;
-    const exam = parseFloat(document.getElementById('examinationFee').value) || 0;
-    const library = parseFloat(document.getElementById('libraryFee').value) || 0;
-    const medical = parseFloat(document.getElementById('medicalFee').value) || 0;
-    const technology = parseFloat(document.getElementById('technologyFee').value) || 0;
-    const other = parseFloat(document.getElementById('otherFees').value) || 0;
+    const tuition = parseFloat(document.getElementById('tuitionFee')?.value || 0);
+    const activity = parseFloat(document.getElementById('activityFee')?.value || 0);
+    const exam = parseFloat(document.getElementById('examinationFee')?.value || 0);
+    const library = parseFloat(document.getElementById('libraryFee')?.value || 0);
+    const medical = parseFloat(document.getElementById('medicalFee')?.value || 0);
+    const technology = parseFloat(document.getElementById('technologyFee')?.value || 0);
+    const other = parseFloat(document.getElementById('otherFees')?.value || 0);
     
     const total = tuition + activity + exam + library + medical + technology + other;
-    document.getElementById('totalFeeDisplay').textContent = 'KES ' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    
+    const summaryElements = {
+        'summaryTuition': tuition,
+        'summaryActivity': activity,
+        'summaryExamination': exam,
+        'summaryLibrary': library,
+        'summaryMedical': medical,
+        'summaryTechnology': technology,
+        'summaryOther': other,
+        'summaryTotal': total
+    };
+    
+    Object.keys(summaryElements).forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = 'KES ' + formatCurrency(summaryElements[id]);
+        }
+    });
 }
 
 // Save fee structure
@@ -1004,13 +1366,9 @@ async function saveFeeStructure(event) {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     
-    const id = document.getElementById('feeStructureId').value;
-    const url = id ? `/api/fee-structure/${id}/update/` : '{% url "api_create_fee_structure" %}';
-    const method = id ? 'PUT' : 'POST';
-    
     try {
-        const response = await fetch(url, {
-            method: method,
+        const response = await fetch('{% url "api_create_fee_structure" %}', {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken')
@@ -1033,45 +1391,51 @@ async function saveFeeStructure(event) {
     }
 }
 
-// Edit fee structure
-async function editFeeStructure(id) {
-    // Fetch fee structure data
+// View fee structure
+async function viewFeeStructure(structureId) {
+    const modal = new bootstrap.Modal(document.getElementById('viewFeeModal'));
+    const content = document.getElementById('viewFeeContent');
+    
+    content.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading fee structure details...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
     try {
-        const response = await fetch(`/api/fee-structure/${id}/`);
+        const response = await fetch(`/api/fee-structure/programme/${structureId}/`);
         const data = await response.json();
         
         if (data.success) {
-            currentFeeStructureId = id;
-            document.getElementById('modalTitle').textContent = 'Edit Fee Structure';
-            document.getElementById('feeStructureId').value = id;
-            document.getElementById('modalAcademicYear').value = data.academic_year_id;
-            document.getElementById('modalProgramme').value = data.programme_id;
-            document.getElementById('modalYear').value = data.year_of_study;
-            document.getElementById('modalSemester').value = data.semester_number;
-            document.getElementById('tuitionFee').value = data.tuition_fee;
-            document.getElementById('activityFee').value = data.activity_fee;
-            document.getElementById('examinationFee').value = data.examination_fee;
-            document.getElementById('libraryFee').value = data.library_fee;
-            document.getElementById('medicalFee').value = data.medical_fee;
-            document.getElementById('technologyFee').value = data.technology_fee;
-            document.getElementById('otherFees').value = data.other_fees;
-            
-            calculateTotal();
-            openModal('feeStructureModal');
+            // Display fee structure details
+            content.innerHTML = `<div class="alert alert-info">Fee structure details loaded successfully</div>`;
+        } else {
+            content.innerHTML = `<div class="alert alert-danger">${data.error || 'Error loading fee structure'}</div>`;
         }
     } catch (error) {
-        alert('Error loading fee structure: ' + error.message);
+        content.innerHTML = `<div class="alert alert-danger">Error loading fee structure. Please try again.</div>`;
     }
 }
 
-// Delete fee structure
-async function deleteFeeStructure(id) {
+// Edit fee structure
+function editFeeStructure(structureId) {
+    // Implementation for editing
+    console.log('Edit fee structure:', structureId);
+}
+
+// Delete fee structure  
+async function deleteFeeStructure(structureId) {
     if (!confirm('Are you sure you want to delete this fee structure?')) {
         return;
     }
     
     try {
-        const response = await fetch(`/api/fee-structure/${id}/delete/`, {
+        const response = await fetch(`/api/fee-structure/${structureId}/delete/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken')
@@ -1091,6 +1455,11 @@ async function deleteFeeStructure(id) {
     }
 }
 
+// Duplicate fee structure
+function duplicateFeeStructure(structureId) {
+    console.log('Duplicate fee structure:', structureId);
+}
+
 // Duplicate fees
 async function duplicateFees(event) {
     event.preventDefault();
@@ -1099,7 +1468,6 @@ async function duplicateFees(event) {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     
-    // Remove empty programme_id
     if (!data.programme_id) {
         delete data.programme_id;
     }
@@ -1129,20 +1497,11 @@ async function duplicateFees(event) {
     }
 }
 
-// Modal functions
-function openModal(modalId) {
-    document.getElementById(modalId).classList.add('show');
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('show');
-}
-
 // Show alert
 function showAlert(elementId, type, message) {
     const alertDiv = document.getElementById(elementId);
     alertDiv.innerHTML = `
-        <div class="alert alert-${type}">
+        <div class="alert alert-${type === 'danger' ? 'danger' : 'success'}">
             ${message}
         </div>
     `;
@@ -1169,20 +1528,16 @@ document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
     tab.addEventListener('click', function(e) {
         e.preventDefault();
         
-        // Remove active class from all tabs
         document.querySelectorAll('.nav-link').forEach(link => {
             link.classList.remove('active');
         });
         
-        // Remove active class from all tab panes
         document.querySelectorAll('.tab-pane').forEach(pane => {
             pane.classList.remove('show', 'active');
         });
         
-        // Add active class to clicked tab
         this.classList.add('active');
         
-        // Show corresponding tab pane
         const target = this.getAttribute('data-bs-target');
         const targetPane = document.querySelector(target);
         if (targetPane) {
