@@ -633,7 +633,14 @@ urlpatterns = [
     path('reports/circulation/', views.circulation_report, name='circulation_report'),
     
     # ============= FEE MANAGEMENT =============
-    path('finance/fee-structure/', views.fee_structure_list, name='fee_structure_list'),
+    path('finance-module/fee-structure/', views.finance_fee_structure_list, name='finance_fee_structure_list'),
+     # API Endpoints
+    path('api/fee-structure/programme/<int:programme_id>/', views.get_programme_fee_structure, name='api_programme_fee_structure'),
+    path('api/fee-structure/create/', views.create_fee_structure, name='api_create_fee_structure'),
+    path('api/fee-structure/<int:fee_structure_id>/update/', views.update_fee_structure, name='api_update_fee_structure'),
+    path('api/fee-structure/<int:fee_structure_id>/delete/', views.delete_fee_structure, name='api_delete_fee_structure'),
+    path('api/fee-structure/duplicate/', views.duplicate_fee_structure, name='api_duplicate_fee_structure'),
+    path('api/programme/<int:programme_id>/years/', views.get_programme_years, name='api_programme_years'),
     path('finance/fee-structure/create/', views.fee_structure_create, name='fee_structure_create'),
     
     path('finance/student-balances/', views.student_balances, name='student_balances'),

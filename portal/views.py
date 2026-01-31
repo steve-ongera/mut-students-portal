@@ -2916,45 +2916,456 @@ def finance_dashboard(request):
     return render(request, 'finance/dashboard.html', context)
 
 # ============= FEE MANAGEMENT =============
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
+from django.db.models import Q, Count, Sum
+from django.contrib import messages
+from decimal import Decimal
+import json
 
 @login_required
-def fee_structure_list(request):
-    """List all fee structures"""
+def finance_fee_structure_list(request):
+    """List all fee structures with dynamic filtering and tabbed interface"""
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get filter parameters
+    programme_id = request.GET.get('programme')
+    academic_year_id = request.GET.get('academic_year', current_academic_year.id if current_academic_year else None)
+    semester_number = request.GET.get('semester', current_semester.semester_number if current_semester else None)
+    year_of_study = request.GET.get('year_of_study')
+    search_query = request.GET.get('search', '')
+    
+    # Base queryset
     fee_structures = FeeStructure.objects.select_related(
-        'programme', 'academic_year'
-    ).filter(is_active=True).order_by(
+        'programme', 
+        'programme__department',
+        'programme__department__school',
+        'academic_year'
+    ).filter(is_active=True)
+    
+    # Apply filters
+    if programme_id:
+        fee_structures = fee_structures.filter(programme_id=programme_id)
+    
+    if academic_year_id:
+        fee_structures = fee_structures.filter(academic_year_id=academic_year_id)
+    
+    if semester_number:
+        fee_structures = fee_structures.filter(semester_number=semester_number)
+    
+    if year_of_study:
+        fee_structures = fee_structures.filter(year_of_study=year_of_study)
+    
+    if search_query:
+        fee_structures = fee_structures.filter(
+            Q(programme__name__icontains=search_query) |
+            Q(programme__code__icontains=search_query)
+        )
+    
+    # Order by
+    fee_structures = fee_structures.order_by(
         '-academic_year__start_date',
         'programme__name',
         'year_of_study',
         'semester_number'
     )
     
-    # Filters
-    programme_id = request.GET.get('programme')
-    academic_year_id = request.GET.get('academic_year')
-    year_of_study = request.GET.get('year_of_study')
+    # Get selected programme details for tabs
+    selected_programme = None
+    programme_fee_structures = {}
     
     if programme_id:
-        fee_structures = fee_structures.filter(programme_id=programme_id)
-    if academic_year_id:
-        fee_structures = fee_structures.filter(academic_year_id=academic_year_id)
-    if year_of_study:
-        fee_structures = fee_structures.filter(year_of_study=year_of_study)
+        selected_programme = Programme.objects.get(id=programme_id)
+        
+        # Get fee structures grouped by year of study
+        for year in range(1, selected_programme.duration_years + 1):
+            year_fees = FeeStructure.objects.filter(
+                programme_id=programme_id,
+                academic_year_id=academic_year_id,
+                year_of_study=year,
+                is_active=True
+            ).order_by('semester_number')
+            
+            programme_fee_structures[year] = year_fees
+    
+    # Get statistics
+    total_programmes = Programme.objects.filter(
+        fee_structures__academic_year_id=academic_year_id,
+        fee_structures__is_active=True
+    ).distinct().count() if academic_year_id else 0
+    
+    total_fee_structures = fee_structures.count()
+    
+    # Calculate total revenue potential (if filters applied)
+    if programme_id and academic_year_id:
+        students_count = Student.objects.filter(
+            programme_id=programme_id,
+            student_status='active'
+        ).count()
+        
+        total_fees = fee_structures.aggregate(
+            total=Sum('total_fee')
+        )['total'] or Decimal('0.00')
+        
+        revenue_potential = total_fees * students_count
+    else:
+        revenue_potential = None
     
     # Pagination
     paginator = Paginator(fee_structures, 20)
     page = request.GET.get('page')
-    fee_structures = paginator.get_page(page)
+    fee_structures_page = paginator.get_page(page)
+    
+    # Get all filter options
+    programmes = Programme.objects.filter(is_active=True).select_related(
+        'department', 'department__school'
+    ).order_by('department__school__name', 'name')
+    
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by('-start_date')
+    
+    # Get available years of study (1-7)
+    year_options = range(1, 8)
+    
+    # Semester options
+    semester_options = Semester.SEMESTER_NAMES
     
     context = {
-        'fee_structures': fee_structures,
-        'programmes': Programme.objects.filter(is_active=True),
-        'academic_years': AcademicYear.objects.filter(is_active=True),
+        'fee_structures': fee_structures_page,
+        'programmes': programmes,
+        'academic_years': academic_years,
+        'year_options': year_options,
+        'semester_options': semester_options,
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'selected_programme': selected_programme,
+        'programme_fee_structures': programme_fee_structures,
+        'total_programmes': total_programmes,
+        'total_fee_structures': total_fee_structures,
+        'revenue_potential': revenue_potential,
+        
+        # Filter values
+        'filter_programme': programme_id,
+        'filter_academic_year': academic_year_id,
+        'filter_semester': semester_number,
+        'filter_year': year_of_study,
+        'search_query': search_query,
     }
     
     return render(request, 'finance/fee_structure/list.html', context)
 
 
+@login_required
+@require_http_methods(["GET"])
+def get_programme_fee_structure(request, programme_id):
+    """API endpoint to get fee structure for a specific programme"""
+    
+    academic_year_id = request.GET.get('academic_year')
+    
+    if not academic_year_id:
+        current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+        academic_year_id = current_academic_year.id if current_academic_year else None
+    
+    if not academic_year_id:
+        return JsonResponse({'error': 'No academic year specified'}, status=400)
+    
+    try:
+        programme = Programme.objects.get(id=programme_id, is_active=True)
+        
+        # Get fee structures for all years
+        fee_data = {}
+        
+        for year in range(1, programme.duration_years + 1):
+            year_fees = FeeStructure.objects.filter(
+                programme_id=programme_id,
+                academic_year_id=academic_year_id,
+                year_of_study=year,
+                is_active=True
+            ).order_by('semester_number').values(
+                'id', 'year_of_study', 'semester_number',
+                'tuition_fee', 'activity_fee', 'examination_fee',
+                'library_fee', 'medical_fee', 'technology_fee',
+                'other_fees', 'total_fee'
+            )
+            
+            fee_data[f'year_{year}'] = list(year_fees)
+        
+        return JsonResponse({
+            'success': True,
+            'programme': {
+                'id': programme.id,
+                'name': programme.name,
+                'code': programme.code,
+                'duration_years': programme.duration_years,
+                'total_semesters': programme.total_semesters,
+            },
+            'fee_structures': fee_data
+        })
+        
+    except Programme.DoesNotExist:
+        return JsonResponse({'error': 'Programme not found'}, status=404)
+
+
+@login_required
+@require_http_methods(["POST"])
+def create_fee_structure(request):
+    """API endpoint to create a new fee structure"""
+    
+    try:
+        data = json.loads(request.body)
+        
+        # Validate required fields
+        required_fields = ['programme_id', 'academic_year_id', 'year_of_study', 
+                          'semester_number', 'tuition_fee']
+        
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Missing required field: {field}'
+                }, status=400)
+        
+        # Check if fee structure already exists
+        existing = FeeStructure.objects.filter(
+            programme_id=data['programme_id'],
+            academic_year_id=data['academic_year_id'],
+            year_of_study=data['year_of_study'],
+            semester_number=data['semester_number']
+        ).first()
+        
+        if existing:
+            return JsonResponse({
+                'success': False,
+                'error': 'Fee structure already exists for this combination'
+            }, status=400)
+        
+        # Create fee structure
+        fee_structure = FeeStructure.objects.create(
+            programme_id=data['programme_id'],
+            academic_year_id=data['academic_year_id'],
+            year_of_study=data['year_of_study'],
+            semester_number=data['semester_number'],
+            tuition_fee=Decimal(data.get('tuition_fee', '0.00')),
+            activity_fee=Decimal(data.get('activity_fee', '0.00')),
+            examination_fee=Decimal(data.get('examination_fee', '0.00')),
+            library_fee=Decimal(data.get('library_fee', '0.00')),
+            medical_fee=Decimal(data.get('medical_fee', '0.00')),
+            technology_fee=Decimal(data.get('technology_fee', '0.00')),
+            other_fees=Decimal(data.get('other_fees', '0.00')),
+            is_active=True
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Fee structure created successfully',
+            'fee_structure': {
+                'id': fee_structure.id,
+                'programme': fee_structure.programme.name,
+                'academic_year': fee_structure.academic_year.name,
+                'year_of_study': fee_structure.year_of_study,
+                'semester_number': fee_structure.semester_number,
+                'total_fee': str(fee_structure.total_fee)
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["PUT"])
+def update_fee_structure(request, fee_structure_id):
+    """API endpoint to update an existing fee structure"""
+    
+    try:
+        fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id)
+        data = json.loads(request.body)
+        
+        # Update fields
+        if 'tuition_fee' in data:
+            fee_structure.tuition_fee = Decimal(data['tuition_fee'])
+        if 'activity_fee' in data:
+            fee_structure.activity_fee = Decimal(data['activity_fee'])
+        if 'examination_fee' in data:
+            fee_structure.examination_fee = Decimal(data['examination_fee'])
+        if 'library_fee' in data:
+            fee_structure.library_fee = Decimal(data['library_fee'])
+        if 'medical_fee' in data:
+            fee_structure.medical_fee = Decimal(data['medical_fee'])
+        if 'technology_fee' in data:
+            fee_structure.technology_fee = Decimal(data['technology_fee'])
+        if 'other_fees' in data:
+            fee_structure.other_fees = Decimal(data['other_fees'])
+        
+        fee_structure.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Fee structure updated successfully',
+            'fee_structure': {
+                'id': fee_structure.id,
+                'total_fee': str(fee_structure.total_fee)
+            }
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["DELETE"])
+def delete_fee_structure(request, fee_structure_id):
+    """API endpoint to delete (deactivate) a fee structure"""
+    
+    try:
+        fee_structure = get_object_or_404(FeeStructure, id=fee_structure_id)
+        
+        # Check if there are any payments against this fee structure
+        has_payments = FeePayment.objects.filter(
+            fee_structure_id=fee_structure_id
+        ).exists()
+        
+        if has_payments:
+            return JsonResponse({
+                'success': False,
+                'error': 'Cannot delete fee structure with existing payments. Consider deactivating instead.'
+            }, status=400)
+        
+        # Soft delete by deactivating
+        fee_structure.is_active = False
+        fee_structure.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Fee structure deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+@require_http_methods(["POST"])
+def duplicate_fee_structure(request):
+    """API endpoint to duplicate fee structure to a new academic year"""
+    
+    try:
+        data = json.loads(request.body)
+        
+        source_academic_year_id = data.get('source_academic_year_id')
+        target_academic_year_id = data.get('target_academic_year_id')
+        programme_id = data.get('programme_id')
+        increase_percentage = Decimal(data.get('increase_percentage', '0.00'))
+        
+        if not all([source_academic_year_id, target_academic_year_id]):
+            return JsonResponse({
+                'success': False,
+                'error': 'Source and target academic years are required'
+            }, status=400)
+        
+        # Get source fee structures
+        filters = {
+            'academic_year_id': source_academic_year_id,
+            'is_active': True
+        }
+        
+        if programme_id:
+            filters['programme_id'] = programme_id
+        
+        source_fees = FeeStructure.objects.filter(**filters)
+        
+        if not source_fees.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'No fee structures found to duplicate'
+            }, status=404)
+        
+        created_count = 0
+        skipped_count = 0
+        
+        for source_fee in source_fees:
+            # Check if target already exists
+            exists = FeeStructure.objects.filter(
+                programme=source_fee.programme,
+                academic_year_id=target_academic_year_id,
+                year_of_study=source_fee.year_of_study,
+                semester_number=source_fee.semester_number
+            ).exists()
+            
+            if exists:
+                skipped_count += 1
+                continue
+            
+            # Calculate increased fees
+            multiplier = (100 + increase_percentage) / 100
+            
+            # Create new fee structure
+            FeeStructure.objects.create(
+                programme=source_fee.programme,
+                academic_year_id=target_academic_year_id,
+                year_of_study=source_fee.year_of_study,
+                semester_number=source_fee.semester_number,
+                tuition_fee=source_fee.tuition_fee * multiplier,
+                activity_fee=source_fee.activity_fee * multiplier,
+                examination_fee=source_fee.examination_fee * multiplier,
+                library_fee=source_fee.library_fee * multiplier,
+                medical_fee=source_fee.medical_fee * multiplier,
+                technology_fee=source_fee.technology_fee * multiplier,
+                other_fees=source_fee.other_fees * multiplier,
+                is_active=True
+            )
+            
+            created_count += 1
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Duplicated {created_count} fee structures. Skipped {skipped_count} existing.',
+            'created': created_count,
+            'skipped': skipped_count
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@login_required
+def get_programme_years(request, programme_id):
+    """API endpoint to get number of years for a programme"""
+    
+    try:
+        programme = Programme.objects.get(id=programme_id)
+        
+        return JsonResponse({
+            'success': True,
+            'duration_years': programme.duration_years,
+            'total_semesters': programme.total_semesters,
+            'years': list(range(1, programme.duration_years + 1))
+        })
+        
+    except Programme.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Programme not found'
+        }, status=404)
+        
+        
 @login_required
 def fee_structure_create(request):
     """Create new fee structure"""
