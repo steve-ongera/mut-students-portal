@@ -3,179 +3,269 @@
 
 {% block title %}Hostel Warden Dashboard{% endblock %}
 
-{% block page_title %}Hostel Warden Dashboard{% endblock %}
-{% block page_subtitle %}Overview of hostel occupancy, applications, and maintenance{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Overview</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Hostel Dashboard</h1>
+                <p class="text-muted mb-0">Welcome back, <span class="fw-medium">{{ user.get_full_name|default:user.username }}</span></p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_year.name }} • {{ current_semester.name }}
+                </div>
+                <p class="small text-muted mt-2">Last login: {% now "F j, Y, g:i a" %}</p>
+            </div>
+        </div>
+    </div>
 
-<div class="content-container">
-    <!-- Statistics Cards Row -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted mb-0">Total Capacity</h6>
-                        <i class="ri-hotel-line fs-4 text-primary"></i>
+    <!-- Key Metrics Grid -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-hotel-line text-primary"></i>
                     </div>
-                    <h2 class="mb-0">{{ total_capacity }}</h2>
-                    <small class="text-muted">Available beds</small>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_capacity|default:0 }}</h3>
+                        <p class="metric-label mb-0">Total Capacity</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-building-line text-info me-1"></i>
+                    <span class="small text-muted">Across all hostels</span>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted mb-0">Occupied Beds</h6>
-                        <i class="ri-user-location-line fs-4 text-success"></i>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-user-line text-success"></i>
                     </div>
-                    <h2 class="mb-0">{{ occupied_beds }}</h2>
-                    <small class="text-muted">Currently occupied</small>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ occupied_beds|default:0 }}</h3>
+                        <p class="metric-label mb-0">Occupied Beds</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Current semester</span>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted mb-0">Available Beds</h6>
-                        <i class="ri-checkbox-blank-circle-line fs-4 text-info"></i>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-door-open-line text-warning"></i>
                     </div>
-                    <h2 class="mb-0">{{ available_beds }}</h2>
-                    <small class="text-muted">Ready for allocation</small>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ available_beds|default:0 }}</h3>
+                        <p class="metric-label mb-0">Available Beds</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-information-line text-info me-1"></i>
+                    <span class="small text-muted">Vacant spaces</span>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h6 class="text-muted mb-0">Occupancy Rate</h6>
-                        <i class="ri-pie-chart-line fs-4 text-warning"></i>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-percent-line text-info"></i>
                     </div>
-                    <h2 class="mb-0">{{ occupancy_rate }}%</h2>
-                    <small class="text-muted">Current occupancy</small>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ occupancy_rate|default:0 }}%</h3>
+                        <p class="metric-label mb-0">Occupancy Rate</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    {% if occupancy_rate >= 80 %}
+                    <i class="ri-arrow-up-line text-success me-1"></i>
+                    <span class="small text-success">High occupancy</span>
+                    {% elif occupancy_rate >= 50 %}
+                    <i class="ri-subtract-line text-warning me-1"></i>
+                    <span class="small text-warning">Moderate</span>
+                    {% else %}
+                    <i class="ri-arrow-down-line text-danger me-1"></i>
+                    <span class="small text-danger">Low occupancy</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-purple-subtle">
+                        <i class="ri-file-list-3-line text-purple"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ pending_applications|default:0 }}</h3>
+                        <p class="metric-label mb-0">Pending Applications</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-time-line text-warning me-1"></i>
+                    <span class="small text-muted">Awaiting review</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-teal-subtle">
+                        <i class="ri-tools-line text-teal"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ pending_maintenance|default:0 }}</h3>
+                        <p class="metric-label mb-0">Maintenance Requests</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-error-warning-line text-warning me-1"></i>
+                    <span class="small text-muted">Pending/In progress</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-indigo-subtle">
+                        <i class="ri-money-dollar-circle-line text-indigo"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ fee_collection_rate|default:0 }}%</h3>
+                        <p class="metric-label mb-0">Fee Collection</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-bank-card-line text-success me-1"></i>
+                    <span class="small text-muted">{{ fees_paid_count }}/{{ total_expected_fees }} paid</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-gray-subtle">
+                        <i class="ri-building-2-line text-gray"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ warden_hostels.count|default:0 }}</h3>
+                        <p class="metric-label mb-0">Your Hostels</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-shield-check-line text-success me-1"></i>
+                    <span class="small text-muted">Under management</span>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Quick Stats Row -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h6 class="text-muted mb-1">Pending Applications</h6>
-                            <h3 class="mb-0">{{ pending_applications }}</h3>
-                        </div>
-                        <div class="bg-primary bg-opacity-10 p-3 rounded">
-                            <i class="ri-file-list-3-line fs-3 text-primary"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h6 class="text-muted mb-1">Pending Maintenance</h6>
-                            <h3 class="mb-0">{{ pending_maintenance }}</h3>
-                        </div>
-                        <div class="bg-warning bg-opacity-10 p-3 rounded">
-                            <i class="ri-tools-line fs-3 text-warning"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <h6 class="text-muted mb-1">Fee Collection Rate</h6>
-                            <h3 class="mb-0">{{ fee_collection_rate }}%</h3>
-                        </div>
-                        <div class="bg-success bg-opacity-10 p-3 rounded">
-                            <i class="ri-money-dollar-circle-line fs-3 text-success"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hostel Statistics Table -->
-    <div class="row mb-4">
+    <!-- Hostel Statistics -->
+    <div class="row g-4 mb-5">
         <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">Hostel Statistics</h5>
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Hostel Statistics</h5>
+                    <div class="card-subtitle">Occupancy and availability by hostel</div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Hostel Name</th>
+                                    <th class="ps-4">Hostel</th>
                                     <th>Total Rooms</th>
                                     <th>Total Beds</th>
                                     <th>Occupied</th>
                                     <th>Available</th>
                                     <th>Occupancy Rate</th>
-                                    <th>Actions</th>
+                                    <th class="pe-4">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for stat in hostel_stats %}
                                 <tr>
-                                    <td>
-                                        <strong>{{ stat.hostel.name }}</strong>
-                                        <small class="d-block text-muted">{{ stat.hostel.code }}</small>
-                                    </td>
-                                    <td>{{ stat.total_rooms }}</td>
-                                    <td>{{ stat.total_beds }}</td>
-                                    <td>
-                                        <span class="badge bg-success">{{ stat.occupied }}</span>
-                                    </td>
-                                    <td>
-                                        <span class="badge bg-info">{{ stat.available }}</span>
-                                    </td>
-                                    <td>
-                                        <div class="progress" style="height: 20px;">
-                                            <div class="progress-bar {% if stat.occupancy_rate >= 80 %}bg-success{% elif stat.occupancy_rate >= 50 %}bg-warning{% else %}bg-info{% endif %}" 
-                                                 role="progressbar" 
-                                                 style="width: {{ stat.occupancy_rate }}%">
-                                                {{ stat.occupancy_rate }}%
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="hostel-icon me-3">
+                                                <i class="ri-hotel-line"></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-0 fw-medium">{{ stat.hostel.name }}</p>
+                                                <small class="text-muted">{{ stat.hostel.code }} • {{ stat.hostel.get_gender_type_display }}</small>
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <a href="{% url 'hostel_profile' stat.hostel.id %}" class="btn btn-sm btn-outline-primary">
-                                            <i class="ri-eye-line"></i> View
-                                        </a>
+                                        <span class="fw-medium">{{ stat.total_rooms }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">{{ stat.total_beds }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success-subtle text-success px-3 py-1">
+                                            {{ stat.occupied }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning-subtle text-warning px-3 py-1">
+                                            {{ stat.available }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 8px; width: 120px;">
+                                            <div class="progress-bar 
+                                                {% if stat.occupancy_rate >= 80 %}bg-success
+                                                {% elif stat.occupancy_rate >= 50 %}bg-warning
+                                                {% else %}bg-danger{% endif %}" 
+                                                role="progressbar" 
+                                                style="width: {{ stat.occupancy_rate }}%"
+                                                aria-valuenow="{{ stat.occupancy_rate }}" 
+                                                aria-valuemin="0" 
+                                                aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="text-muted mt-1 d-block">{{ stat.occupancy_rate }}%</small>
+                                    </td>
+                                    <td class="pe-4">
+                                        {% if stat.occupancy_rate >= 90 %}
+                                        <span class="status-badge status-danger">Almost Full</span>
+                                        {% elif stat.occupancy_rate >= 70 %}
+                                        <span class="status-badge status-approved">Good</span>
+                                        {% elif stat.occupancy_rate >= 40 %}
+                                        <span class="status-badge status-pending">Moderate</span>
+                                        {% else %}
+                                        <span class="status-badge status-rejected">Low</span>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="7" class="text-center py-4">
-                                        <p class="text-muted mb-0">No hostel data available</p>
+                                    <td colspan="7" class="text-center py-5 text-muted">
+                                        <i class="ri-inbox-line fs-1 mb-3 d-block"></i>
+                                        No hostel data available
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -188,34 +278,53 @@
     </div>
 
     <!-- Recent Applications and Maintenance -->
-    <div class="row g-3">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Applications</h5>
-                    <a href="{% url 'new_applications' %}" class="btn btn-sm btn-outline-primary">View All</a>
+    <div class="row g-4 mb-5">
+        <!-- Recent Applications -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Recent Applications</h5>
+                            <div class="card-subtitle">Last 7 days</div>
+                        </div>
+                        <a href="#" class="btn btn-sm btn-light">
+                            View All <i class="ri-arrow-right-line ms-1"></i>
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for app in recent_applications %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="mb-1">{{ app.student.registration_number }}</h6>
-                                    <p class="mb-1 text-muted small">{{ app.student.user.get_full_name }}</p>
-                                    <small class="text-muted">
-                                        {{ app.hostel.name }} - {{ app.get_preferred_room_type_display }}
-                                    </small>
+                    <div class="activity-list">
+                        {% for application in recent_applications %}
+                        <div class="activity-item">
+                            <div class="d-flex align-items-start">
+                                <div class="activity-icon me-3">
+                                    <i class="ri-user-add-line text-primary"></i>
                                 </div>
-                                <div class="text-end">
-                                    <span class="badge bg-{{ app.status }} mb-1">{{ app.get_status_display }}</span>
-                                    <small class="d-block text-muted">{{ app.application_date|date:"M d, Y" }}</small>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <div>
+                                            <h6 class="mb-0">{{ application.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ application.student.registration_number }}</small>
+                                        </div>
+                                        <span class="status-badge status-{{ application.status }}">
+                                            {{ application.get_status_display }}
+                                        </span>
+                                    </div>
+                                    <p class="small text-muted mb-1">
+                                        <i class="ri-hotel-line me-1"></i>{{ application.hostel.name }} • 
+                                        <i class="ri-door-line me-1"></i>{{ application.get_preferred_room_type_display }}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="ri-time-line me-1"></i>{{ application.application_date|timesince }} ago
+                                    </small>
                                 </div>
                             </div>
                         </div>
                         {% empty %}
-                        <div class="list-group-item text-center py-4">
-                            <p class="text-muted mb-0">No recent applications</p>
+                        <div class="text-center py-5 text-muted">
+                            <i class="ri-inbox-line fs-1 mb-3 d-block"></i>
+                            <p class="mb-0">No recent applications</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -223,35 +332,68 @@
             </div>
         </div>
 
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent Maintenance Requests</h5>
-                    <a href="{% url 'maintenance_requests' %}" class="btn btn-sm btn-outline-primary">View All</a>
+        <!-- Recent Maintenance Requests -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="card-title">Maintenance Requests</h5>
+                            <div class="card-subtitle">Recent issues</div>
+                        </div>
+                        <a href="#" class="btn btn-sm btn-light">
+                            View All <i class="ri-arrow-right-line ms-1"></i>
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="list-group list-group-flush">
-                        {% for req in recent_maintenance %}
-                        <div class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h6 class="mb-1">{{ req.request_number }}</h6>
-                                    <p class="mb-1 text-muted small">{{ req.get_request_type_display }}</p>
-                                    <small class="text-muted">
-                                        {{ req.allocation.bed.room.hostel.name }} - Room {{ req.allocation.bed.room.room_number }}
-                                    </small>
+                    <div class="activity-list">
+                        {% for request in recent_maintenance %}
+                        <div class="activity-item">
+                            <div class="d-flex align-items-start">
+                                <div class="activity-icon me-3 
+                                    {% if request.priority == 'urgent' %}bg-danger-subtle
+                                    {% elif request.priority == 'high' %}bg-warning-subtle
+                                    {% else %}bg-info-subtle{% endif %}">
+                                    <i class="ri-tools-line 
+                                        {% if request.priority == 'urgent' %}text-danger
+                                        {% elif request.priority == 'high' %}text-warning
+                                        {% else %}text-info{% endif %}"></i>
                                 </div>
-                                <div class="text-end">
-                                    <span class="badge bg-{% if req.status == 'pending' %}warning{% elif req.status == 'in_progress' %}info{% else %}success{% endif %} mb-1">
-                                        {{ req.get_status_display }}
-                                    </span>
-                                    <small class="d-block text-muted">{{ req.created_at|date:"M d, Y" }}</small>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <div>
+                                            <h6 class="mb-0">{{ request.subject }}</h6>
+                                            <small class="text-muted">{{ request.request_number }}</small>
+                                        </div>
+                                        <span class="badge 
+                                            {% if request.priority == 'urgent' %}bg-danger
+                                            {% elif request.priority == 'high' %}bg-warning
+                                            {% elif request.priority == 'medium' %}bg-info
+                                            {% else %}bg-secondary{% endif %}">
+                                            {{ request.get_priority_display }}
+                                        </span>
+                                    </div>
+                                    <p class="small text-muted mb-1">
+                                        <i class="ri-user-line me-1"></i>{{ request.student.user.get_full_name }} • 
+                                        <i class="ri-hotel-line me-1"></i>{{ request.allocation.bed.room.hostel.name }}
+                                    </p>
+                                    <p class="small mb-1">{{ request.description|truncatechars:60 }}</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            <i class="ri-time-line me-1"></i>{{ request.created_at|timesince }} ago
+                                        </small>
+                                        <span class="status-badge status-{{ request.status }}">
+                                            {{ request.get_status_display }}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         {% empty %}
-                        <div class="list-group-item text-center py-4">
-                            <p class="text-muted mb-0">No recent maintenance requests</p>
+                        <div class="text-center py-5 text-muted">
+                            <i class="ri-inbox-line fs-1 mb-3 d-block"></i>
+                            <p class="mb-0">No maintenance requests</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -259,5 +401,643 @@
             </div>
         </div>
     </div>
+
+    <!-- Charts Section -->
+    <div class="row g-4 mb-5">
+        <!-- Occupancy Trends -->
+        <div class="col-xl-8">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Occupancy Trends</h5>
+                    <div class="card-subtitle">Monthly occupancy rates</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="occupancyTrendsChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Type Distribution -->
+        <div class="col-xl-4">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Room Type Distribution</h5>
+                    <div class="card-subtitle">By bed capacity</div>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="roomTypeChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Charts -->
+    <div class="row g-4 mb-5">
+        <!-- Application Status -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Application Status</h5>
+                    <div class="card-subtitle">Current semester applications</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="applicationStatusChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Request Types -->
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Maintenance Request Types</h5>
+                    <div class="card-subtitle">By category</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="maintenanceTypeChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-4">
+        <div class="col-12">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                    <div class="card-subtitle">Common tasks and shortcuts</div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-primary-subtle">
+                                        <i class="ri-file-list-3-line text-primary"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Review Applications</h6>
+                                        <small class="text-muted">{{ pending_applications }} pending</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-success-subtle">
+                                        <i class="ri-user-add-line text-success"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Manage Allocations</h6>
+                                        <small class="text-muted">Assign rooms</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-warning-subtle">
+                                        <i class="ri-tools-line text-warning"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Maintenance</h6>
+                                        <small class="text-muted">{{ pending_maintenance }} requests</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-info-subtle">
+                                        <i class="ri-bar-chart-line text-info"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Generate Reports</h6>
+                                        <small class="text-muted">View analytics</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-purple-subtle">
+                                        <i class="ri-door-line text-purple"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Manage Rooms</h6>
+                                        <small class="text-muted">Room details</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-teal-subtle">
+                                        <i class="ri-login-box-line text-teal"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Check In/Out</h6>
+                                        <small class="text-muted">Process students</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-indigo-subtle">
+                                        <i class="ri-money-dollar-circle-line text-indigo"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Fee Tracking</h6>
+                                        <small class="text-muted">Payment status</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+
+                        <div class="col-xl-3 col-lg-4 col-md-6">
+                            <a href="#" class="quick-action-card">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-gray-subtle">
+                                        <i class="ri-settings-3-line text-gray"></i>
+                                    </div>
+                                    <div class="ms-3">
+                                        <h6 class="mb-0">Settings</h6>
+                                        <small class="text-muted">Configuration</small>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Table Styles */
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .table th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        padding: 1rem 0.75rem;
+    }
+
+    .table td {
+        padding: 1.125rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+
+    .hostel-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
+        background: var(--color-primary-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-primary);
+        font-size: 1.25rem;
+    }
+
+    /* Activity List */
+    .activity-list {
+        padding: 0;
+    }
+
+    .activity-item {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s ease;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .activity-item:hover {
+        background-color: var(--color-gray-100);
+    }
+
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
+        background: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.125rem;
+        flex-shrink: 0;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-approved,
+    .status-completed,
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-pending,
+    .status-acknowledged,
+    .status-in_progress {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-rejected,
+    .status-cancelled {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    .status-danger {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+
+    /* Quick Action Cards */
+    .quick-action-card {
+        display: block;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .quick-action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary);
+    }
+
+    .quick-action-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .quick-action-card h6 {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    /* Progress Bars */
+    .progress {
+        background-color: var(--color-gray-200);
+        border-radius: 4px;
+    }
+
+    .progress-bar {
+        border-radius: 4px;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-danger-subtle { background-color: rgba(244, 67, 54, 0.08); }
+    .bg-purple-subtle { background-color: rgba(156, 39, 176, 0.08); }
+    .bg-teal-subtle { background-color: rgba(0, 150, 136, 0.08); }
+    .bg-indigo-subtle { background-color: rgba(63, 81, 181, 0.08); }
+    .bg-gray-subtle { background-color: rgba(96, 125, 139, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-danger { color: var(--color-danger); }
+    .text-purple { color: #9C27B0; }
+    .text-teal { color: #009688; }
+    .text-indigo { color: #3F51B5; }
+    .text-gray { color: #607D8B; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#6c757d';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 6;
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+    Chart.defaults.plugins.legend.labels.padding = 20;
+    
+    // Professional Color Palette
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info: '#2196F3',
+        danger: '#F44336',
+        purple: '#9C27B0',
+        teal: '#009688',
+        indigo: '#3F51B5',
+        gray: '#607D8B'
+    };
+    
+    // Chart 1: Occupancy Trends
+    const occupancyCtx = document.getElementById('occupancyTrendsChart');
+    if (occupancyCtx) {
+        new Chart(occupancyCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                datasets: [{
+                    label: 'Occupancy Rate (%)',
+                    data: [75, 78, 82, 85, 88, 90, 92, 95, 93, 91, 87, 85],
+                    borderColor: colors.primary,
+                    backgroundColor: 'rgba(46, 125, 50, 0.05)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: colors.primary,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: {
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 2: Room Type Distribution
+    const roomTypeCtx = document.getElementById('roomTypeChart');
+    if (roomTypeCtx) {
+        new Chart(roomTypeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Single', 'Double', 'Triple', 'Quad'],
+                datasets: [{
+                    data: [25, 40, 25, 10],
+                    backgroundColor: [colors.primary, colors.info, colors.warning, colors.purple],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            color: '#333'
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Chart 3: Application Status
+    const appStatusCtx = document.getElementById('applicationStatusChart');
+    if (appStatusCtx) {
+        new Chart(appStatusCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Pending', 'Approved', 'Rejected', 'Cancelled'],
+                datasets: [{
+                    data: [{{ pending_applications|default:0 }}, 45, 8, 3],
+                    backgroundColor: [colors.warning, colors.success, colors.danger, colors.gray],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 4: Maintenance Request Types
+    const maintenanceTypeCtx = document.getElementById('maintenanceTypeChart');
+    if (maintenanceTypeCtx) {
+        new Chart(maintenanceTypeCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Plumbing', 'Electrical', 'Furniture', 'Cleaning', 'Security', 'Other'],
+                datasets: [{
+                    data: [15, 12, 8, 10, 5, 7],
+                    backgroundColor: colors.teal,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    y: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
