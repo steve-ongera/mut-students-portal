@@ -3,198 +3,665 @@
 
 {% block title %}Hostel Profile - {{ hostel.name }}{% endblock %}
 
-{% block page_title %}Hostel Profile{% endblock %}
-{% block page_subtitle %}View and manage hostel information{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'hostel_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'hostel_profile' %}">Hostel Management</a></li>
-        <li class="breadcrumb-item active">Hostel Profile</li>
-    </ol>
-</nav>
-
-<div class="content-container">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-2">{{ hostel.name }}</h1>
-            <p class="text-muted mb-0">Code: {{ hostel.code }} | Gender: {{ hostel.get_gender_type_display }}</p>
+<div class="profile-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">{{ hostel.name }}</h1>
+                <p class="text-muted mb-0">
+                    <i class="ri-map-pin-line me-1"></i>{{ hostel.location|default:"Location not specified" }}
+                </p>
+            </div>
+            <div>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editHostelModal">
+                    <i class="ri-edit-line me-2"></i>Edit Profile
+                </button>
+            </div>
         </div>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editHostelModal">
-            <i class="ri-edit-line me-2"></i>Edit Profile
-        </button>
     </div>
 
     <!-- Statistics Cards -->
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <i class="ri-door-line fs-1 text-primary mb-2"></i>
-                    <h3 class="mb-0">{{ total_rooms }}</h3>
-                    <p class="text-muted mb-0">Total Rooms</p>
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-primary-subtle">
+                        <i class="ri-door-line text-primary"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="stat-value mb-0">{{ total_rooms }}</h3>
+                        <p class="stat-label mb-0">Total Rooms</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <i class="ri-hotel-bed-line fs-1 text-success mb-2"></i>
-                    <h3 class="mb-0">{{ total_beds }}</h3>
-                    <p class="text-muted mb-0">Total Beds</p>
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-success-subtle">
+                        <i class="ri-hotel-bed-line text-success"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="stat-value mb-0">{{ total_beds }}</h3>
+                        <p class="stat-label mb-0">Total Beds</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <i class="ri-user-location-line fs-1 text-warning mb-2"></i>
-                    <h3 class="mb-0">{{ occupied_beds }}</h3>
-                    <p class="text-muted mb-0">Occupied</p>
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-info-subtle">
+                        <i class="ri-user-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="stat-value mb-0">{{ occupied_beds }}</h3>
+                        <p class="stat-label mb-0">Occupied</p>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body text-center">
-                    <i class="ri-checkbox-blank-circle-line fs-1 text-info mb-2"></i>
-                    <h3 class="mb-0">{{ available_beds }}</h3>
-                    <p class="text-muted mb-0">Available</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3">
-        <!-- Hostel Information -->
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">Hostel Information</h5>
-                </div>
-                <div class="card-body">
-                    <table class="table table-borderless">
-                        <tr>
-                            <th width="40%">Name:</th>
-                            <td>{{ hostel.name }}</td>
-                        </tr>
-                        <tr>
-                            <th>Code:</th>
-                            <td>{{ hostel.code }}</td>
-                        </tr>
-                        <tr>
-                            <th>Gender Type:</th>
-                            <td>
-                                <span class="badge bg-primary">{{ hostel.get_gender_type_display }}</span>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Total Capacity:</th>
-                            <td>{{ hostel.total_capacity }} students</td>
-                        </tr>
-                        <tr>
-                            <th>Location:</th>
-                            <td>{{ hostel.location|default:"Not specified" }}</td>
-                        </tr>
-                        <tr>
-                            <th>Warden:</th>
-                            <td>{{ hostel.warden.get_full_name }}</td>
-                        </tr>
-                        <tr>
-                            <th>Status:</th>
-                            <td>
-                                {% if hostel.is_active %}
-                                <span class="badge bg-success">Active</span>
-                                {% else %}
-                                <span class="badge bg-danger">Inactive</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Description and Amenities -->
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">Description & Amenities</h5>
-                </div>
-                <div class="card-body">
-                    <h6>Description</h6>
-                    <p>{{ hostel.description|default:"No description available" }}</p>
-
-                    <h6 class="mt-3">Amenities</h6>
-                    <p>{{ hostel.amenities|default:"No amenities listed" }}</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Hostel Images -->
-    {% if images %}
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white border-bottom">
-                    <h5 class="mb-0">Hostel Images</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row g-3">
-                        {% for image in images %}
-                        <div class="col-md-3">
-                            <img src="{{ image.image.url }}" 
-                                 alt="{{ image.caption }}" 
-                                 class="img-fluid rounded">
-                            {% if image.caption %}
-                            <p class="text-muted small mt-2">{{ image.caption }}</p>
-                            {% endif %}
-                        </div>
-                        {% endfor %}
+        <div class="col-xl-3 col-lg-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center">
+                    <div class="stat-icon bg-warning-subtle">
+                        <i class="ri-door-open-line text-warning"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="stat-value mb-0">{{ available_beds }}</h3>
+                        <p class="stat-label mb-0">Available</p>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    {% endif %}
+
+    <!-- Main Content -->
+    <div class="row g-4">
+        <!-- Hostel Information -->
+        <div class="col-lg-8">
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Hostel Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label class="info-label">Hostel Code</label>
+                            <p class="info-value">{{ hostel.code }}</p>
+                        </div>
+
+                        <div class="info-item">
+                            <label class="info-label">Gender Type</label>
+                            <p class="info-value">
+                                <span class="badge 
+                                    {% if hostel.gender_type == 'M' %}bg-info
+                                    {% elif hostel.gender_type == 'F' %}bg-pink
+                                    {% else %}bg-purple{% endif %}">
+                                    {{ hostel.get_gender_type_display }}
+                                </span>
+                            </p>
+                        </div>
+
+                        <div class="info-item">
+                            <label class="info-label">Total Capacity</label>
+                            <p class="info-value">{{ hostel.total_capacity }} students</p>
+                        </div>
+
+                        <div class="info-item">
+                            <label class="info-label">Status</label>
+                            <p class="info-value">
+                                <span class="badge {% if hostel.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                                    {% if hostel.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </p>
+                        </div>
+
+                        <div class="info-item full-width">
+                            <label class="info-label">Location</label>
+                            <p class="info-value">{{ hostel.location|default:"Not specified" }}</p>
+                        </div>
+
+                        <div class="info-item full-width">
+                            <label class="info-label">Description</label>
+                            <p class="info-value">{{ hostel.description|default:"No description provided"|linebreaks }}</p>
+                        </div>
+
+                        <div class="info-item full-width">
+                            <label class="info-label">Amenities</label>
+                            <p class="info-value">{{ hostel.amenities|default:"No amenities listed"|linebreaks }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hostel Images -->
+            <div class="content-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title">Hostel Gallery</h5>
+                        <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#uploadImageModal">
+                            <i class="ri-upload-line me-1"></i>Upload Images
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if images %}
+                    <div class="row g-3">
+                        {% for image in images %}
+                        <div class="col-md-4 col-sm-6">
+                            <div class="gallery-item">
+                                <img src="{{ image.image.url }}" alt="{{ image.caption }}" class="gallery-img">
+                                <div class="gallery-overlay">
+                                    <div class="gallery-actions">
+                                        {% if image.is_primary %}
+                                        <span class="badge bg-primary mb-2">Primary</span>
+                                        {% endif %}
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-light" onclick="viewImage('{{ image.image.url }}')">
+                                                <i class="ri-eye-line"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-danger" onclick="deleteImage({{ image.id }})">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if image.caption %}
+                                <p class="gallery-caption">{{ image.caption }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="ri-image-line fs-1 mb-3 d-block"></i>
+                        <p class="mb-0">No images uploaded yet</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Contact Information -->
+            <div class="content-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="contact-info">
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="ri-user-line"></i>
+                            </div>
+                            <div class="contact-details">
+                                <label>Warden</label>
+                                <p>{{ hostel.warden.get_full_name }}</p>
+                            </div>
+                        </div>
+
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="ri-mail-line"></i>
+                            </div>
+                            <div class="contact-details">
+                                <label>Email</label>
+                                <p>{{ hostel.warden.email }}</p>
+                            </div>
+                        </div>
+
+                        <div class="contact-item">
+                            <div class="contact-icon">
+                                <i class="ri-phone-line"></i>
+                            </div>
+                            <div class="contact-details">
+                                <label>Phone</label>
+                                <p>{{ hostel.warden.phone_number|default:"Not provided" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="content-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="action-list">
+                        <a href="#" class="action-item">
+                            <i class="ri-door-line text-primary"></i>
+                            <span>Manage Rooms</span>
+                            <i class="ri-arrow-right-s-line ms-auto"></i>
+                        </a>
+                        <a href="#" class="action-item">
+                            <i class="ri-user-add-line text-success"></i>
+                            <span>View Allocations</span>
+                            <i class="ri-arrow-right-s-line ms-auto"></i>
+                        </a>
+                        <a href="#" class="action-item">
+                            <i class="ri-file-list-3-line text-info"></i>
+                            <span>Applications</span>
+                            <i class="ri-arrow-right-s-line ms-auto"></i>
+                        </a>
+                        <a href="#" class="action-item">
+                            <i class="ri-tools-line text-warning"></i>
+                            <span>Maintenance</span>
+                            <i class="ri-arrow-right-s-line ms-auto"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Edit Hostel Modal -->
-<div class="modal fade" id="editHostelModal" tabindex="-1">
+<div class="modal fade" id="editHostelModal" tabindex="-1" aria-labelledby="editHostelModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form method="post">
                 {% csrf_token %}
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Hostel Profile</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="editHostelModalLabel">Edit Hostel Profile</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Description</label>
-                        <textarea name="description" class="form-control" rows="4">{{ hostel.description }}</textarea>
+                        <label for="location" class="form-label">Location</label>
+                        <input type="text" class="form-control" id="location" name="location" 
+                               value="{{ hostel.location }}" placeholder="Enter hostel location">
                     </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Amenities</label>
-                        <textarea name="amenities" class="form-control" rows="4">{{ hostel.amenities }}</textarea>
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="4" placeholder="Enter hostel description">{{ hostel.description }}</textarea>
                     </div>
+
                     <div class="mb-3">
-                        <label class="form-label">Location</label>
-                        <input type="text" name="location" class="form-control" value="{{ hostel.location }}">
+                        <label for="amenities" class="form-label">Amenities</label>
+                        <textarea class="form-control" id="amenities" name="amenities" 
+                                  rows="4" placeholder="List hostel amenities (one per line)">{{ hostel.amenities }}</textarea>
+                        <small class="text-muted">List amenities such as WiFi, Kitchen, Laundry, etc.</small>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-2"></i>Save Changes
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<!-- Upload Image Modal -->
+<div class="modal fade" id="uploadImageModal" tabindex="-1" aria-labelledby="uploadImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" enctype="multipart/form-data" action="#">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadImageModalLabel">Upload Images</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="images" class="form-label">Select Images</label>
+                        <input type="file" class="form-control" id="images" name="images" 
+                               accept="image/*" multiple required>
+                        <small class="text-muted">You can select multiple images at once</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="caption" class="form-label">Caption (Optional)</label>
+                        <input type="text" class="form-control" id="caption" name="caption" 
+                               placeholder="Enter image caption">
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="is_primary" name="is_primary">
+                        <label class="form-check-label" for="is_primary">
+                            Set as primary image
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-upload-line me-2"></i>Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Image Viewer Modal -->
+<div class="modal fade" id="imageViewerModal" tabindex="-1" aria-labelledby="imageViewerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageViewerModalLabel">Image Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="viewerImage" src="" alt="Preview" class="img-fluid">
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+    }
+
+    body {
+        font-family: var(--font-family);
+    }
+
+    .profile-container {
+        padding: 0 0.5rem;
+    }
+
+    /* Page Header */
+    .page-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+
+    .page-header h1 {
+        font-weight: 600;
+        color: #343a40;
+    }
+
+    /* Stat Cards */
+    .stat-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #343a40;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+
+    /* Content Cards */
+    .content-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #343a40;
+        margin-bottom: 0;
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* Info Grid */
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+
+    .info-item.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .info-label {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.5rem;
+    }
+
+    .info-value {
+        font-size: 0.9375rem;
+        color: #343a40;
+        margin-bottom: 0;
+    }
+
+    /* Gallery */
+    .gallery-item {
+        position: relative;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        border: 1px solid var(--color-gray-200);
+    }
+
+    .gallery-img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        display: block;
+    }
+
+    .gallery-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .gallery-item:hover .gallery-overlay {
+        opacity: 1;
+    }
+
+    .gallery-actions {
+        text-align: center;
+    }
+
+    .gallery-caption {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0;
+        background: var(--color-gray-100);
+    }
+
+    /* Contact Info */
+    .contact-info {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .contact-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .contact-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-sm);
+        background: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--color-primary);
+        font-size: 1.125rem;
+        flex-shrink: 0;
+    }
+
+    .contact-details {
+        flex: 1;
+    }
+
+    .contact-details label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--color-gray-600);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.25rem;
+        display: block;
+    }
+
+    .contact-details p {
+        font-size: 0.9375rem;
+        color: #343a40;
+        margin-bottom: 0;
+    }
+
+    /* Action List */
+    .action-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .action-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        color: #343a40;
+        text-decoration: none;
+        transition: background-color 0.2s ease;
+        gap: 1rem;
+    }
+
+    .action-item:last-child {
+        border-bottom: none;
+    }
+
+    .action-item:hover {
+        background-color: var(--color-gray-100);
+    }
+
+    .action-item i:first-child {
+        font-size: 1.25rem;
+    }
+
+    .action-item span {
+        flex: 1;
+        font-weight: 500;
+    }
+
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-pink { background-color: #E91E63; }
+    .bg-purple { background-color: #9C27B0; }
+
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: #4CAF50; }
+    .text-warning { color: #FF9800; }
+    .text-info { color: #2196F3; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+    function viewImage(url) {
+        document.getElementById('viewerImage').src = url;
+        const modal = new bootstrap.Modal(document.getElementById('imageViewerModal'));
+        modal.show();
+    }
+
+    function deleteImage(imageId) {
+        if (confirm('Are you sure you want to delete this image?')) {
+            // Submit delete request
+            fetch(`/hostel/delete-image/${imageId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting image');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting image');
+            });
+        }
+    }
+</script>
 {% endblock %}
