@@ -1,6 +1,252 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Reports & Analytics{% endblock %}
+
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block page_subtitle %}Generate and view various reports{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement reports_dashboard.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Reports</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Report Categories -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Report Categories</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="report-card">
+                                <h6><i class="ri-user-line"></i> Student Reports</h6>
+                                <ul class="list-unstyled">
+                                    <li><a href="#" onclick="generateReport('student_list')">Student List</a></li>
+                                    <li><a href="#" onclick="generateReport('enrollment_report')">Enrollment Statistics</a></li>
+                                    <li><a href="#" onclick="generateReport('student_demographics')">Student Demographics</a></li>
+                                    <li><a href="#" onclick="generateReport('international_students')">International Students</a></li>
+                                    <li><a href="#" onclick="generateReport('student_status')">Student Status Report</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="report-card">
+                                <h6><i class="ri-graduation-cap-line"></i> Academic Reports</h6>
+                                <ul class="list-unstyled">
+                                    <li><a href="#" onclick="generateReport('performance_report')">Performance Analysis</a></li>
+                                    <li><a href="#" onclick="generateReport('graduation_list')">Graduation List</a></li>
+                                    <li><a href="#" onclick="generateReport('degree_classification')">Degree Classification</a></li>
+                                    <li><a href="#" onclick="generateReport('gpa_distribution')">GPA Distribution</a></li>
+                                    <li><a href="#" onclick="generateReport('pass_rates')">Pass Rates by Unit</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="report-card">
+                                <h6><i class="ri-file-list-line"></i> Examination Reports</h6>
+                                <ul class="list-unstyled">
+                                    <li><a href="#" onclick="generateReport('exam_schedule')">Examination Schedule</a></li>
+                                    <li><a href="#" onclick="generateReport('results_summary')">Results Summary</a></li>
+                                    <li><a href="#" onclick="generateReport('resit_report')">Resit Examinations</a></li>
+                                    <li><a href="#" onclick="generateReport('exam_statistics')">Exam Statistics</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="report-card">
+                                <h6><i class="ri-money-dollar-circle-line"></i> Financial Reports</h6>
+                                <ul class="list-unstyled">
+                                    <li><a href="#" onclick="generateReport('fee_collection')">Fee Collection</a></li>
+                                    <li><a href="#" onclick="generateReport('outstanding_fees')">Outstanding Fees</a></li>
+                                    <li><a href="#" onclick="generateReport('payment_analysis')">Payment Analysis</a></li>
+                                    <li><a href="#" onclick="generateReport('debtors_list')">Debtors List</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="report-card">
+                                <h6><i class="ri-book-line"></i> Programme Reports</h6>
+                                <ul class="list-unstyled">
+                                    <li><a href="#" onclick="generateReport('programme_enrollment')">Programme Enrollment</a></li>
+                                    <li><a href="#" onclick="generateReport('programme_performance')">Programme Performance</a></li>
+                                    <li><a href="#" onclick="generateReport('unit_allocation')">Unit Allocation</a></li>
+                                    <li><a href="#" onclick="generateReport('capacity_analysis')">Capacity Analysis</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="report-card">
+                                <h6><i class="ri-calendar-line"></i> Period Reports</h6>
+                                <ul class="list-unstyled">
+                                    <li><a href="#" onclick="generateReport('semester_report')">Semester Report</a></li>
+                                    <li><a href="#" onclick="generateReport('annual_report')">Annual Report</a></li>
+                                    <li><a href="#" onclick="generateReport('intake_report')">Intake Report</a></li>
+                                    <li><a href="#" onclick="generateReport('progression_report')">Progression Report</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Report Generator -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Custom Report Generator</h5>
+                </div>
+                <div class="card-body">
+                    <form id="customReportForm">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group mb-3">
+                                    <label>Report Type</label>
+                                    <select name="report_type" class="form-control" required>
+                                        <option value="">Select Type</option>
+                                        <option value="student">Student Report</option>
+                                        <option value="academic">Academic Report</option>
+                                        <option value="financial">Financial Report</option>
+                                        <option value="examination">Examination Report</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group mb-3">
+                                    <label>Academic Year</label>
+                                    <select name="academic_year" class="form-control">
+                                        <option value="">All Years</option>
+                                        {% for year in academic_years %}
+                                        <option value="{{ year.id }}">{{ year.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group mb-3">
+                                    <label>Semester</label>
+                                    <select name="semester" class="form-control">
+                                        <option value="">All Semesters</option>
+                                        {% for semester in semesters %}
+                                        <option value="{{ semester.id }}">{{ semester.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-group mb-3">
+                                    <label>Programme</label>
+                                    <select name="programme" class="form-control">
+                                        <option value="">All Programmes</option>
+                                        {% for programme in programmes %}
+                                        <option value="{{ programme.id }}">{{ programme.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-group mb-3">
+                                    <label>Format</label>
+                                    <select name="format" class="form-control" required>
+                                        <option value="pdf">PDF</option>
+                                        <option value="excel">Excel</option>
+                                        <option value="csv">CSV</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label>Date Range</label>
+                                    <div class="input-group">
+                                        <input type="date" name="start_date" class="form-control">
+                                        <span class="input-group-text">to</span>
+                                        <input type="date" name="end_date" class="form-control">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label>&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="ri-file-download-line"></i> Generate Report
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Reports -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Reports</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Report Name</th>
+                                    <th>Type</th>
+                                    <th>Generated By</th>
+                                    <th>Date</th>
+                                    <th>Format</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Student Enrollment Report - Semester 1 2024/2025</td>
+                                    <td><span class="badge bg-info">Student</span></td>
+                                    <td>{{ request.user.get_full_name }}</td>
+                                    <td>{{ current_date|date:"d/m/Y H:i" }}</td>
+                                    <td>PDF</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-primary">
+                                                <i class="ri-download-line"></i> Download
+                                            </button>
+                                            <button class="btn btn-info">
+                                                <i class="ri-eye-line"></i> View
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateReport(reportType) {
+    window.location.href = `/registrar/reports/generate/?type=${reportType}`;
+}
+
+document.getElementById('customReportForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const params = new URLSearchParams(formData);
+    window.location.href = `/registrar/reports/custom/?${params.toString()}`;
+});
+</script>
+{% endblock %}

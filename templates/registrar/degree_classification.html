@@ -1,6 +1,323 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Degree Classification{% endblock %}
+
+{% block page_title %}Degree Classification{% endblock %}
+{% block page_subtitle %}Classification of graduating students{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement degree_classification.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_graduation_dashboard' %}">Graduation</a></li>
+        <li class="breadcrumb-item active">Degree Classification</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">First Class Honours</h6>
+                    <h3>{{ first_class.count }}</h3>
+                    <small>GPA ≥ 3.6</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Upper Second Class</h6>
+                    <h3>{{ upper_second.count }}</h3>
+                    <small>3.0 ≤ GPA < 3.6</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Lower Second Class</h6>
+                    <h3>{{ lower_second.count }}</h3>
+                    <small>2.5 ≤ GPA < 3.0</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Pass</h6>
+                    <h3>{{ pass_class.count }}</h3>
+                    <small>2.0 ≤ GPA < 2.5</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label>Graduation Year</label>
+                            <select name="year" class="form-control">
+                                {% for year in years %}
+                                <option value="{{ year }}">{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Programme</label>
+                            <select name="programme" class="form-control">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}">{{ programme.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>School</label>
+                            <select name="school" class="form-control">
+                                <option value="">All Schools</option>
+                                {% for school in schools %}
+                                <option value="{{ school.id }}">{{ school.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-filter-line"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="exportClassification()">
+                    <i class="ri-download-line"></i> Export Classification
+                </button>
+                <button class="btn btn-success" onclick="generateCertificates()">
+                    <i class="ri-award-line"></i> Generate Certificates
+                </button>
+                <button class="btn btn-info" onclick="printList()">
+                    <i class="ri-printer-line"></i> Print List
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#first-class">
+                                First Class ({{ first_class.count }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#upper-second">
+                                Upper Second ({{ upper_second.count }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#lower-second">
+                                Lower Second ({{ lower_second.count }})
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#pass">
+                                Pass ({{ pass_class.count }})
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content">
+                        <!-- First Class Tab -->
+                        <div class="tab-pane fade show active" id="first-class">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Reg Number</th>
+                                            <th>Name</th>
+                                            <th>Programme</th>
+                                            <th>GPA</th>
+                                            <th>Classification</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in first_class %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>{{ student.registration_number }}</td>
+                                            <td>{{ student.user.get_full_name }}</td>
+                                            <td>{{ student.programme.code }}</td>
+                                            <td><strong>{{ student.cumulative_gpa }}</strong></td>
+                                            <td>
+                                                <span class="badge bg-success">First Class Honours</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-sm btn-info">
+                                                    <i class="ri-eye-line"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Upper Second Tab -->
+                        <div class="tab-pane fade" id="upper-second">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Reg Number</th>
+                                            <th>Name</th>
+                                            <th>Programme</th>
+                                            <th>GPA</th>
+                                            <th>Classification</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in upper_second %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>{{ student.registration_number }}</td>
+                                            <td>{{ student.user.get_full_name }}</td>
+                                            <td>{{ student.programme.code }}</td>
+                                            <td><strong>{{ student.cumulative_gpa }}</strong></td>
+                                            <td>
+                                                <span class="badge bg-primary">Upper Second Class</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-sm btn-info">
+                                                    <i class="ri-eye-line"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Lower Second Tab -->
+                        <div class="tab-pane fade" id="lower-second">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Reg Number</th>
+                                            <th>Name</th>
+                                            <th>Programme</th>
+                                            <th>GPA</th>
+                                            <th>Classification</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in lower_second %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>{{ student.registration_number }}</td>
+                                            <td>{{ student.user.get_full_name }}</td>
+                                            <td>{{ student.programme.code }}</td>
+                                            <td><strong>{{ student.cumulative_gpa }}</strong></td>
+                                            <td>
+                                                <span class="badge bg-info">Lower Second Class</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-sm btn-info">
+                                                    <i class="ri-eye-line"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Pass Tab -->
+                        <div class="tab-pane fade" id="pass">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Reg Number</th>
+                                            <th>Name</th>
+                                            <th>Programme</th>
+                                            <th>GPA</th>
+                                            <th>Classification</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for student in pass_class %}
+                                        <tr>
+                                            <td>{{ forloop.counter }}</td>
+                                            <td>{{ student.registration_number }}</td>
+                                            <td>{{ student.user.get_full_name }}</td>
+                                            <td>{{ student.programme.code }}</td>
+                                            <td><strong>{{ student.cumulative_gpa }}</strong></td>
+                                            <td>
+                                                <span class="badge bg-secondary">Pass</span>
+                                            </td>
+                                            <td>
+                                                <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-sm btn-info">
+                                                    <i class="ri-eye-line"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportClassification() {
+    window.location.href = '/registrar/graduation/classification/export/';
+}
+
+function generateCertificates() {
+    if (confirm('Generate certificates for all students in the current view?')) {
+        window.location.href = '/registrar/graduation/generate-certificates/';
+    }
+}
+
+function printList() {
+    window.print();
+}
+</script>
+{% endblock %}

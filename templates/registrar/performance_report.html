@@ -1,6 +1,283 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Academic Performance Report{% endblock %}
+
+{% block page_title %}Academic Performance Report{% endblock %}
+{% block page_subtitle %}Analysis of student academic performance{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement performance_report.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_reports_dashboard' %}">Reports</a></li>
+        <li class="breadcrumb-item active">Performance Report</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Average GPA</h6>
+                    <h3>{{ average_gpa }}</h3>
+                    <small>{{ current_semester.name }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Pass Rate</h6>
+                    <h3>{{ pass_rate }}%</h3>
+                    <small class="text-success">Overall</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">First Class</h6>
+                    <h3>{{ first_class_count }}</h3>
+                    <small>GPA ≥ 3.6</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">At Risk</h6>
+                    <h3>{{ at_risk_count }}</h3>
+                    <small class="text-danger">GPA < 2.0</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label>Semester</label>
+                            <select name="semester" class="form-control">
+                                {% for semester in semesters %}
+                                <option value="{{ semester.id }}">{{ semester.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Programme</label>
+                            <select name="programme" class="form-control">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}">{{ programme.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Year of Study</label>
+                            <select name="year" class="form-control">
+                                <option value="">All Years</option>
+                                <option value="1">Year 1</option>
+                                <option value="2">Year 2</option>
+                                <option value="3">Year 3</option>
+                                <option value="4">Year 4</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-filter-line"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GPA Distribution -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>GPA Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="gpaChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Grade Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="gradeChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pass Rates by Programme -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Pass Rates by Programme</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Programme</th>
+                                    <th>Total Results</th>
+                                    <th>Passed</th>
+                                    <th>Failed</th>
+                                    <th>Pass Rate</th>
+                                    <th>Average GPA</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in pass_rates %}
+                                <tr>
+                                    <td>{{ item.programme_name }}</td>
+                                    <td>{{ item.total }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ item.passed }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ item.failed }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar bg-success" style="width: {{ item.pass_rate }}%">
+                                                {{ item.pass_rate }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.avg_gpa }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Performers -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Top Performers</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Rank</th>
+                                    <th>Reg Number</th>
+                                    <th>Name</th>
+                                    <th>Programme</th>
+                                    <th>GPA</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in top_performers %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ student.registration_number }}</td>
+                                    <td>{{ student.user.get_full_name }}</td>
+                                    <td>{{ student.programme.code }}</td>
+                                    <td><strong>{{ student.cumulative_gpa }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Students at Risk</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Reg Number</th>
+                                    <th>Name</th>
+                                    <th>Programme</th>
+                                    <th>GPA</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in at_risk_students %}
+                                <tr>
+                                    <td>{{ student.registration_number }}</td>
+                                    <td>{{ student.user.get_full_name }}</td>
+                                    <td>{{ student.programme.code }}</td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ student.cumulative_gpa }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-sm btn-info">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// GPA Distribution Chart
+const gpaCtx = document.getElementById('gpaChart');
+new Chart(gpaCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ gpa_labels|safe }},
+        datasets: [{
+            label: 'Number of Students',
+            data: {{ gpa_data|safe }},
+            backgroundColor: '#2E7D32'
+        }]
+    }
+});
+
+// Grade Distribution Chart
+const gradeCtx = document.getElementById('gradeChart');
+new Chart(gradeCtx, {
+    type: 'pie',
+    data: {
+        labels: {{ grade_labels|safe }},
+        datasets: [{
+            data: {{ grade_data|safe }},
+            backgroundColor: ['#2E7D32', '#1976D2', '#F57C00', '#C62828', '#7B1FA2']
+        }]
+    }
+});
+</script>
+{% endblock %}

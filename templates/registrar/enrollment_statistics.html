@@ -1,6 +1,209 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Enrollment Statistics{% endblock %}
+
+{% block page_title %}Enrollment Statistics{% endblock %}
+{% block page_subtitle %}Detailed enrollment analysis{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement enrollment_statistics.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_reports_dashboard' %}">Reports</a></li>
+        <li class="breadcrumb-item active">Enrollment Statistics</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Enrolled</h6>
+                    <h3>{{ total_enrolled }}</h3>
+                    <small>{{ current_semester.name }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">New Enrollments</h6>
+                    <h3>{{ new_enrollments }}</h3>
+                    <small class="text-success">This semester</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Average Units</h6>
+                    <h3>{{ avg_units }}</h3>
+                    <small>Per student</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Enrollment Rate</h6>
+                    <h3>{{ enrollment_rate }}%</h3>
+                    <small>Of eligible students</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label>Academic Year</label>
+                            <select name="academic_year" class="form-control">
+                                {% for year in academic_years %}
+                                <option value="{{ year.id }}">{{ year.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Semester</label>
+                            <select name="semester" class="form-control">
+                                {% for semester in semesters %}
+                                <option value="{{ semester.id }}">{{ semester.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>School</label>
+                            <select name="school" class="form-control">
+                                <option value="">All Schools</option>
+                                {% for school in schools %}
+                                <option value="{{ school.id }}">{{ school.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-filter-line"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enrollment by Programme -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Enrollment by Programme</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Programme</th>
+                                    <th>School</th>
+                                    <th>Total Students</th>
+                                    <th>Enrolled</th>
+                                    <th>Pending</th>
+                                    <th>Average Units</th>
+                                    <th>Enrollment Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in enrollment_by_programme %}
+                                <tr>
+                                    <td>{{ item.programme_name }}</td>
+                                    <td>{{ item.school_name }}</td>
+                                    <td>{{ item.total_students }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ item.enrolled_students }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning">{{ item.pending_students }}</span>
+                                    </td>
+                                    <td>{{ item.avg_units }}</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar" style="width: {{ item.enrollment_rate }}%">
+                                                {{ item.enrollment_rate }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Enrollment by Year of Study</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="yearChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Enrollment Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Year Chart
+const yearCtx = document.getElementById('yearChart');
+new Chart(yearCtx, {
+    type: 'bar',
+    data: {
+        labels: {{ year_labels|safe }},
+        datasets: [{
+            label: 'Students Enrolled',
+            data: {{ year_data|safe }},
+            backgroundColor: '#2E7D32'
+        }]
+    }
+});
+
+// Trend Chart
+const trendCtx = document.getElementById('trendChart');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: {{ trend_labels|safe }},
+        datasets: [{
+            label: 'Enrollment',
+            data: {{ trend_data|safe }},
+            borderColor: '#1976D2',
+            tension: 0.1
+        }]
+    }
+});
+</script>
+{% endblock %}
