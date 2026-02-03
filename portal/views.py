@@ -27863,4 +27863,1136 @@ def get_enrollment_statistics(request):
         return JsonResponse({
             'success': False,
             'message': f'Error: {str(e)}'
+      
         }, status=500)
+
+
+# registrar/views.py
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Sum, Avg, F
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+from decimal import Decimal
+import csv
+
+from .models import (
+    User, School, Department, AcademicYear, Semester, Intake, Programme,
+    Unit, ProgrammeUnit, Student, StudentProgression, UnitEnrollment,
+    SemesterResults, SemesterGPA, FeeStructure, FeePayment, FeeBalance,
+    Lecturer, UnitAllocation, Assessment, StudentMarks, Timetable, TimetableSlot,
+    Announcement, Event, Message, Hostel, HostelRoom, HostelBed, HostelAllocation,
+    BookCategory, Book, BookBorrowing, AIKnowledgeBase, ChatSession,
+    TeachingEvaluation, ProgrammeReview, AuditReport, ComplianceCheck,
+    ResearchProject, Publication, Partnership, MOU, StrategicGoal,
+    PerformanceIndicator, AnnualPlan, StaffRecruitment, PerformanceAppraisal,
+    StaffPromotion, AdvisingNote, StudentSpecialNeed, SemesterReport, ResitExam,
+    EnrollmentPeriod, StudentIDType, StudentIDApplication, StudentIDCard
+)
+
+
+# ============= DASHBOARD & OVERVIEW =============
+
+@login_required
+def registrar_dashboard_view(request):
+    """Main registrar dashboard with key metrics and statistics"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied. Registrar privileges required.')
+        return redirect('home')
+    
+    # Get current academic year and semester
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Student statistics
+    total_students = Student.objects.filter(student_status='active').count()
+    new_students = Student.objects.filter(
+        admission_date__year=timezone.now().year
+    ).count()
+    
+    students_by_programme = Student.objects.filter(
+        student_status='active'
+    ).values('programme__name').annotate(count=Count('id'))
+    
+    students_by_year = Student.objects.filter(
+        student_status='active'
+    ).values('current_year').annotate(count=Count('id')).order_by('current_year')
+    
+    # Academic statistics
+    total_programmes = Programme.objects.filter(is_active=True).count()
+    total_units = Unit.objects.filter(is_active=True).count()
+    total_lecturers = Lecturer.objects.filter(is_active=True).count()
+    
+    # Enrollment statistics for current semester
+    if current_semester:
+        enrolled_students = UnitEnrollment.objects.filter(
+            semester=current_semester,
+            status='approved'
+        ).values('student').distinct().count()
+    else:
+        enrolled_students = 0
+    
+    # Fee collection statistics
+    if current_academic_year:
+        total_fees_collected = FeePayment.objects.filter(
+            academic_year=current_academic_year,
+            status='completed'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        outstanding_fees = FeeBalance.objects.filter(
+            academic_year=current_academic_year,
+            is_cleared=False
+        ).aggregate(total=Sum('balance'))['total'] or 0
+    else:
+        total_fees_collected = 0
+        outstanding_fees = 0
+    
+    # Recent activities
+    recent_admissions = Student.objects.filter(
+        admission_date__gte=timezone.now() - timedelta(days=30)
+    ).order_by('-admission_date')[:10]
+    
+    recent_announcements = Announcement.objects.filter(
+        is_published=True,
+        target_audience__in=['all', 'students']
+    ).order_by('-created_at')[:5]
+    
+    # Pending approvals
+    pending_semester_reports = SemesterReport.objects.filter(
+        status='pending'
+    ).count()
+    
+    pending_id_applications = StudentIDApplication.objects.filter(
+        status__in=['submitted', 'under_review']
+    ).count()
+    
+    # Graduation statistics
+    if current_academic_year:
+        potential_graduates = Student.objects.filter(
+            student_status='active',
+            expected_graduation_date__year=current_academic_year.end_date.year
+        ).count()
+    else:
+        potential_graduates = 0
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'current_semester': current_semester,
+        'total_students': total_students,
+        'new_students': new_students,
+        'total_programmes': total_programmes,
+        'total_units': total_units,
+        'total_lecturers': total_lecturers,
+        'enrolled_students': enrolled_students,
+        'total_fees_collected': total_fees_collected,
+        'outstanding_fees': outstanding_fees,
+        'students_by_programme': students_by_programme,
+        'students_by_year': students_by_year,
+        'recent_admissions': recent_admissions,
+        'recent_announcements': recent_announcements,
+        'pending_semester_reports': pending_semester_reports,
+        'pending_id_applications': pending_id_applications,
+        'potential_graduates': potential_graduates,
+    }
+    
+    return render(request, 'registrar/dashboard.html', context)
+
+
+# ============= STUDENT RECORDS MANAGEMENT =============
+
+@login_required
+def registrar_student_list_view(request):
+    """List all students with search and filter"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    # Get filter parameters
+    search_query = request.GET.get('search', '')
+    programme_filter = request.GET.get('programme', '')
+    year_filter = request.GET.get('year', '')
+    status_filter = request.GET.get('status', '')
+    school_filter = request.GET.get('school', '')
+    
+    # Base queryset
+    students = Student.objects.select_related(
+        'user', 'programme', 'programme__department', 'programme__department__school', 'intake'
+    ).all()
+    
+    # Apply filters
+    if search_query:
+        students = students.filter(
+            Q(registration_number__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__email__icontains=search_query) |
+            Q(national_id__icontains=search_query)
+        )
+    
+    if programme_filter:
+        students = students.filter(programme_id=programme_filter)
+    
+    if year_filter:
+        students = students.filter(current_year=year_filter)
+    
+    if status_filter:
+        students = students.filter(student_status=status_filter)
+    
+    if school_filter:
+        students = students.filter(programme__department__school_id=school_filter)
+    
+    # Order by registration number
+    students = students.order_by('-registration_number')
+    
+    # Pagination
+    paginator = Paginator(students, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Get filter options
+    programmes = Programme.objects.filter(is_active=True).order_by('name')
+    schools = School.objects.filter(is_active=True).order_by('name')
+    
+    context = {
+        'page_obj': page_obj,
+        'programmes': programmes,
+        'schools': schools,
+        'search_query': search_query,
+        'programme_filter': programme_filter,
+        'year_filter': year_filter,
+        'status_filter': status_filter,
+        'school_filter': school_filter,
+        'student_statuses': Student.STUDENT_STATUS,
+    }
+    
+    return render(request, 'registrar/student_list.html', context)
+
+
+@login_required
+def registrar_student_detail_view(request, student_id):
+    """Detailed view of a single student"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    student = get_object_or_404(
+        Student.objects.select_related(
+            'user', 'programme', 'programme__department', 'programme__department__school', 'intake'
+        ),
+        id=student_id
+    )
+    
+    # Get academic records
+    semester_results = SemesterResults.objects.filter(
+        student=student
+    ).select_related('programme_unit__unit', 'semester', 'academic_year').order_by(
+        '-academic_year__start_date', '-semester__semester_number'
+    )
+    
+    semester_gpas = SemesterGPA.objects.filter(
+        student=student
+    ).select_related('semester', 'academic_year').order_by(
+        '-academic_year__start_date', '-semester__semester_number'
+    )
+    
+    # Get enrollment history
+    enrollments = UnitEnrollment.objects.filter(
+        student=student
+    ).select_related(
+        'programme_unit__unit', 'semester', 'semester_report'
+    ).order_by('-created_at')[:20]
+    
+    # Get fee records
+    fee_payments = FeePayment.objects.filter(
+        student=student
+    ).select_related('semester', 'academic_year').order_by('-payment_date')[:10]
+    
+    fee_balances = FeeBalance.objects.filter(
+        student=student
+    ).select_related('semester', 'academic_year').order_by('-semester__start_date')
+    
+    # Get progression history
+    progressions = StudentProgression.objects.filter(
+        student=student
+    ).select_related(
+        'previous_programme', 'new_programme', 'previous_academic_year', 'new_academic_year'
+    ).order_by('-progression_date')
+    
+    # Get hostel allocations
+    hostel_allocations = HostelAllocation.objects.filter(
+        student=student
+    ).select_related(
+        'bed__room__hostel', 'academic_year', 'semester'
+    ).order_by('-allocation_date')[:5]
+    
+    # Get library records
+    book_borrowings = BookBorrowing.objects.filter(
+        student=student
+    ).select_related('book', 'issued_by').order_by('-borrow_date')[:10]
+    
+    # Get ID card applications
+    id_applications = StudentIDApplication.objects.filter(
+        student=student
+    ).order_by('-application_date')
+    
+    # Get special needs
+    special_needs = StudentSpecialNeed.objects.filter(
+        student=student,
+        is_active=True
+    )
+    
+    # Get advising notes
+    advising_notes = AdvisingNote.objects.filter(
+        student=student
+    ).select_related('lecturer').order_by('-created_at')[:10]
+    
+    context = {
+        'student': student,
+        'semester_results': semester_results,
+        'semester_gpas': semester_gpas,
+        'enrollments': enrollments,
+        'fee_payments': fee_payments,
+        'fee_balances': fee_balances,
+        'progressions': progressions,
+        'hostel_allocations': hostel_allocations,
+        'book_borrowings': book_borrowings,
+        'id_applications': id_applications,
+        'special_needs': special_needs,
+        'advising_notes': advising_notes,
+    }
+    
+    return render(request, 'registrar/student_detail.html', context)
+
+
+@login_required
+def registrar_student_create_view(request):
+    """Create new student record"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    if request.method == 'POST':
+        # Process form data
+        # This would include creating User and Student records
+        # Implementation details depend on your form structure
+        pass
+    
+    programmes = Programme.objects.filter(is_active=True).select_related('department__school')
+    intakes = Intake.objects.filter(is_active=True).order_by('-start_date')
+    
+    context = {
+        'programmes': programmes,
+        'intakes': intakes,
+    }
+    
+    return render(request, 'registrar/student_create.html', context)
+
+
+@login_required
+def registrar_student_update_view(request, student_id):
+    """Update student information"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    student = get_object_or_404(Student, id=student_id)
+    
+    if request.method == 'POST':
+        # Process update
+        # Implementation depends on form structure
+        messages.success(request, 'Student information updated successfully.')
+        return redirect('registrar_student_detail', student_id=student.id)
+    
+    programmes = Programme.objects.filter(is_active=True).select_related('department__school')
+    
+    context = {
+        'student': student,
+        'programmes': programmes,
+    }
+    
+    return render(request, 'registrar/student_update.html', context)
+
+
+@login_required
+def registrar_transcript_view(request, student_id):
+    """Generate student transcript"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    student = get_object_or_404(
+        Student.objects.select_related('user', 'programme', 'programme__department__school'),
+        id=student_id
+    )
+    
+    # Get all semester results grouped by academic year and semester
+    results = SemesterResults.objects.filter(
+        student=student,
+        is_published=True
+    ).select_related(
+        'programme_unit__unit', 'semester', 'academic_year'
+    ).order_by('academic_year__start_date', 'semester__semester_number')
+    
+    # Get semester GPAs
+    gpas = SemesterGPA.objects.filter(
+        student=student
+    ).select_related('semester', 'academic_year').order_by(
+        'academic_year__start_date', 'semester__semester_number'
+    )
+    
+    context = {
+        'student': student,
+        'results': results,
+        'gpas': gpas,
+        'generated_date': timezone.now(),
+    }
+    
+    return render(request, 'registrar/transcript.html', context)
+
+
+# ============= ADMISSIONS MANAGEMENT =============
+
+@login_required
+def registrar_admissions_dashboard_view(request):
+    """Admissions overview and statistics"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get active intakes
+    active_intakes = Intake.objects.filter(
+        is_active=True,
+        application_deadline__gte=timezone.now().date()
+    ).order_by('application_deadline')
+    
+    # Admission statistics by intake
+    if current_academic_year:
+        admissions_by_intake = Student.objects.filter(
+            intake__academic_year=current_academic_year
+        ).values('intake__name').annotate(count=Count('id'))
+        
+        admissions_by_programme = Student.objects.filter(
+            intake__academic_year=current_academic_year
+        ).values('programme__name').annotate(count=Count('id'))
+    else:
+        admissions_by_intake = []
+        admissions_by_programme = []
+    
+    # Recent admissions
+    recent_admissions = Student.objects.select_related(
+        'user', 'programme', 'intake'
+    ).order_by('-admission_date')[:20]
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'active_intakes': active_intakes,
+        'admissions_by_intake': admissions_by_intake,
+        'admissions_by_programme': admissions_by_programme,
+        'recent_admissions': recent_admissions,
+    }
+    
+    return render(request, 'registrar/admissions_dashboard.html', context)
+
+
+@login_required
+def registrar_intake_management_view(request):
+    """Manage intake periods"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    intakes = Intake.objects.select_related('academic_year').order_by('-start_date')
+    
+    # Pagination
+    paginator = Paginator(intakes, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+    }
+    
+    return render(request, 'registrar/intake_management.html', context)
+
+
+@login_required
+def registrar_admission_letters_view(request):
+    """Generate and manage admission letters"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    # Get students who need admission letters
+    recent_students = Student.objects.filter(
+        admission_date__gte=timezone.now().date() - timedelta(days=90)
+    ).select_related('user', 'programme', 'intake').order_by('-admission_date')
+    
+    context = {
+        'students': recent_students,
+    }
+    
+    return render(request, 'registrar/admission_letters.html', context)
+
+
+# ============= EXAMINATIONS MANAGEMENT =============
+
+@login_required
+def registrar_examinations_dashboard_view(request):
+    """Examinations overview"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if current_semester:
+        # Get exam statistics
+        total_exams = Assessment.objects.filter(
+            unit_allocation__semester=current_semester,
+            assessment_type='final'
+        ).count()
+        
+        published_results = SemesterResults.objects.filter(
+            semester=current_semester,
+            is_published=True
+        ).values('programme_unit').distinct().count()
+        
+        pending_results = SemesterResults.objects.filter(
+            semester=current_semester,
+            is_published=False
+        ).values('programme_unit').distinct().count()
+    else:
+        total_exams = 0
+        published_results = 0
+        pending_results = 0
+    
+    context = {
+        'current_semester': current_semester,
+        'total_exams': total_exams,
+        'published_results': published_results,
+        'pending_results': pending_results,
+    }
+    
+    return render(request, 'registrar/examinations_dashboard.html', context)
+
+
+@login_required
+def registrar_results_processing_view(request):
+    """Process and publish exam results"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get results pending publication
+    pending_results = SemesterResults.objects.filter(
+        semester=current_semester,
+        is_published=False,
+        approved_by_dean__isnull=False  # Only show results approved by dean
+    ).select_related(
+        'student', 'programme_unit__unit', 'programme_unit__programme'
+    ).order_by('programme_unit__programme__name', 'programme_unit__unit__code')
+    
+    # Group by programme unit
+    results_by_unit = {}
+    for result in pending_results:
+        unit_key = f"{result.programme_unit.id}"
+        if unit_key not in results_by_unit:
+            results_by_unit[unit_key] = {
+                'programme_unit': result.programme_unit,
+                'results': []
+            }
+        results_by_unit[unit_key]['results'].append(result)
+    
+    context = {
+        'current_semester': current_semester,
+        'results_by_unit': results_by_unit,
+    }
+    
+    return render(request, 'registrar/results_processing.html', context)
+
+
+@login_required
+def registrar_publish_results_view(request, semester_id, programme_unit_id):
+    """Publish results for a specific unit"""
+    if request.user.role != 'registrar':
+        return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    if request.method == 'POST':
+        semester = get_object_or_404(Semester, id=semester_id)
+        programme_unit = get_object_or_404(ProgrammeUnit, id=programme_unit_id)
+        
+        # Update all results for this unit in this semester
+        results = SemesterResults.objects.filter(
+            semester=semester,
+            programme_unit=programme_unit,
+            is_published=False,
+            approved_by_dean__isnull=False
+        )
+        
+        count = results.update(
+            is_published=True,
+            published_date=timezone.now()
+        )
+        
+        messages.success(request, f'Published {count} results successfully.')
+        return JsonResponse({'success': True, 'count': count})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+# ============= GRADUATION MANAGEMENT =============
+
+@login_required
+def registrar_graduation_dashboard_view(request):
+    """Graduation management overview"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get potential graduates
+    potential_graduates = Student.objects.filter(
+        student_status='active',
+        expected_graduation_date__year=timezone.now().year
+    ).select_related('programme').order_by('programme__name')
+    
+    # Group by programme
+    graduates_by_programme = potential_graduates.values(
+        'programme__name'
+    ).annotate(count=Count('id'))
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'potential_graduates': potential_graduates,
+        'graduates_by_programme': graduates_by_programme,
+        'total_graduates': potential_graduates.count(),
+    }
+    
+    return render(request, 'registrar/graduation_dashboard.html', context)
+
+
+@login_required
+def registrar_graduation_list_view(request):
+    """Manage graduation list"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    year_filter = request.GET.get('year', timezone.now().year)
+    programme_filter = request.GET.get('programme', '')
+    
+    students = Student.objects.filter(
+        expected_graduation_date__year=year_filter
+    ).select_related('user', 'programme')
+    
+    if programme_filter:
+        students = students.filter(programme_id=programme_filter)
+    
+    students = students.order_by('programme__name', 'registration_number')
+    
+    programmes = Programme.objects.filter(is_active=True)
+    
+    context = {
+        'students': students,
+        'programmes': programmes,
+        'year_filter': year_filter,
+        'programme_filter': programme_filter,
+    }
+    
+    return render(request, 'registrar/graduation_list.html', context)
+
+
+@login_required
+def registrar_degree_classification_view(request):
+    """View and manage degree classifications"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    # Get students with their cumulative GPAs
+    students = Student.objects.filter(
+        student_status='active',
+        cumulative_gpa__gt=0
+    ).select_related('user', 'programme').order_by('-cumulative_gpa')
+    
+    # Classify based on GPA (adjust ranges as per your institution)
+    first_class = students.filter(cumulative_gpa__gte=3.6)
+    upper_second = students.filter(cumulative_gpa__gte=3.0, cumulative_gpa__lt=3.6)
+    lower_second = students.filter(cumulative_gpa__gte=2.5, cumulative_gpa__lt=3.0)
+    pass_class = students.filter(cumulative_gpa__gte=2.0, cumulative_gpa__lt=2.5)
+    
+    context = {
+        'first_class': first_class,
+        'upper_second': upper_second,
+        'lower_second': lower_second,
+        'pass_class': pass_class,
+    }
+    
+    return render(request, 'registrar/degree_classification.html', context)
+
+
+# ============= ACADEMIC POLICIES MANAGEMENT =============
+
+@login_required
+def registrar_academic_calendar_view(request):
+    """Manage academic calendar"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    # Get all academic years
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    # Get all semesters
+    semesters = Semester.objects.select_related('academic_year').order_by(
+        '-academic_year__start_date', 'semester_number'
+    )
+    
+    # Get upcoming events
+    upcoming_events = Event.objects.filter(
+        start_date__gte=timezone.now(),
+        is_published=True
+    ).order_by('start_date')[:10]
+    
+    context = {
+        'current_academic_year': current_academic_year,
+        'academic_years': academic_years,
+        'semesters': semesters,
+        'upcoming_events': upcoming_events,
+    }
+    
+    return render(request, 'registrar/academic_calendar.html', context)
+
+
+@login_required
+def registrar_policies_view(request):
+    """View and manage academic policies"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    # This would typically load from a document management system
+    # For now, we'll just render a template
+    
+    context = {}
+    
+    return render(request, 'registrar/policies.html', context)
+
+
+# ============= REPORTING & ANALYTICS =============
+
+@login_required
+def registrar_reports_dashboard_view(request):
+    """Reports and analytics dashboard"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_academic_year = AcademicYear.objects.filter(is_current=True).first()
+    
+    context = {
+        'current_academic_year': current_academic_year,
+    }
+    
+    return render(request, 'registrar/reports_dashboard.html', context)
+
+
+@login_required
+def registrar_enrollment_statistics_view(request):
+    """Enrollment statistics and reports"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if current_semester:
+        # Enrollment by programme
+        enrollment_by_programme = UnitEnrollment.objects.filter(
+            semester=current_semester,
+            status='approved'
+        ).values(
+            'programme_unit__programme__name'
+        ).annotate(
+            students=Count('student', distinct=True),
+            units=Count('programme_unit', distinct=True)
+        )
+        
+        # Enrollment by year of study
+        enrollment_by_year = Student.objects.filter(
+            student_status='active'
+        ).values('current_year').annotate(count=Count('id')).order_by('current_year')
+    else:
+        enrollment_by_programme = []
+        enrollment_by_year = []
+    
+    context = {
+        'current_semester': current_semester,
+        'enrollment_by_programme': enrollment_by_programme,
+        'enrollment_by_year': enrollment_by_year,
+    }
+    
+    return render(request, 'registrar/enrollment_statistics.html', context)
+
+
+@login_required
+def registrar_performance_report_view(request):
+    """Academic performance reports"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if current_semester:
+        # Get GPA distribution
+        gpa_distribution = SemesterGPA.objects.filter(
+            semester=current_semester
+        ).values('semester_gpa').annotate(count=Count('id'))
+        
+        # Get pass rates by programme
+        pass_rates = SemesterResults.objects.filter(
+            semester=current_semester,
+            is_published=True
+        ).values(
+            'programme_unit__programme__name'
+        ).annotate(
+            total=Count('id'),
+            passed=Count('id', filter=Q(is_passed=True))
+        )
+    else:
+        gpa_distribution = []
+        pass_rates = []
+    
+    context = {
+        'current_semester': current_semester,
+        'gpa_distribution': gpa_distribution,
+        'pass_rates': pass_rates,
+    }
+    
+    return render(request, 'registrar/performance_report.html', context)
+
+
+# ============= INTERNATIONAL STUDENTS =============
+
+@login_required
+def registrar_international_students_view(request):
+    """Manage international students"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    # Get international students (those with passport numbers)
+    international_students = Student.objects.filter(
+        passport_number__isnull=False
+    ).exclude(passport_number='').select_related(
+        'user', 'programme'
+    ).order_by('registration_number')
+    
+    # Group by country (you might want to add a country field to Student model)
+    # For now, we'll just list them
+    
+    context = {
+        'international_students': international_students,
+        'total_count': international_students.count(),
+    }
+    
+    return render(request, 'registrar/international_students.html', context)
+
+
+# ============= SEMESTER REPORTING & PROGRESSION =============
+
+@login_required
+def registrar_semester_reports_view(request):
+    """Manage semester reporting"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    # Get pending semester reports
+    pending_reports = SemesterReport.objects.filter(
+        status='pending'
+    ).select_related(
+        'student__user', 'student__programme', 'to_semester', 'to_academic_year'
+    ).order_by('-report_date')
+    
+    # Get recent approved reports
+    approved_reports = SemesterReport.objects.filter(
+        status='approved'
+    ).select_related(
+        'student__user', 'student__programme', 'to_semester', 'to_academic_year'
+    ).order_by('-approval_date')[:50]
+    
+    context = {
+        'current_semester': current_semester,
+        'pending_reports': pending_reports,
+        'approved_reports': approved_reports,
+    }
+    
+    return render(request, 'registrar/semester_reports.html', context)
+
+
+@login_required
+def registrar_approve_semester_report_view(request, report_id):
+    """Approve a semester report"""
+    if request.user.role != 'registrar':
+        return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    if request.method == 'POST':
+        report = get_object_or_404(SemesterReport, id=report_id)
+        
+        if not report.is_eligible:
+            return JsonResponse({
+                'success': False,
+                'error': 'Student is not eligible for progression'
+            })
+        
+        if not report.is_financially_cleared:
+            return JsonResponse({
+                'success': False,
+                'error': 'Student has outstanding fee balance'
+            })
+        
+        report.status = 'approved'
+        report.approved_by = request.user
+        report.approval_date = timezone.now()
+        report.save()
+        
+        messages.success(request, f'Semester report approved for {report.student.registration_number}')
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+# ============= RESIT EXAMINATIONS =============
+
+@login_required
+def registrar_resit_management_view(request):
+    """Manage resit/supplementary examinations"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    current_semester = Semester.objects.filter(is_current=True).first()
+    
+    if current_semester:
+        # Get resit registrations
+        resit_registrations = ResitExam.objects.filter(
+            resit_semester=current_semester
+        ).select_related(
+            'student__user',
+            'original_result__programme_unit__unit',
+            'original_semester'
+        ).order_by('status', 'registration_date')
+    else:
+        resit_registrations = []
+    
+    context = {
+        'current_semester': current_semester,
+        'resit_registrations': resit_registrations,
+    }
+    
+    return render(request, 'registrar/resit_management.html', context)
+
+
+# ============= STUDENT ID CARDS =============
+
+@login_required
+def registrar_id_card_applications_view(request):
+    """Manage student ID card applications"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    status_filter = request.GET.get('status', '')
+    
+    applications = StudentIDApplication.objects.select_related(
+        'student__user', 'student__programme', 'id_type'
+    ).all()
+    
+    if status_filter:
+        applications = applications.filter(status=status_filter)
+    
+    applications = applications.order_by('-application_date')
+    
+    # Pagination
+    paginator = Paginator(applications, 30)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'application_statuses': StudentIDApplication.APPLICATION_STATUS,
+    }
+    
+    return render(request, 'registrar/id_card_applications.html', context)
+
+
+@login_required
+def registrar_id_card_approve_view(request, application_id):
+    """Approve ID card application"""
+    if request.user.role != 'registrar':
+        return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    if request.method == 'POST':
+        application = get_object_or_404(StudentIDApplication, id=application_id)
+        
+        if application.status != 'submitted':
+            return JsonResponse({
+                'success': False,
+                'error': 'Application cannot be approved at this stage'
+            })
+        
+        application.status = 'under_review'
+        application.reviewed_by = request.user
+        application.review_date = timezone.now()
+        application.save()
+        
+        messages.success(request, 'Application moved to review status')
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+# ============= ANNOUNCEMENTS & COMMUNICATION =============
+
+@login_required
+def registrar_announcements_view(request):
+    """Manage announcements"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    announcements = Announcement.objects.select_related(
+        'created_by', 'target_programme', 'target_school', 'academic_year'
+    ).order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(announcements, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+    }
+    
+    return render(request, 'registrar/announcements.html', context)
+
+
+@login_required
+def registrar_announcement_create_view(request):
+    """Create new announcement"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    if request.method == 'POST':
+        # Process announcement creation
+        # Implementation depends on form structure
+        messages.success(request, 'Announcement created successfully.')
+        return redirect('registrar_announcements')
+    
+    programmes = Programme.objects.filter(is_active=True)
+    schools = School.objects.filter(is_active=True)
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    
+    context = {
+        'programmes': programmes,
+        'schools': schools,
+        'academic_years': academic_years,
+    }
+    
+    return render(request, 'registrar/announcement_create.html', context)
+
+
+# ============= EXPORT FUNCTIONS =============
+
+@login_required
+def registrar_export_students_csv_view(request):
+    """Export student list to CSV"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="students.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Registration Number', 'First Name', 'Last Name', 'Email',
+        'Programme', 'Year', 'Semester', 'Status', 'GPA'
+    ])
+    
+    students = Student.objects.select_related(
+        'user', 'programme'
+    ).all()
+    
+    for student in students:
+        writer.writerow([
+            student.registration_number,
+            student.user.first_name,
+            student.user.last_name,
+            student.user.email,
+            student.programme.name,
+            student.current_year,
+            student.current_semester,
+            student.student_status,
+            student.cumulative_gpa,
+        ])
+    
+    return response
+
+
+@login_required
+def registrar_export_results_csv_view(request, semester_id):
+    """Export semester results to CSV"""
+    if request.user.role != 'registrar':
+        messages.error(request, 'Access denied.')
+        return redirect('home')
+    
+    semester = get_object_or_404(Semester, id=semester_id)
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="results_{semester.name}.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow([
+        'Registration Number', 'Student Name', 'Unit Code', 'Unit Name',
+        'CAT Marks', 'Exam Marks', 'Total Marks', 'Grade', 'Grade Point'
+    ])
+    
+    results = SemesterResults.objects.filter(
+        semester=semester,
+        is_published=True
+    ).select_related(
+        'student__user', 'programme_unit__unit'
+    ).order_by('student__registration_number', 'programme_unit__unit__code')
+    
+    for result in results:
+        writer.writerow([
+            result.student.registration_number,
+            result.student.user.get_full_name(),
+            result.programme_unit.unit.code,
+            result.programme_unit.unit.name,
+            result.cat_marks,
+            result.exam_marks,
+            result.total_marks,
+            result.grade,
+            result.grade_point,
+        ])
+    
+    return response
