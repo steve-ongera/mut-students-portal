@@ -1,205 +1,424 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
-
 {% load static %}
 
 {% block title %}Admissions Dashboard - Registrar{% endblock %}
 
-{% block page_title %}Admissions Management{% endblock %}
-{% block page_subtitle %}Manage student admissions and intakes{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
-        <li class="breadcrumb-item active">Admissions</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Admissions Management</h1>
+                <p class="text-muted mb-0">Manage student admissions and intakes</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_academic_year.name|default:"Not set" }}
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="container-fluid">
-    <!-- Quick Links -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <div class="btn-toolbar" role="toolbar">
-                        <div class="btn-group me-2">
-                            <a href="{% url 'registrar_intake_management' %}" class="btn btn-primary">
-                                <i class="ri-calendar-line"></i> Manage Intakes
-                            </a>
+    <!-- Quick Actions -->
+    <div class="analytics-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Quick Actions</h5>
+            <div class="card-subtitle">Access admissions management tools</div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <a href="{% url 'registrar_intake_management' %}" class="action-card">
+                        <div class="action-icon bg-primary-subtle">
+                            <i class="ri-calendar-line text-primary"></i>
                         </div>
-                        <div class="btn-group me-2">
-                            <a href="{% url 'registrar_admission_letters' %}" class="btn btn-success">
-                                <i class="ri-mail-line"></i> Admission Letters
-                            </a>
+                        <div class="action-content">
+                            <h6>Manage Intakes</h6>
+                            <p class="small text-muted mb-0">Create and manage admission periods</p>
                         </div>
-                        <div class="btn-group me-2">
-                            <a href="{% url 'registrar_student_create' %}" class="btn btn-info">
-                                <i class="ri-user-add-line"></i> Add Student
-                            </a>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'registrar_admission_letters' %}" class="action-card">
+                        <div class="action-icon bg-success-subtle">
+                            <i class="ri-mail-line text-success"></i>
                         </div>
-                        <div class="btn-group">
-                            <button class="btn btn-outline-secondary">
-                                <i class="ri-download-line"></i> Export Data
-                            </button>
+                        <div class="action-content">
+                            <h6>Admission Letters</h6>
+                            <p class="small text-muted mb-0">Generate and send admission letters</p>
                         </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'registrar_student_create' %}" class="action-card">
+                        <div class="action-icon bg-info-subtle">
+                            <i class="ri-user-add-line text-info"></i>
+                        </div>
+                        <div class="action-content">
+                            <h6>Add Student</h6>
+                            <p class="small text-muted mb-0">Register new students manually</p>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="#" class="action-card" onclick="showToast('Export functionality coming soon', 'info')">
+                        <div class="action-icon bg-warning-subtle">
+                            <i class="ri-download-line text-warning"></i>
+                        </div>
+                        <div class="action-content">
+                            <h6>Export Data</h6>
+                            <p class="small text-muted mb-0">Export admission data in various formats</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-calendar-line text-primary"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ active_intakes|length|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Active Intakes</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-information-line text-info me-1"></i>
+                    <span class="small text-muted">Currently open for applications</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-user-add-line text-success"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_admissions|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Total Admissions</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">{{ current_academic_year.name|default:"" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-book-open-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_programmes|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Active Programmes</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Accepting applications</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-history-line text-warning"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ recent_admissions|length|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Recent Admissions</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-time-line text-warning me-1"></i>
+                    <span class="small text-muted">Last 20 students</span>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Active Intakes -->
-    <div class="card mb-4">
+    <div class="analytics-card mb-4">
         <div class="card-header">
-            <h5>Active Intakes</h5>
+            <h5 class="card-title">Active Intakes</h5>
+            <div class="card-subtitle">Intakes currently open for applications</div>
         </div>
         <div class="card-body">
             {% if active_intakes %}
-            <div class="row">
+            <div class="row g-3">
                 {% for intake in active_intakes %}
-                <div class="col-md-4 mb-3">
-                    <div class="card border-primary">
-                        <div class="card-body">
-                            <h5 class="card-title">{{ intake.name }}</h5>
-                            <p class="card-text">
-                                <strong>Intake Number:</strong> {{ intake.intake_number }}<br>
-                                <strong>Start Date:</strong> {{ intake.start_date|date:"d/m/Y" }}<br>
-                                <strong>Application Deadline:</strong> {{ intake.application_deadline|date:"d/m/Y" }}
-                            </p>
-                            {% if intake.application_deadline >= today %}
-                            <span class="badge bg-success">Open for Applications</span>
-                            {% else %}
-                            <span class="badge bg-danger">Closed</span>
-                            {% endif %}
+                <div class="col-md-6 col-lg-4">
+                    <div class="intake-card">
+                        <div class="intake-header">
+                            <div class="intake-title">
+                                <h6 class="mb-0">{{ intake.name }}</h6>
+                                <small class="text-muted">{{ intake.intake_number }}</small>
+                            </div>
+                            <div class="intake-status">
+                                {% if intake.application_deadline >= today %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Open
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-close-circle-fill me-1"></i>
+                                    Closed
+                                </span>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="card-footer">
-                            <small class="text-muted">Academic Year: {{ intake.academic_year.name }}</small>
+                        <div class="intake-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="info-label">Academic Year</span>
+                                    <span class="info-value">{{ intake.academic_year.name }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Start Date</span>
+                                    <span class="info-value">{{ intake.start_date|date:"d/m/Y" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Application Deadline</span>
+                                    <span class="info-value {% if intake.application_deadline < today %}text-danger{% endif %}">
+                                        {{ intake.application_deadline|date:"d/m/Y" }}
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Month</span>
+                                    <span class="info-value">{{ intake.get_month_display }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="intake-footer">
+                            <a href="{% url 'registrar_student_list' %}?intake={{ intake.id }}" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="ri-eye-line me-2"></i> View Students
+                            </a>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <div class="alert alert-info">
-                <i class="ri-information-line"></i> No active intakes available
+            <div class="empty-state">
+                <i class="ri-calendar-line display-4 text-muted mb-3"></i>
+                <h5 class="text-muted">No active intakes</h5>
+                <p class="text-muted mb-0">All intakes are currently closed for applications</p>
+                <a href="{% url 'registrar_intake_management' %}" class="btn btn-primary mt-3">
+                    <i class="ri-add-line me-2"></i> Create New Intake
+                </a>
             </div>
             {% endif %}
         </div>
     </div>
 
-    <!-- Admissions by Intake -->
+    <!-- Admissions Analytics -->
     {% if current_academic_year %}
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5>Admissions by Intake - {{ current_academic_year.name }}</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Intake</th>
-                            <th>Total Admissions</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for admission in admissions_by_intake %}
-                        <tr>
-                            <td>{{ admission.intake__name }}</td>
-                            <td><strong>{{ admission.count }}</strong></td>
-                            <td>
-                                <a href="{% url 'registrar_student_list' %}?intake={{ admission.intake__id }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="ri-eye-line"></i> View Students
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="3" class="text-center">No admission data available</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="row g-4 mb-4">
+        <!-- Admissions by Intake -->
+        <div class="col-lg-6">
+            <div class="analytics-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Admissions by Intake</h5>
+                    <div class="card-subtitle">{{ current_academic_year.name }}</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Intake</th>
+                                    <th>Total Admissions</th>
+                                    <th class="pe-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for admission in admissions_by_intake %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="intake-info">
+                                            <strong>{{ admission.intake__name }}</strong>
+                                            <small class="text-muted d-block">{{ admission.intake__intake_number }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admission-count">
+                                            <span class="count-badge">{{ admission.count }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <a href="{% url 'registrar_student_list' %}?intake={{ admission.intake__id }}" class="btn btn-icon btn-outline-primary btn-sm">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4">
+                                        <i class="ri-file-list-line fs-3 text-muted mb-2 d-block"></i>
+                                        <p class="text-muted mb-0">No admission data available</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Admissions by Programme -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5>Admissions by Programme - {{ current_academic_year.name }}</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Programme</th>
-                            <th>Total Admissions</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for admission in admissions_by_programme %}
-                        <tr>
-                            <td>{{ admission.programme__name }}</td>
-                            <td><strong>{{ admission.count }}</strong></td>
-                            <td>
-                                <a href="{% url 'registrar_student_list' %}?programme={{ admission.programme__id }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="ri-eye-line"></i> View Students
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="3" class="text-center">No admission data available</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <!-- Admissions by Programme -->
+        <div class="col-lg-6">
+            <div class="analytics-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Admissions by Programme</h5>
+                    <div class="card-subtitle">{{ current_academic_year.name }}</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Programme</th>
+                                    <th>Total Admissions</th>
+                                    <th class="pe-4">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for admission in admissions_by_programme %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="programme-info">
+                                            <strong>{{ admission.programme__name }}</strong>
+                                            <small class="text-muted d-block">{{ admission.programme__code }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admission-count">
+                                            <span class="count-badge">{{ admission.count }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <a href="{% url 'registrar_student_list' %}?programme={{ admission.programme__id }}" class="btn btn-icon btn-outline-primary btn-sm">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-4">
+                                        <i class="ri-book-open-line fs-3 text-muted mb-2 d-block"></i>
+                                        <p class="text-muted mb-0">No programme data available</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     {% endif %}
 
     <!-- Recent Admissions -->
-    <div class="card">
+    <div class="analytics-card">
         <div class="card-header">
-            <h5>Recent Admissions (Last 20)</h5>
+            <h5 class="card-title">Recent Admissions</h5>
+            <div class="card-subtitle">Last 20 student registrations</div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm table-hover">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Reg Number</th>
-                            <th>Name</th>
+                            <th class="ps-4">Reg Number</th>
+                            <th>Student</th>
                             <th>Programme</th>
                             <th>Intake</th>
                             <th>Admission Date</th>
-                            <th>Status</th>
+                            <th class="pe-4">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for student in recent_admissions %}
                         <tr>
-                            <td><strong>{{ student.registration_number }}</strong></td>
-                            <td>{{ student.user.get_full_name }}</td>
-                            <td>{{ student.programme.code }}</td>
-                            <td>{{ student.intake.name }}</td>
-                            <td>{{ student.admission_date|date:"d/m/Y" }}</td>
+                            <td class="ps-4">
+                                <div class="registration-number">
+                                    <strong>{{ student.registration_number }}</strong>
+                                </div>
+                            </td>
                             <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-2">
+                                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ student.user.get_full_name }}</h6>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ student.programme.code }}</strong>
+                                    <small class="text-muted">{{ student.programme.name|truncatechars:20 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="intake-info">
+                                    <span class="badge bg-info-subtle text-info">{{ student.intake.name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="date-display">
+                                    {{ student.admission_date|date:"d/m/Y" }}
+                                </div>
+                            </td>
+                            <td class="pe-4">
                                 {% if student.student_status == 'active' %}
-                                <span class="badge bg-success">Active</span>
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Active
+                                </span>
                                 {% else %}
-                                <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                                <span class="status-badge status-other">
+                                    {{ student.get_student_status_display }}
+                                </span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center py-4">No recent admissions</td>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-user-search-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No recent admissions</h5>
+                                    <p class="text-muted mb-0">No student registrations found</p>
+                                </div>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -208,4 +427,484 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Action Cards */
+    .action-card {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+        border-color: var(--color-primary);
+        background: var(--color-primary-light);
+    }
+    
+    .action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .action-content h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Intake Cards */
+    .intake-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .intake-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .intake-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    
+    .intake-title h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .intake-body {
+        padding: 1rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        gap: 0.75rem;
+    }
+    
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.25rem 0;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .info-value {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    .intake-footer {
+        padding: 1rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* Student Avatar */
+    .student-avatar {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Admission Count Badge */
+    .count-badge {
+        display: inline-block;
+        padding: 0.5rem 0.75rem;
+        background: var(--color-primary-light);
+        color: var(--color-primary);
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        font-size: 0.875rem;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border: 2px solid var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-primary {
+        border: 2px solid var(--color-primary);
+        color: var(--color-primary);
+        background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+</style>
+
+<script>
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="ri-${type === 'success' ? 'checkbox-circle' : type === 'error' ? 'error-warning' : 'information'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close">&times;</button>
+    `;
+    
+    // Add to body
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    }, 5000);
+    
+    // Close button
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    });
+}
+
+// Add toast styles
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
+    .toast-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 300px;
+        max-width: 400px;
+        box-shadow: var(--shadow-lg);
+        transform: translateX(120%);
+        transition: transform 0.3s ease;
+        z-index: 9999;
+    }
+    
+    .toast-notification.show {
+        transform: translateX(0);
+    }
+    
+    .toast-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .toast-content i {
+        font-size: 1.25rem;
+    }
+    
+    .toast-success {
+        border-left: 4px solid var(--color-success);
+    }
+    
+    .toast-success i {
+        color: var(--color-success);
+    }
+    
+    .toast-info {
+        border-left: 4px solid var(--color-info);
+    }
+    
+    .toast-info i {
+        color: var(--color-info);
+    }
+    
+    .toast-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--color-gray-600);
+        cursor: pointer;
+        padding: 0;
+        margin-left: 1rem;
+        line-height: 1;
+    }
+    
+    .toast-close:hover {
+        color: var(--color-gray-800);
+    }
+`;
+document.head.appendChild(toastStyles);
+</script>
 {% endblock %}
