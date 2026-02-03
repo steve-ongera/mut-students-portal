@@ -1,6 +1,282 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
+
+{% load static %}
+
+{% block title %}Add New Student{% endblock %}
+
+{% block page_title %}Add New Student{% endblock %}
+{% block page_subtitle %}Register a new student in the system{% endblock %}
+
 {% block content %}
-<!-- TODO: Implement student_create.html view -->
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_student_list' %}">Students</a></li>
+        <li class="breadcrumb-item active">Add Student</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Student Registration Form</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="studentForm">
+                        {% csrf_token %}
+                        
+                        <!-- Personal Information -->
+                        <div class="section-header">
+                            <h6>Personal Information</h6>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>First Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="first_name" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Middle Name</label>
+                                    <input type="text" name="middle_name" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Last Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="last_name" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Email <span class="text-danger">*</span></label>
+                                    <input type="email" name="email" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Phone Number <span class="text-danger">*</span></label>
+                                    <input type="tel" name="phone_number" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Gender <span class="text-danger">*</span></label>
+                                    <select name="gender" class="form-control" required>
+                                        <option value="">Select Gender</option>
+                                        <option value="M">Male</option>
+                                        <option value="F">Female</option>
+                                        <option value="O">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Date of Birth <span class="text-danger">*</span></label>
+                                    <input type="date" name="date_of_birth" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>National ID <span class="text-danger">*</span></label>
+                                    <input type="text" name="national_id" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Passport Number</label>
+                                    <input type="text" name="passport_number" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Information -->
+                        <div class="section-header">
+                            <h6>Academic Information</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Programme <span class="text-danger">*</span></label>
+                                    <select name="programme" id="programmeSelect" class="form-control" required>
+                                        <option value="">Select Programme</option>
+                                        {% for programme in programmes %}
+                                        <option value="{{ programme.id }}" data-school="{{ programme.department.school.name }}">
+                                            {{ programme.code }} - {{ programme.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Intake <span class="text-danger">*</span></label>
+                                    <select name="intake" class="form-control" required>
+                                        <option value="">Select Intake</option>
+                                        {% for intake in intakes %}
+                                        <option value="{{ intake.id }}">{{ intake.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Admission Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="admission_date" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Current Year <span class="text-danger">*</span></label>
+                                    <select name="current_year" class="form-control" required>
+                                        <option value="1">Year 1</option>
+                                        <option value="2">Year 2</option>
+                                        <option value="3">Year 3</option>
+                                        <option value="4">Year 4</option>
+                                        <option value="5">Year 5</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Current Semester <span class="text-danger">*</span></label>
+                                    <select name="current_semester" class="form-control" required>
+                                        <option value="1">Semester 1</option>
+                                        <option value="2">Semester 2</option>
+                                        <option value="3">Semester 3</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Student Status</label>
+                                    <select name="student_status" class="form-control">
+                                        <option value="active">Active</option>
+                                        <option value="suspended">Suspended</option>
+                                        <option value="deferred">Deferred</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Address Information -->
+                        <div class="section-header">
+                            <h6>Address Information</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Permanent Address</label>
+                                    <textarea name="permanent_address" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Current Address</label>
+                                    <textarea name="current_address" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Contact -->
+                        <div class="section-header">
+                            <h6>Emergency Contact</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Contact Name</label>
+                                    <input type="text" name="emergency_contact_name" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Contact Phone</label>
+                                    <input type="tel" name="emergency_contact_phone" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Relationship</label>
+                                    <input type="text" name="emergency_contact_relationship" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sponsor Information -->
+                        <div class="section-header">
+                            <h6>Sponsor/Guardian Information</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sponsor Name</label>
+                                    <input type="text" name="sponsor_name" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sponsor Phone</label>
+                                    <input type="tel" name="sponsor_phone" class="form-control">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sponsor Email</label>
+                                    <input type="email" name="sponsor_email" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Profile Picture -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Profile Picture</label>
+                                    <input type="file" name="profile_picture" class="form-control" accept="image/*">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-save-line"></i> Register Student
+                            </button>
+                            <a href="{% url 'registrar_student_list' %}" class="btn btn-secondary">
+                                <i class="ri-close-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('studentForm').addEventListener('submit', function(e) {
+    if (!confirm('Are you sure you want to register this student?')) {
+        e.preventDefault();
+    }
+});
+</script>
 {% endblock %}
 

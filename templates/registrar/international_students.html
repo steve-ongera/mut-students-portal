@@ -1,6 +1,294 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}International Students{% endblock %}
+
+{% block page_title %}International Students{% endblock %}
+{% block page_subtitle %}Manage international student records{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement international_students.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">International Students</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total International Students</h6>
+                    <h3>{{ total_count }}</h3>
+                    <small>Currently enrolled</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Countries Represented</h6>
+                    <h3>{{ countries_count }}</h3>
+                    <small>Diverse representation</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Programmes</h6>
+                    <h3>{{ programmes_count }}</h3>
+                    <small>With international students</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label>Search</label>
+                            <input type="text" name="search" class="form-control" 
+                                   placeholder="Name, Reg No, Passport..." value="{{ search_query }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label>Country</label>
+                            <select name="country" class="form-control">
+                                <option value="">All Countries</option>
+                                {% for country in countries %}
+                                <option value="{{ country }}">{{ country }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Programme</label>
+                            <select name="programme" class="form-control">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}">{{ programme.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-filter-line"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="exportList()">
+                    <i class="ri-download-line"></i> Export List
+                </button>
+                <button class="btn btn-info" onclick="generateReport()">
+                    <i class="ri-file-chart-line"></i> Generate Report
+                </button>
+                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#sendEmailModal">
+                    <i class="ri-mail-send-line"></i> Send Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>International Students List</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                                    </th>
+                                    <th>Reg Number</th>
+                                    <th>Name</th>
+                                    <th>Passport Number</th>
+                                    <th>Country</th>
+                                    <th>Programme</th>
+                                    <th>Year</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in international_students %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="student-checkbox" value="{{ student.id }}">
+                                    </td>
+                                    <td>{{ student.registration_number }}</td>
+                                    <td>{{ student.user.get_full_name }}</td>
+                                    <td>{{ student.passport_number }}</td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ student.country|default:"Not Set" }}</span>
+                                    </td>
+                                    <td>{{ student.programme.code }}</td>
+                                    <td>Year {{ student.current_year }}</td>
+                                    <td>
+                                        {% if student.student_status == 'active' %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-info">
+                                                <i class="ri-eye-line"></i>
+                                            </a>
+                                            <a href="{% url 'registrar_student_update' student.id %}" class="btn btn-warning">
+                                                <i class="ri-edit-line"></i>
+                                            </a>
+                                            <button class="btn btn-primary" onclick="viewDocuments({{ student.id }})">
+                                                <i class="ri-file-list-line"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center">No international students found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics by Country -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Distribution by Country</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="countryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Send Email Modal -->
+<div class="modal fade" id="sendEmailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Email to International Students</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="/registrar/international-students/send-email/">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label>Recipients</label>
+                        <select name="recipients" class="form-control" required>
+                            <option value="all">All International Students</option>
+                            <option value="selected">Selected Students Only</option>
+                            <option value="by_country">By Country</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-3" id="countrySelect" style="display: none;">
+                        <label>Select Country</label>
+                        <select name="country" class="form-control">
+                            {% for country in countries %}
+                            <option value="{{ country }}">{{ country }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Subject</label>
+                        <input type="text" name="subject" class="form-control" required>
+                    </div>
+                    <div class="form-group mb-3">
+                        <label>Message</label>
+                        <textarea name="message" class="form-control" rows="5" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Email</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+function exportList() {
+    window.location.href = '/registrar/international-students/export/';
+}
+
+function generateReport() {
+    window.location.href = '/registrar/international-students/report/';
+}
+
+function viewDocuments(studentId) {
+    window.location.href = '/registrar/students/' + studentId + '/documents/';
+}
+
+// Show/hide country select based on recipients selection
+document.querySelector('select[name="recipients"]').addEventListener('change', function() {
+    const countrySelect = document.getElementById('countrySelect');
+    if (this.value === 'by_country') {
+        countrySelect.style.display = 'block';
+    } else {
+        countrySelect.style.display = 'none';
+    }
+});
+
+// Country distribution chart
+const ctx = document.getElementById('countryChart');
+if (ctx) {
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ country_labels|safe }},
+            datasets: [{
+                label: 'Number of Students',
+                data: {{ country_data|safe }},
+                backgroundColor: '#2E7D32'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

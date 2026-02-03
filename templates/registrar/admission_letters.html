@@ -1,6 +1,276 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Admission Letters{% endblock %}
+
+{% block page_title %}Admission Letters{% endblock %}
+{% block page_subtitle %}Generate and manage admission letters{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement admission_letters.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_admissions_dashboard' %}">Admissions</a></li>
+        <li class="breadcrumb-item active">Admission Letters</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label>Intake</label>
+                            <select name="intake" class="form-control">
+                                <option value="">All Intakes</option>
+                                {% for intake in intakes %}
+                                <option value="{{ intake.id }}">{{ intake.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Programme</label>
+                            <select name="programme" class="form-control">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}">{{ programme.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Status</label>
+                            <select name="letter_status" class="form-control">
+                                <option value="">All</option>
+                                <option value="pending">Pending</option>
+                                <option value="generated">Generated</option>
+                                <option value="sent">Sent</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-filter-line"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group">
+                <button class="btn btn-primary" onclick="generateSelected()">
+                    <i class="ri-file-text-line"></i> Generate Selected
+                </button>
+                <button class="btn btn-success" onclick="sendSelected()">
+                    <i class="ri-mail-send-line"></i> Send Selected
+                </button>
+                <button class="btn btn-info" onclick="downloadSelected()">
+                    <i class="ri-download-line"></i> Download Selected
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Students List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Admissions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                                    </th>
+                                    <th>Registration Number</th>
+                                    <th>Name</th>
+                                    <th>Programme</th>
+                                    <th>Intake</th>
+                                    <th>Admission Date</th>
+                                    <th>Letter Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in students %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="student-checkbox" value="{{ student.id }}">
+                                    </td>
+                                    <td>{{ student.registration_number }}</td>
+                                    <td>{{ student.user.get_full_name }}</td>
+                                    <td>{{ student.programme.code }}</td>
+                                    <td>{{ student.intake.name }}</td>
+                                    <td>{{ student.admission_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-warning">Pending</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-primary" onclick="generateLetter({{ student.id }})">
+                                                <i class="ri-file-text-line"></i> Generate
+                                            </button>
+                                            <button class="btn btn-info" onclick="previewLetter({{ student.id }})">
+                                                <i class="ri-eye-line"></i> Preview
+                                            </button>
+                                            <button class="btn btn-success" onclick="sendLetter({{ student.id }})">
+                                                <i class="ri-mail-send-line"></i> Send
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">No students found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Admission Letter Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="letterPreview">
+                <!-- Letter content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="downloadCurrentLetter()">
+                    <i class="ri-download-line"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.student-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+function getSelectedStudents() {
+    const checkboxes = document.querySelectorAll('.student-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function generateLetter(studentId) {
+    if (confirm('Generate admission letter for this student?')) {
+        fetch('/registrar/admissions/generate-letter/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ student_id: studentId })
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  alert('Letter generated successfully');
+                  location.reload();
+              }
+          });
+    }
+}
+
+function generateSelected() {
+    const selected = getSelectedStudents();
+    if (selected.length === 0) {
+        alert('Please select at least one student');
+        return;
+    }
+    if (confirm(`Generate admission letters for ${selected.length} student(s)?`)) {
+        fetch('/registrar/admissions/generate-bulk/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ student_ids: selected })
+        }).then(response => response.json())
+          .then(data => {
+              alert(data.message);
+              location.reload();
+          });
+    }
+}
+
+function previewLetter(studentId) {
+    fetch('/registrar/admissions/preview-letter/' + studentId + '/')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('letterPreview').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('previewModal')).show();
+        });
+}
+
+function sendLetter(studentId) {
+    if (confirm('Send admission letter to student email?')) {
+        fetch('/registrar/admissions/send-letter/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ student_id: studentId })
+        }).then(response => response.json())
+          .then(data => {
+              alert(data.message);
+          });
+    }
+}
+
+function sendSelected() {
+    const selected = getSelectedStudents();
+    if (selected.length === 0) {
+        alert('Please select at least one student');
+        return;
+    }
+    if (confirm(`Send admission letters to ${selected.length} student(s)?`)) {
+        fetch('/registrar/admissions/send-bulk/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ student_ids: selected })
+        }).then(response => response.json())
+          .then(data => {
+              alert(data.message);
+          });
+    }
+}
+
+function downloadSelected() {
+    const selected = getSelectedStudents();
+    if (selected.length === 0) {
+        alert('Please select at least one student');
+        return;
+    }
+    window.location.href = '/registrar/admissions/download-bulk/?ids=' + selected.join(',');
+}
+</script>
+{% endblock %}

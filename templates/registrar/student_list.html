@@ -1,6 +1,244 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
-{% block content %}
-<!-- TODO: Implement student_list.html view -->
-{% endblock %}
 
+{% load static %}
+
+{% block title %}Student Records - Registrar{% endblock %}
+
+{% block page_title %}Student Records{% endblock %}
+{% block page_subtitle %}Manage student records and academic information{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
+        <li class="breadcrumb-item active">Student Records</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Search and Filter -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Search & Filter</h5>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ri-search-line"></i></span>
+                            <input type="text" class="form-control" name="search" 
+                                   placeholder="Search by registration number, name, email, or national ID..." 
+                                   value="{{ search_query }}">
+                            <button class="btn btn-primary" type="submit">Search</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-3">
+                        <label class="form-label">School</label>
+                        <select name="school" class="form-select">
+                            <option value="">All Schools</option>
+                            {% for school in schools %}
+                            <option value="{{ school.id }}" {% if school_filter == school.id|stringformat:"i" %}selected{% endif %}>
+                                {{ school.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Programme</label>
+                        <select name="programme" class="form-select">
+                            <option value="">All Programmes</option>
+                            {% for programme in programmes %}
+                            <option value="{{ programme.id }}" {% if programme_filter == programme.id|stringformat:"i" %}selected{% endif %}>
+                                {{ programme.code }} - {{ programme.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Year</label>
+                        <select name="year" class="form-select">
+                            <option value="">All Years</option>
+                            <option value="1" {% if year_filter == "1" %}selected{% endif %}>Year 1</option>
+                            <option value="2" {% if year_filter == "2" %}selected{% endif %}>Year 2</option>
+                            <option value="3" {% if year_filter == "3" %}selected{% endif %}>Year 3</option>
+                            <option value="4" {% if year_filter == "4" %}selected{% endif %}>Year 4</option>
+                            <option value="5" {% if year_filter == "5" %}selected{% endif %}>Year 5</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            {% for status_code, status_name in student_statuses %}
+                            <option value="{{ status_code }}" {% if status_filter == status_code %}selected{% endif %}>
+                                {{ status_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">Apply Filters</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <a href="{% url 'registrar_student_list' %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="ri-refresh-line"></i> Clear Filters
+                        </a>
+                        <a href="{% url 'registrar_export_students_csv' %}" class="btn btn-sm btn-success">
+                            <i class="ri-file-excel-line"></i> Export CSV
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Students Table -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5>Student Records ({{ page_obj.paginator.count }})</h5>
+            <a href="{% url 'registrar_student_create' %}" class="btn btn-primary">
+                <i class="ri-add-line"></i> Add Student
+            </a>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Reg Number</th>
+                            <th>Student Name</th>
+                            <th>Programme</th>
+                            <th>Year/Sem</th>
+                            <th>Status</th>
+                            <th>GPA</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in page_obj %}
+                        <tr>
+                            <td>
+                                <strong>{{ student.registration_number }}</strong>
+                                <br><small class="text-muted">{{ student.user.email }}</small>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if student.user.profile_picture %}
+                                    <img src="{{ student.user.profile_picture.url }}" class="rounded-circle me-2" width="40" height="40">
+                                    {% else %}
+                                    <img src="{% static 'avatar2.png' %}" class="rounded-circle me-2" width="40" height="40">
+                                    {% endif %}
+                                    <div>
+                                        {{ student.user.get_full_name }}
+                                        <br><small class="text-muted">{{ student.national_id }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <strong>{{ student.programme.code }}</strong>
+                                <br><small>{{ student.programme.name }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">Year {{ student.current_year }}</span>
+                                <span class="badge bg-secondary">Sem {{ student.current_semester }}</span>
+                            </td>
+                            <td>
+                                {% if student.student_status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% elif student.student_status == 'suspended' %}
+                                <span class="badge bg-danger">Suspended</span>
+                                {% elif student.student_status == 'deferred' %}
+                                <span class="badge bg-warning">Deferred</span>
+                                {% elif student.student_status == 'graduated' %}
+                                <span class="badge bg-primary">Graduated</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <strong class="{% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                    {{ student.cumulative_gpa }}
+                                </strong>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'registrar_student_detail' student.id %}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    <a href="{% url 'registrar_transcript' student.id %}" 
+                                       class="btn btn-outline-info" title="Transcript">
+                                        <i class="ri-file-text-line"></i>
+                                    </a>
+                                    <a href="{% url 'registrar_student_update' student.id %}" 
+                                       class="btn btn-outline-warning" title="Edit">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                <i class="ri-user-search-line display-4 text-muted"></i>
+                                <p class="text-muted mt-2">No students found</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-3">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
+                            <i class="ri-arrow-left-line"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
+                            <i class="ri-arrow-right-line"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

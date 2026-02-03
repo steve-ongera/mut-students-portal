@@ -1,6 +1,261 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Update Student - {{ student.registration_number }}{% endblock %}
+
+{% block page_title %}Update Student Information{% endblock %}
+{% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement student_update.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_student_list' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_student_detail' student.id %}">{{ student.registration_number }}</a></li>
+        <li class="breadcrumb-item active">Update</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Update Student Information</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <!-- Personal Information -->
+                        <div class="section-header">
+                            <h6>Personal Information</h6>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>First Name</label>
+                                    <input type="text" name="first_name" class="form-control" 
+                                           value="{{ student.user.first_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Last Name</label>
+                                    <input type="text" name="last_name" class="form-control" 
+                                           value="{{ student.user.last_name }}" required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Email</label>
+                                    <input type="email" name="email" class="form-control" 
+                                           value="{{ student.user.email }}" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Phone Number</label>
+                                    <input type="tel" name="phone_number" class="form-control" 
+                                           value="{{ student.user.phone_number }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Gender</label>
+                                    <select name="gender" class="form-control">
+                                        <option value="M" {% if student.gender == 'M' %}selected{% endif %}>Male</option>
+                                        <option value="F" {% if student.gender == 'F' %}selected{% endif %}>Female</option>
+                                        <option value="O" {% if student.gender == 'O' %}selected{% endif %}>Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Date of Birth</label>
+                                    <input type="date" name="date_of_birth" class="form-control" 
+                                           value="{{ student.date_of_birth|date:'Y-m-d' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>National ID</label>
+                                    <input type="text" name="national_id" class="form-control" 
+                                           value="{{ student.national_id }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Passport Number</label>
+                                    <input type="text" name="passport_number" class="form-control" 
+                                           value="{{ student.passport_number }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Academic Information -->
+                        <div class="section-header">
+                            <h6>Academic Information</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Programme</label>
+                                    <select name="programme" class="form-control" required>
+                                        {% for programme in programmes %}
+                                        <option value="{{ programme.id }}" 
+                                                {% if programme.id == student.programme.id %}selected{% endif %}>
+                                            {{ programme.code }} - {{ programme.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Current Year</label>
+                                    <select name="current_year" class="form-control">
+                                        {% for year in "12345" %}
+                                        <option value="{{ year }}" 
+                                                {% if year == student.current_year|stringformat:"s" %}selected{% endif %}>
+                                            Year {{ year }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Current Semester</label>
+                                    <select name="current_semester" class="form-control">
+                                        <option value="1" {% if student.current_semester == '1' %}selected{% endif %}>Semester 1</option>
+                                        <option value="2" {% if student.current_semester == '2' %}selected{% endif %}>Semester 2</option>
+                                        <option value="3" {% if student.current_semester == '3' %}selected{% endif %}>Semester 3</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Student Status</label>
+                                    <select name="student_status" class="form-control">
+                                        <option value="active" {% if student.student_status == 'active' %}selected{% endif %}>Active</option>
+                                        <option value="suspended" {% if student.student_status == 'suspended' %}selected{% endif %}>Suspended</option>
+                                        <option value="deferred" {% if student.student_status == 'deferred' %}selected{% endif %}>Deferred</option>
+                                        <option value="graduated" {% if student.student_status == 'graduated' %}selected{% endif %}>Graduated</option>
+                                        <option value="discontinued" {% if student.student_status == 'discontinued' %}selected{% endif %}>Discontinued</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Expected Graduation Date</label>
+                                    <input type="date" name="expected_graduation_date" class="form-control" 
+                                           value="{% if student.expected_graduation_date %}{{ student.expected_graduation_date|date:'Y-m-d' }}{% endif %}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Address Information -->
+                        <div class="section-header">
+                            <h6>Address Information</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Permanent Address</label>
+                                    <textarea name="permanent_address" class="form-control" rows="3">{{ student.permanent_address }}</textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Current Address</label>
+                                    <textarea name="current_address" class="form-control" rows="3">{{ student.current_address }}</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Emergency Contact -->
+                        <div class="section-header">
+                            <h6>Emergency Contact</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Contact Name</label>
+                                    <input type="text" name="emergency_contact_name" class="form-control" 
+                                           value="{{ student.emergency_contact_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Contact Phone</label>
+                                    <input type="tel" name="emergency_contact_phone" class="form-control" 
+                                           value="{{ student.emergency_contact_phone }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Relationship</label>
+                                    <input type="text" name="emergency_contact_relationship" class="form-control" 
+                                           value="{{ student.emergency_contact_relationship }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Sponsor Information -->
+                        <div class="section-header">
+                            <h6>Sponsor/Guardian Information</h6>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sponsor Name</label>
+                                    <input type="text" name="sponsor_name" class="form-control" 
+                                           value="{{ student.sponsor_name }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sponsor Phone</label>
+                                    <input type="tel" name="sponsor_phone" class="form-control" 
+                                           value="{{ student.sponsor_phone }}">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label>Sponsor Email</label>
+                                    <input type="email" name="sponsor_email" class="form-control" 
+                                           value="{{ student.sponsor_email }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-save-line"></i> Save Changes
+                            </button>
+                            <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-secondary">
+                                <i class="ri-close-line"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

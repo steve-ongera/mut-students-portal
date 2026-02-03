@@ -1,6 +1,239 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Examinations Management{% endblock %}
+
+{% block page_title %}Examinations Management{% endblock %}
+{% block page_subtitle %}Manage examinations and results processing{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement examinations_dashboard.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Examinations</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Current Semester Info -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    {% if current_semester %}
+                    <h5>Current Semester: {{ current_semester.name }}</h5>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>Start Date:</strong></p>
+                            <p>{{ current_semester.start_date|date:"F d, Y" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>End Date:</strong></p>
+                            <p>{{ current_semester.end_date|date:"F d, Y" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>Total Exams:</strong></p>
+                            <h4>{{ total_exams }}</h4>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>Status:</strong></p>
+                            <span class="badge bg-success">Active</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        No current semester set. Please set one from the academic calendar.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Published Results</h6>
+                    <h3>{{ published_results }}</h3>
+                    <small class="text-success">Units with published results</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Pending Results</h6>
+                    <h3>{{ pending_results }}</h3>
+                    <small class="text-warning">Units awaiting publication</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Exams</h6>
+                    <h3>{{ total_exams }}</h3>
+                    <small class="text-info">Scheduled this semester</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a href="{% url 'registrar_results_processing' %}" class="btn btn-primary w-100">
+                                <i class="ri-file-list-line me-2"></i>
+                                Process Results
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#examScheduleModal">
+                                <i class="ri-calendar-line me-2"></i>
+                                View Exam Schedule
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-info w-100" onclick="generateExamReport()">
+                                <i class="ri-file-chart-line me-2"></i>
+                                Generate Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Processing Status -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Results Processing Status by Programme</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Programme</th>
+                                    <th>Total Units</th>
+                                    <th>Published</th>
+                                    <th>Pending</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for programme in programmes %}
+                                <tr>
+                                    <td>{{ programme.name }}</td>
+                                    <td>{{ programme.total_units }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ programme.published_units }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning">{{ programme.pending_units }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress">
+                                            {% widthratio programme.published_units programme.total_units 100 as progress %}
+                                            <div class="progress-bar" style="width: {{ progress }}%">{{ progress }}%</div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'registrar_results_processing' %}?programme={{ programme.id }}" class="btn btn-sm btn-primary">
+                                            View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No programmes found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Exam Schedule Modal -->
+<div class="modal fade" id="examScheduleModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Examination Schedule - {{ current_semester.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Unit Code</th>
+                                <th>Unit Name</th>
+                                <th>Venue</th>
+                                <th>Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="examScheduleBody">
+                            <!-- Schedule will be loaded via AJAX -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="downloadSchedule()">
+                    <i class="ri-download-line"></i> Download
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateExamReport() {
+    window.location.href = '{% url "registrar_reports_dashboard" %}?report_type=examination';
+}
+
+function downloadSchedule() {
+    window.location.href = '/registrar/examinations/schedule/download/';
+}
+
+// Load exam schedule when modal is opened
+document.getElementById('examScheduleModal').addEventListener('shown.bs.modal', function() {
+    fetch('/registrar/examinations/schedule/')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.getElementById('examScheduleBody');
+            tbody.innerHTML = data.schedule.map(exam => `
+                <tr>
+                    <td>${exam.date}</td>
+                    <td>${exam.time}</td>
+                    <td>${exam.unit_code}</td>
+                    <td>${exam.unit_name}</td>
+                    <td>${exam.venue}</td>
+                    <td>${exam.duration}</td>
+                </tr>
+            `).join('');
+        });
+});
+</script>
+{% endblock %}

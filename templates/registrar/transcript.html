@@ -1,6 +1,245 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Transcript - {{ student.registration_number }}{% endblock %}
+
+{% block page_title %}Student Transcript{% endblock %}
+{% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement transcript.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_student_list' %}">Students</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_student_detail' student.id %}">{{ student.registration_number }}</a></li>
+        <li class="breadcrumb-item active">Transcript</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Actions -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group">
+                <button onclick="window.print()" class="btn btn-primary">
+                    <i class="ri-printer-line"></i> Print
+                </button>
+                <a href="{% url 'download_full_transcript' student.id %}" class="btn btn-success">
+                    <i class="ri-download-line"></i> Download PDF
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transcript -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card transcript-card">
+                <div class="card-body">
+                    <!-- Header -->
+                    <div class="transcript-header text-center">
+                        <h4>UNIVERSITY NAME</h4>
+                        <h5>OFFICIAL ACADEMIC TRANSCRIPT</h5>
+                        <p>Date Generated: {{ generated_date|date:"F d, Y" }}</p>
+                    </div>
+
+                    <hr>
+
+                    <!-- Student Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th width="40%">Student Name:</th>
+                                    <td>{{ student.user.get_full_name|upper }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Registration Number:</th>
+                                    <td>{{ student.registration_number }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Programme:</th>
+                                    <td>{{ student.programme.name }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <th width="40%">Date of Birth:</th>
+                                    <td>{{ student.date_of_birth|date:"F d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Admission Date:</th>
+                                    <td>{{ student.admission_date|date:"F d, Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Current Status:</th>
+                                    <td>{{ student.get_student_status_display }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Results by Academic Year -->
+                    {% regroup results by academic_year as results_by_year %}
+                    {% for year_group in results_by_year %}
+                    <div class="academic-year-section mb-4">
+                        <h6 class="bg-light p-2">{{ year_group.grouper.name }}</h6>
+                        
+                        {% regroup year_group.list by semester as results_by_semester %}
+                        {% for semester_group in results_by_semester %}
+                        <div class="semester-section mb-3">
+                            <h6>{{ semester_group.grouper.name }}</h6>
+                            
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Unit Code</th>
+                                        <th>Unit Name</th>
+                                        <th>Credit Hours</th>
+                                        <th>Total Marks</th>
+                                        <th>Grade</th>
+                                        <th>Grade Point</th>
+                                        <th>Quality Points</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in semester_group.list %}
+                                    <tr>
+                                        <td>{{ result.programme_unit.unit.code }}</td>
+                                        <td>{{ result.programme_unit.unit.name }}</td>
+                                        <td class="text-center">{{ result.credit_hours }}</td>
+                                        <td class="text-center">{{ result.total_marks }}</td>
+                                        <td class="text-center">{{ result.grade }}</td>
+                                        <td class="text-center">{{ result.grade_point }}</td>
+                                        <td class="text-center">{{ result.quality_points }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+
+                            <!-- Semester GPA -->
+                            {% for gpa in gpas %}
+                            {% if gpa.semester == semester_group.grouper %}
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td width="60%"></td>
+                                    <td><strong>Semester Credit Hours:</strong></td>
+                                    <td>{{ gpa.total_credit_hours }}</td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td><strong>Semester GPA:</strong></td>
+                                    <td><strong>{{ gpa.semester_gpa }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td><strong>Cumulative GPA:</strong></td>
+                                    <td><strong>{{ gpa.cumulative_gpa }}</strong></td>
+                                </tr>
+                            </table>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+
+                    <!-- Summary -->
+                    <div class="transcript-summary mt-4">
+                        <table class="table table-sm table-bordered">
+                            <tr>
+                                <th width="70%">Total Credit Hours Earned:</th>
+                                <td>{{ student.total_credit_hours }}</td>
+                            </tr>
+                            <tr>
+                                <th>Cumulative GPA:</th>
+                                <td><strong>{{ student.cumulative_gpa }}</strong></td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <!-- Grading Scale -->
+                    <div class="grading-scale mt-4">
+                        <h6>Grading Scale</h6>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Grade</th>
+                                    <th>Range</th>
+                                    <th>Grade Point</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>A</td>
+                                    <td>70-100</td>
+                                    <td>4.0</td>
+                                    <td>Excellent</td>
+                                </tr>
+                                <tr>
+                                    <td>B</td>
+                                    <td>60-69</td>
+                                    <td>3.0</td>
+                                    <td>Good</td>
+                                </tr>
+                                <tr>
+                                    <td>C</td>
+                                    <td>50-59</td>
+                                    <td>2.0</td>
+                                    <td>Satisfactory</td>
+                                </tr>
+                                <tr>
+                                    <td>D</td>
+                                    <td>40-49</td>
+                                    <td>1.0</td>
+                                    <td>Pass</td>
+                                </tr>
+                                <tr>
+                                    <td>E</td>
+                                    <td>0-39</td>
+                                    <td>0.0</td>
+                                    <td>Fail</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Certification -->
+                    <div class="certification mt-5">
+                        <p><em>This is an official transcript and is valid only with the University seal and signature.</em></p>
+                        
+                        <div class="row mt-5">
+                            <div class="col-6">
+                                <div class="signature-line">
+                                    <p>_________________________</p>
+                                    <p><strong>Registrar</strong></p>
+                                    <p>Date: ________________</p>
+                                </div>
+                            </div>
+                            <div class="col-6 text-center">
+                                <p>[University Seal]</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .breadcrumb, .btn-group, .card-header {
+        display: none;
+    }
+    
+    .transcript-card {
+        border: none;
+        box-shadow: none;
+    }
+}
+</style>
+{% endblock %}

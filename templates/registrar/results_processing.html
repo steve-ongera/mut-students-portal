@@ -1,6 +1,196 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
-{% block content %}
-<!-- TODO: Implement results_processing.html view -->
-{% endblock %}
+{% load static %}
 
+{% block title %}Results Processing - Registrar{% endblock %}
+
+{% block page_title %}Results Processing{% endblock %}
+{% block page_subtitle %}Process and publish examination results{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
+        <li class="breadcrumb-item active">Results Processing</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Current Semester Info -->
+    <div class="alert alert-info mb-4">
+        <div class="d-flex align-items-center">
+            <i class="ri-information-line fs-4 me-3"></i>
+            <div>
+                <strong>Current Semester:</strong> {{ current_semester.name }}
+                <br><small>Processing results approved by deans</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Units</h6>
+                    <h3>{{ results_by_unit|length }}</h3>
+                    <small class="text-muted">Pending publication</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Results</h6>
+                    <h3>0</h3>
+                    <small class="text-muted">Awaiting publication</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Approval Status</h6>
+                    <h3 class="text-success">Dean Approved</h3>
+                    <small class="text-muted">Ready for publication</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results by Unit -->
+    {% for unit_key, unit_data in results_by_unit.items %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5 class="mb-1">{{ unit_data.programme_unit.unit.code }} - {{ unit_data.programme_unit.unit.name }}</h5>
+                    <small class="text-muted">
+                        {{ unit_data.programme_unit.programme.name }} - 
+                        Year {{ unit_data.programme_unit.year_of_study }}, 
+                        Semester {{ unit_data.programme_unit.semester_number }}
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-success" onclick="publishResults({{ current_semester.id }}, {{ unit_data.programme_unit.id }})">
+                        <i class="ri-check-line"></i> Publish Results
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Reg Number</th>
+                            <th>Student Name</th>
+                            <th>CAT Marks</th>
+                            <th>Exam Marks</th>
+                            <th>Total</th>
+                            <th>Grade</th>
+                            <th>Grade Point</th>
+                            <th>Status</th>
+                            <th>Approved By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for result in unit_data.results %}
+                        <tr>
+                            <td>{{ result.student.registration_number }}</td>
+                            <td>{{ result.student.user.get_full_name }}</td>
+                            <td>{{ result.cat_marks }}</td>
+                            <td>{{ result.exam_marks }}</td>
+                            <td><strong>{{ result.total_marks }}</strong></td>
+                            <td><strong>{{ result.grade }}</strong></td>
+                            <td>{{ result.grade_point }}</td>
+                            <td>
+                                {% if result.is_passed %}
+                                <span class="badge bg-success">Pass</span>
+                                {% else %}
+                                <span class="badge bg-danger">Fail</span>
+                                {% endif %}
+                                {% if result.is_supplementary %}
+                                <span class="badge bg-warning">Supp</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if result.approved_by_dean %}
+                                <small class="text-success">
+                                    <i class="ri-check-line"></i> Dean
+                                </small>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="9">
+                                <strong>Total Students: {{ unit_data.results|length }}</strong>
+                                <span class="ms-3">
+                                    Pass: {% for result in unit_data.results %}{% if result.is_passed %}1{% endif %}{% endfor %} | 
+                                    Fail: {% for result in unit_data.results %}{% if not result.is_passed %}1{% endif %}{% endfor %}
+                                </span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="ri-file-list-line display-4 text-muted"></i>
+            <h5 class="mt-3 text-muted">No Results Pending Publication</h5>
+            <p class="text-muted">All dean-approved results have been published to students</p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+function publishResults(semesterId, programmeUnitId) {
+    if (!confirm('Are you sure you want to publish these results? Students will be able to view them.')) {
+        return;
+    }
+    
+    fetch(`/registrar/examinations/publish/${semesterId}/${programmeUnitId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Successfully published ${data.count} results`);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while publishing results');
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

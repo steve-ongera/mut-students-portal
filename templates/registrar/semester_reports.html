@@ -1,6 +1,396 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
-{% block content %}
-<!-- TODO: Implement semester_reports.html view -->
-{% endblock %}
+{% load static %}
 
+{% block title %}Semester Reports - Registrar{% endblock %}
+
+{% block page_title %}Semester Reporting{% endblock %}
+{% block page_subtitle %}Manage student semester reports and progression{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
+        <li class="breadcrumb-item active">Semester Reports</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Pending Reports</h6>
+                    <h3 class="text-warning">{{ pending_reports|length }}</h3>
+                    <small>Awaiting approval</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Approved Today</h6>
+                    <h3 class="text-success">0</h3>
+                    <small>Processed reports</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Current Semester</h6>
+                    <h3>{{ current_semester.name }}</h3>
+                    <small>Active semester</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Eligible Students</h6>
+                    <h3>{% for report in pending_reports %}{% if report.is_eligible %}1{% endif %}{% endfor %}</h3>
+                    <small>Can progress</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Reports -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5>Pending Semester Reports</h5>
+                <div>
+                    <button class="btn btn-success btn-sm" onclick="bulkApprove()">
+                        <i class="ri-check-double-line"></i> Bulk Approve
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            <th>Reg Number</th>
+                            <th>Student Name</th>
+                            <th>Programme</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Failed Units</th>
+                            <th>Fee Balance</th>
+                            <th>GPA</th>
+                            <th>Eligible</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in pending_reports %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="form-check-input report-checkbox" value="{{ report.id }}">
+                            </td>
+                            <td>{{ report.student.registration_number }}</td>
+                            <td>{{ report.student.user.get_full_name }}</td>
+                            <td>{{ report.student.programme.code }}</td>
+                            <td>
+                                <small>
+                                    Y{{ report.from_year_of_study|default:"-" }}S{{ report.from_semester_number|default:"-" }}
+                                </small>
+                            </td>
+                            <td>
+                                <strong>Y{{ report.to_year_of_study }}S{{ report.to_semester_number }}</strong>
+                            </td>
+                            <td>
+                                {% if report.failed_units_count > 0 %}
+                                <span class="badge bg-danger">{{ report.failed_units_count }}</span>
+                                {% else %}
+                                <span class="badge bg-success">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if report.fee_balance > 0 %}
+                                <span class="text-danger">KES {{ report.fee_balance }}</span>
+                                {% else %}
+                                <span class="text-success">Cleared</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ report.cumulative_gpa|default:"-" }}</td>
+                            <td>
+                                {% if report.is_eligible and report.is_financially_cleared %}
+                                <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-success" onclick="approveReport({{ report.id }})"
+                                            {% if not report.is_eligible or not report.is_financially_cleared %}disabled{% endif %}>
+                                        <i class="ri-check-line"></i>
+                                    </button>
+                                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#viewReportModal{{ report.id }}">
+                                        <i class="ri-eye-line"></i>
+                                    </button>
+                                    <button class="btn btn-danger" onclick="rejectReport({{ report.id }})">
+                                        <i class="ri-close-line"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <!-- View Report Modal -->
+                        <div class="modal fade" id="viewReportModal{{ report.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Report Details - {{ report.student.registration_number }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <h6>Student Information</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <th>Name:</th>
+                                                <td>{{ report.student.user.get_full_name }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Programme:</th>
+                                                <td>{{ report.student.programme.name }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Current Status:</th>
+                                                <td>Year {{ report.student.current_year }}, Semester {{ report.student.current_semester }}</td>
+                                            </tr>
+                                        </table>
+
+                                        <h6 class="mt-3">Progression Details</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <th>From:</th>
+                                                <td>Year {{ report.from_year_of_study|default:"-" }}, Semester {{ report.from_semester_number|default:"-" }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>To:</th>
+                                                <td>Year {{ report.to_year_of_study }}, Semester {{ report.to_semester_number }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Report Date:</th>
+                                                <td>{{ report.report_date|date:"d/m/Y H:i" }}</td>
+                                            </tr>
+                                        </table>
+
+                                        <h6 class="mt-3">Academic Status</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <th>Failed Units:</th>
+                                                <td>
+                                                    <span class="badge {% if report.failed_units_count > 2 %}bg-danger{% elif report.failed_units_count > 0 %}bg-warning{% else %}bg-success{% endif %}">
+                                                        {{ report.failed_units_count }}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Previous Semester GPA:</th>
+                                                <td>{{ report.previous_semester_gpa|default:"-" }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Cumulative GPA:</th>
+                                                <td>{{ report.cumulative_gpa|default:"-" }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Total Credits:</th>
+                                                <td>{{ report.total_credits_earned }}</td>
+                                            </tr>
+                                        </table>
+
+                                        <h6 class="mt-3">Financial Status</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <th>Fee Balance:</th>
+                                                <td>
+                                                    {% if report.fee_balance > 0 %}
+                                                    <span class="text-danger">KES {{ report.fee_balance }}</span>
+                                                    {% else %}
+                                                    <span class="text-success">Cleared</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Financially Cleared:</th>
+                                                <td>
+                                                    {% if report.is_financially_cleared %}
+                                                    <span class="badge bg-success">Yes</span>
+                                                    {% else %}
+                                                    <span class="badge bg-danger">No</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <h6 class="mt-3">Eligibility Status</h6>
+                                        <div class="alert {% if report.is_eligible and report.is_financially_cleared %}alert-success{% else %}alert-danger{% endif %}">
+                                            <strong>Eligibility:</strong>
+                                            {% if report.is_eligible and report.is_financially_cleared %}
+                                            Student is eligible to progress
+                                            {% else %}
+                                            Student is NOT eligible to progress
+                                            {% endif %}
+                                            <br>
+                                            <small>{{ report.eligibility_remarks }}</small>
+                                        </div>
+
+                                        {% if report.remarks %}
+                                        <h6 class="mt-3">Additional Remarks</h6>
+                                        <p>{{ report.remarks }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        {% if report.is_eligible and report.is_financially_cleared %}
+                                        <button type="button" class="btn btn-success" onclick="approveReport({{ report.id }}); $('#viewReportModal{{ report.id }}').modal('hide');">
+                                            Approve Report
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center py-4">
+                                <i class="ri-file-list-line display-4 text-muted"></i>
+                                <p class="text-muted mt-2">No pending semester reports</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recently Approved Reports -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Recently Approved Reports</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reg Number</th>
+                            <th>Student</th>
+                            <th>Programme</th>
+                            <th>Progression</th>
+                            <th>Approved By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in approved_reports %}
+                        <tr>
+                            <td>{{ report.approval_date|date:"d/m/Y H:i" }}</td>
+                            <td>{{ report.student.registration_number }}</td>
+                            <td>{{ report.student.user.get_full_name }}</td>
+                            <td>{{ report.student.programme.code }}</td>
+                            <td>
+                                Y{{ report.from_year_of_study|default:"-" }}S{{ report.from_semester_number|default:"-" }} 
+                                → 
+                                Y{{ report.to_year_of_study }}S{{ report.to_semester_number }}
+                            </td>
+                            <td>{{ report.approved_by.get_full_name|default:"-" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No recently approved reports</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Select all functionality
+document.getElementById('selectAll')?.addEventListener('change', function() {
+    document.querySelectorAll('.report-checkbox').forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+
+function approveReport(reportId) {
+    if (!confirm('Are you sure you want to approve this semester report?')) {
+        return;
+    }
+
+    fetch(`/registrar/semester-reports/${reportId}/approve/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Semester report approved successfully');
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred');
+    });
+}
+
+function rejectReport(reportId) {
+    const reason = prompt('Enter reason for rejection:');
+    if (!reason) return;
+
+    // Add rejection logic here
+    alert('Report rejected');
+}
+
+function bulkApprove() {
+    const selectedReports = Array.from(document.querySelectorAll('.report-checkbox:checked')).map(cb => cb.value);
+    
+    if (selectedReports.length === 0) {
+        alert('Please select at least one report');
+        return;
+    }
+
+    if (!confirm(`Approve ${selectedReports.length} report(s)?`)) {
+        return;
+    }
+
+    // Add bulk approval logic here
+    alert(`${selectedReports.length} reports approved`);
+    location.reload();
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

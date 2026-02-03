@@ -745,56 +745,56 @@ urlpatterns = [
     path('export/maintenance/', views.export_maintenance_report, name='export_maintenance_report'),
     
     # Student Records
-    path('students/', views.registrar_student_list_view, name='registrar_student_list'),
-    path('students/<int:student_id>/', views.registrar_student_detail_view, name='registrar_student_detail'),
-    path('students/create/', views.registrar_student_create_view, name='registrar_student_create'),
-    path('students/<int:student_id>/update/', views.registrar_student_update_view, name='registrar_student_update'),
-    path('students/<int:student_id>/transcript/', views.registrar_transcript_view, name='registrar_transcript'),
+    path('registrar/students/', views.registrar_student_list_view, name='registrar_student_list'),
+    path('registrar/students/<int:student_id>/', views.registrar_student_detail_view, name='registrar_student_detail'),
+    path('registrar/students/create/', views.registrar_student_create_view, name='registrar_student_create'),
+    path('registrar/students/<int:student_id>/update/', views.registrar_student_update_view, name='registrar_student_update'),
+    path('registrar/students/<int:student_id>/transcript/', views.registrar_transcript_view, name='registrar_transcript'),
     
     # Admissions
-    path('admissions/', views.registrar_admissions_dashboard_view, name='registrar_admissions_dashboard'),
-    path('admissions/intakes/', views.registrar_intake_management_view, name='registrar_intake_management'),
-    path('admissions/letters/', views.registrar_admission_letters_view, name='registrar_admission_letters'),
+    path('registrar/admissions/', views.registrar_admissions_dashboard_view, name='registrar_admissions_dashboard'),
+    path('registrar/admissions/intakes/', views.registrar_intake_management_view, name='registrar_intake_management'),
+    path('registrar/admissions/letters/', views.registrar_admission_letters_view, name='registrar_admission_letters'),
     
     # Examinations
-    path('examinations/', views.registrar_examinations_dashboard_view, name='registrar_examinations_dashboard'),
-    path('examinations/results/', views.registrar_results_processing_view, name='registrar_results_processing'),
-    path('examinations/publish/<int:semester_id>/<int:programme_unit_id>/', views.registrar_publish_results_view, name='registrar_publish_results'),
+    path('registrar/examinations/', views.registrar_examinations_dashboard_view, name='registrar_examinations_dashboard'),
+    path('registrar/examinations/results/', views.registrar_results_processing_view, name='registrar_results_processing'),
+    path('registrar/examinations/publish/<int:semester_id>/<int:programme_unit_id>/', views.registrar_publish_results_view, name='registrar_publish_results'),
     
     # Graduation
-    path('graduation/', views.registrar_graduation_dashboard_view, name='registrar_graduation_dashboard'),
-    path('graduation/list/', views.registrar_graduation_list_view, name='registrar_graduation_list'),
-    path('graduation/classification/', views.registrar_degree_classification_view, name='registrar_degree_classification'),
+    path('registrar/graduation/', views.registrar_graduation_dashboard_view, name='registrar_graduation_dashboard'),
+    path('registrar/graduation/list/', views.registrar_graduation_list_view, name='registrar_graduation_list'),
+    path('registrar/graduation/classification/', views.registrar_degree_classification_view, name='registrar_degree_classification'),
     
     # Academic Policies
-    path('academic-calendar/', views.registrar_academic_calendar_view, name='registrar_academic_calendar'),
-    path('policies/', views.registrar_policies_view, name='registrar_policies'),
+    path('registrar/academic-calendar/', views.registrar_academic_calendar_view, name='registrar_academic_calendar'),
+    path('registrar/policies/', views.registrar_policies_view, name='registrar_policies'),
     
     # Reports
-    path('reports/', views.registrar_reports_dashboard_view, name='registrar_reports_dashboard'),
-    path('reports/enrollment/', views.registrar_enrollment_statistics_view, name='registrar_enrollment_statistics'),
-    path('reports/performance/', views.registrar_performance_report_view, name='registrar_performance_report'),
+    path('registrar/reports/', views.registrar_reports_dashboard_view, name='registrar_reports_dashboard'),
+    path('registrar/reports/enrollment/', views.registrar_enrollment_statistics_view, name='registrar_enrollment_statistics'),
+    path('registrar/reports/performance/', views.registrar_performance_report_view, name='registrar_performance_report'),
     
     # International Students
-    path('international-students/', views.registrar_international_students_view, name='registrar_international_students'),
+    path('registrar/international-students/', views.registrar_international_students_view, name='registrar_international_students'),
     
     # Semester Reporting & Progression
-    path('semester-reports/', views.registrar_semester_reports_view, name='registrar_semester_reports'),
-    path('semester-reports/<int:report_id>/approve/', views.registrar_approve_semester_report_view, name='registrar_approve_semester_report'),
+    path('registrar/semester-reports/', views.registrar_semester_reports_view, name='registrar_semester_reports'),
+    path('registrar/semester-reports/<int:report_id>/approve/', views.registrar_approve_semester_report_view, name='registrar_approve_semester_report'),
     
     # Resit Management
-    path('resit-management/', views.registrar_resit_management_view, name='registrar_resit_management'),
+    path('registrar/resit-management/', views.registrar_resit_management_view, name='registrar_resit_management'),
     
     # Student ID Cards
-    path('id-cards/', views.registrar_id_card_applications_view, name='registrar_id_card_applications'),
-    path('id-cards/<int:application_id>/approve/', views.registrar_id_card_approve_view, name='registrar_id_card_approve'),
+    path('registrar/id-cards/', views.registrar_id_card_applications_view, name='registrar_id_card_applications'),
+    path('registrar/id-cards/<int:application_id>/approve/', views.registrar_id_card_approve_view, name='registrar_id_card_approve'),
     
     # Announcements
-    path('announcements/', views.registrar_announcements_view, name='registrar_announcements'),
-    path('announcements/create/', views.registrar_announcement_create_view, name='registrar_announcement_create'),
+    path('registrar/announcements/', views.registrar_announcements_view, name='registrar_announcements'),
+    path('registrar/announcements/create/', views.registrar_announcement_create_view, name='registrar_announcement_create'),
     
     # Export Functions
-    path('export/students/csv/', views.registrar_export_students_csv_view, name='registrar_export_students_csv'),
-    path('export/results/<int:semester_id>/csv/', views.registrar_export_results_csv_view, name='registrar_export_results_csv'),
+    path('registrar/export/students/csv/', views.registrar_export_students_csv_view, name='registrar_export_students_csv'),
+    path('registrar/export/results/<int:semester_id>/csv/', views.registrar_export_results_csv_view, name='registrar_export_results_csv'),
        
 ]

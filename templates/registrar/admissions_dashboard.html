@@ -1,6 +1,211 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
-{% block content %}
-<!-- TODO: Implement admissions_dashboard.html view -->
-{% endblock %}
+{% load static %}
 
+{% block title %}Admissions Dashboard - Registrar{% endblock %}
+
+{% block page_title %}Admissions Management{% endblock %}
+{% block page_subtitle %}Manage student admissions and intakes{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
+        <li class="breadcrumb-item active">Admissions</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Quick Links -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="btn-toolbar" role="toolbar">
+                        <div class="btn-group me-2">
+                            <a href="{% url 'registrar_intake_management' %}" class="btn btn-primary">
+                                <i class="ri-calendar-line"></i> Manage Intakes
+                            </a>
+                        </div>
+                        <div class="btn-group me-2">
+                            <a href="{% url 'registrar_admission_letters' %}" class="btn btn-success">
+                                <i class="ri-mail-line"></i> Admission Letters
+                            </a>
+                        </div>
+                        <div class="btn-group me-2">
+                            <a href="{% url 'registrar_student_create' %}" class="btn btn-info">
+                                <i class="ri-user-add-line"></i> Add Student
+                            </a>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary">
+                                <i class="ri-download-line"></i> Export Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Intakes -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Active Intakes</h5>
+        </div>
+        <div class="card-body">
+            {% if active_intakes %}
+            <div class="row">
+                {% for intake in active_intakes %}
+                <div class="col-md-4 mb-3">
+                    <div class="card border-primary">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ intake.name }}</h5>
+                            <p class="card-text">
+                                <strong>Intake Number:</strong> {{ intake.intake_number }}<br>
+                                <strong>Start Date:</strong> {{ intake.start_date|date:"d/m/Y" }}<br>
+                                <strong>Application Deadline:</strong> {{ intake.application_deadline|date:"d/m/Y" }}
+                            </p>
+                            {% if intake.application_deadline >= today %}
+                            <span class="badge bg-success">Open for Applications</span>
+                            {% else %}
+                            <span class="badge bg-danger">Closed</span>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer">
+                            <small class="text-muted">Academic Year: {{ intake.academic_year.name }}</small>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <i class="ri-information-line"></i> No active intakes available
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Admissions by Intake -->
+    {% if current_academic_year %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Admissions by Intake - {{ current_academic_year.name }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Intake</th>
+                            <th>Total Admissions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for admission in admissions_by_intake %}
+                        <tr>
+                            <td>{{ admission.intake__name }}</td>
+                            <td><strong>{{ admission.count }}</strong></td>
+                            <td>
+                                <a href="{% url 'registrar_student_list' %}?intake={{ admission.intake__id }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line"></i> View Students
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No admission data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admissions by Programme -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Admissions by Programme - {{ current_academic_year.name }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Programme</th>
+                            <th>Total Admissions</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for admission in admissions_by_programme %}
+                        <tr>
+                            <td>{{ admission.programme__name }}</td>
+                            <td><strong>{{ admission.count }}</strong></td>
+                            <td>
+                                <a href="{% url 'registrar_student_list' %}?programme={{ admission.programme__id }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line"></i> View Students
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No admission data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Admissions -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Recent Admissions (Last 20)</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Reg Number</th>
+                            <th>Name</th>
+                            <th>Programme</th>
+                            <th>Intake</th>
+                            <th>Admission Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in recent_admissions %}
+                        <tr>
+                            <td><strong>{{ student.registration_number }}</strong></td>
+                            <td>{{ student.user.get_full_name }}</td>
+                            <td>{{ student.programme.code }}</td>
+                            <td>{{ student.intake.name }}</td>
+                            <td>{{ student.admission_date|date:"d/m/Y" }}</td>
+                            <td>
+                                {% if student.student_status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">No recent admissions</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

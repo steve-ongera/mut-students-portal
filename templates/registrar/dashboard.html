@@ -1,6 +1,283 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
-{% block content %}
-<!-- TODO: Implement dashboard.html view -->
-{% endblock %}
 
+{% load static %}
+
+{% block title %}Registrar Dashboard{% endblock %}
+
+{% block page_title %}Registrar Dashboard{% endblock %}
+{% block page_subtitle %}Overview of academic records and key metrics{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Registrar</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Key Metrics Row -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total Students</h6>
+                            <h3 class="mb-0">{{ total_students }}</h3>
+                            <small class="text-success">
+                                <i class="ri-arrow-up-line"></i> {{ new_students }} new
+                            </small>
+                        </div>
+                        <div class="icon">
+                            <i class="ri-user-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Active Programmes</h6>
+                            <h3 class="mb-0">{{ total_programmes }}</h3>
+                            <small class="text-muted">{{ total_units }} units</small>
+                        </div>
+                        <div class="icon">
+                            <i class="ri-book-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Enrolled Students</h6>
+                            <h3 class="mb-0">{{ enrolled_students }}</h3>
+                            <small class="text-muted">{{ current_semester.name }}</small>
+                        </div>
+                        <div class="icon">
+                            <i class="ri-user-add-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Potential Graduates</h6>
+                            <h3 class="mb-0">{{ potential_graduates }}</h3>
+                            <small class="text-muted">{{ current_academic_year.name }}</small>
+                        </div>
+                        <div class="icon">
+                            <i class="ri-graduation-cap-line"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'registrar_student_list' %}" class="btn btn-outline-primary w-100">
+                                <i class="ri-user-search-line me-2"></i>
+                                Student Records
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'registrar_results_processing' %}" class="btn btn-outline-success w-100">
+                                <i class="ri-file-list-line me-2"></i>
+                                Process Results
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'registrar_semester_reports' %}" class="btn btn-outline-info w-100">
+                                <i class="ri-file-text-line me-2"></i>
+                                Semester Reports
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{% url 'registrar_id_card_applications' %}" class="btn btn-outline-warning w-100">
+                                <i class="ri-bank-card-line me-2"></i>
+                                ID Applications
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Tasks -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Pending Approvals</h5>
+                    <span class="badge bg-danger">{{ pending_semester_reports }}</span>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Semester Reports
+                            <span class="badge bg-warning">{{ pending_semester_reports }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            ID Card Applications
+                            <span class="badge bg-info">{{ pending_id_applications }}</span>
+                        </li>
+                    </ul>
+                    <div class="mt-3">
+                        <a href="{% url 'registrar_semester_reports' %}" class="btn btn-sm btn-primary">View All</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Admissions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Reg Number</th>
+                                    <th>Name</th>
+                                    <th>Programme</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for student in recent_admissions %}
+                                <tr>
+                                    <td>{{ student.registration_number }}</td>
+                                    <td>{{ student.user.get_full_name }}</td>
+                                    <td>{{ student.programme.code }}</td>
+                                    <td>{{ student.admission_date|date:"d/m/Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center">No recent admissions</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Students by Programme</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="programmeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Students by Year of Study</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="yearChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Fee Collection Summary - {{ current_academic_year.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Total Fees Collected</h6>
+                            <h3 class="text-success">KES {{ total_fees_collected|floatformat:2 }}</h3>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Outstanding Fees</h6>
+                            <h3 class="text-danger">KES {{ outstanding_fees|floatformat:2 }}</h3>
+                        </div>
+                    </div>
+                    <div class="progress mt-3">
+                        {% widthratio total_fees_collected 1 100 as collection_percentage %}
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ collection_percentage }}%">
+                            {{ collection_percentage }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Programme Chart
+const programmeCtx = document.getElementById('programmeChart');
+if (programmeCtx) {
+    new Chart(programmeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: [{% for item in students_by_programme %}'{{ item.programme__name }}',{% endfor %}],
+            datasets: [{
+                data: [{% for item in students_by_programme %}{{ item.count }},{% endfor %}],
+                backgroundColor: ['#2E7D32', '#1976D2', '#F57C00', '#C62828', '#7B1FA2']
+            }]
+        }
+    });
+}
+
+// Year Chart
+const yearCtx = document.getElementById('yearChart');
+if (yearCtx) {
+    new Chart(yearCtx, {
+        type: 'bar',
+        data: {
+            labels: [{% for item in students_by_year %}'Year {{ item.current_year }}',{% endfor %}],
+            datasets: [{
+                label: 'Students',
+                data: [{% for item in students_by_year %}{{ item.count }},{% endfor %}],
+                backgroundColor: '#2E7D32'
+            }]
+        }
+    });
+}
+</script>
+{% endblock %}

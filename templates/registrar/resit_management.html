@@ -1,6 +1,334 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
+{% load static %}
+
+{% block title %}Resit Examination Management{% endblock %}
+
+{% block page_title %}Resit Examination Management{% endblock %}
+{% block page_subtitle %}Manage supplementary/resit examinations{% endblock %}
 
 {% block content %}
-<!-- TODO: Implement resit_management.html view -->
-{% endblock %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Resit Management</li>
+    </ol>
+</nav>
 
+<div class="container-fluid">
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Total Registrations</h6>
+                    <h3>{{ resit_registrations.count }}</h3>
+                    <small>This semester</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Pending Approval</h6>
+                    <h3>{{ resit_registrations|filter_status:'registered'|length }}</h3>
+                    <small class="text-warning">Awaiting review</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Approved</h6>
+                    <h3>{{ resit_registrations|filter_status:'approved'|length }}</h3>
+                    <small class="text-success">Ready for exam</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Completed</h6>
+                    <h3>{{ resit_registrations|filter_status:'completed'|length }}</h3>
+                    <small class="text-info">Results entered</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label>Status</label>
+                            <select name="status" class="form-control">
+                                <option value="">All Status</option>
+                                <option value="registered">Registered</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="completed">Completed</option>
+                                <option value="missed">Missed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Programme</label>
+                            <select name="programme" class="form-control">
+                                <option value="">All Programmes</option>
+                                {% for programme in programmes %}
+                                <option value="{{ programme.id }}">{{ programme.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label>Unit</label>
+                            <input type="text" name="unit" class="form-control" placeholder="Search unit...">
+                        </div>
+                        <div class="col-md-3">
+                            <label>&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="ri-filter-line"></i> Filter
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="approveSelected()">
+                    <i class="ri-checkbox-circle-line"></i> Approve Selected
+                </button>
+                <button class="btn btn-danger" onclick="rejectSelected()">
+                    <i class="ri-close-circle-line"></i> Reject Selected
+                </button>
+                <button class="btn btn-info" onclick="exportList()">
+                    <i class="ri-download-line"></i> Export List
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resit Registrations List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Resit Registrations - {{ current_semester.name }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                                    </th>
+                                    <th>Reg Number</th>
+                                    <th>Student Name</th>
+                                    <th>Programme</th>
+                                    <th>Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>Original Marks</th>
+                                    <th>Original Grade</th>
+                                    <th>Fee Paid</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for resit in resit_registrations %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="resit-checkbox" value="{{ resit.id }}">
+                                    </td>
+                                    <td>{{ resit.student.registration_number }}</td>
+                                    <td>{{ resit.student.user.get_full_name }}</td>
+                                    <td>{{ resit.student.programme.code }}</td>
+                                    <td>{{ resit.original_result.programme_unit.unit.code }}</td>
+                                    <td>{{ resit.original_result.programme_unit.unit.name }}</td>
+                                    <td>{{ resit.original_marks }}</td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ resit.original_grade }}</span>
+                                    </td>
+                                    <td>
+                                        {% if resit.fee_paid %}
+                                        <span class="badge bg-success">Paid</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if resit.status == 'registered' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% elif resit.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                        {% elif resit.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                        {% elif resit.status == 'completed' %}
+                                        <span class="badge bg-info">Completed</span>
+                                        {% elif resit.status == 'missed' %}
+                                        <span class="badge bg-secondary">Missed</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-info" onclick="viewDetails({{ resit.id }})">
+                                                <i class="ri-eye-line"></i>
+                                            </button>
+                                            {% if resit.status == 'registered' %}
+                                            <button class="btn btn-success" onclick="approveResit({{ resit.id }})">
+                                                <i class="ri-checkbox-line"></i>
+                                            </button>
+                                            <button class="btn btn-danger" onclick="rejectResit({{ resit.id }})">
+                                                <i class="ri-close-line"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="11" class="text-center">No resit registrations found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Resit Registration Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="detailsContent">
+                <!-- Details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.resit-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+function getSelected() {
+    const checkboxes = document.querySelectorAll('.resit-checkbox:checked');
+    return Array.from(checkboxes).map(cb => cb.value);
+}
+
+function approveResit(resitId) {
+    if (confirm('Approve this resit registration?')) {
+        fetch('/registrar/resit/' + resitId + '/approve/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  alert('Resit registration approved');
+                  location.reload();
+              }
+          });
+    }
+}
+
+function rejectResit(resitId) {
+    const reason = prompt('Enter rejection reason:');
+    if (reason) {
+        fetch('/registrar/resit/' + resitId + '/reject/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ reason: reason })
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  alert('Resit registration rejected');
+                  location.reload();
+              }
+          });
+    }
+}
+
+function approveSelected() {
+    const selected = getSelected();
+    if (selected.length === 0) {
+        alert('Please select at least one registration');
+        return;
+    }
+    if (confirm(`Approve ${selected.length} resit registration(s)?`)) {
+        fetch('/registrar/resit/bulk-approve/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ ids: selected })
+        }).then(response => response.json())
+          .then(data => {
+              alert(data.message);
+              location.reload();
+          });
+    }
+}
+
+function rejectSelected() {
+    const selected = getSelected();
+    if (selected.length === 0) {
+        alert('Please select at least one registration');
+        return;
+    }
+    const reason = prompt('Enter rejection reason:');
+    if (reason) {
+        fetch('/registrar/resit/bulk-reject/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ ids: selected, reason: reason })
+        }).then(response => response.json())
+          .then(data => {
+              alert(data.message);
+              location.reload();
+          });
+    }
+}
+
+function viewDetails(resitId) {
+    fetch('/registrar/resit/' + resitId + '/details/')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('detailsContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('detailsModal')).show();
+        });
+}
+
+function exportList() {
+    window.location.href = '/registrar/resit/export/?' + new URLSearchParams(window.location.search);
+}
+</script>
+{% endblock %}

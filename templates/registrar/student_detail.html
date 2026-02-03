@@ -1,6 +1,594 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
-{% block content %}
-<!-- TODO: Implement student_detail.html view -->
-{% endblock %}
+{% load static %}
 
+{% block title %}{{ student.registration_number }} - Student Details{% endblock %}
+
+{% block page_title %}Student Details{% endblock %}
+{% block page_subtitle %}{{ student.user.get_full_name }} - {{ student.registration_number }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'registrar_student_list' %}">Students</a></li>
+        <li class="breadcrumb-item active">{{ student.registration_number }}</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Student Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-2 text-center">
+                    {% if student.user.profile_picture %}
+                    <img src="{{ student.user.profile_picture.url }}" class="rounded-circle img-fluid" width="150">
+                    {% else %}
+                    <img src="{% static 'avatar2.png' %}" class="rounded-circle img-fluid" width="150">
+                    {% endif %}
+                </div>
+                <div class="col-md-7">
+                    <h3>{{ student.user.get_full_name }}</h3>
+                    <p class="text-muted mb-1">{{ student.registration_number }}</p>
+                    <p class="mb-1"><strong>Programme:</strong> {{ student.programme.name }} ({{ student.programme.code }})</p>
+                    <p class="mb-1"><strong>Year/Semester:</strong> Year {{ student.current_year }}, Semester {{ student.current_semester }}</p>
+                    <p class="mb-1"><strong>Intake:</strong> {{ student.intake.name }}</p>
+                    <p class="mb-1">
+                        <strong>Status:</strong>
+                        {% if student.student_status == 'active' %}
+                        <span class="badge bg-success">Active</span>
+                        {% elif student.student_status == 'suspended' %}
+                        <span class="badge bg-danger">Suspended</span>
+                        {% elif student.student_status == 'graduated' %}
+                        <span class="badge bg-primary">Graduated</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-3 text-end">
+                    <h4 class="text-success">GPA: {{ student.cumulative_gpa }}</h4>
+                    <p class="text-muted">Credits: {{ student.total_credit_hours }}</p>
+                    <div class="btn-group-vertical w-100 mt-3">
+                        <a href="{% url 'registrar_transcript' student.id %}" class="btn btn-primary">
+                            <i class="ri-file-text-line"></i> Generate Transcript
+                        </a>
+                        <a href="{% url 'registrar_student_update' student.id %}" class="btn btn-warning">
+                            <i class="ri-edit-line"></i> Edit Student
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#personal">Personal Info</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#academic">Academic Records</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#enrollments">Enrollments</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#fees">Fee Records</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#hostel">Hostel</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#library">Library</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#progression">Progression</a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Personal Information Tab -->
+        <div class="tab-pane fade show active" id="personal">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Personal Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th>Full Name:</th>
+                                    <td>{{ student.user.get_full_name }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Email:</th>
+                                    <td>{{ student.user.email }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td>{{ student.user.phone_number|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Gender:</th>
+                                    <td>{{ student.get_gender_display }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Date of Birth:</th>
+                                    <td>{{ student.date_of_birth|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>National ID:</th>
+                                    <td>{{ student.national_id }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Passport Number:</th>
+                                    <td>{{ student.passport_number|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th>Admission Date:</th>
+                                    <td>{{ student.admission_date|date:"d/m/Y" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Expected Graduation:</th>
+                                    <td>{{ student.expected_graduation_date|date:"d/m/Y"|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Current Address:</th>
+                                    <td>{{ student.current_address|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Permanent Address:</th>
+                                    <td>{{ student.permanent_address|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th colspan="2"><strong>Emergency Contact</strong></th>
+                                </tr>
+                                <tr>
+                                    <th>Name:</th>
+                                    <td>{{ student.emergency_contact_name|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Phone:</th>
+                                    <td>{{ student.emergency_contact_phone|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Relationship:</th>
+                                    <td>{{ student.emergency_contact_relationship|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Academic Records Tab -->
+        <div class="tab-pane fade" id="academic">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Academic Performance</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Semester GPAs -->
+                    <h6>Semester GPAs</h6>
+                    <div class="table-responsive mb-4">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Academic Year</th>
+                                    <th>Semester</th>
+                                    <th>Credits</th>
+                                    <th>Semester GPA</th>
+                                    <th>Cumulative GPA</th>
+                                    <th>Rank</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for gpa in semester_gpas %}
+                                <tr>
+                                    <td>{{ gpa.academic_year.name }}</td>
+                                    <td>{{ gpa.semester.name }}</td>
+                                    <td>{{ gpa.total_credit_hours }}</td>
+                                    <td><strong>{{ gpa.semester_gpa }}</strong></td>
+                                    <td><strong class="text-success">{{ gpa.cumulative_gpa }}</strong></td>
+                                    <td>{{ gpa.class_rank|default:"-" }}/{{ gpa.total_students|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No GPA records found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Semester Results -->
+                    <h6>Semester Results</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Year/Sem</th>
+                                    <th>Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>CAT</th>
+                                    <th>Exam</th>
+                                    <th>Total</th>
+                                    <th>Grade</th>
+                                    <th>Points</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in semester_results %}
+                                <tr>
+                                    <td>{{ result.academic_year.name }} - {{ result.semester.name }}</td>
+                                    <td>{{ result.programme_unit.unit.code }}</td>
+                                    <td>{{ result.programme_unit.unit.name }}</td>
+                                    <td>{{ result.cat_marks }}</td>
+                                    <td>{{ result.exam_marks }}</td>
+                                    <td><strong>{{ result.total_marks }}</strong></td>
+                                    <td><strong>{{ result.grade }}</strong></td>
+                                    <td>{{ result.grade_point }}</td>
+                                    <td>
+                                        {% if result.is_passed %}
+                                        <span class="badge bg-success">Pass</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Fail</span>
+                                        {% endif %}
+                                        {% if result.is_supplementary %}
+                                        <span class="badge bg-warning">Supp</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center">No results found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrollments Tab -->
+        <div class="tab-pane fade" id="enrollments">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Unit Enrollments</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Semester</th>
+                                    <th>Unit Code</th>
+                                    <th>Unit Name</th>
+                                    <th>Credits</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for enrollment in enrollments %}
+                                <tr>
+                                    <td>{{ enrollment.semester.name }}</td>
+                                    <td>{{ enrollment.programme_unit.unit.code }}</td>
+                                    <td>{{ enrollment.programme_unit.unit.name }}</td>
+                                    <td>{{ enrollment.programme_unit.unit.credit_hours }}</td>
+                                    <td>{{ enrollment.programme_unit.get_unit_type_display }}</td>
+                                    <td>
+                                        {% if enrollment.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                        {% elif enrollment.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% elif enrollment.status == 'rejected' %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ enrollment.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ enrollment.created_at|date:"d/m/Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No enrollments found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fees Tab -->
+        <div class="tab-pane fade" id="fees">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Fee Payments</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Semester</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Receipt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for payment in fee_payments %}
+                                        <tr>
+                                            <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                                            <td>{{ payment.semester.name }}</td>
+                                            <td>KES {{ payment.amount }}</td>
+                                            <td>{{ payment.get_payment_method_display }}</td>
+                                            <td>{{ payment.receipt_number|default:"-" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center">No payments recorded</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Fee Balances</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Semester</th>
+                                            <th>Total Fees</th>
+                                            <th>Paid</th>
+                                            <th>Balance</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for balance in fee_balances %}
+                                        <tr>
+                                            <td>{{ balance.semester.name }}</td>
+                                            <td>KES {{ balance.total_fees }}</td>
+                                            <td>KES {{ balance.amount_paid }}</td>
+                                            <td><strong class="{% if balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                KES {{ balance.balance }}
+                                            </strong></td>
+                                            <td>
+                                                {% if balance.is_cleared %}
+                                                <span class="badge bg-success">Cleared</span>
+                                                {% else %}
+                                                <span class="badge bg-danger">Outstanding</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center">No balance records</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hostel Tab -->
+        <div class="tab-pane fade" id="hostel">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Hostel Allocations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Academic Year</th>
+                                    <th>Hostel</th>
+                                    <th>Room</th>
+                                    <th>Bed</th>
+                                    <th>Allocation Date</th>
+                                    <th>Check-in</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for allocation in hostel_allocations %}
+                                <tr>
+                                    <td>{{ allocation.academic_year.name }}</td>
+                                    <td>{{ allocation.bed.room.hostel.name }}</td>
+                                    <td>{{ allocation.bed.room.room_number }}</td>
+                                    <td>{{ allocation.bed.bed_number }}</td>
+                                    <td>{{ allocation.allocation_date|date:"d/m/Y" }}</td>
+                                    <td>{{ allocation.check_in_date|date:"d/m/Y"|default:"-" }}</td>
+                                    <td>
+                                        {% if allocation.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No hostel allocations</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Library Tab -->
+        <div class="tab-pane fade" id="library">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Book Borrowing History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Book</th>
+                                    <th>Borrow Date</th>
+                                    <th>Due Date</th>
+                                    <th>Return Date</th>
+                                    <th>Fine</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for borrowing in book_borrowings %}
+                                <tr>
+                                    <td>{{ borrowing.book.title }}</td>
+                                    <td>{{ borrowing.borrow_date|date:"d/m/Y" }}</td>
+                                    <td>{{ borrowing.due_date|date:"d/m/Y" }}</td>
+                                    <td>{{ borrowing.return_date|date:"d/m/Y"|default:"-" }}</td>
+                                    <td>KES {{ borrowing.fine_amount }}</td>
+                                    <td>
+                                        {% if borrowing.status == 'active' %}
+                                        <span class="badge bg-primary">Active</span>
+                                        {% elif borrowing.status == 'returned' %}
+                                        <span class="badge bg-success">Returned</span>
+                                        {% elif borrowing.status == 'overdue' %}
+                                        <span class="badge bg-danger">Overdue</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ borrowing.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No borrowing history</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progression Tab -->
+        <div class="tab-pane fade" id="progression">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Student Progression History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>From Programme</th>
+                                    <th>To Programme</th>
+                                    <th>Final GPA</th>
+                                    <th>Credits Transferred</th>
+                                    <th>Approved By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for progression in progressions %}
+                                <tr>
+                                    <td>{{ progression.progression_date|date:"d/m/Y" }}</td>
+                                    <td>
+                                        {% if progression.previous_programme %}
+                                        {{ progression.previous_programme.name }}
+                                        <br><small>{{ progression.previous_registration_number }}</small>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ progression.new_programme.name }}</td>
+                                    <td>{{ progression.final_gpa|default:"-" }}</td>
+                                    <td>{{ progression.credits_transferred }}</td>
+                                    <td>{{ progression.approved_by.get_full_name|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">No progression history</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Special Needs -->
+            {% if special_needs %}
+            <div class="card mt-3">
+                <div class="card-header bg-warning">
+                    <h5><i class="ri-alert-line"></i> Special Needs</h5>
+                </div>
+                <div class="card-body">
+                    {% for need in special_needs %}
+                    <div class="alert alert-warning">
+                        <strong>{{ need.get_need_type_display }}</strong> - {{ need.get_severity_display }}
+                        <p>{{ need.description }}</p>
+                        <small>Accommodations: {{ need.accommodations_required }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Advising Notes -->
+            {% if advising_notes %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Advising Notes</h5>
+                </div>
+                <div class="card-body">
+                    {% for note in advising_notes %}
+                    <div class="mb-3 pb-3 border-bottom">
+                        <div class="d-flex justify-content-between">
+                            <strong>{{ note.subject }}</strong>
+                            <small class="text-muted">{{ note.created_at|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ note.note }}</p>
+                        <small class="text-muted">By: {{ note.lecturer.user.get_full_name }}</small>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

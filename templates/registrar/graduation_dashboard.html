@@ -1,6 +1,247 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
 
-{% block content %}
-<!-- TODO: Implement graduation_dashboard.html view -->
-{% endblock %}
 
+{% load static %}
+
+{% block title %}Graduation Management - Registrar{% endblock %}
+
+{% block page_title %}Graduation Management{% endblock %}
+{% block page_subtitle %}Manage graduation ceremonies and degree classifications{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
+        <li class="breadcrumb-item active">Graduation</li>
+    </ol>
+</nav>
+
+<div class="container-fluid">
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Potential Graduates</h6>
+                    <h3>{{ total_graduates }}</h3>
+                    <small class="text-muted">{{ current_academic_year.name }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">First Class</h6>
+                    <h3 class="text-success">0</h3>
+                    <small class="text-muted">GPA ≥ 3.6</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Upper Second</h6>
+                    <h3 class="text-info">0</h3>
+                    <small class="text-muted">GPA 3.0 - 3.59</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="text-muted">Lower Second</h6>
+                    <h3 class="text-warning">0</h3>
+                    <small class="text-muted">GPA 2.5 - 2.99</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Quick Actions</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <a href="{% url 'registrar_graduation_list' %}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="ri-list-check"></i> Graduation List
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <a href="{% url 'registrar_degree_classification' %}" class="btn btn-outline-success w-100 mb-2">
+                        <i class="ri-medal-line"></i> Degree Classifications
+                    </a>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-outline-info w-100 mb-2" data-bs-toggle="modal" data-bs-target="#certificateModal">
+                        <i class="ri-file-text-line"></i> Generate Certificates
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-outline-warning w-100 mb-2">
+                        <i class="ri-download-line"></i> Export List
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Graduates by Programme -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Potential Graduates by Programme</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Programme</th>
+                            <th>Total Students</th>
+                            <th>First Class</th>
+                            <th>Upper Second</th>
+                            <th>Lower Second</th>
+                            <th>Pass</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in graduates_by_programme %}
+                        <tr>
+                            <td>{{ item.programme__name }}</td>
+                            <td><strong>{{ item.count }}</strong></td>
+                            <td class="text-success">0</td>
+                            <td class="text-info">0</td>
+                            <td class="text-warning">0</td>
+                            <td class="text-secondary">0</td>
+                            <td>
+                                <a href="{% url 'registrar_graduation_list' %}?programme={{ item.programme__id }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-eye-line"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center">No graduation data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Graduates -->
+    <div class="card">
+        <div class="card-header">
+            <h5>Potential Graduates - {{ current_academic_year.name }}</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Reg Number</th>
+                            <th>Name</th>
+                            <th>Programme</th>
+                            <th>Expected Date</th>
+                            <th>Cumulative GPA</th>
+                            <th>Credits</th>
+                            <th>Classification</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in potential_graduates %}
+                        <tr>
+                            <td>{{ student.registration_number }}</td>
+                            <td>{{ student.user.get_full_name }}</td>
+                            <td>{{ student.programme.code }}</td>
+                            <td>{{ student.expected_graduation_date|date:"M Y"|default:"-" }}</td>
+                            <td>
+                                <strong class="{% if student.cumulative_gpa >= 3.6 %}text-success{% elif student.cumulative_gpa >= 3.0 %}text-info{% elif student.cumulative_gpa >= 2.5 %}text-warning{% else %}text-secondary{% endif %}">
+                                    {{ student.cumulative_gpa }}
+                                </strong>
+                            </td>
+                            <td>{{ student.total_credit_hours }}</td>
+                            <td>
+                                {% if student.cumulative_gpa >= 3.6 %}
+                                <span class="badge bg-success">First Class</span>
+                                {% elif student.cumulative_gpa >= 3.0 %}
+                                <span class="badge bg-info">Upper Second</span>
+                                {% elif student.cumulative_gpa >= 2.5 %}
+                                <span class="badge bg-warning">Lower Second</span>
+                                {% elif student.cumulative_gpa >= 2.0 %}
+                                <span class="badge bg-secondary">Pass</span>
+                                {% else %}
+                                <span class="badge bg-danger">Below Pass</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if student.student_status == 'active' %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4">
+                                <i class="ri-graduation-cap-line display-4 text-muted"></i>
+                                <p class="text-muted mt-2">No potential graduates found</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Certificate Generation Modal -->
+<div class="modal fade" id="certificateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Generate Certificates</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label class="form-label">Programme</label>
+                        <select class="form-select" required>
+                            <option value="">Select Programme</option>
+                            {% for item in graduates_by_programme %}
+                            <option value="{{ item.programme__id }}">{{ item.programme__name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Graduation Year</label>
+                        <select class="form-select" required>
+                            <option value="{{ current_academic_year.name }}">{{ current_academic_year.name }}</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Certificate Type</label>
+                        <select class="form-select" required>
+                            <option value="degree">Degree Certificate</option>
+                            <option value="transcript">Transcript</option>
+                            <option value="both">Both</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Generate</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
