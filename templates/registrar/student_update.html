@@ -3,113 +3,134 @@
 
 {% block title %}Update Student - {{ student.registration_number }}{% endblock %}
 
-{% block page_title %}Update Student Information{% endblock %}
-{% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'registrar_student_list' %}">Students</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'registrar_student_detail' student.id %}">{{ student.registration_number }}</a></li>
-        <li class="breadcrumb-item active">Update</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Update Student Information</h1>
+                <p class="text-muted mb-0">{{ student.registration_number }} - {{ student.user.get_full_name }}</p>
+            </div>
+            <div class="text-end">
+                <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-outline-primary">
+                    <i class="ri-arrow-left-line me-2"></i> Back to Student
+                </a>
+            </div>
+        </div>
+    </div>
 
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Update Student Information</h5>
-                </div>
-                <div class="card-body">
-                    <form method="post" enctype="multipart/form-data">
-                        {% csrf_token %}
-                        
-                        <!-- Personal Information -->
-                        <div class="section-header">
-                            <h6>Personal Information</h6>
-                        </div>
-                        
-                        <div class="row">
+    <!-- Main Form Card -->
+    <div class="analytics-card">
+        <div class="card-header">
+            <h5 class="card-title">Update Student Information</h5>
+            <div class="card-subtitle">Edit student details and academic information</div>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" id="updateForm">
+                {% csrf_token %}
+                
+                <!-- Personal Information Section -->
+                <div class="section-card mb-4">
+                    <div class="section-header">
+                        <i class="ri-user-line me-2"></i>
+                        <h6 class="section-title">Personal Information</h6>
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-3">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>First Name</label>
+                                    <label class="form-label">First Name <span class="text-danger">*</span></label>
                                     <input type="text" name="first_name" class="form-control" 
                                            value="{{ student.user.first_name }}" required>
+                                    <div class="form-text">Student's legal first name</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Last Name</label>
+                                    <label class="form-label">Last Name <span class="text-danger">*</span></label>
                                     <input type="text" name="last_name" class="form-control" 
                                            value="{{ student.user.last_name }}" required>
+                                    <div class="form-text">Student's legal last name</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Email</label>
+                                    <label class="form-label">Email <span class="text-danger">*</span></label>
                                     <input type="email" name="email" class="form-control" 
                                            value="{{ student.user.email }}" required>
+                                    <div class="form-text">Primary email address</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row">
+                        <div class="row g-3 mt-2">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Phone Number</label>
+                                    <label class="form-label">Phone Number</label>
                                     <input type="tel" name="phone_number" class="form-control" 
                                            value="{{ student.user.phone_number }}">
+                                    <div class="form-text">Primary contact number</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Gender</label>
-                                    <select name="gender" class="form-control">
+                                    <label class="form-label">Gender</label>
+                                    <select name="gender" class="form-select">
                                         <option value="M" {% if student.gender == 'M' %}selected{% endif %}>Male</option>
                                         <option value="F" {% if student.gender == 'F' %}selected{% endif %}>Female</option>
                                         <option value="O" {% if student.gender == 'O' %}selected{% endif %}>Other</option>
                                     </select>
+                                    <div class="form-text">Student's gender</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Date of Birth</label>
+                                    <label class="form-label">Date of Birth</label>
                                     <input type="date" name="date_of_birth" class="form-control" 
                                            value="{{ student.date_of_birth|date:'Y-m-d' }}">
+                                    <div class="form-text">Date of birth (YYYY-MM-DD)</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row">
+                        <div class="row g-3 mt-2">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>National ID</label>
+                                    <label class="form-label">National ID</label>
                                     <input type="text" name="national_id" class="form-control" 
                                            value="{{ student.national_id }}">
+                                    <div class="form-text">National identification number</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Passport Number</label>
+                                    <label class="form-label">Passport Number</label>
                                     <input type="text" name="passport_number" class="form-control" 
                                            value="{{ student.passport_number }}">
+                                    <div class="form-text">Optional passport number</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Academic Information -->
-                        <div class="section-header">
-                            <h6>Academic Information</h6>
-                        </div>
-
-                        <div class="row">
+                <!-- Academic Information Section -->
+                <div class="section-card mb-4">
+                    <div class="section-header">
+                        <i class="ri-book-open-line me-2"></i>
+                        <h6 class="section-title">Academic Information</h6>
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-3">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Programme</label>
-                                    <select name="programme" class="form-control" required>
+                                    <label class="form-label">Programme <span class="text-danger">*</span></label>
+                                    <select name="programme" class="form-select" required>
                                         {% for programme in programmes %}
                                         <option value="{{ programme.id }}" 
                                                 {% if programme.id == student.programme.id %}selected{% endif %}>
@@ -117,145 +138,629 @@
                                         </option>
                                         {% endfor %}
                                     </select>
+                                    <div class="form-text">Current academic programme</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Current Year</label>
-                                    <select name="current_year" class="form-control">
-                                        {% for year in "12345" %}
+                                    <label class="form-label">Current Year</label>
+                                    <select name="current_year" class="form-select">
+                                        {% for year in years %}
                                         <option value="{{ year }}" 
                                                 {% if year == student.current_year|stringformat:"s" %}selected{% endif %}>
                                             Year {{ year }}
                                         </option>
                                         {% endfor %}
                                     </select>
+                                    <div class="form-text">Current year of study</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Current Semester</label>
-                                    <select name="current_semester" class="form-control">
+                                    <label class="form-label">Current Semester</label>
+                                    <select name="current_semester" class="form-select">
                                         <option value="1" {% if student.current_semester == '1' %}selected{% endif %}>Semester 1</option>
                                         <option value="2" {% if student.current_semester == '2' %}selected{% endif %}>Semester 2</option>
                                         <option value="3" {% if student.current_semester == '3' %}selected{% endif %}>Semester 3</option>
                                     </select>
+                                    <div class="form-text">Current academic semester</div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="row">
+                        <div class="row g-3 mt-2">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Student Status</label>
-                                    <select name="student_status" class="form-control">
+                                    <label class="form-label">Student Status</label>
+                                    <select name="student_status" class="form-select">
                                         <option value="active" {% if student.student_status == 'active' %}selected{% endif %}>Active</option>
                                         <option value="suspended" {% if student.student_status == 'suspended' %}selected{% endif %}>Suspended</option>
                                         <option value="deferred" {% if student.student_status == 'deferred' %}selected{% endif %}>Deferred</option>
                                         <option value="graduated" {% if student.student_status == 'graduated' %}selected{% endif %}>Graduated</option>
                                         <option value="discontinued" {% if student.student_status == 'discontinued' %}selected{% endif %}>Discontinued</option>
                                     </select>
+                                    <div class="form-text">Current student status</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Expected Graduation Date</label>
+                                    <label class="form-label">Expected Graduation Date</label>
                                     <input type="date" name="expected_graduation_date" class="form-control" 
                                            value="{% if student.expected_graduation_date %}{{ student.expected_graduation_date|date:'Y-m-d' }}{% endif %}">
+                                    <div class="form-text">Estimated graduation date</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Address Information -->
-                        <div class="section-header">
-                            <h6>Address Information</h6>
-                        </div>
-
-                        <div class="row">
+                <!-- Address Information Section -->
+                <div class="section-card mb-4">
+                    <div class="section-header">
+                        <i class="ri-map-pin-line me-2"></i>
+                        <h6 class="section-title">Address Information</h6>
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-3">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Permanent Address</label>
+                                    <label class="form-label">Permanent Address</label>
                                     <textarea name="permanent_address" class="form-control" rows="3">{{ student.permanent_address }}</textarea>
+                                    <div class="form-text">Permanent home address</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Current Address</label>
+                                    <label class="form-label">Current Address</label>
                                     <textarea name="current_address" class="form-control" rows="3">{{ student.current_address }}</textarea>
+                                    <div class="form-text">Current residential address</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Emergency Contact -->
-                        <div class="section-header">
-                            <h6>Emergency Contact</h6>
-                        </div>
-
-                        <div class="row">
+                <!-- Emergency Contact Section -->
+                <div class="section-card mb-4">
+                    <div class="section-header">
+                        <i class="ri-phone-line me-2"></i>
+                        <h6 class="section-title">Emergency Contact</h6>
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-3">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Contact Name</label>
+                                    <label class="form-label">Contact Name</label>
                                     <input type="text" name="emergency_contact_name" class="form-control" 
                                            value="{{ student.emergency_contact_name }}">
+                                    <div class="form-text">Emergency contact person's name</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Contact Phone</label>
+                                    <label class="form-label">Contact Phone</label>
                                     <input type="tel" name="emergency_contact_phone" class="form-control" 
                                            value="{{ student.emergency_contact_phone }}">
+                                    <div class="form-text">Emergency contact phone number</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Relationship</label>
+                                    <label class="form-label">Relationship</label>
                                     <input type="text" name="emergency_contact_relationship" class="form-control" 
                                            value="{{ student.emergency_contact_relationship }}">
+                                    <div class="form-text">Relationship to student</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Sponsor Information -->
-                        <div class="section-header">
-                            <h6>Sponsor/Guardian Information</h6>
-                        </div>
-
-                        <div class="row">
+                <!-- Sponsor Information Section -->
+                <div class="section-card mb-4">
+                    <div class="section-header">
+                        <i class="ri-user-heart-line me-2"></i>
+                        <h6 class="section-title">Sponsor/Guardian Information</h6>
+                    </div>
+                    <div class="section-body">
+                        <div class="row g-3">
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Sponsor Name</label>
+                                    <label class="form-label">Sponsor Name</label>
                                     <input type="text" name="sponsor_name" class="form-control" 
                                            value="{{ student.sponsor_name }}">
+                                    <div class="form-text">Name of sponsor or guardian</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Sponsor Phone</label>
+                                    <label class="form-label">Sponsor Phone</label>
                                     <input type="tel" name="sponsor_phone" class="form-control" 
                                            value="{{ student.sponsor_phone }}">
+                                    <div class="form-text">Sponsor's contact number</div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="form-group">
-                                    <label>Sponsor Email</label>
+                                    <label class="form-label">Sponsor Email</label>
                                     <input type="email" name="sponsor_email" class="form-control" 
                                            value="{{ student.sponsor_email }}">
+                                    <div class="form-text">Sponsor's email address</div>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="ri-save-line"></i> Save Changes
-                            </button>
-                            <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-secondary">
-                                <i class="ri-close-line"></i> Cancel
-                            </a>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions mt-4 pt-4 border-top">
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-outline-secondary">
+                            <i class="ri-close-line me-2"></i> Cancel
+                        </a>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-outline-warning" id="resetForm">
+                                <i class="ri-refresh-line me-2"></i> Reset
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ri-save-line me-2"></i> Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Section Cards */
+    .section-card {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .section-header {
+        padding: 1rem 1.25rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0;
+    }
+    
+    .section-header i {
+        color: var(--color-primary);
+        font-size: 1.125rem;
+    }
+    
+    .section-body {
+        padding: 1.5rem;
+    }
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 0;
+    }
+    
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    .form-text {
+        font-size: 0.75rem;
+        color: var(--color-gray-600);
+        margin-top: 0.375rem;
+    }
+    
+    textarea.form-control {
+        min-height: 80px;
+        resize: vertical;
+    }
+    
+    /* Button Styles */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-primary {
+        border: 2px solid var(--color-primary);
+        color: var(--color-primary);
+        background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+    
+    .btn-outline-secondary {
+        border: 2px solid var(--color-gray-400);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-200);
+        color: var(--color-gray-800);
+        border-color: var(--color-gray-400);
+    }
+    
+    .btn-outline-warning {
+        border: 2px solid var(--color-warning);
+        color: var(--color-warning);
+        background: transparent;
+    }
+    
+    .btn-outline-warning:hover {
+        background: var(--color-warning);
+        color: white;
+        border-color: var(--color-warning);
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border: 2px solid var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Form Actions */
+    .form-actions {
+        background: var(--color-gray-100);
+    }
+    
+    /* Required Field Asterisk */
+    .text-danger {
+        color: #F44336;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('updateForm');
+    const resetBtn = document.getElementById('resetForm');
+    
+    // Store original form values
+    let originalValues = {};
+    if (form) {
+        const formElements = form.querySelectorAll('input, select, textarea');
+        formElements.forEach(element => {
+            if (element.name) {
+                originalValues[element.name] = element.value;
+            }
+        });
+    }
+    
+    // Reset form to original values
+    if (resetBtn && form) {
+        resetBtn.addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset all changes? This will revert all fields to their original values.')) {
+                const formElements = form.querySelectorAll('input, select, textarea');
+                formElements.forEach(element => {
+                    if (element.name && originalValues[element.name] !== undefined) {
+                        element.value = originalValues[element.name];
+                        
+                        // Trigger change event for select elements
+                        if (element.tagName === 'SELECT') {
+                            element.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+                
+                // Show success message
+                showToast('Form has been reset to original values.', 'success');
+            }
+        });
+    }
+    
+    // Form validation and feedback
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Remove previous error messages
+            const errorElements = form.querySelectorAll('.is-invalid, .invalid-feedback');
+            errorElements.forEach(el => el.remove());
+            
+            // Check required fields
+            const requiredFields = form.querySelectorAll('[required]');
+            let hasErrors = false;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add('is-invalid');
+                    
+                    // Create error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'invalid-feedback';
+                    errorDiv.textContent = 'This field is required.';
+                    field.parentElement.appendChild(errorDiv);
+                    
+                    hasErrors = true;
+                }
+            });
+            
+            // Validate email format
+            const emailField = form.querySelector('input[type="email"]');
+            if (emailField && emailField.value) {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(emailField.value)) {
+                    emailField.classList.add('is-invalid');
+                    
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'invalid-feedback';
+                    errorDiv.textContent = 'Please enter a valid email address.';
+                    emailField.parentElement.appendChild(errorDiv);
+                    
+                    hasErrors = true;
+                }
+            }
+            
+            if (hasErrors) {
+                e.preventDefault();
+                showToast('Please fill in all required fields correctly.', 'error');
+                return false;
+            }
+            
+            // Confirm before submission
+            if (!confirm('Are you sure you want to update this student\'s information?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Remove error styling on input
+        form.addEventListener('input', function(e) {
+            if (e.target.classList.contains('is-invalid')) {
+                e.target.classList.remove('is-invalid');
+                const errorDiv = e.target.parentElement.querySelector('.invalid-feedback');
+                if (errorDiv) {
+                    errorDiv.remove();
+                }
+            }
+        });
+    }
+    
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast-notification toast-${type}`;
+        toast.innerHTML = `
+            <div class="toast-content">
+                <i class="ri-${type === 'success' ? 'checkbox-circle' : type === 'error' ? 'error-warning' : 'information'}"></i>
+                <span>${message}</span>
+            </div>
+            <button class="toast-close">&times;</button>
+        `;
+        
+        // Add to body
+        document.body.appendChild(toast);
+        
+        // Show toast
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.parentElement.removeChild(toast);
+                }
+            }, 300);
+        }, 5000);
+        
+        // Close button
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', () => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.parentElement.removeChild(toast);
+                }
+            }, 300);
+        });
+    }
+    
+    // Add toast styles
+    const toastStyles = document.createElement('style');
+    toastStyles.textContent = `
+        .toast-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: 1px solid var(--color-gray-200);
+            border-radius: var(--radius-md);
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-width: 300px;
+            max-width: 400px;
+            box-shadow: var(--shadow-lg);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            z-index: 9999;
+        }
+        
+        .toast-notification.show {
+            transform: translateX(0);
+        }
+        
+        .toast-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .toast-content i {
+            font-size: 1.25rem;
+        }
+        
+        .toast-success {
+            border-left: 4px solid var(--color-success);
+        }
+        
+        .toast-success i {
+            color: var(--color-success);
+        }
+        
+        .toast-error {
+            border-left: 4px solid #F44336;
+        }
+        
+        .toast-error i {
+            color: #F44336;
+        }
+        
+        .toast-info {
+            border-left: 4px solid var(--color-info);
+        }
+        
+        .toast-info i {
+            color: var(--color-info);
+        }
+        
+        .toast-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--color-gray-600);
+            cursor: pointer;
+            padding: 0;
+            margin-left: 1rem;
+            line-height: 1;
+        }
+        
+        .toast-close:hover {
+            color: var(--color-gray-800);
+        }
+    `;
+    document.head.appendChild(toastStyles);
+    
+    // Add styles for form validation
+    const validationStyles = document.createElement('style');
+    validationStyles.textContent = `
+        .is-invalid {
+            border-color: #F44336 !important;
+        }
+        .invalid-feedback {
+            font-size: 0.75rem;
+            color: #F44336;
+            margin-top: 0.375rem;
+        }
+    `;
+    document.head.appendChild(validationStyles);
+});
+</script>
 {% endblock %}

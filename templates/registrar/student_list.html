@@ -1,42 +1,57 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
-
-
 {% load static %}
 
 {% block title %}Student Records - Registrar{% endblock %}
 
-{% block page_title %}Student Records{% endblock %}
-{% block page_subtitle %}Manage student records and academic information{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
-        <li class="breadcrumb-item active">Student Records</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Student Records</h1>
+                <p class="text-muted mb-0">Manage student records and academic information</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-group-line me-2"></i>
+                    {{ page_obj.paginator.count }} Student(s)
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="container-fluid">
-    <!-- Search and Filter -->
-    <div class="card mb-4">
+    <!-- Search and Filter Card -->
+    <div class="analytics-card mb-4">
         <div class="card-header">
-            <h5>Search & Filter</h5>
+            <h5 class="card-title">Search & Filter</h5>
+            <div class="card-subtitle">Find students using various criteria</div>
         </div>
         <div class="card-body">
             <form method="get">
-                <div class="row mb-3">
-                    <div class="col-md-12">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ri-search-line"></i></span>
-                            <input type="text" class="form-control" name="search" 
-                                   placeholder="Search by registration number, name, email, or national ID..." 
-                                   value="{{ search_query }}">
-                            <button class="btn btn-primary" type="submit">Search</button>
-                        </div>
+                <!-- Search Bar -->
+                <div class="search-container mb-4">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0">
+                            <i class="ri-search-line text-muted"></i>
+                        </span>
+                        <input type="text" 
+                               class="form-control border-start-0 ps-0" 
+                               name="search" 
+                               placeholder="Search by registration number, name, email, or national ID..." 
+                               value="{{ search_query }}">
+                        <button class="btn btn-primary px-4" type="submit">
+                            Search
+                        </button>
                     </div>
                 </div>
 
-                <div class="row">
+                <!-- Filter Options -->
+                <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label">School</label>
                         <select name="school" class="form-select">
@@ -65,11 +80,11 @@
                         <label class="form-label">Year</label>
                         <select name="year" class="form-select">
                             <option value="">All Years</option>
-                            <option value="1" {% if year_filter == "1" %}selected{% endif %}>Year 1</option>
-                            <option value="2" {% if year_filter == "2" %}selected{% endif %}>Year 2</option>
-                            <option value="3" {% if year_filter == "3" %}selected{% endif %}>Year 3</option>
-                            <option value="4" {% if year_filter == "4" %}selected{% endif %}>Year 4</option>
-                            <option value="5" {% if year_filter == "5" %}selected{% endif %}>Year 5</option>
+                            {% for year in years %}
+                            <option value="{{ year }}" {% if year_filter == year|stringformat:"i" %}selected{% endif %}>
+                                Year {{ year }}
+                            </option>
+                            {% endfor %}
                         </select>
                     </div>
 
@@ -85,160 +100,559 @@
                         </select>
                     </div>
 
-                    <div class="col-md-2">
-                        <label class="form-label">&nbsp;</label>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">Apply Filters</button>
-                        </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            Apply Filters
+                        </button>
                     </div>
                 </div>
 
-                <div class="row mt-2">
-                    <div class="col-12">
-                        <a href="{% url 'registrar_student_list' %}" class="btn btn-sm btn-outline-secondary">
-                            <i class="ri-refresh-line"></i> Clear Filters
-                        </a>
-                        <a href="{% url 'registrar_export_students_csv' %}" class="btn btn-sm btn-success">
-                            <i class="ri-file-excel-line"></i> Export CSV
-                        </a>
-                    </div>
+                <!-- Action Buttons -->
+                <div class="d-flex gap-2 mt-4">
+                    <a href="{% url 'registrar_student_list' %}" class="btn btn-outline-secondary">
+                        <i class="ri-refresh-line me-2"></i> Clear Filters
+                    </a>
+                    <a href="{% url 'registrar_export_students_csv' %}" class="btn btn-success">
+                        <i class="ri-file-excel-line me-2"></i> Export CSV
+                    </a>
+                    <a href="{% url 'registrar_student_create' %}" class="btn btn-primary ms-auto">
+                        <i class="ri-add-line me-2"></i> Add Student
+                    </a>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Students Table -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5>Student Records ({{ page_obj.paginator.count }})</h5>
-            <a href="{% url 'registrar_student_create' %}" class="btn btn-primary">
-                <i class="ri-add-line"></i> Add Student
-            </a>
+    <!-- Students Table Card -->
+    <div class="analytics-card">
+        <div class="card-header">
+            <h5 class="card-title">Student Records</h5>
+            <div class="card-subtitle">Showing {{ page_obj|length }} of {{ page_obj.paginator.count }} students</div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Reg Number</th>
-                            <th>Student Name</th>
+                            <th class="ps-4">Registration No.</th>
+                            <th>Student Details</th>
                             <th>Programme</th>
                             <th>Year/Sem</th>
                             <th>Status</th>
-                            <th>GPA</th>
-                            <th>Actions</th>
+                            <th>Academic</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for student in page_obj %}
                         <tr>
-                            <td>
-                                <strong>{{ student.registration_number }}</strong>
-                                <br><small class="text-muted">{{ student.user.email }}</small>
+                            <td class="ps-4">
+                                <div class="registration-number">
+                                    <strong>{{ student.registration_number }}</strong>
+                                    <small class="text-muted d-block">{{ student.user.email }}</small>
+                                </div>
                             </td>
                             <td>
-                                <div class="d-flex align-items-center">
-                                    {% if student.user.profile_picture %}
-                                    <img src="{{ student.user.profile_picture.url }}" class="rounded-circle me-2" width="40" height="40">
-                                    {% else %}
-                                    <img src="{% static 'avatar2.png' %}" class="rounded-circle me-2" width="40" height="40">
-                                    {% endif %}
-                                    <div>
-                                        {{ student.user.get_full_name }}
-                                        <br><small class="text-muted">{{ student.national_id }}</small>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-3">
+                                            <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ student.user.get_full_name }}</h6>
+                                            {% if student.user.national_id %}
+                                            <small class="text-muted">ID: {{ student.user.national_id }}</small>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </td>
                             <td>
-                                <strong>{{ student.programme.code }}</strong>
-                                <br><small>{{ student.programme.name }}</small>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ student.programme.code }}</strong>
+                                    <small class="text-muted">{{ student.programme.name|truncatechars:20 }}</small>
+                                </div>
                             </td>
                             <td>
-                                <span class="badge bg-info">Year {{ student.current_year }}</span>
-                                <span class="badge bg-secondary">Sem {{ student.current_semester }}</span>
+                                <div class="academic-info">
+                                    <span class="badge bg-info-subtle text-info mb-1">Year {{ student.current_year }}</span>
+                                    <span class="badge bg-secondary-subtle text-secondary">Sem {{ student.current_semester }}</span>
+                                </div>
                             </td>
                             <td>
                                 {% if student.student_status == 'active' %}
-                                <span class="badge bg-success">Active</span>
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Active
+                                </span>
                                 {% elif student.student_status == 'suspended' %}
-                                <span class="badge bg-danger">Suspended</span>
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-error-warning-fill me-1"></i>
+                                    Suspended
+                                </span>
                                 {% elif student.student_status == 'deferred' %}
-                                <span class="badge bg-warning">Deferred</span>
+                                <span class="status-badge status-deferred">
+                                    <i class="ri-pause-circle-fill me-1"></i>
+                                    Deferred
+                                </span>
                                 {% elif student.student_status == 'graduated' %}
-                                <span class="badge bg-primary">Graduated</span>
+                                <span class="status-badge status-graduated">
+                                    <i class="ri-graduation-cap-fill me-1"></i>
+                                    Graduated
+                                </span>
                                 {% else %}
-                                <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                                <span class="status-badge status-other">
+                                    {{ student.get_student_status_display }}
+                                </span>
                                 {% endif %}
                             </td>
                             <td>
-                                <strong class="{% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
-                                    {{ student.cumulative_gpa }}
-                                </strong>
+                                <div class="gpa-display">
+                                    <div class="gpa-value {% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                        {{ student.cumulative_gpa }}
+                                    </div>
+                                    <small class="text-muted">GPA</small>
+                                </div>
                             </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{% url 'registrar_student_detail' student.id %}" 
-                                       class="btn btn-outline-primary" title="View Details">
-                                        <i class="ri-eye-line"></i>
-                                    </a>
-                                    <a href="{% url 'registrar_transcript' student.id %}" 
-                                       class="btn btn-outline-info" title="Transcript">
-                                        <i class="ri-file-text-line"></i>
-                                    </a>
-                                    <a href="{% url 'registrar_student_update' student.id %}" 
-                                       class="btn btn-outline-warning" title="Edit">
-                                        <i class="ri-edit-line"></i>
-                                    </a>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'registrar_student_detail' student.id %}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm" 
+                                           title="View Details"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'registrar_transcript' student.id %}" 
+                                           class="btn btn-icon btn-outline-info btn-sm" 
+                                           title="Transcript"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-file-text-line"></i>
+                                        </a>
+                                        
+                                        <a href="{% url 'registrar_student_update' student.id %}" 
+                                           class="btn btn-icon btn-outline-warning btn-sm" 
+                                           title="Edit"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-edit-line"></i>
+                                        </a>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="7" class="text-center py-4">
-                                <i class="ri-user-search-line display-4 text-muted"></i>
-                                <p class="text-muted mt-2">No students found</p>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-user-search-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No students found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your search or filter criteria</p>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+        </div>
 
-            <!-- Pagination -->
-            {% if page_obj.has_other_pages %}
-            <nav aria-label="Page navigation" class="mt-3">
-                <ul class="pagination justify-content-center">
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
+                        <a class="page-link" 
+                           href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
                             <i class="ri-arrow-left-line"></i>
+                            <span class="visually-hidden">Previous</span>
                         </a>
                     </li>
                     {% endif %}
-
+                    
                     {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
-                            {{ num }}
-                        </a>
-                    </li>
-                    {% endif %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" 
+                               href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endif %}
                     {% endfor %}
-
+                    
                     {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
+                        <a class="page-link" 
+                           href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if programme_filter %}&programme={{ programme_filter }}{% endif %}{% if year_filter %}&year={{ year_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if school_filter %}&school={{ school_filter }}{% endif %}">
                             <i class="ri-arrow-right-line"></i>
+                            <span class="visually-hidden">Next</span>
                         </a>
                     </li>
                     {% endif %}
                 </ul>
             </nav>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .card-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    /* Search Container */
+    .search-container .input-group {
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .search-container .input-group-text {
+        border-right: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    .search-container .form-control {
+        border-left: none;
+        padding-left: 0;
+        padding-right: 1rem;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .form-control:focus {
+        box-shadow: none;
+        border-color: var(--color-gray-300);
+    }
+    
+    .search-container .btn {
+        border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+    }
+    
+    /* Form Controls */
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .form-select, .form-control {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-select:focus, .form-control:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-secondary {
+        border: 2px solid var(--color-gray-400);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-200);
+        color: var(--color-gray-800);
+        border-color: var(--color-gray-400);
+    }
+    
+    .btn-success {
+        background: var(--color-success);
+        border: 2px solid var(--color-success);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #388E3C;
+        border-color: #388E3C;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border: 2px solid var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Student Avatar */
+    .student-avatar {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+    }
+    
+    .status-deferred {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-graduated {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* GPA Display */
+    .gpa-display {
+        text-align: center;
+    }
+    
+    .gpa-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Pagination */
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Color Utilities */
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .text-info { color: var(--color-info); }
+    .text-secondary { color: var(--color-gray-600); }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize DataTable if available
+    if (typeof $.fn.DataTable !== 'undefined') {
+        $('.table').DataTable({
+            ordering: true,
+            searching: false,
+            paging: false,
+            info: false,
+            responsive: true,
+            autoWidth: false,
+            columnDefs: [
+                { orderable: false, targets: [6] } // Make actions column non-orderable
+            ],
+            language: {
+                emptyTable: "No student records available"
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

@@ -1,259 +1,438 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
-
 {% load static %}
 
 {% block title %}Semester Reports - Registrar{% endblock %}
 
-{% block page_title %}Semester Reporting{% endblock %}
-{% block page_subtitle %}Manage student semester reports and progression{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
-        <li class="breadcrumb-item active">Semester Reports</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Semester Reporting</h1>
+                <p class="text-muted mb-0">Manage student semester reports and progression</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_semester.name }}
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="container-fluid">
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Pending Reports</h6>
-                    <h3 class="text-warning">{{ pending_reports|length }}</h3>
-                    <small>Awaiting approval</small>
+    <!-- Summary Metrics -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-time-line text-warning"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ pending_reports|length|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Pending Reports</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-information-line text-warning me-1"></i>
+                    <span class="small text-muted">Awaiting approval</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Approved Today</h6>
-                    <h3 class="text-success">0</h3>
-                    <small>Processed reports</small>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-check-line text-success"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ approved_today|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Approved Today</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Processed reports</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Current Semester</h6>
-                    <h3>{{ current_semester.name }}</h3>
-                    <small>Active semester</small>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-calendar-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ current_semester.code }}</h3>
+                        <p class="metric-label mb-0">Current Semester</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-information-line text-info me-1"></i>
+                    <span class="small text-muted">Active semester</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Eligible Students</h6>
-                    <h3>{% for report in pending_reports %}{% if report.is_eligible %}1{% endif %}{% endfor %}</h3>
-                    <small>Can progress</small>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-user-check-line text-primary"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ eligible_students|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Eligible Students</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Can progress</span>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Pending Reports -->
-    <div class="card mb-4">
-        <div class="card-header">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5>Pending Semester Reports</h5>
-                <div>
-                    <button class="btn btn-success btn-sm" onclick="bulkApprove()">
-                        <i class="ri-check-double-line"></i> Bulk Approve
-                    </button>
-                </div>
+    <div class="analytics-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Pending Semester Reports</h5>
+                <div class="card-subtitle">Reports awaiting review and approval</div>
+            </div>
+            <div>
+                <button class="btn btn-success" onclick="bulkApprove()">
+                    <i class="ri-check-double-line me-2"></i> Bulk Approve
+                </button>
             </div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>
+                            <th class="ps-4" width="50">
                                 <input type="checkbox" id="selectAll" class="form-check-input">
                             </th>
                             <th>Reg Number</th>
                             <th>Student Name</th>
                             <th>Programme</th>
-                            <th>From</th>
-                            <th>To</th>
+                            <th>Progression</th>
                             <th>Failed Units</th>
                             <th>Fee Balance</th>
                             <th>GPA</th>
-                            <th>Eligible</th>
-                            <th>Actions</th>
+                            <th>Eligibility</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for report in pending_reports %}
                         <tr>
-                            <td>
-                                <input type="checkbox" class="form-check-input report-checkbox" value="{{ report.id }}">
-                            </td>
-                            <td>{{ report.student.registration_number }}</td>
-                            <td>{{ report.student.user.get_full_name }}</td>
-                            <td>{{ report.student.programme.code }}</td>
-                            <td>
-                                <small>
-                                    Y{{ report.from_year_of_study|default:"-" }}S{{ report.from_semester_number|default:"-" }}
-                                </small>
+                            <td class="ps-4">
+                                <input type="checkbox" 
+                                       class="form-check-input report-checkbox" 
+                                       value="{{ report.id }}"
+                                       {% if not report.is_eligible or not report.is_financially_cleared %}disabled{% endif %}>
                             </td>
                             <td>
-                                <strong>Y{{ report.to_year_of_study }}S{{ report.to_semester_number }}</strong>
+                                <div class="registration-number">
+                                    <strong>{{ report.student.registration_number }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-2">
+                                            <img src="{% if report.student.user.profile_picture %}{{ report.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ report.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ report.student.user.get_full_name }}</h6>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ report.student.programme.code }}</strong>
+                                    <small class="text-muted">{{ report.student.programme.name|truncatechars:20 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="progression-info">
+                                    <small class="text-muted d-block">From</small>
+                                    <span class="badge bg-secondary-subtle text-secondary mb-1">
+                                        Y{{ report.from_year_of_study|default:"-" }}S{{ report.from_semester_number|default:"-" }}
+                                    </span>
+                                    <small class="text-muted d-block">To</small>
+                                    <span class="badge bg-info-subtle text-info">
+                                        Y{{ report.to_year_of_study }}S{{ report.to_semester_number }}
+                                    </span>
+                                </div>
                             </td>
                             <td>
                                 {% if report.failed_units_count > 0 %}
-                                <span class="badge bg-danger">{{ report.failed_units_count }}</span>
+                                <span class="status-badge status-suspended">{{ report.failed_units_count }}</span>
                                 {% else %}
-                                <span class="badge bg-success">0</span>
+                                <span class="status-badge status-active">0</span>
                                 {% endif %}
                             </td>
                             <td>
                                 {% if report.fee_balance > 0 %}
-                                <span class="text-danger">KES {{ report.fee_balance }}</span>
+                                <div class="text-danger fw-medium">KES {{ report.fee_balance }}</div>
                                 {% else %}
-                                <span class="text-success">Cleared</span>
+                                <div class="text-success fw-medium">Cleared</div>
                                 {% endif %}
                             </td>
-                            <td>{{ report.cumulative_gpa|default:"-" }}</td>
+                            <td>
+                                <div class="gpa-display">
+                                    <div class="gpa-value {% if report.cumulative_gpa >= 3.0 %}text-success{% elif report.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                        {{ report.cumulative_gpa|default:"-" }}
+                                    </div>
+                                </div>
+                            </td>
                             <td>
                                 {% if report.is_eligible and report.is_financially_cleared %}
-                                <span class="badge bg-success">Yes</span>
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Eligible
+                                </span>
                                 {% else %}
-                                <span class="badge bg-danger">No</span>
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-error-warning-fill me-1"></i>
+                                    Not Eligible
+                                </span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-success" onclick="approveReport({{ report.id }})"
-                                            {% if not report.is_eligible or not report.is_financially_cleared %}disabled{% endif %}>
-                                        <i class="ri-check-line"></i>
-                                    </button>
-                                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#viewReportModal{{ report.id }}">
-                                        <i class="ri-eye-line"></i>
-                                    </button>
-                                    <button class="btn btn-danger" onclick="rejectReport({{ report.id }})">
-                                        <i class="ri-close-line"></i>
-                                    </button>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-icon btn-outline-success btn-sm" 
+                                                title="Approve Report"
+                                                data-bs-toggle="tooltip"
+                                                onclick="approveReport({{ report.id }})"
+                                                {% if not report.is_eligible or not report.is_financially_cleared %}disabled{% endif %}>
+                                            <i class="ri-check-line"></i>
+                                        </button>
+                                        
+                                        <button class="btn btn-icon btn-outline-info btn-sm" 
+                                                title="View Details"
+                                                data-bs-toggle="tooltip"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#viewReportModal{{ report.id }}">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                        
+                                        <button class="btn btn-icon btn-outline-danger btn-sm" 
+                                                title="Reject Report"
+                                                data-bs-toggle="tooltip"
+                                                onclick="rejectReport({{ report.id }})">
+                                            <i class="ri-close-line"></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </td>
                         </tr>
 
                         <!-- View Report Modal -->
                         <div class="modal fade" id="viewReportModal{{ report.id }}" tabindex="-1">
-                            <div class="modal-dialog modal-lg">
+                            <div class="modal-dialog modal-dialog-centered modal-lg">
                                 <div class="modal-content">
                                     <div class="modal-header">
                                         <h5 class="modal-title">Report Details - {{ report.student.registration_number }}</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <h6>Student Information</h6>
-                                        <table class="table table-sm">
-                                            <tr>
-                                                <th>Name:</th>
-                                                <td>{{ report.student.user.get_full_name }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Programme:</th>
-                                                <td>{{ report.student.programme.name }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Current Status:</th>
-                                                <td>Year {{ report.student.current_year }}, Semester {{ report.student.current_semester }}</td>
-                                            </tr>
-                                        </table>
-
-                                        <h6 class="mt-3">Progression Details</h6>
-                                        <table class="table table-sm">
-                                            <tr>
-                                                <th>From:</th>
-                                                <td>Year {{ report.from_year_of_study|default:"-" }}, Semester {{ report.from_semester_number|default:"-" }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>To:</th>
-                                                <td>Year {{ report.to_year_of_study }}, Semester {{ report.to_semester_number }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Report Date:</th>
-                                                <td>{{ report.report_date|date:"d/m/Y H:i" }}</td>
-                                            </tr>
-                                        </table>
-
-                                        <h6 class="mt-3">Academic Status</h6>
-                                        <table class="table table-sm">
-                                            <tr>
-                                                <th>Failed Units:</th>
-                                                <td>
-                                                    <span class="badge {% if report.failed_units_count > 2 %}bg-danger{% elif report.failed_units_count > 0 %}bg-warning{% else %}bg-success{% endif %}">
-                                                        {{ report.failed_units_count }}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <th>Previous Semester GPA:</th>
-                                                <td>{{ report.previous_semester_gpa|default:"-" }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Cumulative GPA:</th>
-                                                <td>{{ report.cumulative_gpa|default:"-" }}</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Total Credits:</th>
-                                                <td>{{ report.total_credits_earned }}</td>
-                                            </tr>
-                                        </table>
-
-                                        <h6 class="mt-3">Financial Status</h6>
-                                        <table class="table table-sm">
-                                            <tr>
-                                                <th>Fee Balance:</th>
-                                                <td>
-                                                    {% if report.fee_balance > 0 %}
-                                                    <span class="text-danger">KES {{ report.fee_balance }}</span>
-                                                    {% else %}
-                                                    <span class="text-success">Cleared</span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <th>Financially Cleared:</th>
-                                                <td>
-                                                    {% if report.is_financially_cleared %}
-                                                    <span class="badge bg-success">Yes</span>
-                                                    {% else %}
-                                                    <span class="badge bg-danger">No</span>
-                                                    {% endif %}
-                                                </td>
-                                            </tr>
-                                        </table>
-
-                                        <h6 class="mt-3">Eligibility Status</h6>
-                                        <div class="alert {% if report.is_eligible and report.is_financially_cleared %}alert-success{% else %}alert-danger{% endif %}">
-                                            <strong>Eligibility:</strong>
-                                            {% if report.is_eligible and report.is_financially_cleared %}
-                                            Student is eligible to progress
-                                            {% else %}
-                                            Student is NOT eligible to progress
-                                            {% endif %}
-                                            <br>
-                                            <small>{{ report.eligibility_remarks }}</small>
+                                        <!-- Student Information -->
+                                        <div class="section-card mb-4">
+                                            <div class="section-header">
+                                                <h6 class="section-title">Student Information</h6>
+                                            </div>
+                                            <div class="section-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-4">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Name</div>
+                                                            <div class="info-value">{{ report.student.user.get_full_name }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Programme</div>
+                                                            <div class="info-value">{{ report.student.programme.name }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Current Status</div>
+                                                            <div class="info-value">Year {{ report.student.current_year }}, Semester {{ report.student.current_semester }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
 
+                                        <!-- Progression Details -->
+                                        <div class="section-card mb-4">
+                                            <div class="section-header">
+                                                <h6 class="section-title">Progression Details</h6>
+                                            </div>
+                                            <div class="section-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <div class="info-item">
+                                                            <div class="info-label">From</div>
+                                                            <div class="info-value">
+                                                                Year {{ report.from_year_of_study|default:"-" }}, Semester {{ report.from_semester_number|default:"-" }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="info-item">
+                                                            <div class="info-label">To</div>
+                                                            <div class="info-value">
+                                                                Year {{ report.to_year_of_study }}, Semester {{ report.to_semester_number }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Report Date</div>
+                                                            <div class="info-value">{{ report.report_date|date:"d/m/Y H:i" }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Total Credits</div>
+                                                            <div class="info-value">{{ report.total_credits_earned }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Academic Status -->
+                                        <div class="section-card mb-4">
+                                            <div class="section-header">
+                                                <h6 class="section-title">Academic Status</h6>
+                                            </div>
+                                            <div class="section-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-4">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Failed Units</div>
+                                                            <div class="info-value">
+                                                                <span class="status-badge {% if report.failed_units_count > 2 %}status-suspended{% elif report.failed_units_count > 0 %}status-pending{% else %}status-active{% endif %}">
+                                                                    {{ report.failed_units_count }}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Previous Semester GPA</div>
+                                                            <div class="info-value">{{ report.previous_semester_gpa|default:"-" }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Cumulative GPA</div>
+                                                            <div class="info-value">
+                                                                <span class="gpa-value {% if report.cumulative_gpa >= 3.0 %}text-success{% elif report.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                                                    {{ report.cumulative_gpa|default:"-" }}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Financial Status -->
+                                        <div class="section-card mb-4">
+                                            <div class="section-header">
+                                                <h6 class="section-title">Financial Status</h6>
+                                            </div>
+                                            <div class="section-body">
+                                                <div class="row g-3">
+                                                    <div class="col-md-6">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Fee Balance</div>
+                                                            <div class="info-value">
+                                                                {% if report.fee_balance > 0 %}
+                                                                <span class="text-danger fw-medium">KES {{ report.fee_balance }}</span>
+                                                                {% else %}
+                                                                <span class="text-success fw-medium">Cleared</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="info-item">
+                                                            <div class="info-label">Financially Cleared</div>
+                                                            <div class="info-value">
+                                                                {% if report.is_financially_cleared %}
+                                                                <span class="status-badge status-active">Yes</span>
+                                                                {% else %}
+                                                                <span class="status-badge status-suspended">No</span>
+                                                                {% endif %}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Eligibility Status -->
+                                        <div class="section-card">
+                                            <div class="section-header">
+                                                <h6 class="section-title">Eligibility Status</h6>
+                                            </div>
+                                            <div class="section-body">
+                                                <div class="alert {% if report.is_eligible and report.is_financially_cleared %}alert-success{% else %}alert-danger{% endif %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="ri-{% if report.is_eligible and report.is_financially_cleared %}checkbox-circle-fill{% else %}error-warning-fill{% endif %} me-2 fs-4"></i>
+                                                        <div>
+                                                            <strong>
+                                                                {% if report.is_eligible and report.is_financially_cleared %}
+                                                                Student is eligible to progress
+                                                                {% else %}
+                                                                Student is NOT eligible to progress
+                                                                {% endif %}
+                                                            </strong>
+                                                            <br>
+                                                            <small class="text-muted">{{ report.eligibility_remarks }}</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Additional Remarks -->
                                         {% if report.remarks %}
-                                        <h6 class="mt-3">Additional Remarks</h6>
-                                        <p>{{ report.remarks }}</p>
+                                        <div class="section-card mt-4">
+                                            <div class="section-header">
+                                                <h6 class="section-title">Additional Remarks</h6>
+                                            </div>
+                                            <div class="section-body">
+                                                <p class="mb-0">{{ report.remarks }}</p>
+                                            </div>
+                                        </div>
                                         {% endif %}
                                     </div>
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
                                         {% if report.is_eligible and report.is_financially_cleared %}
                                         <button type="button" class="btn btn-success" onclick="approveReport({{ report.id }}); $('#viewReportModal{{ report.id }}').modal('hide');">
-                                            Approve Report
+                                            <i class="ri-check-line me-2"></i> Approve Report
                                         </button>
                                         {% endif %}
                                     </div>
@@ -262,9 +441,12 @@
                         </div>
                         {% empty %}
                         <tr>
-                            <td colspan="11" class="text-center py-4">
-                                <i class="ri-file-list-line display-4 text-muted"></i>
-                                <p class="text-muted mt-2">No pending semester reports</p>
+                            <td colspan="10" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-list-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No pending semester reports</h5>
+                                    <p class="text-muted mb-0">All semester reports have been processed</p>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
@@ -275,40 +457,78 @@
     </div>
 
     <!-- Recently Approved Reports -->
-    <div class="card">
+    <div class="analytics-card">
         <div class="card-header">
-            <h5>Recently Approved Reports</h5>
+            <h5 class="card-title">Recently Approved Reports</h5>
+            <div class="card-subtitle">Last 50 approved semester reports</div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-sm">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>Date</th>
+                            <th class="ps-4">Date</th>
                             <th>Reg Number</th>
                             <th>Student</th>
                             <th>Programme</th>
                             <th>Progression</th>
-                            <th>Approved By</th>
+                            <th class="pe-4">Approved By</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for report in approved_reports %}
                         <tr>
-                            <td>{{ report.approval_date|date:"d/m/Y H:i" }}</td>
-                            <td>{{ report.student.registration_number }}</td>
-                            <td>{{ report.student.user.get_full_name }}</td>
-                            <td>{{ report.student.programme.code }}</td>
-                            <td>
-                                Y{{ report.from_year_of_study|default:"-" }}S{{ report.from_semester_number|default:"-" }} 
-                                → 
-                                Y{{ report.to_year_of_study }}S{{ report.to_semester_number }}
+                            <td class="ps-4">
+                                <div class="date-display">
+                                    {{ report.approval_date|date:"d/m/Y" }}<br>
+                                    <small class="text-muted">{{ report.approval_date|time:"H:i" }}</small>
+                                </div>
                             </td>
-                            <td>{{ report.approved_by.get_full_name|default:"-" }}</td>
+                            <td>
+                                <strong>{{ report.student.registration_number }}</strong>
+                            </td>
+                            <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-2">
+                                            <img src="{% if report.student.user.profile_picture %}{{ report.student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                                                 alt="{{ report.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ report.student.user.get_full_name }}</h6>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ report.student.programme.code }}</strong>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="progression-info">
+                                    <span class="badge bg-secondary-subtle text-secondary me-1">
+                                        Y{{ report.from_year_of_study|default:"-" }}S{{ report.from_semester_number|default:"-" }}
+                                    </span>
+                                    <i class="ri-arrow-right-line text-muted"></i>
+                                    <span class="badge bg-info-subtle text-info ms-1">
+                                        Y{{ report.to_year_of_study }}S{{ report.to_semester_number }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="approver-info">
+                                    {{ report.approved_by.get_full_name|default:"System" }}
+                                </div>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center">No recently approved reports</td>
+                            <td colspan="6" class="text-center py-4">
+                                <i class="ri-history-line fs-3 text-muted mb-2 d-block"></i>
+                                <p class="text-muted mb-0">No recently approved reports</p>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -318,12 +538,398 @@
     </div>
 </div>
 
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Student Avatar */
+    .student-avatar {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    /* GPA Display */
+    .gpa-display {
+        text-align: center;
+    }
+    
+    .gpa-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    .btn-icon:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .btn-icon:disabled:hover {
+        transform: none;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Section Cards (for modals) */
+    .section-card {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    .section-header {
+        padding: 0.875rem 1rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0;
+    }
+    
+    .section-body {
+        padding: 1rem;
+    }
+    
+    /* Info Items (for modals) */
+    .info-item {
+        margin-bottom: 0.75rem;
+    }
+    
+    .info-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    /* Alerts */
+    .alert {
+        border: none;
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin: 0;
+    }
+    
+    .alert-success {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+        border-left: 4px solid var(--color-success);
+    }
+    
+    .alert-danger {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+        border-left: 4px solid #F44336;
+    }
+    
+    /* Checkbox */
+    .form-check-input:checked {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .form-check-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(46, 125, 50, 0.25);
+        border-color: var(--color-primary);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-success {
+        background: var(--color-success);
+        border: 2px solid var(--color-success);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #388E3C;
+        border-color: #388E3C;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-success:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .btn-success:disabled:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+</style>
+
 <script>
-// Select all functionality
-document.getElementById('selectAll')?.addEventListener('change', function() {
-    document.querySelectorAll('.report-checkbox').forEach(checkbox => {
-        checkbox.checked = this.checked;
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    // Select all functionality
+    const selectAll = document.getElementById('selectAll');
+    if (selectAll) {
+        selectAll.addEventListener('change', function() {
+            document.querySelectorAll('.report-checkbox:not(:disabled)').forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+        });
+    }
 });
 
 function approveReport(reportId) {
@@ -341,15 +947,15 @@ function approveReport(reportId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Semester report approved successfully');
-            location.reload();
+            showToast('Semester report approved successfully', 'success');
+            setTimeout(() => location.reload(), 1500);
         } else {
-            alert('Error: ' + data.error);
+            showToast('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred');
+        showToast('An error occurred while approving the report', 'error');
     });
 }
 
@@ -357,15 +963,34 @@ function rejectReport(reportId) {
     const reason = prompt('Enter reason for rejection:');
     if (!reason) return;
 
-    // Add rejection logic here
-    alert('Report rejected');
+    fetch(`/registrar/semester-reports/${reportId}/reject/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason: reason })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Semester report rejected', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while rejecting the report', 'error');
+    });
 }
 
 function bulkApprove() {
     const selectedReports = Array.from(document.querySelectorAll('.report-checkbox:checked')).map(cb => cb.value);
     
     if (selectedReports.length === 0) {
-        alert('Please select at least one report');
+        showToast('Please select at least one report', 'error');
         return;
     }
 
@@ -373,9 +998,27 @@ function bulkApprove() {
         return;
     }
 
-    // Add bulk approval logic here
-    alert(`${selectedReports.length} reports approved`);
-    location.reload();
+    fetch('/registrar/semester-reports/bulk-approve/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken'),
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ report_ids: selectedReports })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`${selectedReports.length} report(s) approved successfully`, 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('An error occurred while approving reports', 'error');
+    });
 }
 
 function getCookie(name) {
@@ -392,5 +1035,117 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="ri-${type === 'success' ? 'checkbox-circle' : type === 'error' ? 'error-warning' : 'information'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close">&times;</button>
+    `;
+    
+    // Add to body
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    }, 5000);
+    
+    // Close button
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    });
+}
+
+// Add toast styles
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
+    .toast-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 300px;
+        max-width: 400px;
+        box-shadow: var(--shadow-lg);
+        transform: translateX(120%);
+        transition: transform 0.3s ease;
+        z-index: 9999;
+    }
+    
+    .toast-notification.show {
+        transform: translateX(0);
+    }
+    
+    .toast-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .toast-content i {
+        font-size: 1.25rem;
+    }
+    
+    .toast-success {
+        border-left: 4px solid var(--color-success);
+    }
+    
+    .toast-success i {
+        color: var(--color-success);
+    }
+    
+    .toast-error {
+        border-left: 4px solid #F44336;
+    }
+    
+    .toast-error i {
+        color: #F44336;
+    }
+    
+    .toast-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--color-gray-600);
+        cursor: pointer;
+        padding: 0;
+        margin-left: 1rem;
+        line-height: 1;
+    }
+    
+    .toast-close:hover {
+        color: var(--color-gray-800);
+    }
+`;
+document.head.appendChild(toastStyles);
 </script>
 {% endblock %}

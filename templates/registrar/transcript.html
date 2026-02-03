@@ -3,226 +3,401 @@
 
 {% block title %}Transcript - {{ student.registration_number }}{% endblock %}
 
-{% block page_title %}Student Transcript{% endblock %}
-{% block page_subtitle %}{{ student.registration_number }} - {{ student.user.get_full_name }}{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    @media print {
+        .breadcrumb, .action-bar, .dashboard-header .text-end, .no-print {
+            display: none !important;
+        }
+        
+        .transcript-card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        body {
+            background: white !important;
+        }
+        
+        .dashboard-container {
+            padding: 0 !important;
+        }
+        
+        .transcript-header {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'registrar_student_list' %}">Students</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'registrar_student_detail' student.id %}">{{ student.registration_number }}</a></li>
-        <li class="breadcrumb-item active">Transcript</li>
-    </ol>
-</nav>
-
-<div class="container-fluid">
-    <!-- Actions -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="btn-group">
-                <button onclick="window.print()" class="btn btn-primary">
-                    <i class="ri-printer-line"></i> Print
-                </button>
-                <a href="{% url 'download_full_transcript' student.id %}" class="btn btn-success">
-                    <i class="ri-download-line"></i> Download PDF
-                </a>
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Student Transcript</h1>
+                <p class="text-muted mb-0">{{ student.registration_number }} - {{ student.user.get_full_name }}</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-file-text-line me-2"></i>
+                    {{ results|length }} Unit(s)
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Transcript -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card transcript-card">
-                <div class="card-body">
-                    <!-- Header -->
-                    <div class="transcript-header text-center">
+    <!-- Action Bar -->
+    <div class="analytics-card mb-4 no-print">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center action-bar">
+                <div>
+                    <button onclick="window.print()" class="btn btn-primary">
+                        <i class="ri-printer-line me-2"></i> Print Transcript
+                    </button>
+                    <button onclick="downloadPDF()" class="btn btn-success ms-2">
+                        <i class="ri-download-line me-2"></i> Download PDF
+                    </button>
+                </div>
+                <div>
+                    <a href="{% url 'registrar_student_detail' student.id %}" class="btn btn-outline-secondary">
+                        <i class="ri-arrow-left-line me-2"></i> Back to Student
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transcript Card -->
+    <div class="analytics-card transcript-card">
+        <div class="card-body">
+            <!-- University Header -->
+            <div class="transcript-header text-center mb-4">
+                <div class="university-logo mb-3">
+                    <img src="{% static 'university-logo.png' %}" alt="University Logo" height="60" class="no-print">
+                    <div class="print-only" style="display: none;">
                         <h4>UNIVERSITY NAME</h4>
-                        <h5>OFFICIAL ACADEMIC TRANSCRIPT</h5>
-                        <p>Date Generated: {{ generated_date|date:"F d, Y" }}</p>
                     </div>
+                </div>
+                <h3 class="mb-2" style="color: var(--color-primary);">OFFICIAL ACADEMIC TRANSCRIPT</h3>
+                <p class="text-muted mb-0">
+                    <i class="ri-calendar-line me-1"></i>
+                    Generated on {{ generated_date|date:"F d, Y" }} at {{ generated_date|time:"g:i A" }}
+                </p>
+            </div>
 
-                    <hr>
+            <hr class="mb-4">
 
-                    <!-- Student Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <table class="table table-sm table-borderless">
-                                <tr>
-                                    <th width="40%">Student Name:</th>
-                                    <td>{{ student.user.get_full_name|upper }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Registration Number:</th>
-                                    <td>{{ student.registration_number }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Programme:</th>
-                                    <td>{{ student.programme.name }}</td>
-                                </tr>
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <table class="table table-sm table-borderless">
-                                <tr>
-                                    <th width="40%">Date of Birth:</th>
-                                    <td>{{ student.date_of_birth|date:"F d, Y" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Admission Date:</th>
-                                    <td>{{ student.admission_date|date:"F d, Y" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Current Status:</th>
-                                    <td>{{ student.get_student_status_display }}</td>
-                                </tr>
-                            </table>
+            <!-- Student Information -->
+            <div class="student-info-section mb-5">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="info-card">
+                            <div class="info-card-header">
+                                <h6 class="mb-0">Student Details</h6>
+                            </div>
+                            <div class="info-card-body">
+                                <div class="info-item">
+                                    <span class="info-label">Student Name</span>
+                                    <span class="info-value">{{ student.user.get_full_name|upper }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Registration Number</span>
+                                    <span class="info-value">{{ student.registration_number }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Programme</span>
+                                    <span class="info-value">{{ student.programme.name }} ({{ student.programme.code }})</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Date of Birth</span>
+                                    <span class="info-value">{{ student.date_of_birth|date:"F d, Y" }}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
+                    <div class="col-md-6">
+                        <div class="info-card">
+                            <div class="info-card-header">
+                                <h6 class="mb-0">Academic Information</h6>
+                            </div>
+                            <div class="info-card-body">
+                                <div class="info-item">
+                                    <span class="info-label">Admission Date</span>
+                                    <span class="info-value">{{ student.admission_date|date:"F d, Y" }}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Current Status</span>
+                                    <span class="info-value">
+                                        {% if student.student_status == 'active' %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% elif student.student_status == 'graduated' %}
+                                        <span class="badge bg-primary">Graduated</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Current Year/Semester</span>
+                                    <span class="info-value">
+                                        Year {{ student.current_year }}, Semester {{ student.current_semester }}
+                                    </span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">Cumulative GPA</span>
+                                    <span class="info-value">
+                                        <span class="gpa-value-large {% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                                            {{ student.cumulative_gpa }}
+                                        </span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                    <!-- Results by Academic Year -->
-                    {% regroup results by academic_year as results_by_year %}
-                    {% for year_group in results_by_year %}
-                    <div class="academic-year-section mb-4">
-                        <h6 class="bg-light p-2">{{ year_group.grouper.name }}</h6>
+            <!-- Academic Results -->
+            <div class="academic-results-section">
+                <h4 class="section-title mb-4">Academic Performance</h4>
+                
+                {% regroup results by academic_year as results_by_year %}
+                {% for year_group in results_by_year %}
+                <div class="year-section mb-5">
+                    <div class="year-header mb-3">
+                        <h5 class="text-primary mb-0">{{ year_group.grouper.name }}</h5>
+                    </div>
+                    
+                    {% regroup year_group.list by semester as results_by_semester %}
+                    {% for semester_group in results_by_semester %}
+                    <div class="semester-section mb-4">
+                        <div class="semester-header mb-3">
+                            <h6 class="mb-0">{{ semester_group.grouper.name }}</h6>
+                        </div>
                         
-                        {% regroup year_group.list by semester as results_by_semester %}
-                        {% for semester_group in results_by_semester %}
-                        <div class="semester-section mb-3">
-                            <h6>{{ semester_group.grouper.name }}</h6>
-                            
-                            <table class="table table-sm table-bordered">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover transcript-table">
                                 <thead>
                                     <tr>
-                                        <th>Unit Code</th>
+                                        <th class="ps-3">Unit Code</th>
                                         <th>Unit Name</th>
-                                        <th>Credit Hours</th>
-                                        <th>Total Marks</th>
-                                        <th>Grade</th>
-                                        <th>Grade Point</th>
-                                        <th>Quality Points</th>
+                                        <th class="text-center">Credit Hours</th>
+                                        <th class="text-center">CAT</th>
+                                        <th class="text-center">Exam</th>
+                                        <th class="text-center">Total</th>
+                                        <th class="text-center">Grade</th>
+                                        <th class="text-center">Points</th>
+                                        <th class="text-center pe-3">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for result in semester_group.list %}
                                     <tr>
-                                        <td>{{ result.programme_unit.unit.code }}</td>
-                                        <td>{{ result.programme_unit.unit.name }}</td>
-                                        <td class="text-center">{{ result.credit_hours }}</td>
-                                        <td class="text-center">{{ result.total_marks }}</td>
-                                        <td class="text-center">{{ result.grade }}</td>
-                                        <td class="text-center">{{ result.grade_point }}</td>
-                                        <td class="text-center">{{ result.quality_points }}</td>
+                                        <td class="ps-3">
+                                            <code>{{ result.programme_unit.unit.code }}</code>
+                                        </td>
+                                        <td>
+                                            <strong>{{ result.programme_unit.unit.name }}</strong>
+                                            <small class="text-muted d-block">
+                                                {{ result.programme_unit.get_unit_type_display }}
+                                            </small>
+                                        </td>
+                                        <td class="text-center fw-medium">
+                                            {{ result.credit_hours }}
+                                        </td>
+                                        <td class="text-center">
+                                            {{ result.cat_marks|default:"-" }}
+                                        </td>
+                                        <td class="text-center">
+                                            {{ result.exam_marks|default:"-" }}
+                                        </td>
+                                        <td class="text-center fw-bold">
+                                            {{ result.total_marks|default:"-" }}
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="grade-badge grade-{{ result.grade|lower }}">
+                                                {{ result.grade }}
+                                            </span>
+                                        </td>
+                                        <td class="text-center fw-medium">
+                                            {{ result.grade_point|default:"-" }}
+                                        </td>
+                                        <td class="text-center pe-3">
+                                            {% if result.is_passed %}
+                                            <span class="badge bg-success">Pass</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Fail</span>
+                                            {% endif %}
+                                            {% if result.is_supplementary %}
+                                            <span class="badge bg-warning ms-1">Supp</span>
+                                            {% endif %}
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
                             </table>
-
-                            <!-- Semester GPA -->
-                            {% for gpa in gpas %}
-                            {% if gpa.semester == semester_group.grouper %}
-                            <table class="table table-sm table-borderless">
-                                <tr>
-                                    <td width="60%"></td>
-                                    <td><strong>Semester Credit Hours:</strong></td>
-                                    <td>{{ gpa.total_credit_hours }}</td>
-                                </tr>
-                                <tr>
-                                    <td></td>
-                                    <td><strong>Semester GPA:</strong></td>
-                                    <td><strong>{{ gpa.semester_gpa }}</strong></td>
-                                </tr>
-                                <tr>
-                                    <td></td>
-                                    <td><strong>Cumulative GPA:</strong></td>
-                                    <td><strong>{{ gpa.cumulative_gpa }}</strong></td>
-                                </tr>
-                            </table>
-                            {% endif %}
-                            {% endfor %}
                         </div>
+
+                        <!-- Semester Summary -->
+                        {% for gpa in gpas %}
+                        {% if gpa.semester == semester_group.grouper %}
+                        <div class="semester-summary mt-3">
+                            <div class="row">
+                                <div class="col-md-8"></div>
+                                <div class="col-md-4">
+                                    <div class="summary-card">
+                                        <div class="summary-item">
+                                            <span class="summary-label">Semester Credits:</span>
+                                            <span class="summary-value">{{ gpa.total_credit_hours }}</span>
+                                        </div>
+                                        <div class="summary-item">
+                                            <span class="summary-label">Semester GPA:</span>
+                                            <span class="summary-value fw-bold">{{ gpa.semester_gpa }}</span>
+                                        </div>
+                                        <div class="summary-item">
+                                            <span class="summary-label">Cumulative GPA:</span>
+                                            <span class="summary-value fw-bold text-primary">{{ gpa.cumulative_gpa }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                         {% endfor %}
                     </div>
                     {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
 
-                    <!-- Summary -->
-                    <div class="transcript-summary mt-4">
-                        <table class="table table-sm table-bordered">
-                            <tr>
-                                <th width="70%">Total Credit Hours Earned:</th>
-                                <td>{{ student.total_credit_hours }}</td>
-                            </tr>
-                            <tr>
-                                <th>Cumulative GPA:</th>
-                                <td><strong>{{ student.cumulative_gpa }}</strong></td>
-                            </tr>
-                        </table>
+            <!-- Overall Summary -->
+            <div class="overall-summary-section mt-5">
+                <div class="summary-card-large">
+                    <div class="summary-header">
+                        <h5 class="mb-0">Academic Summary</h5>
                     </div>
-
-                    <!-- Grading Scale -->
-                    <div class="grading-scale mt-4">
-                        <h6>Grading Scale</h6>
-                        <table class="table table-sm table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Grade</th>
-                                    <th>Range</th>
-                                    <th>Grade Point</th>
-                                    <th>Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>A</td>
-                                    <td>70-100</td>
-                                    <td>4.0</td>
-                                    <td>Excellent</td>
-                                </tr>
-                                <tr>
-                                    <td>B</td>
-                                    <td>60-69</td>
-                                    <td>3.0</td>
-                                    <td>Good</td>
-                                </tr>
-                                <tr>
-                                    <td>C</td>
-                                    <td>50-59</td>
-                                    <td>2.0</td>
-                                    <td>Satisfactory</td>
-                                </tr>
-                                <tr>
-                                    <td>D</td>
-                                    <td>40-49</td>
-                                    <td>1.0</td>
-                                    <td>Pass</td>
-                                </tr>
-                                <tr>
-                                    <td>E</td>
-                                    <td>0-39</td>
-                                    <td>0.0</td>
-                                    <td>Fail</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Certification -->
-                    <div class="certification mt-5">
-                        <p><em>This is an official transcript and is valid only with the University seal and signature.</em></p>
-                        
-                        <div class="row mt-5">
-                            <div class="col-6">
-                                <div class="signature-line">
-                                    <p>_________________________</p>
-                                    <p><strong>Registrar</strong></p>
-                                    <p>Date: ________________</p>
+                    <div class="summary-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="summary-item-large">
+                                    <div class="summary-icon">
+                                        <i class="ri-book-open-line"></i>
+                                    </div>
+                                    <div>
+                                        <div class="summary-label">Total Credit Hours Earned</div>
+                                        <div class="summary-value">{{ student.total_credit_hours }}</div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-6 text-center">
-                                <p>[University Seal]</p>
+                            <div class="col-md-6">
+                                <div class="summary-item-large">
+                                    <div class="summary-icon">
+                                        <i class="ri-trophy-line"></i>
+                                    </div>
+                                    <div>
+                                        <div class="summary-label">Final Cumulative GPA</div>
+                                        <div class="summary-value gpa-final">
+                                            {{ student.cumulative_gpa }}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grading Scale -->
+            <div class="grading-scale-section mt-5">
+                <h5 class="section-title mb-3">Grading Scale</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered grading-scale-table">
+                        <thead>
+                            <tr>
+                                <th>Grade</th>
+                                <th>Marks Range</th>
+                                <th>Grade Points</th>
+                                <th>Description</th>
+                                <th>Quality Points</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="grade-badge grade-a">A</span></td>
+                                <td>70 - 100</td>
+                                <td>4.0</td>
+                                <td>Excellent</td>
+                                <td>4.0 x Credit Hours</td>
+                            </tr>
+                            <tr>
+                                <td><span class="grade-badge grade-b">B</span></td>
+                                <td>60 - 69</td>
+                                <td>3.0</td>
+                                <td>Good</td>
+                                <td>3.0 x Credit Hours</td>
+                            </tr>
+                            <tr>
+                                <td><span class="grade-badge grade-c">C</span></td>
+                                <td>50 - 59</td>
+                                <td>2.0</td>
+                                <td>Satisfactory</td>
+                                <td>2.0 x Credit Hours</td>
+                            </tr>
+                            <tr>
+                                <td><span class="grade-badge grade-d">D</span></td>
+                                <td>40 - 49</td>
+                                <td>1.0</td>
+                                <td>Pass</td>
+                                <td>1.0 x Credit Hours</td>
+                            </tr>
+                            <tr>
+                                <td><span class="grade-badge grade-f">E/F</span></td>
+                                <td>0 - 39</td>
+                                <td>0.0</td>
+                                <td>Fail</td>
+                                <td>0.0 x Credit Hours</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Certification & Footer -->
+            <div class="transcript-footer mt-5 pt-4 border-top">
+                <div class="certification-section">
+                    <p class="text-muted mb-4">
+                        <i class="ri-information-line me-2"></i>
+                        This is an official transcript. It is valid only with the University seal and authorized signature.
+                    </p>
+                    
+                    <div class="row mt-5">
+                        <div class="col-md-6">
+                            <div class="signature-area">
+                                <div class="signature-line mb-3"></div>
+                                <p class="mb-1"><strong>Registrar</strong></p>
+                                <p class="text-muted">University Name</p>
+                                <p class="text-muted mb-0">Date: {{ generated_date|date:"F d, Y" }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center">
+                            <div class="university-seal">
+                                <div class="seal-circle">
+                                    <i class="ri-seal-line fs-1"></i>
+                                </div>
+                                <p class="mt-2 text-muted">University Seal</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="verification-info mt-4 pt-3 border-top">
+                        <p class="small text-muted mb-0">
+                            <i class="ri-shield-keyhole-line me-1"></i>
+                            Verification Code: {{ student.registration_number }}-{{ generated_date|date:"Ymd" }}
+                        </p>
                     </div>
                 </div>
             </div>
@@ -231,15 +406,514 @@
 </div>
 
 <style>
-@media print {
-    .breadcrumb, .btn-group, .card-header {
-        display: none;
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
     }
     
-    .transcript-card {
-        border: none;
-        box-shadow: none;
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
     }
-}
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-body {
+        padding: 2rem;
+    }
+    
+    /* Transcript Header */
+    .transcript-header {
+        text-align: center;
+        padding: 1rem 0;
+    }
+    
+    .transcript-header h3 {
+        color: var(--color-primary);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .university-logo {
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Info Cards */
+    .info-card {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .info-card-header {
+        padding: 0.75rem 1rem;
+        background: var(--color-primary-light);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-card-body {
+        padding: 1rem;
+    }
+    
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+    }
+    
+    .info-value {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        text-align: right;
+    }
+    
+    /* GPA Value */
+    .gpa-value-large {
+        font-size: 1.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .gpa-final {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--color-primary);
+    }
+    
+    /* Section Titles */
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-primary);
+    }
+    
+    /* Year and Semester Headers */
+    .year-header {
+        padding: 0.75rem 1rem;
+        background: var(--color-primary-light);
+        border-radius: var(--radius-md);
+        border-left: 4px solid var(--color-primary);
+    }
+    
+    .semester-header {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-300);
+        margin-bottom: 1rem;
+    }
+    
+    /* Transcript Table */
+    .transcript-table {
+        font-size: 0.875rem;
+    }
+    
+    .transcript-table thead th {
+        background: var(--color-gray-100);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-bottom: 2px solid var(--color-gray-300);
+    }
+    
+    .transcript-table tbody td {
+        vertical-align: middle;
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .transcript-table tbody tr:hover {
+        background-color: var(--color-primary-light);
+    }
+    
+    /* Grade Badges */
+    .grade-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        min-width: 32px;
+        text-align: center;
+    }
+    
+    .grade-a { background: #4CAF50; color: white; }
+    .grade-b { background: #8BC34A; color: white; }
+    .grade-c { background: #FFC107; color: #333; }
+    .grade-d { background: #FF9800; color: white; }
+    .grade-e { background: #F44336; color: white; }
+    .grade-f { background: #D32F2F; color: white; }
+    
+    /* Summary Cards */
+    .summary-card {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+    }
+    
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .summary-item:last-child {
+        border-bottom: none;
+    }
+    
+    .summary-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    .summary-value {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Large Summary Card */
+    .summary-card-large {
+        background: var(--color-primary-light);
+        border: 1px solid var(--color-primary);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .summary-header {
+        padding: 1rem;
+        background: var(--color-primary);
+        color: white;
+    }
+    
+    .summary-body {
+        padding: 1.5rem;
+    }
+    
+    .summary-item-large {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .summary-icon {
+        width: 48px;
+        height: 48px;
+        background: white;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: var(--color-primary);
+    }
+    
+    /* Grading Scale Table */
+    .grading-scale-table {
+        font-size: 0.875rem;
+    }
+    
+    .grading-scale-table thead th {
+        background: var(--color-gray-100);
+        font-weight: 600;
+    }
+    
+    .grading-scale-table tbody td {
+        vertical-align: middle;
+    }
+    
+    /* Transcript Footer */
+    .transcript-footer {
+        border-top: 2px solid var(--color-gray-300);
+    }
+    
+    .signature-area {
+        padding-top: 2rem;
+    }
+    
+    .signature-line {
+        width: 200px;
+        height: 1px;
+        background: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+    }
+    
+    .university-seal {
+        padding-top: 2rem;
+    }
+    
+    .seal-circle {
+        width: 100px;
+        height: 100px;
+        border: 2px solid var(--color-gray-800);
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: var(--color-gray-800);
+    }
+    
+    .verification-info {
+        font-size: 0.875rem;
+    }
+    
+    /* Print Styles */
+    @media print {
+        .transcript-header {
+            margin-top: 0;
+            padding-top: 0;
+        }
+        
+        .transcript-header h3 {
+            font-size: 1.5rem;
+        }
+        
+        .card-body {
+            padding: 1rem;
+        }
+        
+        .info-card {
+            break-inside: avoid;
+        }
+        
+        .year-section {
+            break-inside: avoid;
+        }
+        
+        .semester-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        
+        .transcript-table {
+            font-size: 0.75rem;
+        }
+        
+        .summary-card-large {
+            border: 2px solid #000;
+        }
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border: 2px solid var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-success {
+        background: var(--color-success);
+        border: 2px solid var(--color-success);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #388E3C;
+        border-color: #388E3C;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border: 2px solid var(--color-gray-400);
+        color: var(--color-gray-600);
+        background: transparent;
+    }
+    
+    .btn-outline-secondary:hover {
+        background: var(--color-gray-200);
+        color: var(--color-gray-800);
+        border-color: var(--color-gray-400);
+    }
 </style>
+
+<script>
+function downloadPDF() {
+    showToast('PDF download will be available soon', 'info');
+    // Implement PDF download functionality
+    // window.location.href = '/transcript/{{ student.id }}/pdf/';
+}
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="ri-${type === 'success' ? 'checkbox-circle' : type === 'error' ? 'error-warning' : 'information'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close">&times;</button>
+    `;
+    
+    // Add to body
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    }, 5000);
+    
+    // Close button
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    });
+}
+
+// Add toast styles
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
+    .toast-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 300px;
+        max-width: 400px;
+        box-shadow: var(--shadow-lg);
+        transform: translateX(120%);
+        transition: transform 0.3s ease;
+        z-index: 9999;
+    }
+    
+    .toast-notification.show {
+        transform: translateX(0);
+    }
+    
+    .toast-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .toast-content i {
+        font-size: 1.25rem;
+    }
+    
+    .toast-success {
+        border-left: 4px solid var(--color-success);
+    }
+    
+    .toast-success i {
+        color: var(--color-success);
+    }
+    
+    .toast-info {
+        border-left: 4px solid var(--color-info);
+    }
+    
+    .toast-info i {
+        color: var(--color-info);
+    }
+    
+    .toast-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--color-gray-600);
+        cursor: pointer;
+        padding: 0;
+        margin-left: 1rem;
+        line-height: 1;
+    }
+    
+    .toast-close:hover {
+        color: var(--color-gray-800);
+    }
+`;
+document.head.appendChild(toastStyles);
+</script>
 {% endblock %}

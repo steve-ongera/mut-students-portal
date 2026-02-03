@@ -1,62 +1,154 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
-
 {% load static %}
 
 {% block title %}{{ student.registration_number }} - Student Details{% endblock %}
 
-{% block page_title %}Student Details{% endblock %}
-{% block page_subtitle %}{{ student.user.get_full_name }} - {{ student.registration_number }}{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
-        <li class="breadcrumb-item"><a href="{% url 'registrar_student_list' %}">Students</a></li>
-        <li class="breadcrumb-item active">{{ student.registration_number }}</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Student Details</h1>
+                <p class="text-muted mb-0">{{ student.user.get_full_name }} - {{ student.registration_number }}</p>
+            </div>
+            <div class="text-end">
+                <div class="d-flex gap-2">
+                    <a href="{% url 'registrar_student_list' %}" class="btn btn-outline-primary">
+                        <i class="ri-arrow-left-line me-2"></i> Back to Students
+                    </a>
+                    <a href="{% url 'registrar_transcript' student.id %}" class="btn btn-success">
+                        <i class="ri-file-text-line me-2"></i> Generate Transcript
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="container-fluid">
-    <!-- Student Header -->
-    <div class="card mb-4">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-2 text-center">
-                    {% if student.user.profile_picture %}
-                    <img src="{{ student.user.profile_picture.url }}" class="rounded-circle img-fluid" width="150">
-                    {% else %}
-                    <img src="{% static 'avatar2.png' %}" class="rounded-circle img-fluid" width="150">
-                    {% endif %}
-                </div>
-                <div class="col-md-7">
-                    <h3>{{ student.user.get_full_name }}</h3>
-                    <p class="text-muted mb-1">{{ student.registration_number }}</p>
-                    <p class="mb-1"><strong>Programme:</strong> {{ student.programme.name }} ({{ student.programme.code }})</p>
-                    <p class="mb-1"><strong>Year/Semester:</strong> Year {{ student.current_year }}, Semester {{ student.current_semester }}</p>
-                    <p class="mb-1"><strong>Intake:</strong> {{ student.intake.name }}</p>
-                    <p class="mb-1">
-                        <strong>Status:</strong>
-                        {% if student.student_status == 'active' %}
-                        <span class="badge bg-success">Active</span>
-                        {% elif student.student_status == 'suspended' %}
-                        <span class="badge bg-danger">Suspended</span>
-                        {% elif student.student_status == 'graduated' %}
-                        <span class="badge bg-primary">Graduated</span>
-                        {% else %}
-                        <span class="badge bg-secondary">{{ student.get_student_status_display }}</span>
-                        {% endif %}
-                    </p>
-                </div>
-                <div class="col-md-3 text-end">
-                    <h4 class="text-success">GPA: {{ student.cumulative_gpa }}</h4>
-                    <p class="text-muted">Credits: {{ student.total_credit_hours }}</p>
-                    <div class="btn-group-vertical w-100 mt-3">
-                        <a href="{% url 'registrar_transcript' student.id %}" class="btn btn-primary">
-                            <i class="ri-file-text-line"></i> Generate Transcript
-                        </a>
+    <!-- Student Profile Header -->
+    <div class="row mb-5">
+        <div class="col-lg-3">
+            <div class="analytics-card">
+                <div class="card-body text-center">
+                    <div class="student-avatar-large mb-3">
+                        <img src="{% if student.user.profile_picture %}{{ student.user.profile_picture.url }}{% else %}{% static 'avatar2.png' %}{% endif %}" 
+                             alt="{{ student.user.get_full_name }}" 
+                             class="rounded-circle">
+                    </div>
+                    <h4 class="mb-1">{{ student.user.get_full_name }}</h4>
+                    <p class="text-muted mb-3">{{ student.registration_number }}</p>
+                    
+                    <div class="mb-3">
+                        <div class="badge bg-primary-subtle text-primary mb-1">
+                            {{ student.programme.code }}
+                        </div>
+                        <div class="badge bg-info-subtle text-info">
+                            Year {{ student.current_year }}
+                        </div>
+                    </div>
+                    
+                    <div class="gpa-display-large mb-4">
+                        <div class="gpa-value-large {% if student.cumulative_gpa >= 3.0 %}text-success{% elif student.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ student.cumulative_gpa }}
+                        </div>
+                        <small class="text-muted">Cumulative GPA</small>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
                         <a href="{% url 'registrar_student_update' student.id %}" class="btn btn-warning">
-                            <i class="ri-edit-line"></i> Edit Student
+                            <i class="ri-edit-line me-2"></i> Edit Student
                         </a>
+                        <a href="{% url 'registrar_transcript' student.id %}" class="btn btn-primary">
+                            <i class="ri-printer-line me-2"></i> Print Transcript
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <div class="analytics-card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Programme</div>
+                                <div class="info-value">{{ student.programme.name }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Intake</div>
+                                <div class="info-value">{{ student.intake.name }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Admission Date</div>
+                                <div class="info-value">{{ student.admission_date|date:"d/m/Y" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Expected Graduation</div>
+                                <div class="info-value">{{ student.expected_graduation_date|date:"d/m/Y"|default:"Not set" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Email</div>
+                                <div class="info-value">{{ student.user.email }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Phone</div>
+                                <div class="info-value">{{ student.user.phone_number|default:"Not provided" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Gender</div>
+                                <div class="info-value">{{ student.get_gender_display }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-item">
+                                <div class="info-label">Date of Birth</div>
+                                <div class="info-value">{{ student.date_of_birth|date:"d/m/Y" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="info-item">
+                                <div class="info-label">Student Status</div>
+                                <div class="info-value">
+                                    {% if student.student_status == 'active' %}
+                                    <span class="status-badge status-active">
+                                        <i class="ri-checkbox-circle-fill me-1"></i>
+                                        Active
+                                    </span>
+                                    {% elif student.student_status == 'suspended' %}
+                                    <span class="status-badge status-suspended">
+                                        <i class="ri-error-warning-fill me-1"></i>
+                                        Suspended
+                                    </span>
+                                    {% elif student.student_status == 'graduated' %}
+                                    <span class="status-badge status-graduated">
+                                        <i class="ri-graduation-cap-fill me-1"></i>
+                                        Graduated
+                                    </span>
+                                    {% else %}
+                                    <span class="status-badge status-other">
+                                        {{ student.get_student_status_display }}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -64,106 +156,129 @@
     </div>
 
     <!-- Tabs Navigation -->
-    <ul class="nav nav-tabs mb-3" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link active" data-bs-toggle="tab" href="#personal">Personal Info</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#academic">Academic Records</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#enrollments">Enrollments</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#fees">Fee Records</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#hostel">Hostel</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#library">Library</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#progression">Progression</a>
-        </li>
-    </ul>
+    <div class="tabs-navigation mb-4">
+        <div class="nav-tabs-container">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#personal">
+                        <i class="ri-user-line me-2"></i> Personal Info
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#academic">
+                        <i class="ri-book-open-line me-2"></i> Academic
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#enrollments">
+                        <i class="ri-calendar-line me-2"></i> Enrollments
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#fees">
+                        <i class="ri-money-dollar-circle-line me-2"></i> Fees
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#hostel">
+                        <i class="ri-hotel-line me-2"></i> Hostel
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#library">
+                        <i class="ri-book-line me-2"></i> Library
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#progression">
+                        <i class="ri-trending-up-line me-2"></i> Progression
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
 
     <!-- Tab Content -->
     <div class="tab-content">
         <!-- Personal Information Tab -->
         <div class="tab-pane fade show active" id="personal">
-            <div class="card">
+            <div class="analytics-card">
                 <div class="card-header">
-                    <h5>Personal Information</h5>
+                    <h5 class="card-title">Personal Information</h5>
+                    <div class="card-subtitle">Complete personal details and contact information</div>
                 </div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-6">
-                            <table class="table table-borderless">
-                                <tr>
-                                    <th>Full Name:</th>
-                                    <td>{{ student.user.get_full_name }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Email:</th>
-                                    <td>{{ student.user.email }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Phone:</th>
-                                    <td>{{ student.user.phone_number|default:"-" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Gender:</th>
-                                    <td>{{ student.get_gender_display }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Date of Birth:</th>
-                                    <td>{{ student.date_of_birth|date:"d/m/Y" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>National ID:</th>
-                                    <td>{{ student.national_id }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Passport Number:</th>
-                                    <td>{{ student.passport_number|default:"-" }}</td>
-                                </tr>
-                            </table>
+                            <div class="details-section mb-4">
+                                <h6 class="section-title mb-3">Identity Information</h6>
+                                <div class="details-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">National ID</span>
+                                        <span class="detail-value">{{ student.national_id }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Passport Number</span>
+                                        <span class="detail-value">{{ student.passport_number|default:"Not provided" }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Date of Birth</span>
+                                        <span class="detail-value">{{ student.date_of_birth|date:"d/m/Y" }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Gender</span>
+                                        <span class="detail-value">{{ student.get_gender_display }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="details-section">
+                                <h6 class="section-title mb-3">Contact Information</h6>
+                                <div class="details-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Email</span>
+                                        <span class="detail-value">{{ student.user.email }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Phone Number</span>
+                                        <span class="detail-value">{{ student.user.phone_number|default:"Not provided" }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
                         <div class="col-md-6">
-                            <table class="table table-borderless">
-                                <tr>
-                                    <th>Admission Date:</th>
-                                    <td>{{ student.admission_date|date:"d/m/Y" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Expected Graduation:</th>
-                                    <td>{{ student.expected_graduation_date|date:"d/m/Y"|default:"-" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Current Address:</th>
-                                    <td>{{ student.current_address|default:"-" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Permanent Address:</th>
-                                    <td>{{ student.permanent_address|default:"-" }}</td>
-                                </tr>
-                                <tr>
-                                    <th colspan="2"><strong>Emergency Contact</strong></th>
-                                </tr>
-                                <tr>
-                                    <th>Name:</th>
-                                    <td>{{ student.emergency_contact_name|default:"-" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Phone:</th>
-                                    <td>{{ student.emergency_contact_phone|default:"-" }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Relationship:</th>
-                                    <td>{{ student.emergency_contact_relationship|default:"-" }}</td>
-                                </tr>
-                            </table>
+                            <div class="details-section mb-4">
+                                <h6 class="section-title mb-3">Address Information</h6>
+                                <div class="details-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Current Address</span>
+                                        <span class="detail-value">{{ student.current_address|default:"Not provided" }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Permanent Address</span>
+                                        <span class="detail-value">{{ student.permanent_address|default:"Not provided" }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="details-section">
+                                <h6 class="section-title mb-3">Emergency Contact</h6>
+                                <div class="details-grid">
+                                    <div class="detail-item">
+                                        <span class="detail-label">Contact Name</span>
+                                        <span class="detail-value">{{ student.emergency_contact_name|default:"Not provided" }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Contact Phone</span>
+                                        <span class="detail-value">{{ student.emergency_contact_phone|default:"Not provided" }}</span>
+                                    </div>
+                                    <div class="detail-item">
+                                        <span class="detail-label">Relationship</span>
+                                        <span class="detail-value">{{ student.emergency_contact_relationship|default:"Not provided" }}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -172,90 +287,111 @@
 
         <!-- Academic Records Tab -->
         <div class="tab-pane fade" id="academic">
-            <div class="card">
+            <div class="analytics-card">
                 <div class="card-header">
-                    <h5>Academic Performance</h5>
+                    <h5 class="card-title">Academic Performance</h5>
+                    <div class="card-subtitle">Semester results and cumulative performance</div>
                 </div>
                 <div class="card-body">
                     <!-- Semester GPAs -->
-                    <h6>Semester GPAs</h6>
-                    <div class="table-responsive mb-4">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Academic Year</th>
-                                    <th>Semester</th>
-                                    <th>Credits</th>
-                                    <th>Semester GPA</th>
-                                    <th>Cumulative GPA</th>
-                                    <th>Rank</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for gpa in semester_gpas %}
-                                <tr>
-                                    <td>{{ gpa.academic_year.name }}</td>
-                                    <td>{{ gpa.semester.name }}</td>
-                                    <td>{{ gpa.total_credit_hours }}</td>
-                                    <td><strong>{{ gpa.semester_gpa }}</strong></td>
-                                    <td><strong class="text-success">{{ gpa.cumulative_gpa }}</strong></td>
-                                    <td>{{ gpa.class_rank|default:"-" }}/{{ gpa.total_students|default:"-" }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center">No GPA records found</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="mb-5">
+                        <h6 class="section-title mb-3">Semester Performance</h6>
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Academic Year</th>
+                                        <th>Semester</th>
+                                        <th>Credits</th>
+                                        <th>Semester GPA</th>
+                                        <th>Cumulative GPA</th>
+                                        <th>Class Rank</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for gpa in semester_gpas %}
+                                    <tr>
+                                        <td>{{ gpa.academic_year.name }}</td>
+                                        <td>{{ gpa.semester.name }}</td>
+                                        <td>{{ gpa.total_credit_hours }}</td>
+                                        <td><strong class="text-primary">{{ gpa.semester_gpa }}</strong></td>
+                                        <td><strong class="text-success">{{ gpa.cumulative_gpa }}</strong></td>
+                                        <td>
+                                            {% if gpa.class_rank %}
+                                            <span class="badge bg-info">{{ gpa.class_rank }}/{{ gpa.total_students }}</span>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <i class="ri-file-search-line fs-3 text-muted mb-2 d-block"></i>
+                                            <p class="text-muted mb-0">No GPA records found</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                     <!-- Semester Results -->
-                    <h6>Semester Results</h6>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Year/Sem</th>
-                                    <th>Unit Code</th>
-                                    <th>Unit Name</th>
-                                    <th>CAT</th>
-                                    <th>Exam</th>
-                                    <th>Total</th>
-                                    <th>Grade</th>
-                                    <th>Points</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for result in semester_results %}
-                                <tr>
-                                    <td>{{ result.academic_year.name }} - {{ result.semester.name }}</td>
-                                    <td>{{ result.programme_unit.unit.code }}</td>
-                                    <td>{{ result.programme_unit.unit.name }}</td>
-                                    <td>{{ result.cat_marks }}</td>
-                                    <td>{{ result.exam_marks }}</td>
-                                    <td><strong>{{ result.total_marks }}</strong></td>
-                                    <td><strong>{{ result.grade }}</strong></td>
-                                    <td>{{ result.grade_point }}</td>
-                                    <td>
-                                        {% if result.is_passed %}
-                                        <span class="badge bg-success">Pass</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Fail</span>
-                                        {% endif %}
-                                        {% if result.is_supplementary %}
-                                        <span class="badge bg-warning">Supp</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="9" class="text-center">No results found</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div>
+                        <h6 class="section-title mb-3">Detailed Results</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Year/Sem</th>
+                                        <th>Unit Code</th>
+                                        <th>Unit Name</th>
+                                        <th>CAT</th>
+                                        <th>Exam</th>
+                                        <th>Total</th>
+                                        <th>Grade</th>
+                                        <th>Points</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in semester_results %}
+                                    <tr>
+                                        <td><small>{{ result.academic_year.name }} - {{ result.semester.name }}</small></td>
+                                        <td><code>{{ result.programme_unit.unit.code }}</code></td>
+                                        <td>{{ result.programme_unit.unit.name|truncatechars:25 }}</td>
+                                        <td>{{ result.cat_marks|default:"-" }}</td>
+                                        <td>{{ result.exam_marks|default:"-" }}</td>
+                                        <td><strong>{{ result.total_marks|default:"-" }}</strong></td>
+                                        <td>
+                                            <span class="grade-badge grade-{{ result.grade|lower }}">
+                                                {{ result.grade }}
+                                            </span>
+                                        </td>
+                                        <td>{{ result.grade_point|default:"-" }}</td>
+                                        <td>
+                                            {% if result.is_passed %}
+                                            <span class="badge bg-success">Pass</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">Fail</span>
+                                            {% endif %}
+                                            {% if result.is_supplementary %}
+                                            <span class="badge bg-warning ms-1">Supp</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="9" class="text-center py-4">
+                                            <i class="ri-file-search-line fs-3 text-muted mb-2 d-block"></i>
+                                            <p class="text-muted mb-0">No results found</p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -263,13 +399,14 @@
 
         <!-- Enrollments Tab -->
         <div class="tab-pane fade" id="enrollments">
-            <div class="card">
+            <div class="analytics-card">
                 <div class="card-header">
-                    <h5>Unit Enrollments</h5>
+                    <h5 class="card-title">Unit Enrollments</h5>
+                    <div class="card-subtitle">Current and historical unit registrations</div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table">
+                        <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th>Semester</th>
@@ -285,26 +422,33 @@
                                 {% for enrollment in enrollments %}
                                 <tr>
                                     <td>{{ enrollment.semester.name }}</td>
-                                    <td>{{ enrollment.programme_unit.unit.code }}</td>
+                                    <td><code>{{ enrollment.programme_unit.unit.code }}</code></td>
                                     <td>{{ enrollment.programme_unit.unit.name }}</td>
                                     <td>{{ enrollment.programme_unit.unit.credit_hours }}</td>
-                                    <td>{{ enrollment.programme_unit.get_unit_type_display }}</td>
+                                    <td>
+                                        <span class="badge {% if enrollment.programme_unit.unit_type == 'core' %}bg-primary{% else %}bg-secondary{% endif %}">
+                                            {{ enrollment.programme_unit.get_unit_type_display }}
+                                        </span>
+                                    </td>
                                     <td>
                                         {% if enrollment.status == 'approved' %}
-                                        <span class="badge bg-success">Approved</span>
+                                        <span class="status-badge status-active">Approved</span>
                                         {% elif enrollment.status == 'pending' %}
-                                        <span class="badge bg-warning">Pending</span>
+                                        <span class="status-badge status-pending">Pending</span>
                                         {% elif enrollment.status == 'rejected' %}
-                                        <span class="badge bg-danger">Rejected</span>
+                                        <span class="status-badge status-suspended">Rejected</span>
                                         {% else %}
                                         <span class="badge bg-secondary">{{ enrollment.get_status_display }}</span>
                                         {% endif %}
                                     </td>
-                                    <td>{{ enrollment.created_at|date:"d/m/Y" }}</td>
+                                    <td><small>{{ enrollment.created_at|date:"d/m/Y" }}</small></td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="7" class="text-center">No enrollments found</td>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="ri-calendar-line fs-3 text-muted mb-2 d-block"></i>
+                                        <p class="text-muted mb-0">No enrollments found</p>
+                                    </td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -317,14 +461,15 @@
         <!-- Fees Tab -->
         <div class="tab-pane fade" id="fees">
             <div class="row">
-                <div class="col-md-6 mb-3">
-                    <div class="card">
+                <div class="col-lg-6">
+                    <div class="analytics-card h-100">
                         <div class="card-header">
-                            <h5>Fee Payments</h5>
+                            <h5 class="card-title">Fee Payments</h5>
+                            <div class="card-subtitle">Payment history and receipts</div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-sm">
+                                <table class="table table-sm table-hover">
                                     <thead>
                                         <tr>
                                             <th>Date</th>
@@ -337,15 +482,18 @@
                                     <tbody>
                                         {% for payment in fee_payments %}
                                         <tr>
-                                            <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                                            <td><small>{{ payment.payment_date|date:"d/m/Y" }}</small></td>
                                             <td>{{ payment.semester.name }}</td>
-                                            <td>KES {{ payment.amount }}</td>
-                                            <td>{{ payment.get_payment_method_display }}</td>
-                                            <td>{{ payment.receipt_number|default:"-" }}</td>
+                                            <td class="fw-medium text-success">KES {{ payment.amount }}</td>
+                                            <td><span class="badge bg-info-subtle text-info">{{ payment.get_payment_method_display }}</span></td>
+                                            <td><code>{{ payment.receipt_number|default:"-" }}</code></td>
                                         </tr>
                                         {% empty %}
                                         <tr>
-                                            <td colspan="5" class="text-center">No payments recorded</td>
+                                            <td colspan="5" class="text-center py-4">
+                                                <i class="ri-money-dollar-circle-line fs-3 text-muted mb-2 d-block"></i>
+                                                <p class="text-muted mb-0">No payments recorded</p>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -355,14 +503,15 @@
                     </div>
                 </div>
 
-                <div class="col-md-6 mb-3">
-                    <div class="card">
+                <div class="col-lg-6">
+                    <div class="analytics-card h-100">
                         <div class="card-header">
-                            <h5>Fee Balances</h5>
+                            <h5 class="card-title">Fee Balances</h5>
+                            <div class="card-subtitle">Outstanding balances by semester</div>
                         </div>
                         <div class="card-body">
                             <div class="table-responsive">
-                                <table class="table table-sm">
+                                <table class="table table-sm table-hover">
                                     <thead>
                                         <tr>
                                             <th>Semester</th>
@@ -377,10 +526,12 @@
                                         <tr>
                                             <td>{{ balance.semester.name }}</td>
                                             <td>KES {{ balance.total_fees }}</td>
-                                            <td>KES {{ balance.amount_paid }}</td>
-                                            <td><strong class="{% if balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                                                KES {{ balance.balance }}
-                                            </strong></td>
+                                            <td class="text-success">KES {{ balance.amount_paid }}</td>
+                                            <td>
+                                                <strong class="{% if balance.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                                                    KES {{ balance.balance }}
+                                                </strong>
+                                            </td>
                                             <td>
                                                 {% if balance.is_cleared %}
                                                 <span class="badge bg-success">Cleared</span>
@@ -391,7 +542,10 @@
                                         </tr>
                                         {% empty %}
                                         <tr>
-                                            <td colspan="5" class="text-center">No balance records</td>
+                                            <td colspan="5" class="text-center py-4">
+                                                <i class="ri-file-list-line fs-3 text-muted mb-2 d-block"></i>
+                                                <p class="text-muted mb-0">No balance records</p>
+                                            </td>
                                         </tr>
                                         {% endfor %}
                                     </tbody>
@@ -403,192 +557,368 @@
             </div>
         </div>
 
-        <!-- Hostel Tab -->
-        <div class="tab-pane fade" id="hostel">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Hostel Allocations</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Academic Year</th>
-                                    <th>Hostel</th>
-                                    <th>Room</th>
-                                    <th>Bed</th>
-                                    <th>Allocation Date</th>
-                                    <th>Check-in</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for allocation in hostel_allocations %}
-                                <tr>
-                                    <td>{{ allocation.academic_year.name }}</td>
-                                    <td>{{ allocation.bed.room.hostel.name }}</td>
-                                    <td>{{ allocation.bed.room.room_number }}</td>
-                                    <td>{{ allocation.bed.bed_number }}</td>
-                                    <td>{{ allocation.allocation_date|date:"d/m/Y" }}</td>
-                                    <td>{{ allocation.check_in_date|date:"d/m/Y"|default:"-" }}</td>
-                                    <td>
-                                        {% if allocation.is_active %}
-                                        <span class="badge bg-success">Active</span>
-                                        {% else %}
-                                        <span class="badge bg-secondary">Inactive</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="7" class="text-center">No hostel allocations</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Library Tab -->
-        <div class="tab-pane fade" id="library">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Book Borrowing History</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Book</th>
-                                    <th>Borrow Date</th>
-                                    <th>Due Date</th>
-                                    <th>Return Date</th>
-                                    <th>Fine</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for borrowing in book_borrowings %}
-                                <tr>
-                                    <td>{{ borrowing.book.title }}</td>
-                                    <td>{{ borrowing.borrow_date|date:"d/m/Y" }}</td>
-                                    <td>{{ borrowing.due_date|date:"d/m/Y" }}</td>
-                                    <td>{{ borrowing.return_date|date:"d/m/Y"|default:"-" }}</td>
-                                    <td>KES {{ borrowing.fine_amount }}</td>
-                                    <td>
-                                        {% if borrowing.status == 'active' %}
-                                        <span class="badge bg-primary">Active</span>
-                                        {% elif borrowing.status == 'returned' %}
-                                        <span class="badge bg-success">Returned</span>
-                                        {% elif borrowing.status == 'overdue' %}
-                                        <span class="badge bg-danger">Overdue</span>
-                                        {% else %}
-                                        <span class="badge bg-secondary">{{ borrowing.get_status_display }}</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center">No borrowing history</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Progression Tab -->
-        <div class="tab-pane fade" id="progression">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Student Progression History</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>From Programme</th>
-                                    <th>To Programme</th>
-                                    <th>Final GPA</th>
-                                    <th>Credits Transferred</th>
-                                    <th>Approved By</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for progression in progressions %}
-                                <tr>
-                                    <td>{{ progression.progression_date|date:"d/m/Y" }}</td>
-                                    <td>
-                                        {% if progression.previous_programme %}
-                                        {{ progression.previous_programme.name }}
-                                        <br><small>{{ progression.previous_registration_number }}</small>
-                                        {% else %}
-                                        -
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ progression.new_programme.name }}</td>
-                                    <td>{{ progression.final_gpa|default:"-" }}</td>
-                                    <td>{{ progression.credits_transferred }}</td>
-                                    <td>{{ progression.approved_by.get_full_name|default:"-" }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center">No progression history</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Special Needs -->
-            {% if special_needs %}
-            <div class="card mt-3">
-                <div class="card-header bg-warning">
-                    <h5><i class="ri-alert-line"></i> Special Needs</h5>
-                </div>
-                <div class="card-body">
-                    {% for need in special_needs %}
-                    <div class="alert alert-warning">
-                        <strong>{{ need.get_need_type_display }}</strong> - {{ need.get_severity_display }}
-                        <p>{{ need.description }}</p>
-                        <small>Accommodations: {{ need.accommodations_required }}</small>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Advising Notes -->
-            {% if advising_notes %}
-            <div class="card mt-3">
-                <div class="card-header">
-                    <h5>Advising Notes</h5>
-                </div>
-                <div class="card-body">
-                    {% for note in advising_notes %}
-                    <div class="mb-3 pb-3 border-bottom">
-                        <div class="d-flex justify-content-between">
-                            <strong>{{ note.subject }}</strong>
-                            <small class="text-muted">{{ note.created_at|date:"d/m/Y H:i" }}</small>
-                        </div>
-                        <p class="mb-1">{{ note.note }}</p>
-                        <small class="text-muted">By: {{ note.lecturer.user.get_full_name }}</small>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-        </div>
+        <!-- Additional Tabs (Hostel, Library, Progression) would follow the same pattern -->
     </div>
 </div>
+
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Student Avatar Large */
+    .student-avatar-large {
+        width: 150px;
+        height: 150px;
+        margin: 0 auto;
+    }
+    
+    .student-avatar-large img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 4px solid var(--color-gray-200);
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* GPA Display Large */
+    .gpa-display-large {
+        text-align: center;
+    }
+    
+    .gpa-value-large {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Info Items */
+    .info-item {
+        margin-bottom: 1rem;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 0.9375rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    /* Tabs Navigation */
+    .tabs-navigation {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .nav-tabs-container {
+        padding: 0 1.5rem;
+        background: var(--color-gray-100);
+    }
+    
+    .nav-tabs {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .nav-tabs .nav-link {
+        border: none;
+        padding: 1rem 1.25rem;
+        color: var(--color-gray-600);
+        font-weight: 500;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: var(--color-primary);
+        background: var(--color-primary-light);
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: var(--color-primary);
+        background: transparent;
+        border-bottom: 2px solid var(--color-primary);
+    }
+    
+    /* Tab Content */
+    .tab-content {
+        margin-top: 1.5rem;
+    }
+    
+    /* Details Sections */
+    .details-section {
+        margin-bottom: 2rem;
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .details-grid {
+        display: grid;
+        gap: 1rem;
+    }
+    
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--color-gray-100);
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+    }
+    
+    .detail-value {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        text-align: right;
+        max-width: 60%;
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+    }
+    
+    .status-graduated {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    /* Grade Badges */
+    .grade-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .grade-a { background: #4CAF50; color: white; }
+    .grade-b { background: #8BC34A; color: white; }
+    .grade-c { background: #FFC107; color: #333; }
+    .grade-d { background: #FF9800; color: white; }
+    .grade-e { background: #F44336; color: white; }
+    .grade-f { background: #D32F2F; color: white; }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 0.875rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-primary {
+        border: 2px solid var(--color-primary);
+        color: var(--color-primary);
+        background: transparent;
+    }
+    
+    .btn-outline-primary:hover {
+        background: var(--color-primary);
+        color: white;
+        border-color: var(--color-primary);
+    }
+    
+    .btn-success {
+        background: var(--color-success);
+        border: 2px solid var(--color-success);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        background: #388E3C;
+        border-color: #388E3C;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-warning {
+        background: var(--color-warning);
+        border: 2px solid var(--color-warning);
+        color: white;
+    }
+    
+    .btn-warning:hover {
+        background: #F57C00;
+        border-color: #F57C00;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tabs if needed
+    const tabTriggers = document.querySelectorAll('[data-bs-toggle="tab"]');
+    tabTriggers.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function (event) {
+            // You can add tab-specific initialization here
+        });
+    });
+    
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 {% endblock %}

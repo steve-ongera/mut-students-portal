@@ -1,69 +1,114 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
-
 {% load static %}
 
 {% block title %}Student ID Applications - Registrar{% endblock %}
 
-{% block page_title %}Student ID Card Applications{% endblock %}
-{% block page_subtitle %}Review and process student ID card applications{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'registrar_dashboard' %}">Registrar</a></li>
-        <li class="breadcrumb-item active">ID Card Applications</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Page Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Student ID Card Applications</h1>
+                <p class="text-muted mb-0">Review and process student ID card applications</p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-bank-card-line me-2"></i>
+                    {{ page_obj.paginator.count }} Application(s)
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="container-fluid">
-    <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Total Applications</h6>
-                    <h3>{{ page_obj.paginator.count }}</h3>
-                    <small class="text-muted">All statuses</small>
+    <!-- Summary Metrics -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-file-list-line text-primary"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ page_obj.paginator.count|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Total Applications</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-information-line text-muted me-1"></i>
+                    <span class="small text-muted">All statuses</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Submitted</h6>
-                    <h3 class="text-warning">0</h3>
-                    <small class="text-muted">Awaiting review</small>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-time-line text-warning"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ submitted_count|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Submitted</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-information-line text-warning me-1"></i>
+                    <span class="small text-muted">Awaiting review</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Under Review</h6>
-                    <h3 class="text-info">0</h3>
-                    <small class="text-muted">Being processed</small>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-search-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ review_count|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Under Review</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-information-line text-info me-1"></i>
+                    <span class="small text-muted">Being processed</span>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="text-muted">Completed</h6>
-                    <h3 class="text-success">0</h3>
-                    <small class="text-muted">IDs issued</small>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-check-double-line text-success"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ completed_count|default:"0" }}</h3>
+                        <p class="metric-label mb-0">Completed</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">IDs issued</span>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Filter Section -->
-    <div class="card mb-4">
+    <div class="analytics-card mb-4">
         <div class="card-header">
-            <h5>Filter Applications</h5>
+            <h5 class="card-title">Filter Applications</h5>
+            <div class="card-subtitle">Refine applications by various criteria</div>
         </div>
         <div class="card-body">
             <form method="get">
-                <div class="row">
+                <div class="row g-3">
                     <div class="col-md-3">
                         <label class="form-label">Status</label>
                         <select name="status" class="form-select">
@@ -83,15 +128,16 @@
                         <label class="form-label">Application Reason</label>
                         <select name="reason" class="form-select">
                             <option value="">All Reasons</option>
-                            <option value="new_student">New Student</option>
-                            <option value="lost">Lost ID</option>
-                            <option value="damaged">Damaged ID</option>
-                            <option value="expired">Expired ID</option>
+                            <option value="new_student" {% if reason_filter == 'new_student' %}selected{% endif %}>New Student</option>
+                            <option value="lost" {% if reason_filter == 'lost' %}selected{% endif %}>Lost ID</option>
+                            <option value="damaged" {% if reason_filter == 'damaged' %}selected{% endif %}>Damaged ID</option>
+                            <option value="expired" {% if reason_filter == 'expired' %}selected{% endif %}>Expired ID</option>
                         </select>
                     </div>
-                    <div class="col-md-3">
-                        <label class="form-label">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            Apply Filters
+                        </button>
                     </div>
                 </div>
             </form>
@@ -99,16 +145,17 @@
     </div>
 
     <!-- Applications Table -->
-    <div class="card">
+    <div class="analytics-card">
         <div class="card-header">
-            <h5>ID Card Applications ({{ page_obj.paginator.count }})</h5>
+            <h5 class="card-title">ID Card Applications</h5>
+            <div class="card-subtitle">Showing {{ page_obj|length }} of {{ page_obj.paginator.count }} applications</div>
         </div>
-        <div class="card-body">
+        <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>App Number</th>
+                            <th class="ps-4">App Number</th>
                             <th>Date</th>
                             <th>Student</th>
                             <th>Programme</th>
@@ -117,197 +164,362 @@
                             <th>Amount</th>
                             <th>Payment</th>
                             <th>Status</th>
-                            <th>Actions</th>
+                            <th class="pe-4">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for application in page_obj %}
                         <tr>
-                            <td><strong>{{ application.application_number }}</strong></td>
-                            <td>{{ application.application_date|date:"d/m/Y" }}</td>
-                            <td>
-                                <div>{{ application.student.user.get_full_name }}</div>
-                                <small class="text-muted">{{ application.student.registration_number }}</small>
+                            <td class="ps-4">
+                                <div class="app-number">
+                                    <strong>{{ application.application_number }}</strong>
+                                </div>
                             </td>
-                            <td>{{ application.student.programme.code }}</td>
                             <td>
-                                <span class="badge bg-secondary">{{ application.get_application_reason_display }}</span>
+                                <div class="date-display">
+                                    {{ application.application_date|date:"d/m/Y" }}<br>
+                                    <small class="text-muted">{{ application.application_date|time:"H:i" }}</small>
+                                </div>
                             </td>
-                            <td>{{ application.id_type.name }}</td>
-                            <td>KES {{ application.amount_due }}</td>
+                            <td>
+                                <div class="student-info">
+                                    <div class="d-flex align-items-center">
+                                        <div class="student-avatar me-2">
+                                            {% if application.photo %}
+                                            <img src="{{ application.photo.url }}" 
+                                                 alt="{{ application.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                            {% else %}
+                                            <img src="{% static 'avatar2.png' %}" 
+                                                 alt="{{ application.student.user.get_full_name }}" 
+                                                 class="rounded-circle">
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 fw-medium">{{ application.student.user.get_full_name }}</h6>
+                                            <small class="text-muted">{{ application.student.registration_number }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="programme-info">
+                                    <strong class="d-block">{{ application.student.programme.code }}</strong>
+                                    <small class="text-muted">{{ application.student.programme.name|truncatechars:15 }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary-subtle text-secondary">
+                                    {{ application.get_application_reason_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="id-type">
+                                    <small class="text-muted">{{ application.id_type.name }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="amount-due">
+                                    <strong class="text-primary">KES {{ application.amount_due }}</strong>
+                                </div>
+                            </td>
                             <td>
                                 {% if application.amount_paid >= application.amount_due %}
-                                <span class="badge bg-success">Paid</span>
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-fill me-1"></i>
+                                    Paid
+                                </span>
                                 {% elif application.amount_paid > 0 %}
-                                <span class="badge bg-warning">Partial</span>
+                                <span class="status-badge status-pending">
+                                    <i class="ri-time-fill me-1"></i>
+                                    Partial
+                                </span>
                                 {% else %}
-                                <span class="badge bg-danger">Unpaid</span>
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-error-warning-fill me-1"></i>
+                                    Unpaid
+                                </span>
                                 {% endif %}
                             </td>
                             <td>
                                 {% if application.status == 'submitted' %}
-                                <span class="badge bg-warning">Submitted</span>
+                                <span class="status-badge status-pending">Submitted</span>
                                 {% elif application.status == 'under_review' %}
-                                <span class="badge bg-info">Under Review</span>
+                                <span class="status-badge status-pending">Under Review</span>
                                 {% elif application.status == 'payment_pending' %}
-                                <span class="badge bg-warning">Payment Pending</span>
+                                <span class="status-badge status-pending">Payment Pending</span>
                                 {% elif application.status == 'payment_confirmed' %}
-                                <span class="badge bg-success">Payment Confirmed</span>
+                                <span class="status-badge status-active">Payment Confirmed</span>
                                 {% elif application.status == 'in_production' %}
-                                <span class="badge bg-primary">In Production</span>
+                                <span class="status-badge status-active">In Production</span>
                                 {% elif application.status == 'ready_for_pickup' %}
-                                <span class="badge bg-success">Ready for Pickup</span>
+                                <span class="status-badge status-active">Ready for Pickup</span>
                                 {% elif application.status == 'completed' %}
-                                <span class="badge bg-success">Completed</span>
+                                <span class="status-badge status-active">Completed</span>
                                 {% elif application.status == 'rejected' %}
-                                <span class="badge bg-danger">Rejected</span>
+                                <span class="status-badge status-suspended">Rejected</span>
                                 {% else %}
                                 <span class="badge bg-secondary">{{ application.get_status_display }}</span>
                                 {% endif %}
                             </td>
-                            <td>
-                                <div class="btn-group btn-group-sm">
-                                    <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#viewAppModal{{ application.id }}">
-                                        <i class="ri-eye-line"></i>
-                                    </button>
-                                    {% if application.status == 'submitted' %}
-                                    <button class="btn btn-success" onclick="approveApplication({{ application.id }})">
-                                        <i class="ri-check-line"></i>
-                                    </button>
-                                    {% endif %}
-                                    {% if application.status in 'payment_confirmed,in_production' %}
-                                    <button class="btn btn-primary" onclick="updateStatus({{ application.id }})">
-                                        <i class="ri-refresh-line"></i>
-                                    </button>
-                                    {% endif %}
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <button class="btn btn-icon btn-outline-info btn-sm" 
+                                                title="View Details"
+                                                data-bs-toggle="tooltip"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#viewAppModal{{ application.id }}">
+                                            <i class="ri-eye-line"></i>
+                                        </button>
+                                        
+                                        {% if application.status == 'submitted' %}
+                                        <button class="btn btn-icon btn-outline-success btn-sm" 
+                                                title="Approve Application"
+                                                data-bs-toggle="tooltip"
+                                                onclick="approveApplication({{ application.id }})">
+                                            <i class="ri-check-line"></i>
+                                        </button>
+                                        {% endif %}
+                                        
+                                        {% if application.status in 'payment_confirmed,in_production' %}
+                                        <button class="btn btn-icon btn-outline-primary btn-sm" 
+                                                title="Update Status"
+                                                data-bs-toggle="tooltip"
+                                                data-bs-toggle="modal" 
+                                                data-bs-target="#updateStatusModal{{ application.id }}">
+                                            <i class="ri-refresh-line"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </td>
                         </tr>
 
                         <!-- View Application Modal -->
                         <div class="modal fade" id="viewAppModal{{ application.id }}" tabindex="-1">
-                            <div class="modal-dialog modal-lg">
+                            <div class="modal-dialog modal-dialog-centered modal-lg">
                                 <div class="modal-content">
                                     <div class="modal-header">
                                         <h5 class="modal-title">Application Details - {{ application.application_number }}</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <div class="row">
+                                        <div class="row g-4">
+                                            <!-- Left Column: Student & Application Info -->
                                             <div class="col-md-8">
-                                                <h6>Student Information</h6>
-                                                <table class="table table-sm table-borderless">
-                                                    <tr>
-                                                        <th>Name:</th>
-                                                        <td>{{ application.student.user.get_full_name }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Reg Number:</th>
-                                                        <td>{{ application.student.registration_number }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Programme:</th>
-                                                        <td>{{ application.student.programme.name }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Year/Semester:</th>
-                                                        <td>Year {{ application.student.current_year }}, Sem {{ application.student.current_semester }}</td>
-                                                    </tr>
-                                                </table>
-
-                                                <h6 class="mt-3">Application Details</h6>
-                                                <table class="table table-sm table-borderless">
-                                                    <tr>
-                                                        <th>Application Number:</th>
-                                                        <td>{{ application.application_number }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Application Date:</th>
-                                                        <td>{{ application.application_date|date:"d/m/Y H:i" }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Reason:</th>
-                                                        <td>{{ application.get_application_reason_display }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>ID Type:</th>
-                                                        <td>{{ application.id_type.name }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Rush Processing:</th>
-                                                        <td>
-                                                            {% if application.is_rush_processing %}
-                                                            <span class="badge bg-warning">Yes</span>
-                                                            {% else %}
-                                                            <span class="badge bg-secondary">No</span>
-                                                            {% endif %}
-                                                        </td>
-                                                    </tr>
-                                                </table>
-
-                                                <h6 class="mt-3">Payment Information</h6>
-                                                <table class="table table-sm table-borderless">
-                                                    <tr>
-                                                        <th>Amount Due:</th>
-                                                        <td>KES {{ application.amount_due }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Amount Paid:</th>
-                                                        <td>KES {{ application.amount_paid }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Balance:</th>
-                                                        <td>
-                                                            <strong class="{% if application.balance > 0 %}text-danger{% else %}text-success{% endif %}">
-                                                                KES {{ application.balance }}
-                                                            </strong>
-                                                        </td>
-                                                    </tr>
-                                                    {% if application.payment_reference %}
-                                                    <tr>
-                                                        <th>Payment Reference:</th>
-                                                        <td>{{ application.payment_reference }}</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>Payment Date:</th>
-                                                        <td>{{ application.payment_date|date:"d/m/Y H:i"|default:"-" }}</td>
-                                                    </tr>
-                                                    {% endif %}
-                                                </table>
-
-                                                {% if application.reason_details %}
-                                                <h6 class="mt-3">Additional Details</h6>
-                                                <p>{{ application.reason_details }}</p>
-                                                {% endif %}
-
-                                                {% if application.review_notes %}
-                                                <h6 class="mt-3">Review Notes</h6>
-                                                <p>{{ application.review_notes }}</p>
-                                                {% endif %}
-                                            </div>
-                                            <div class="col-md-4">
-                                                <h6>Student Photo</h6>
-                                                {% if application.photo %}
-                                                <img src="{{ application.photo.url }}" class="img-fluid rounded">
-                                                {% else %}
-                                                <div class="alert alert-warning">No photo uploaded</div>
-                                                {% endif %}
-
-                                                <h6 class="mt-3">Status</h6>
-                                                <div class="alert alert-info">
-                                                    <strong>{{ application.get_status_display }}</strong>
-                                                    {% if application.estimated_completion_date %}
-                                                    <br><small>Expected: {{ application.estimated_completion_date|date:"d/m/Y" }}</small>
-                                                    {% endif %}
+                                                <!-- Student Information -->
+                                                <div class="section-card mb-4">
+                                                    <div class="section-header">
+                                                        <h6 class="section-title">Student Information</h6>
+                                                    </div>
+                                                    <div class="section-body">
+                                                        <div class="row g-3">
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Name</div>
+                                                                    <div class="info-value">{{ application.student.user.get_full_name }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Registration Number</div>
+                                                                    <div class="info-value">{{ application.student.registration_number }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Programme</div>
+                                                                    <div class="info-value">{{ application.student.programme.name }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Year/Semester</div>
+                                                                    <div class="info-value">
+                                                                        Year {{ application.student.current_year }}, Sem {{ application.student.current_semester }}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
+
+                                                <!-- Application Details -->
+                                                <div class="section-card mb-4">
+                                                    <div class="section-header">
+                                                        <h6 class="section-title">Application Details</h6>
+                                                    </div>
+                                                    <div class="section-body">
+                                                        <div class="row g-3">
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Application Number</div>
+                                                                    <div class="info-value">{{ application.application_number }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Application Date</div>
+                                                                    <div class="info-value">{{ application.application_date|date:"d/m/Y H:i" }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Reason</div>
+                                                                    <div class="info-value">{{ application.get_application_reason_display }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">ID Type</div>
+                                                                    <div class="info-value">{{ application.id_type.name }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-12">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Rush Processing</div>
+                                                                    <div class="info-value">
+                                                                        {% if application.is_rush_processing %}
+                                                                        <span class="badge bg-warning">Yes</span>
+                                                                        {% else %}
+                                                                        <span class="badge bg-secondary">No</span>
+                                                                        {% endif %}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Payment Information -->
+                                                <div class="section-card">
+                                                    <div class="section-header">
+                                                        <h6 class="section-title">Payment Information</h6>
+                                                    </div>
+                                                    <div class="section-body">
+                                                        <div class="row g-3">
+                                                            <div class="col-md-4">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Amount Due</div>
+                                                                    <div class="info-value text-primary fw-medium">KES {{ application.amount_due }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Amount Paid</div>
+                                                                    <div class="info-value text-success fw-medium">KES {{ application.amount_paid }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-4">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Balance</div>
+                                                                    <div class="info-value">
+                                                                        <span class="{% if application.balance > 0 %}text-danger{% else %}text-success{% endif %} fw-medium">
+                                                                            KES {{ application.balance }}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {% if application.payment_reference %}
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Payment Reference</div>
+                                                                    <div class="info-value">{{ application.payment_reference }}</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <div class="info-item">
+                                                                    <div class="info-label">Payment Date</div>
+                                                                    <div class="info-value">{{ application.payment_date|date:"d/m/Y H:i"|default:"-" }}</div>
+                                                                </div>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Right Column: Photo & Status -->
+                                            <div class="col-md-4">
+                                                <!-- Student Photo -->
+                                                <div class="section-card mb-4">
+                                                    <div class="section-header">
+                                                        <h6 class="section-title">Student Photo</h6>
+                                                    </div>
+                                                    <div class="section-body text-center">
+                                                        {% if application.photo %}
+                                                        <img src="{{ application.photo.url }}" class="img-fluid rounded" style="max-height: 200px;">
+                                                        {% else %}
+                                                        <div class="empty-photo">
+                                                            <i class="ri-camera-off-line fs-1 text-muted mb-3"></i>
+                                                            <p class="text-muted mb-0">No photo uploaded</p>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+
+                                                <!-- Status Information -->
+                                                <div class="section-card">
+                                                    <div class="section-header">
+                                                        <h6 class="section-title">Application Status</h6>
+                                                    </div>
+                                                    <div class="section-body">
+                                                        <div class="status-display">
+                                                            <div class="current-status mb-3">
+                                                                <div class="status-badge {% if application.status == 'completed' %}status-active{% elif application.status == 'rejected' %}status-suspended{% else %}status-pending{% endif %}">
+                                                                    {{ application.get_status_display }}
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            {% if application.estimated_completion_date %}
+                                                            <div class="info-item">
+                                                                <div class="info-label">Expected Completion</div>
+                                                                <div class="info-value">{{ application.estimated_completion_date|date:"d/m/Y" }}</div>
+                                                            </div>
+                                                            {% endif %}
+                                                            
+                                                            {% if application.completion_date %}
+                                                            <div class="info-item">
+                                                                <div class="info-label">Completed On</div>
+                                                                <div class="info-value">{{ application.completion_date|date:"d/m/Y" }}</div>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Additional Information -->
+                                                {% if application.reason_details or application.review_notes %}
+                                                <div class="section-card mt-4">
+                                                    <div class="section-header">
+                                                        <h6 class="section-title">Additional Information</h6>
+                                                    </div>
+                                                    <div class="section-body">
+                                                        {% if application.reason_details %}
+                                                        <div class="info-item mb-3">
+                                                            <div class="info-label">Reason Details</div>
+                                                            <div class="info-value">{{ application.reason_details }}</div>
+                                                        </div>
+                                                        {% endif %}
+                                                        
+                                                        {% if application.review_notes %}
+                                                        <div class="info-item">
+                                                            <div class="info-label">Review Notes</div>
+                                                            <div class="info-value">{{ application.review_notes }}</div>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
                                         {% if application.status == 'submitted' %}
-                                        <button type="button" class="btn btn-success" onclick="approveApplication({{ application.id }})">
-                                            Approve Application
+                                        <button type="button" class="btn btn-success" onclick="approveApplication({{ application.id }}); $('#viewAppModal{{ application.id }}').modal('hide');">
+                                            <i class="ri-check-line me-2"></i> Approve Application
                                         </button>
                                         {% endif %}
                                     </div>
@@ -316,53 +528,452 @@
                         </div>
                         {% empty %}
                         <tr>
-                            <td colspan="10" class="text-center py-4">
-                                <i class="ri-bank-card-line display-4 text-muted"></i>
-                                <p class="text-muted mt-2">No ID card applications found</p>
+                            <td colspan="10" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-bank-card-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No ID card applications found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your filter criteria</p>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+        </div>
 
-            <!-- Pagination -->
-            {% if page_obj.has_other_pages %}
-            <nav aria-label="Page navigation" class="mt-3">
-                <ul class="pagination justify-content-center">
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <a class="page-link" 
+                           href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if reason_filter %}&reason={{ reason_filter }}{% endif %}">
                             <i class="ri-arrow-left-line"></i>
+                            <span class="visually-hidden">Previous</span>
                         </a>
                     </li>
                     {% endif %}
-
+                    
                     {% for num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == num %}
-                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                    <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
-                    </li>
-                    {% endif %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" 
+                               href="?page={{ num }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if reason_filter %}&reason={{ reason_filter }}{% endif %}">
+                                {{ num }}
+                            </a>
+                        </li>
+                        {% endif %}
                     {% endfor %}
-
+                    
                     {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                        <a class="page-link" 
+                           href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}{% if reason_filter %}&reason={{ reason_filter }}{% endif %}">
                             <i class="ri-arrow-right-line"></i>
+                            <span class="visually-hidden">Next</span>
                         </a>
                     </li>
                     {% endif %}
                 </ul>
             </nav>
-            {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
 
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .card-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    /* Table Styles */
+    .table {
+        margin-bottom: 0;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr {
+        transition: background-color 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    /* Student Avatar */
+    .student-avatar {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+    }
+    
+    .student-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border: 2px solid var(--color-gray-200);
+    }
+    
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: #F44336;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    /* Empty Photo */
+    .empty-photo {
+        padding: 2rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        text-align: center;
+    }
+    
+    /* Section Cards (for modals) */
+    .section-card {
+        background: var(--color-gray-100);
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    .section-header {
+        padding: 0.875rem 1rem;
+        background: var(--color-gray-100);
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0;
+    }
+    
+    .section-body {
+        padding: 1rem;
+    }
+    
+    /* Info Items (for modals) */
+    .info-item {
+        margin-bottom: 0.75rem;
+    }
+    
+    .info-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .info-label {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+    }
+    
+    /* Action Icons */
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Date Display */
+    .date-display {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    /* Form Styles */
+    .form-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--color-gray-800);
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid var(--color-gray-300);
+        border-radius: var(--radius-sm);
+        padding: 0.625rem 0.875rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.15);
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 0.625rem 1.25rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary {
+        background: var(--color-primary);
+        border: 2px solid var(--color-primary);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #1B5E20;
+        border-color: #1B5E20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    /* Modal Styles */
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+    
+    /* Pagination */
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all 0.2s ease;
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+</style>
+
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
 function approveApplication(applicationId) {
     if (!confirm('Approve this ID card application?')) {
         return;
@@ -378,21 +989,16 @@ function approveApplication(applicationId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Application approved successfully');
-            location.reload();
+            showToast('Application approved successfully', 'success');
+            setTimeout(() => location.reload(), 1500);
         } else {
-            alert('Error: ' + data.error);
+            showToast('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred');
+        showToast('An error occurred while approving the application', 'error');
     });
-}
-
-function updateStatus(applicationId) {
-    // Implement status update logic
-    alert('Update status functionality');
 }
 
 function getCookie(name) {
@@ -409,5 +1015,117 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast-notification toast-${type}`;
+    toast.innerHTML = `
+        <div class="toast-content">
+            <i class="ri-${type === 'success' ? 'checkbox-circle' : type === 'error' ? 'error-warning' : 'information'}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="toast-close">&times;</button>
+    `;
+    
+    // Add to body
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    }, 5000);
+    
+    // Close button
+    const closeBtn = toast.querySelector('.toast-close');
+    closeBtn.addEventListener('click', () => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    });
+}
+
+// Add toast styles
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
+    .toast-notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1rem 1.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 300px;
+        max-width: 400px;
+        box-shadow: var(--shadow-lg);
+        transform: translateX(120%);
+        transition: transform 0.3s ease;
+        z-index: 9999;
+    }
+    
+    .toast-notification.show {
+        transform: translateX(0);
+    }
+    
+    .toast-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .toast-content i {
+        font-size: 1.25rem;
+    }
+    
+    .toast-success {
+        border-left: 4px solid var(--color-success);
+    }
+    
+    .toast-success i {
+        color: var(--color-success);
+    }
+    
+    .toast-error {
+        border-left: 4px solid #F44336;
+    }
+    
+    .toast-error i {
+        color: #F44336;
+    }
+    
+    .toast-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: var(--color-gray-600);
+        cursor: pointer;
+        padding: 0;
+        margin-left: 1rem;
+        line-height: 1;
+    }
+    
+    .toast-close:hover {
+        color: var(--color-gray-800);
+    }
+`;
+document.head.appendChild(toastStyles);
 </script>
 {% endblock %}
