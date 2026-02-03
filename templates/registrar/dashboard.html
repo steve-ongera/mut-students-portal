@@ -1,88 +1,219 @@
 ﻿{% extends 'registrar/registrar_base.html' %}
-
-
 {% load static %}
 
 {% block title %}Registrar Dashboard{% endblock %}
 
-{% block page_title %}Registrar Dashboard{% endblock %}
-{% block page_subtitle %}Overview of academic records and key metrics{% endblock %}
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
 
 {% block content %}
-<nav aria-label="breadcrumb">
-    <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
-        <li class="breadcrumb-item active" aria-current="page">Registrar</li>
-    </ol>
-</nav>
+<div class="dashboard-container">
+    <!-- Welcome Header -->
+    <div class="dashboard-header mb-5">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Registrar Dashboard</h1>
+                <p class="text-muted mb-0">Welcome back, <span class="fw-medium">{{ user.get_full_name|default:user.username }}</span></p>
+            </div>
+            <div class="text-end">
+                <div class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-calendar-line me-2"></i>
+                    {{ current_academic_year.name }} • {{ current_semester.name }}
+                </div>
+                <p class="small text-muted mt-2">Last login: {% now "F j, Y, g:i a" %}</p>
+            </div>
+        </div>
+    </div>
 
-<div class="container-fluid">
-    <!-- Key Metrics Row -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">Total Students</h6>
-                            <h3 class="mb-0">{{ total_students }}</h3>
-                            <small class="text-success">
-                                <i class="ri-arrow-up-line"></i> {{ new_students }} new
-                            </small>
-                        </div>
-                        <div class="icon">
-                            <i class="ri-user-line"></i>
-                        </div>
+    <!-- Key Metrics Grid -->
+    <div class="row g-3 mb-5">
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-primary-subtle">
+                        <i class="ri-user-line text-primary"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_students|default:0 }}</h3>
+                        <p class="metric-label mb-0">Total Students</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-arrow-up-line text-success me-1"></i>
+                    <span class="small text-muted">{{ new_students }} new this year</span>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">Active Programmes</h6>
-                            <h3 class="mb-0">{{ total_programmes }}</h3>
-                            <small class="text-muted">{{ total_units }} units</small>
-                        </div>
-                        <div class="icon">
-                            <i class="ri-book-line"></i>
-                        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-success-subtle">
+                        <i class="ri-book-open-line text-success"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ total_programmes|default:0 }}</h3>
+                        <p class="metric-label mb-0">Active Programmes</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">{{ total_units }} course units</span>
                 </div>
             </div>
         </div>
-
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">Enrolled Students</h6>
-                            <h3 class="mb-0">{{ enrolled_students }}</h3>
-                            <small class="text-muted">{{ current_semester.name }}</small>
-                        </div>
-                        <div class="icon">
-                            <i class="ri-user-add-line"></i>
-                        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-warning-subtle">
+                        <i class="ri-user-add-line text-warning"></i>
                     </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ enrolled_students|default:0 }}</h3>
+                        <p class="metric-label mb-0">Enrolled Students</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Current semester</span>
                 </div>
             </div>
         </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-info-subtle">
+                        <i class="ri-graduation-cap-line text-info"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ potential_graduates|default:0 }}</h3>
+                        <p class="metric-label mb-0">Potential Graduates</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">{{ current_academic_year.name }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-purple-subtle">
+                        <i class="ri-file-list-line text-purple"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ pending_semester_reports|default:0 }}</h3>
+                        <p class="metric-label mb-0">Pending Reports</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-alert-line text-warning me-1"></i>
+                    <span class="small text-muted">Require review</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-teal-subtle">
+                        <i class="ri-bank-card-line text-teal"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ pending_id_applications|default:0 }}</h3>
+                        <p class="metric-label mb-0">ID Applications</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-time-line text-warning me-1"></i>
+                    <span class="small text-muted">Awaiting processing</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-indigo-subtle">
+                        <i class="ri-money-dollar-circle-line text-indigo"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">Ksh {{ total_fees_collected|floatformat:0|default:0 }}</h3>
+                        <p class="metric-label mb-0">Fees Collected</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-arrow-up-line text-success me-1"></i>
+                    <span class="small text-muted">Current academic year</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="metric-card">
+                <div class="d-flex align-items-center">
+                    <div class="metric-icon bg-gray-subtle">
+                        <i class="ri-external-link-line text-gray"></i>
+                    </div>
+                    <div class="ms-3">
+                        <h3 class="metric-value mb-0">{{ recent_admissions|length }}</h3>
+                        <p class="metric-label mb-0">Recent Admissions</p>
+                    </div>
+                </div>
+                <div class="metric-trend mt-2">
+                    <i class="ri-check-line text-success me-1"></i>
+                    <span class="small text-muted">Latest registrations</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        <div class="col-md-3">
-            <div class="card">
+    <!-- Analytics Section -->
+    <div class="row g-4 mb-5">
+        <!-- Student Distribution by Programme -->
+        <div class="col-xl-8">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Students by Programme</h5>
+                    <div class="card-subtitle">Distribution across academic programmes</div>
+                </div>
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">Potential Graduates</h6>
-                            <h3 class="mb-0">{{ potential_graduates }}</h3>
-                            <small class="text-muted">{{ current_academic_year.name }}</small>
+                    <canvas id="programmeChart" height="90"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Fee Collection Overview -->
+        <div class="col-xl-4">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Fee Collection Status</h5>
+                    <div class="card-subtitle">{{ current_academic_year.name }}</div>
+                </div>
+                <div class="card-body">
+                    <div class="text-center">
+                        <div class="progress-chart mb-4">
+                            {% widthratio total_fees_collected total_fees_collected|add:outstanding_fees 100 as collection_percentage %}
+                            <div class="circular-progress" data-percentage="{{ collection_percentage }}">
+                                <div class="inner-circle"></div>
+                                <div class="percentage">{{ collection_percentage }}%</div>
+                            </div>
                         </div>
-                        <div class="icon">
-                            <i class="ri-graduation-cap-line"></i>
+                        <div class="row">
+                            <div class="col-6">
+                                <h4 class="text-success mb-1">Ksh {{ total_fees_collected|floatformat:0 }}</h4>
+                                <p class="small text-muted mb-0">Collected</p>
+                            </div>
+                            <div class="col-6">
+                                <h4 class="text-danger mb-1">Ksh {{ outstanding_fees|floatformat:0 }}</h4>
+                                <p class="small text-muted mb-0">Outstanding</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -90,100 +221,302 @@
         </div>
     </div>
 
-    <!-- Quick Actions -->
-    <div class="row mb-4">
+    <!-- Student Distribution -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Year of Study Distribution</h5>
+                    <div class="card-subtitle">{{ current_academic_year.name }}</div>
+                </div>
+                <div class="card-body">
+                    <canvas id="yearChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-6">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Academic Performance Overview</h5>
+                    <div class="card-subtitle">GPA distribution categories</div>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3">
+                            <div class="gpa-category">
+                                <div class="gpa-value text-success">Excellent</div>
+                                <div class="gpa-range">3.5 - 4.0</div>
+                                <div class="gpa-count">{{ excellent_students|default:"0" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="gpa-category">
+                                <div class="gpa-value text-warning">Good</div>
+                                <div class="gpa-range">2.5 - 3.49</div>
+                                <div class="gpa-count">{{ good_students|default:"0" }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="gpa-category">
+                                <div class="gpa-value text-danger">Need Improvement</div>
+                                <div class="gpa-range">Below 2.5</div>
+                                <div class="gpa-count">{{ improvement_students|default:"0" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions & Recent Admissions -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-8">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                    <div class="card-subtitle">Access frequently used registrar functions</div>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <a href="{% url 'registrar_student_list' %}" class="action-card">
+                                <div class="action-icon bg-primary-subtle">
+                                    <i class="ri-user-search-line text-primary"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h6>Student Records</h6>
+                                    <p class="small text-muted mb-0">View & manage student information</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'registrar_results_processing' %}" class="action-card">
+                                <div class="action-icon bg-success-subtle">
+                                    <i class="ri-file-list-line text-success"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h6>Process Results</h6>
+                                    <p class="small text-muted mb-0">Grades, transcripts & reporting</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'registrar_semester_reports' %}" class="action-card">
+                                <div class="action-icon bg-info-subtle">
+                                    <i class="ri-file-text-line text-info"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h6>Semester Reports</h6>
+                                    <p class="small text-muted mb-0">Generate & review academic reports</p>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <a href="{% url 'registrar_id_card_applications' %}" class="action-card">
+                                <div class="action-icon bg-warning-subtle">
+                                    <i class="ri-bank-card-line text-warning"></i>
+                                </div>
+                                <div class="action-content">
+                                    <h6>ID Applications</h6>
+                                    <p class="small text-muted mb-0">Process student ID requests</p>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4">
+            <div class="analytics-card">
+                <div class="card-header">
+                    <h5 class="card-title">Recent Admissions</h5>
+                    <div class="card-subtitle">Latest student registrations</div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="ranking-list">
+                        {% for student in recent_admissions %}
+                        <div class="ranking-item">
+                            <div class="rank-number">{{ forloop.counter }}</div>
+                            <div class="rank-info">
+                                <h6 class="mb-0">{{ student.user.get_full_name|truncatechars:20 }}</h6>
+                                <small class="text-muted">{{ student.registration_number }}</small>
+                            </div>
+                            <div class="rank-score">
+                                <span class="badge bg-light text-dark rounded-pill px-3 py-1">{{ student.programme.code }}</span>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <i class="ri-user-search-line fs-1 text-muted mb-3 d-block"></i>
+                            <p class="text-muted mb-0">No recent admissions</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row g-4">
         <div class="col-12">
-            <div class="card">
+            <div class="analytics-card">
                 <div class="card-header">
-                    <h5>Quick Actions</h5>
+                    <h5 class="card-title">Pending Approvals & Tasks</h5>
+                    <div class="card-subtitle">Require immediate attention</div>
                 </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'registrar_student_list' %}" class="btn btn-outline-primary w-100">
-                                <i class="ri-user-search-line me-2"></i>
-                                Student Records
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'registrar_results_processing' %}" class="btn btn-outline-success w-100">
-                                <i class="ri-file-list-line me-2"></i>
-                                Process Results
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'registrar_semester_reports' %}" class="btn btn-outline-info w-100">
-                                <i class="ri-file-text-line me-2"></i>
-                                Semester Reports
-                            </a>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <a href="{% url 'registrar_id_card_applications' %}" class="btn btn-outline-warning w-100">
-                                <i class="ri-bank-card-line me-2"></i>
-                                ID Applications
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Pending Tasks -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Pending Approvals</h5>
-                    <span class="badge bg-danger">{{ pending_semester_reports }}</span>
-                </div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            Semester Reports
-                            <span class="badge bg-warning">{{ pending_semester_reports }}</span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            ID Card Applications
-                            <span class="badge bg-info">{{ pending_id_applications }}</span>
-                        </li>
-                    </ul>
-                    <div class="mt-3">
-                        <a href="{% url 'registrar_semester_reports' %}" class="btn btn-sm btn-primary">View All</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Recent Admissions</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
+                <div class="card-body p-0">
+                    <div class="activity-table">
+                        <table class="table table-hover mb-0">
                             <thead>
                                 <tr>
-                                    <th>Reg Number</th>
-                                    <th>Name</th>
-                                    <th>Programme</th>
-                                    <th>Date</th>
+                                    <th class="ps-4">Task</th>
+                                    <th>Type</th>
+                                    <th>Submitted By</th>
+                                    <th>Date Submitted</th>
+                                    <th class="pe-4">Priority</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for student in recent_admissions %}
+                                {% if pending_semester_reports > 0 %}
                                 <tr>
-                                    <td>{{ student.registration_number }}</td>
-                                    <td>{{ student.user.get_full_name }}</td>
-                                    <td>{{ student.programme.code }}</td>
-                                    <td>{{ student.admission_date|date:"d/m/Y" }}</td>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="activity-icon me-3">
+                                                <i class="ri-file-text-line text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-0 fw-medium">Semester Reports Review</p>
+                                                <small class="text-muted">{{ pending_semester_reports }} reports pending</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary-subtle text-primary">Academic</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">Department Heads</span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted">
+                                            {% now "M d, Y" %}
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <span class="status-badge status-pending">
+                                            High Priority
+                                        </span>
+                                    </td>
                                 </tr>
-                                {% empty %}
+                                {% endif %}
+                                
+                                {% if pending_id_applications > 0 %}
                                 <tr>
-                                    <td colspan="4" class="text-center">No recent admissions</td>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="activity-icon me-3">
+                                                <i class="ri-bank-card-line text-warning"></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-0 fw-medium">ID Card Applications</p>
+                                                <small class="text-muted">{{ pending_id_applications }} applications awaiting processing</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-warning-subtle text-warning">Administrative</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">Students</span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted">
+                                            {% now "M d, Y" %}
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <span class="status-badge status-pending">
+                                            Medium Priority
+                                        </span>
+                                    </td>
                                 </tr>
-                                {% endfor %}
+                                {% endif %}
+                                
+                                {% if potential_graduates > 0 %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="activity-icon me-3">
+                                                <i class="ri-graduation-cap-line text-info"></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-0 fw-medium">Graduation List Preparation</p>
+                                                <small class="text-muted">{{ potential_graduates }} potential graduates</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info">Graduation</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">System Generated</span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted">
+                                            {% now "M d, Y" %}
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <span class="status-badge status-pending">
+                                            High Priority
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                
+                                {% if outstanding_fees > 0 %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="activity-icon me-3">
+                                                <i class="ri-money-dollar-circle-line text-success"></i>
+                                            </div>
+                                            <div>
+                                                <p class="mb-0 fw-medium">Fee Arrears Follow-up</p>
+                                                <small class="text-muted">Ksh {{ outstanding_fees|floatformat:0 }} outstanding</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success-subtle text-success">Financial</span>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">Finance Department</span>
+                                    </td>
+                                    <td>
+                                        <div class="small text-muted">
+                                            {% now "M d, Y" %}
+                                        </div>
+                                    </td>
+                                    <td class="pe-4">
+                                        <span class="status-badge status-pending">
+                                            Medium Priority
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                
+                                {% if pending_semester_reports == 0 and pending_id_applications == 0 %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <i class="ri-check-line fs-1 mb-3 d-block"></i>
+                                        All tasks are up to date
+                                    </td>
+                                </tr>
+                                {% endif %}
                             </tbody>
                         </table>
                     </div>
@@ -191,93 +524,446 @@
             </div>
         </div>
     </div>
-
-    <!-- Charts Row -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Students by Programme</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="programmeChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Students by Year of Study</h5>
-                </div>
-                <div class="card-body">
-                    <canvas id="yearChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Financial Summary -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Fee Collection Summary - {{ current_academic_year.name }}</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Total Fees Collected</h6>
-                            <h3 class="text-success">KES {{ total_fees_collected|floatformat:2 }}</h3>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Outstanding Fees</h6>
-                            <h3 class="text-danger">KES {{ outstanding_fees|floatformat:2 }}</h3>
-                        </div>
-                    </div>
-                    <div class="progress mt-3">
-                        {% widthratio total_fees_collected 1 100 as collection_percentage %}
-                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ collection_percentage }}%">
-                            {{ collection_percentage }}%
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-// Programme Chart
-const programmeCtx = document.getElementById('programmeChart');
-if (programmeCtx) {
-    new Chart(programmeCtx, {
-        type: 'doughnut',
-        data: {
-            labels: [{% for item in students_by_programme %}'{{ item.programme__name }}',{% endfor %}],
-            datasets: [{
-                data: [{% for item in students_by_programme %}{{ item.count }},{% endfor %}],
-                backgroundColor: ['#2E7D32', '#1976D2', '#F57C00', '#C62828', '#7B1FA2']
-            }]
-        }
-    });
-}
+<style>
+    /* Base Styles */
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --shadow-lg: 0 8px 24px rgba(0,0,0,0.06);
+        --color-primary: #2E7D32;
+        --color-primary-light: #E8F5E9;
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body {
+        font-family: var(--font-family);
+        font-weight: 400;
+    }
+    
+    .dashboard-container {
+        padding: 0 0.5rem;
+    }
+    
+    /* Header */
+    .dashboard-header {
+        padding: 1.5rem 0;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .dashboard-header h1 {
+        font-weight: 600;
+        color: var(--color-gray-800);
+    }
+    
+    /* Metric Cards */
+    .metric-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        border-color: var(--color-primary-light);
+    }
+    
+    .metric-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+        line-height: 1;
+    }
+    
+    .metric-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-top: 0.25rem;
+    }
+    
+    .metric-trend {
+        font-size: 0.75rem;
+    }
+    
+    /* Analytics Cards */
+    .analytics-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        height: 100%;
+    }
+    
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    /* Progress Chart */
+    .progress-chart {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .circular-progress {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: conic-gradient(var(--color-success) 0% {{ collection_percentage }}%, var(--color-gray-200) {{ collection_percentage }}% 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .inner-circle {
+        position: absolute;
+        width: 90px;
+        height: 90px;
+        background: white;
+        border-radius: 50%;
+    }
+    
+    .percentage {
+        position: relative;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+    }
+    
+    /* GPA Categories */
+    .gpa-category {
+        padding: 1rem;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        transition: all 0.2s ease;
+    }
+    
+    .gpa-category:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .gpa-value {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .gpa-range {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.25rem;
+    }
+    
+    .gpa-count {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--color-gray-800);
+    }
+    
+    /* Action Cards */
+    .action-card {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+        height: 100%;
+    }
+    
+    .action-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+        border-color: var(--color-primary);
+        background: var(--color-primary-light);
+    }
+    
+    .action-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    
+    .action-content h6 {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Ranking List */
+    .ranking-list {
+        padding: 0.5rem 0;
+    }
+    
+    .ranking-item {
+        display: flex;
+        align-items: center;
+        padding: 0.875rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        transition: background-color 0.2s ease;
+    }
+    
+    .ranking-item:last-child {
+        border-bottom: none;
+    }
+    
+    .ranking-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    .rank-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--color-primary), var(--color-success));
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+        margin-right: 1rem;
+    }
+    
+    .rank-info {
+        flex: 1;
+    }
+    
+    .rank-info h6 {
+        font-size: 0.9375rem;
+        font-weight: 500;
+    }
+    
+    .rank-score .badge {
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
+    
+    /* Activity Table */
+    .activity-table {
+        overflow-x: auto;
+    }
+    
+    .activity-table .table {
+        margin-bottom: 0;
+    }
+    
+    .activity-table th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        padding: 1rem 0.75rem;
+    }
+    
+    .activity-table td {
+        padding: 1.125rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .activity-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        background: var(--color-gray-100);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.125rem;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+    
+    .status-pending {
+        background: rgba(255, 152, 0, 0.1);
+        color: var(--color-warning);
+    }
+    
+    /* Color Utilities */
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.08); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.08); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.08); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.08); }
+    .bg-purple-subtle { background-color: rgba(156, 39, 176, 0.08); }
+    .bg-teal-subtle { background-color: rgba(0, 150, 136, 0.08); }
+    .bg-indigo-subtle { background-color: rgba(63, 81, 181, 0.08); }
+    .bg-gray-subtle { background-color: rgba(96, 125, 139, 0.08); }
+    
+    .text-primary { color: var(--color-primary); }
+    .text-success { color: var(--color-success); }
+    .text-warning { color: var(--color-warning); }
+    .text-info { color: var(--color-info); }
+    .text-purple { color: #9C27B0; }
+    .text-teal { color: #009688; }
+    .text-indigo { color: #3F51B5; }
+    .text-gray { color: #607D8B; }
+</style>
 
-// Year Chart
-const yearCtx = document.getElementById('yearChart');
-if (yearCtx) {
-    new Chart(yearCtx, {
-        type: 'bar',
-        data: {
-            labels: [{% for item in students_by_year %}'Year {{ item.current_year }}',{% endfor %}],
-            datasets: [{
-                label: 'Students',
-                data: [{% for item in students_by_year %}{{ item.count }},{% endfor %}],
-                backgroundColor: '#2E7D32'
-            }]
-        }
-    });
-}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js Configuration
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+    Chart.defaults.color = '#6c757d';
+    Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    Chart.defaults.plugins.tooltip.padding = 10;
+    Chart.defaults.plugins.tooltip.cornerRadius = 6;
+    Chart.defaults.plugins.legend.labels.boxWidth = 12;
+    Chart.defaults.plugins.legend.labels.padding = 20;
+    
+    // Professional Color Palette
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info: '#2196F3',
+        danger: '#F44336',
+        purple: '#9C27B0',
+        teal: '#009688',
+        indigo: '#3F51B5',
+        gray: '#607D8B'
+    };
+    
+    // Chart 1: Programme Distribution
+    const programmeCtx = document.getElementById('programmeChart');
+    if (programmeCtx) {
+        new Chart(programmeCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for item in students_by_programme %}'{{ item.programme__name }}',{% endfor %}],
+                datasets: [{
+                    data: [{% for item in students_by_programme %}{{ item.count }},{% endfor %}],
+                    backgroundColor: colors.primary,
+                    borderRadius: 4,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    x: {
+                        grid: { display: false },
+                        ticks: { 
+                            color: '#666',
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' },
+                        ticks: { color: '#666' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+    
+    // Chart 2: Year Distribution
+    const yearCtx = document.getElementById('yearChart');
+    if (yearCtx) {
+        new Chart(yearCtx, {
+            type: 'bar',
+            data: {
+                labels: [{% for item in students_by_year %}'Year {{ item.current_year }}',{% endfor %}],
+                datasets: [{
+                    data: [{% for item in students_by_year %}{{ item.count }},{% endfor %}],
+                    backgroundColor: colors.info,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.04)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+});
 </script>
 {% endblock %}
