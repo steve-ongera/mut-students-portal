@@ -4034,11 +4034,6 @@ def export_debtors_csv(request):
     
     return response
 
-@login_required
-def registrar_dashboard(request):
-    context = {'page_title': 'Registrar Dashboard'}
-    return render(request, 'registrar/dashboard.html', context)
-
 
 """
 Librarian Views for University Management System
@@ -27898,7 +27893,7 @@ from .models import (
 # ============= DASHBOARD & OVERVIEW =============
 
 @login_required
-def registrar_dashboard_view(request):
+def registrar_dashboard(request):
     """Main registrar dashboard with key metrics and statistics"""
     if request.user.role != 'registrar':
         messages.error(request, 'Access denied. Registrar privileges required.')
