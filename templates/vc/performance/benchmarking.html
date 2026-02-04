@@ -1,4 +1,59 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Benchmarking Analysis</h1>
+            <p class="text-muted">Comparative performance analysis</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">International Rankings Comparison</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ranking System</th>
+                                <th>Year</th>
+                                <th>Our Rank</th>
+                                <th>National Rank</th>
+                                <th>Regional Rank</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ranking in rankings %}
+                            <tr>
+                                <td>{{ ranking.get_ranking_type_display }}</td>
+                                <td>{{ ranking.year }}</td>
+                                <td>{{ ranking.overall_rank|default:"-" }}</td>
+                                <td>{{ ranking.national_rank|default:"-" }}</td>
+                                <td>{{ ranking.regional_rank|default:"-" }}</td>
+                                <td>{{ ranking.score|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No ranking data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h5><i class="ri-information-line me-2"></i>Peer Comparison</h5>
+                <p class="mb-0">Detailed peer comparison analysis will be available here, comparing our performance with similar institutions in key metrics such as research output, student outcomes, financial sustainability, and institutional reputation.</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

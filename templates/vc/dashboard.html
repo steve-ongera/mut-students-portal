@@ -1,4 +1,240 @@
-{% extends "vc/vc_base.html" %}
+{% extends 'vc/vc_base.html' %}
+
 {% block content %}
-<!-- Under development -->
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Vice Chancellor's Dashboard</h1>
+            <p class="text-muted">{{ current_year.name }} - {{ current_semester.name }}</p>
+        </div>
+    </div>
+
+    <!-- Key Statistics -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_schools }}</div>
+                <div class="stat-label">Schools</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_students }}</div>
+                <div class="stat-label">Students</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_lecturers }}</div>
+                <div class="stat-label">Lecturers</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_programmes }}</div>
+                <div class="stat-label">Programmes</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Overview -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">KES {{ total_budget|floatformat:0 }}</div>
+                <div class="stat-label">Total Budget</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">KES {{ total_spent|floatformat:0 }}</div>
+                <div class="stat-label">Total Spent</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ budget_utilization|floatformat:1 }}%</div>
+                <div class="stat-label">Budget Utilization</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Research Metrics -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Research Performance</h2>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center mb-3">
+                            <h3 class="stat-value">{{ research_stats.active_projects }}</h3>
+                            <p class="stat-label">Active Projects</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center mb-3">
+                            <h3 class="stat-value">{{ research_stats.active_grants }}</h3>
+                            <p class="stat-label">Active Grants</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center mb-3">
+                            <h3 class="stat-value">{{ research_stats.publications_this_year }}</h3>
+                            <p class="stat-label">Publications This Year</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center mb-3">
+                            <h3 class="stat-value">KES {{ research_stats.total_grant_value|floatformat:0 }}</h3>
+                            <p class="stat-label">Grant Value</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Strategic Goals Progress -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Strategic Goals Progress</h2>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Goal</th>
+                                <th>Category</th>
+                                <th>Progress</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for goal in strategic_goals %}
+                            <tr>
+                                <td>{{ goal.title }}</td>
+                                <td>{{ goal.get_category_display }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar" style="width: {{ goal.progress_percentage }}%">
+                                            {{ goal.progress_percentage }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ goal.status }}">{{ goal.get_status_display }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Approvals -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Pending Approvals ({{ total_pending }})</h2>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>{{ pending_items.budgets }}</h4>
+                            <p>Budget Submissions</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>{{ pending_items.recruitments }}</h4>
+                            <p>Recruitments</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>{{ pending_items.research_grants }}</h4>
+                            <p>Research Grants</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4>{{ pending_items.programme_reviews }}</h4>
+                            <p>Programme Reviews</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- School Performance -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">School Performance Overview</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Students</th>
+                                <th>Lecturers</th>
+                                <th>Programmes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for school in schools_performance %}
+                            <tr>
+                                <td>{{ school.name }}</td>
+                                <td>{{ school.student_count }}</td>
+                                <td>{{ school.lecturer_count }}</td>
+                                <td>{{ school.programme_count }}</td>
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Announcements -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">Recent Announcements</h2>
+                <div class="list-group">
+                    {% for announcement in recent_announcements %}
+                    <div class="list-group-item">
+                        <h6 class="mb-1">{{ announcement.title }}</h6>
+                        <small class="text-muted">{{ announcement.created_at|date:"M d, Y" }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No recent announcements</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">Upcoming Events</h2>
+                <div class="list-group">
+                    {% for event in upcoming_events %}
+                    <div class="list-group-item">
+                        <h6 class="mb-1">{{ event.title }}</h6>
+                        <small class="text-muted">{{ event.start_date|date:"M d, Y" }} - {{ event.venue }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No upcoming events</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

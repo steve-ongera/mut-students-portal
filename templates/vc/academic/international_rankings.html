@@ -1,4 +1,91 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">International Rankings</h1>
+            <p class="text-muted">University global and regional rankings</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Latest Rankings</h2>
+                <div class="row">
+                    {% for ranking in latest_rankings %}
+                    <div class="col-md-6 mb-4">
+                        <div class="border rounded p-4">
+                            <h4>{{ ranking.get_ranking_type_display }}</h4>
+                            <p class="text-muted mb-3">Year: {{ ranking.year }}</p>
+                            <div class="row">
+                                <div class="col-4 text-center">
+                                    <h3 class="stat-value">{{ ranking.overall_rank|default:"-" }}</h3>
+                                    <p class="stat-label">Overall Rank</p>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <h3 class="stat-value">{{ ranking.national_rank|default:"-" }}</h3>
+                                    <p class="stat-label">National Rank</p>
+                                </div>
+                                <div class="col-4 text-center">
+                                    <h3 class="stat-value">{{ ranking.score|default:"-" }}</h3>
+                                    <p class="stat-label">Score</p>
+                                </div>
+                            </div>
+                            {% if ranking.analysis %}
+                            <div class="mt-3">
+                                <p class="small text-muted">{{ ranking.analysis|truncatewords:30 }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center">No ranking data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Rankings Trend</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Ranking System</th>
+                                <th>Year</th>
+                                <th>Overall Rank</th>
+                                <th>National Rank</th>
+                                <th>Regional Rank</th>
+                                <th>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ranking in rankings_trend %}
+                            <tr>
+                                <td>{{ ranking.get_ranking_type_display }}</td>
+                                <td>{{ ranking.year }}</td>
+                                <td>{{ ranking.overall_rank|default:"-" }}</td>
+                                <td>{{ ranking.national_rank|default:"-" }}</td>
+                                <td>{{ ranking.regional_rank|default:"-" }}</td>
+                                <td>{{ ranking.score|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No ranking trend data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

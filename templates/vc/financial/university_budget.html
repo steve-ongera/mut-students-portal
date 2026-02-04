@@ -1,4 +1,119 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">University Budget Overview</h1>
+            <p class="text-muted">{{ current_year.name }} Budget Allocation and Utilization</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">KES {{ totals.total_allocation|floatformat:0 }}</div>
+                <div class="stat-label">Total Allocation</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">KES {{ totals.total_spent|floatformat:0 }}</div>
+                <div class="stat-label">Total Spent</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">KES {{ totals.total_balance|floatformat:0 }}</div>
+                <div class="stat-label">Balance</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Budget by Category</h2>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <h4>KES {{ category_totals.personnel|floatformat:0 }}</h4>
+                            <p class="text-muted mb-0">Personnel</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <h4>KES {{ category_totals.operations|floatformat:0 }}</h4>
+                            <p class="text-muted mb-0">Operations</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <h4>KES {{ category_totals.development|floatformat:0 }}</h4>
+                            <p class="text-muted mb-0">Development</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 border rounded">
+                            <h4>KES {{ category_totals.research|floatformat:0 }}</h4>
+                            <p class="text-muted mb-0">Research</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">School Budget Allocation</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Total Allocation</th>
+                                <th>Amount Spent</th>
+                                <th>Balance</th>
+                                <th>Utilization %</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for budget in school_budgets %}
+                            <tr>
+                                <td>{{ budget.school.name }}</td>
+                                <td>KES {{ budget.total_allocation|floatformat:0 }}</td>
+                                <td>KES {{ budget.amount_spent|floatformat:0 }}</td>
+                                <td>KES {{ budget.balance|floatformat:0 }}</td>
+                                <td>
+                                    {% widthratio budget.amount_spent budget.total_allocation 100 as utilization %}
+                                    <div class="progress">
+                                        <div class="progress-bar {% if utilization > 90 %}bg-danger{% elif utilization > 75 %}bg-warning{% else %}bg-success{% endif %}" 
+                                             style="width: {{ utilization }}%">
+                                            {{ utilization }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ budget.status }}">{{ budget.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">View Details</button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No budget data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

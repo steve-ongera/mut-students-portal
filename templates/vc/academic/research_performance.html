@@ -1,4 +1,149 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Research Performance</h1>
+            <p class="text-muted">Research projects, grants, and publications</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Research Projects by Status</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Count</th>
+                                <th>Total Budget</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in projects_by_status %}
+                            <tr>
+                                <td>{{ item.status }}</td>
+                                <td>{{ item.count }}</td>
+                                <td>KES {{ item.total_budget|floatformat:0|default:"0" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No projects found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">Research Grants Summary</h2>
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <td>Total Applications</td>
+                            <td class="text-end"><strong>{{ grants_summary.total_applied }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Approved Grants</td>
+                            <td class="text-end"><strong>{{ grants_summary.total_approved }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Amount Applied</td>
+                            <td class="text-end"><strong>KES {{ grants_summary.total_amount_applied|floatformat:0 }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Amount Awarded</td>
+                            <td class="text-end"><strong>KES {{ grants_summary.total_amount_awarded|floatformat:0 }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">Publications Trend</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Year</th>
+                                <th>Publications</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in publications_trend %}
+                            <tr>
+                                <td>{{ item.year }}</td>
+                                <td>{{ item.count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Top Publishing Schools</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Publications</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for school in top_schools %}
+                            <tr>
+                                <td>{{ school.name }}</td>
+                                <td>{{ school.pub_count }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">No data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Active Research Centers</h2>
+                <div class="row">
+                    {% for center in research_centers %}
+                    <div class="col-md-4 mb-3">
+                        <div class="border rounded p-3">
+                            <h5>{{ center.name }}</h5>
+                            <p class="text-muted mb-2">{{ center.code }}</p>
+                            <p class="mb-1"><small><strong>Director:</strong> {{ center.director.user.get_full_name|default:"-" }}</small></p>
+                            <p class="mb-0"><small><strong>Location:</strong> {{ center.location|default:"-" }}</small></p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center">No research centers found</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

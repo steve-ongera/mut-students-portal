@@ -1,4 +1,88 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Teaching Excellence</h1>
+            <p class="text-muted">Top performing lecturers and departments</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Top Performing Lecturers</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Lecturer</th>
+                                <th>Department</th>
+                                <th>Unit</th>
+                                <th>Overall Rating</th>
+                                <th>Response Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for evaluation in top_lecturers %}
+                            <tr>
+                                <td>{{ evaluation.unit_allocation.lecturer.user.get_full_name }}</td>
+                                <td>{{ evaluation.unit_allocation.programme_unit.unit.department.name }}</td>
+                                <td>{{ evaluation.unit_allocation.programme_unit.unit.code }}</td>
+                                <td>
+                                    <strong>{{ evaluation.overall_rating|floatformat:2 }}/5.0</strong>
+                                </td>
+                                <td>{{ evaluation.response_rate|floatformat:1 }}%</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No evaluation data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Department Performance</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th>School</th>
+                                <th>Average Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dept in dept_performance %}
+                            <tr>
+                                <td>{{ dept.name }}</td>
+                                <td>{{ dept.school.name }}</td>
+                                <td>
+                                    {% if dept.avg_rating %}
+                                    <strong>{{ dept.avg_rating|floatformat:2 }}/5.0</strong>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No department data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

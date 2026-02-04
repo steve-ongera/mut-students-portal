@@ -1,4 +1,140 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3">Strategic Goals Management</h1>
+                <p class="text-muted">Detailed view and management of strategic goals</p>
+            </div>
+            <button class="btn btn-primary">
+                <i class="ri-add-line me-2"></i>Add New Goal
+            </button>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <form method="get" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Category</label>
+                        <select name="category" class="form-select">
+                            <option value="">All Categories</option>
+                            {% for code, name in categories %}
+                            <option value="{{ code }}" {% if selected_category == code %}selected{% endif %}>
+                                {{ name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            {% for code, name in statuses %}
+                            <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>
+                                {{ name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary d-block w-100">Apply Filters</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Goal</th>
+                                <th>Category</th>
+                                <th>Timeline</th>
+                                <th>Target Metric</th>
+                                <th>Progress</th>
+                                <th>Budget</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for goal in goals %}
+                            <tr>
+                                <td>
+                                    <strong>{{ goal.title }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ goal.description|truncatewords:10 }}</small>
+                                </td>
+                                <td>{{ goal.get_category_display }}</td>
+                                <td>
+                                    <small>
+                                        {{ goal.start_year.name }}<br>
+                                        to {{ goal.target_year.name }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <small>
+                                        {{ goal.target_metric }}<br>
+                                        Baseline: {{ goal.baseline_value }}<br>
+                                        Target: {{ goal.target_value }}<br>
+                                        Current: {{ goal.current_value }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar" style="width: {{ goal.progress_percentage }}%">
+                                            {{ goal.progress_percentage }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>KES {{ goal.estimated_budget|floatformat:0 }}</td>
+                                <td>
+                                    <span class="badge bg-{{ goal.status }}">{{ goal.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">View</button>
+                                    <button class="btn btn-sm btn-outline-secondary">Edit</button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No strategic goals found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if goals.has_other_pages %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if goals.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ goals.previous_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Previous</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ goals.number }}</span>
+                        </li>
+                        {% if goals.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ goals.next_page_number }}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,4 +1,38 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Executive Committee</h1>
+            <p class="text-muted">University executive leadership team</p>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for executive in executives %}
+        <div class="col-md-4 mb-4">
+            <div class="section-card text-center">
+                {% if executive.profile_picture %}
+                <img src="{{ executive.profile_picture.url }}" class="rounded-circle mb-3" width="120" height="120" alt="{{ executive.get_full_name }}">
+                {% else %}
+                <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 120px; height: 120px;">
+                    <i class="ri-user-line" style="font-size: 48px; color: white;"></i>
+                </div>
+                {% endif %}
+                <h4>{{ executive.get_full_name }}</h4>
+                <p class="text-muted">{{ executive.get_role_display }}</p>
+                <p><i class="ri-mail-line me-2"></i>{{ executive.email }}</p>
+                {% if executive.phone_number %}
+                <p><i class="ri-phone-line me-2"></i>{{ executive.phone_number }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-muted text-center">No executive members found</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
 {% endblock %}

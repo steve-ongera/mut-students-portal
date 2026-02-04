@@ -1,4 +1,98 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Performance Dashboard</h1>
+            <p class="text-muted">Key Performance Indicators tracking</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ kpi_summary.total }}</div>
+                <div class="stat-label">Total KPIs</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ kpi_summary.achieved }}</div>
+                <div class="stat-label">Achieved</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ kpi_summary.on_track }}</div>
+                <div class="stat-label">On Track</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ kpi_summary.behind }}</div>
+                <div class="stat-label">Behind Target</div>
+            </div>
+        </div>
+    </div>
+
+    {% for goal_title, kpi_list in kpis_by_goal.items %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">{{ goal_title }}</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Indicator</th>
+                                <th>Baseline</th>
+                                <th>Target</th>
+                                <th>Current</th>
+                                <th>Achievement</th>
+                                <th>Unit</th>
+                                <th>Data Source</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for kpi in kpi_list %}
+                            <tr>
+                                <td>
+                                    <strong>{{ kpi.indicator_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ kpi.indicator_code }}</small>
+                                </td>
+                                <td>{{ kpi.baseline_value }}</td>
+                                <td>{{ kpi.target_value }}</td>
+                                <td>{{ kpi.current_value }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar {% if kpi.achievement_percentage >= 100 %}bg-success{% elif kpi.achievement_percentage >= 75 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             style="width: {{ kpi.achievement_percentage }}%">
+                                            {{ kpi.achievement_percentage|floatformat:1 }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ kpi.unit_of_measure }}</td>
+                                <td>
+                                    <small>{{ kpi.data_source }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <p class="mb-0">No performance indicators defined yet.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}

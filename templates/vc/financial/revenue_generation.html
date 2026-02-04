@@ -1,4 +1,100 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Revenue Generation</h1>
+            <p class="text-muted">University revenue sources and tracking</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Revenue by School</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Total Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in school_revenue %}
+                            <tr>
+                                <td>{{ item.school__name }}</td>
+                                <td>KES {{ item.total|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">No revenue data</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Revenue Records</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Revenue Type</th>
+                                <th>Source</th>
+                                <th>Amount</th>
+                                <th>Received Date</th>
+                                <th>Receipt Number</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for revenue in revenues %}
+                            <tr>
+                                <td>{{ revenue.school.name }}</td>
+                                <td>{{ revenue.get_revenue_type_display }}</td>
+                                <td>{{ revenue.source_name }}</td>
+                                <td>KES {{ revenue.amount|floatformat:0 }}</td>
+                                <td>{{ revenue.received_date|date:"M d, Y" }}</td>
+                                <td>{{ revenue.receipt_number|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No revenue records found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if revenues.has_other_pages %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if revenues.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ revenues.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ revenues.number }}</span>
+                        </li>
+                        {% if revenues.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ revenues.next_page_number }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

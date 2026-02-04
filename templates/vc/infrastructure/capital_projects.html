@@ -1,4 +1,137 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Capital Projects</h1>
+            <p class="text-muted">University infrastructure development projects</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.total_projects }}</div>
+                <div class="stat-label">Total Projects</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">KES {{ stats.total_budget|floatformat:0 }}</div>
+                <div class="stat-label">Total Budget</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.ongoing }}</div>
+                <div class="stat-label">Ongoing</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.completed }}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <form method="get" class="mb-3">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                {% for code, name in statuses %}
+                                <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>
+                                    {{ name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">Filter</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Projects</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Project Number</th>
+                                <th>Project Name</th>
+                                <th>Location</th>
+                                <th>Budget</th>
+                                <th>Spent</th>
+                                <th>Progress</th>
+                                <th>Status</th>
+                                <th>Expected Completion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for project in projects %}
+                            <tr>
+                                <td>{{ project.project_number }}</td>
+                                <td>
+                                    <strong>{{ project.project_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ project.contractor|default:"-" }}</small>
+                                </td>
+                                <td>{{ project.location }}</td>
+                                <td>KES {{ project.total_budget|floatformat:0 }}</td>
+                                <td>KES {{ project.amount_spent|floatformat:0 }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar" style="width: {{ project.completion_percentage }}%">
+                                            {{ project.completion_percentage }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ project.status }}">{{ project.get_status_display }}</span>
+                                </td>
+                                <td>{{ project.expected_completion|date:"M d, Y" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No projects found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if projects.has_other_pages %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if projects.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ projects.previous_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Previous</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ projects.number }}</span>
+                        </li>
+                        {% if projects.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ projects.next_page_number }}{% if selected_status %}&status={{ selected_status }}{% endif %}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

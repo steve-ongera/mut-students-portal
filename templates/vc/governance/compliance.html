@@ -1,4 +1,116 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Compliance Monitoring</h1>
+            <p class="text-muted">University compliance status and tracking</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Compliance Status Summary</h2>
+                <div class="row">
+                    {% for item in status_summary %}
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h3 class="stat-value">{{ item.count }}</h3>
+                            <p class="stat-label">{{ item.status }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center">No compliance data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Non-Compliant Items Requiring Action</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Compliance Area</th>
+                                <th>Requirement</th>
+                                <th>Check Date</th>
+                                <th>Deadline</th>
+                                <th>Responsible Person</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in non_compliant_items %}
+                            <tr>
+                                <td>{{ item.school.name }}</td>
+                                <td>{{ item.get_compliance_area_display }}</td>
+                                <td>{{ item.requirement|truncatewords:10 }}</td>
+                                <td>{{ item.check_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="badge bg-danger">{{ item.deadline|date:"M d, Y" }}</span>
+                                </td>
+                                <td>{{ item.responsible_person.get_full_name|default:"-" }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">View</button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No non-compliant items</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Recent Compliance Checks</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Compliance Area</th>
+                                <th>Check Date</th>
+                                <th>Status</th>
+                                <th>Checked By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for check in recent_checks %}
+                            <tr>
+                                <td>{{ check.school.name }}</td>
+                                <td>{{ check.get_compliance_area_display }}</td>
+                                <td>{{ check.check_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="badge bg-{{ check.status }}">{{ check.get_status_display }}</span>
+                                </td>
+                                <td>{{ check.checked_by.get_full_name|default:"-" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No recent checks</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

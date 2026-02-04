@@ -1,4 +1,78 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Facility Development</h1>
+            <p class="text-muted">Recent and ongoing facility development projects</p>
+        </div>
+    </div>
+
+    <div class="row">
+        {% for project in projects %}
+        <div class="col-md-6 mb-4">
+            <div class="section-card">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h4>{{ project.project_name }}</h4>
+                        <p class="text-muted mb-0">{{ project.project_number }}</p>
+                    </div>
+                    <span class="badge bg-{{ project.status }}">{{ project.get_status_display }}</span>
+                </div>
+                
+                <p>{{ project.description|truncatewords:30 }}</p>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted">Location</small>
+                        <p class="mb-0"><strong>{{ project.location }}</strong></p>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Contractor</small>
+                        <p class="mb-0"><strong>{{ project.contractor|default:"-" }}</strong></p>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <small class="text-muted">Budget</small>
+                        <p class="mb-0"><strong>KES {{ project.total_budget|floatformat:0 }}</strong></p>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Spent</small>
+                        <p class="mb-0"><strong>KES {{ project.amount_spent|floatformat:0 }}</strong></p>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">Progress</small>
+                    <div class="progress">
+                        <div class="progress-bar" style="width: {{ project.completion_percentage }}%">
+                            {{ project.completion_percentage }}%
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <small class="text-muted">Start Date</small>
+                        <p class="mb-0">{{ project.start_date|date:"M d, Y" }}</p>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted">Expected Completion</small>
+                        <p class="mb-0">{{ project.expected_completion|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <p class="mb-0">No facility development projects found.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
 {% endblock %}

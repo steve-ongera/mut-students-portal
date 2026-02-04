@@ -1,4 +1,100 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Audit & Assurance</h1>
+            <p class="text-muted">Audit reports and quality assurance</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.total }}</div>
+                <div class="stat-label">Total Audits</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.completed }}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.ongoing }}</div>
+                <div class="stat-label">Ongoing</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Audit Reports</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Audit Number</th>
+                                <th>Type</th>
+                                <th>School/Department</th>
+                                <th>Audit Date</th>
+                                <th>Auditor</th>
+                                <th>Status</th>
+                                <th>Report</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for audit in audits %}
+                            <tr>
+                                <td>{{ audit.audit_number }}</td>
+                                <td>{{ audit.get_audit_type_display }}</td>
+                                <td>
+                                    {% if audit.school %}
+                                    {{ audit.school.name }}
+                                    {% elif audit.department %}
+                                    {{ audit.department.name }}
+                                    {% else %}
+                                    University-wide
+                                    {% endif %}
+                                </td>
+                                <td>{{ audit.audit_date|date:"M d, Y" }}</td>
+                                <td>
+                                    {{ audit.auditor_name }}
+                                    {% if audit.auditor_organization %}
+                                    <br><small class="text-muted">{{ audit.auditor_organization }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ audit.status }}">{{ audit.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    {% if audit.audit_document %}
+                                    <a href="{{ audit.audit_document.url }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="ri-file-pdf-line"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">View Details</button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No audit reports available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

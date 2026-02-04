@@ -1,4 +1,96 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Alumni Relations</h1>
+            <p class="text-muted">Alumni engagement and contributions</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Engagements by Type</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Engagement Type</th>
+                                <th>Count</th>
+                                <th>Total Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in engagements_by_type %}
+                            <tr>
+                                <td>{{ item.engagement_type }}</td>
+                                <td>{{ item.count }}</td>
+                                <td>KES {{ item.total_value|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No engagement data</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <div class="text-center">
+                    <h2 class="section-title">Total Alumni Contributions</h2>
+                    <h1 class="display-4 text-success">KES {{ total_contributions|floatformat:0 }}</h1>
+                    <p class="text-muted">This academic year</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Recent Engagements</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Alumni Name</th>
+                                <th>Graduation Year</th>
+                                <th>Programme</th>
+                                <th>Current Organization</th>
+                                <th>Engagement Type</th>
+                                <th>Date</th>
+                                <th>Contribution</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for engagement in recent_engagements %}
+                            <tr>
+                                <td>{{ engagement.alumni_name }}</td>
+                                <td>{{ engagement.graduation_year }}</td>
+                                <td>{{ engagement.programme.code }}</td>
+                                <td>{{ engagement.current_organization|default:"-" }}</td>
+                                <td>{{ engagement.get_engagement_type_display }}</td>
+                                <td>{{ engagement.engagement_date|date:"M d, Y" }}</td>
+                                <td>KES {{ engagement.contribution_value|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No recent engagements</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

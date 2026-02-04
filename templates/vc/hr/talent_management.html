@@ -1,4 +1,98 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Talent Management</h1>
+            <p class="text-muted">High performers and succession planning</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">High Performing Staff</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Employee Number</th>
+                                <th>Department</th>
+                                <th>Designation</th>
+                                <th>Overall Score</th>
+                                <th>Rating</th>
+                                <th>Academic Year</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appraisal in high_performers %}
+                            <tr>
+                                <td>{{ appraisal.lecturer.user.get_full_name }}</td>
+                                <td>{{ appraisal.lecturer.employee_number }}</td>
+                                <td>{{ appraisal.lecturer.department.name }}</td>
+                                <td>{{ appraisal.lecturer.get_designation_display }}</td>
+                                <td><strong>{{ appraisal.overall_score|floatformat:1 }}</strong></td>
+                                <td>
+                                    <span class="badge bg-success">{{ appraisal.get_overall_rating_display }}</span>
+                                </td>
+                                <td>{{ appraisal.academic_year.name }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No high performers data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Pending Promotions</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Current Designation</th>
+                                <th>Proposed Designation</th>
+                                <th>Application Date</th>
+                                <th>Years in Position</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for promotion in pending_promotions %}
+                            <tr>
+                                <td>{{ promotion.lecturer.user.get_full_name }}</td>
+                                <td>{{ promotion.current_designation }}</td>
+                                <td>{{ promotion.proposed_designation }}</td>
+                                <td>{{ promotion.application_date|date:"M d, Y" }}</td>
+                                <td>{{ promotion.years_in_current_position }}</td>
+                                <td>
+                                    <span class="badge bg-{{ promotion.status }}">{{ promotion.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">Review</button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No pending promotions</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

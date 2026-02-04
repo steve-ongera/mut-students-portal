@@ -1,4 +1,117 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Partnerships & Linkages</h1>
+            <p class="text-muted">University partnerships and collaborative relationships</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Partnerships by Type</h2>
+                <div class="row">
+                    {% for item in partnerships_by_type %}
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center p-3 border rounded">
+                            <h3 class="stat-value">{{ item.count }}</h3>
+                            <p class="stat-label">{{ item.partnership_type }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-12">
+                        <p class="text-muted text-center">No partnership data available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Recent Partnerships</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Partner Name</th>
+                                <th>Type</th>
+                                <th>Country</th>
+                                <th>School</th>
+                                <th>Start Date</th>
+                                <th>Status</th>
+                                <th>Contact</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for partnership in recent_partnerships %}
+                            <tr>
+                                <td>
+                                    <strong>{{ partnership.partner_name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ partnership.description|truncatewords:10 }}</small>
+                                </td>
+                                <td>{{ partnership.get_partnership_type_display }}</td>
+                                <td>{{ partnership.country }}</td>
+                                <td>{{ partnership.school.name }}</td>
+                                <td>{{ partnership.start_date|date:"M d, Y" }}</td>
+                                <td>
+                                    <span class="badge bg-{{ partnership.status }}">{{ partnership.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <small>
+                                        {{ partnership.contact_person }}<br>
+                                        {{ partnership.contact_email }}
+                                    </small>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No partnerships found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">Active Collaborative Projects</h2>
+                <div class="text-center">
+                    <h1 class="display-4">{{ active_projects }}</h1>
+                    <p class="text-muted">Ongoing collaborative projects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">MOUs Expiring Soon</h2>
+                <div class="list-group">
+                    {% for mou in expiring_mous %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ mou.title }}</h6>
+                                <small class="text-muted">{{ mou.partnership.partner_name }}</small>
+                            </div>
+                            <span class="badge bg-warning">{{ mou.expiry_date|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center p-3">No MOUs expiring soon</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,4 +1,108 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3">Executive Report</h1>
+                <p class="text-muted">Comprehensive university performance report</p>
+            </div>
+            <button class="btn btn-primary" onclick="window.print()">
+                <i class="ri-printer-line me-2"></i>Print Report
+            </button>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Report Summary</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Academic Year:</strong> {{ report_data.academic_year.name }}</p>
+                        <p><strong>Semester:</strong> {{ report_data.semester.name }}</p>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <p><strong>Generated:</strong> {{ report_data.generated_date|date:"F d, Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Academic Metrics</h2>
+                <div class="row">
+                    <div class="col-md-3">
+                        <h4>{{ report_data.total_students }}</h4>
+                        <p class="text-muted">Total Students</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ report_data.total_lecturers }}</h4>
+                        <p class="text-muted">Total Lecturers</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ report_data.total_programmes }}</h4>
+                        <p class="text-muted">Active Programmes</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ report_data.strategic_progress|floatformat:1 }}%</h4>
+                        <p class="text-muted">Strategic Progress</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Financial Performance</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Total Budget:</strong> KES {{ report_data.budget.total|floatformat:0 }}</p>
+                        <p><strong>Total Spent:</strong> KES {{ report_data.budget.spent|floatformat:0 }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="progress">
+                            {% widthratio report_data.budget.spent report_data.budget.total 100 as utilization %}
+                            <div class="progress-bar" style="width: {{ utilization }}%">
+                                {{ utilization }}% Utilization
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Research Metrics</h2>
+                <div class="row">
+                    <div class="col-md-3">
+                        <h4>{{ report_data.research.active_projects }}</h4>
+                        <p class="text-muted">Active Projects</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ report_data.research.publications }}</h4>
+                        <p class="text-muted">Publications</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ report_data.research.grants }}</h4>
+                        <p class="text-muted">Active Grants</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>KES {{ report_data.research.grant_value|floatformat:0 }}</h4>
+                        <p class="text-muted">Grant Value</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,4 +1,93 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12 d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3">University Senate</h1>
+                <p class="text-muted">Senate sessions and meetings</p>
+            </div>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSessionModal">
+                <i class="ri-add-line me-2"></i>Schedule Session
+            </button>
+        </div>
+    </div>
+
+    {% if next_session %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h5><i class="ri-calendar-event-line me-2"></i>Next Senate Session</h5>
+                <p class="mb-0">
+                    <strong>{{ next_session.session_number }}</strong> - {{ next_session.session_date|date:"l, F d, Y" }}<br>
+                    Venue: {{ next_session.venue }}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Senate Sessions</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Session Number</th>
+                                <th>Date</th>
+                                <th>Venue</th>
+                                <th>Status</th>
+                                <th>Chaired By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in senate_sessions %}
+                            <tr>
+                                <td>{{ session.session_number }}</td>
+                                <td>{{ session.session_date|date:"M d, Y" }}</td>
+                                <td>{{ session.venue }}</td>
+                                <td>
+                                    <span class="badge bg-{{ session.status }}">{{ session.get_status_display }}</span>
+                                </td>
+                                <td>{{ session.chaired_by.get_full_name|default:"-" }}</td>
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No senate sessions found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if senate_sessions.has_other_pages %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if senate_sessions.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ senate_sessions.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ senate_sessions.number }}</span>
+                        </li>
+                        {% if senate_sessions.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ senate_sessions.next_page_number }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

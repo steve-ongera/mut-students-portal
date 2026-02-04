@@ -1,4 +1,138 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Risk Management</h1>
+            <p class="text-muted">Enterprise risk register and management</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">High Priority Risks</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Risk Number</th>
+                                <th>Category</th>
+                                <th>Risk Title</th>
+                                <th>Likelihood</th>
+                                <th>Impact</th>
+                                <th>Risk Score</th>
+                                <th>Risk Owner</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for risk in high_risks %}
+                            <tr>
+                                <td>{{ risk.risk_number }}</td>
+                                <td>{{ risk.get_risk_category_display }}</td>
+                                <td>
+                                    <strong>{{ risk.risk_title }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ risk.risk_description|truncatewords:15 }}</small>
+                                </td>
+                                <td>{{ risk.get_likelihood_display }}</td>
+                                <td>{{ risk.get_impact_display }}</td>
+                                <td>
+                                    <span class="badge {% if risk.risk_score >= 15 %}bg-danger{% elif risk.risk_score >= 10 %}bg-warning{% else %}bg-success{% endif %}">
+                                        {{ risk.risk_score }}
+                                    </span>
+                                </td>
+                                <td>{{ risk.risk_owner.get_full_name|default:"-" }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">View</button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No high priority risks</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Risks by Category</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Count</th>
+                                <th>Average Risk Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in risks_by_category %}
+                            <tr>
+                                <td>{{ item.risk_category }}</td>
+                                <td>{{ item.count }}</td>
+                                <td>{{ item.avg_score|floatformat:1 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted">No risk data available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">All Active Risks</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Risk Number</th>
+                                <th>Category</th>
+                                <th>Risk Title</th>
+                                <th>Risk Score</th>
+                                <th>Mitigation Strategy</th>
+                                <th>Review Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for risk in all_risks %}
+                            <tr>
+                                <td>{{ risk.risk_number }}</td>
+                                <td>{{ risk.get_risk_category_display }}</td>
+                                <td>{{ risk.risk_title }}</td>
+                                <td>
+                                    <span class="badge {% if risk.risk_score >= 15 %}bg-danger{% elif risk.risk_score >= 10 %}bg-warning{% else %}bg-success{% endif %}">
+                                        {{ risk.risk_score }}
+                                    </span>
+                                </td>
+                                <td>{{ risk.mitigation_strategy|truncatewords:10 }}</td>
+                                <td>{{ risk.review_date|date:"M d, Y" }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">No active risks</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

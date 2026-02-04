@@ -1,4 +1,121 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Academic Quality Assurance</h1>
+            <p class="text-muted">Teaching evaluations, programme reviews, and compliance</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Teaching Evaluation Averages</h2>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="stat-value">{{ teaching_evaluation_avg.avg_content|floatformat:2|default:"N/A" }}</h3>
+                            <p class="stat-label">Content Delivery</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="stat-value">{{ teaching_evaluation_avg.avg_engagement|floatformat:2|default:"N/A" }}</h3>
+                            <p class="stat-label">Student Engagement</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="stat-value">{{ teaching_evaluation_avg.avg_assessment|floatformat:2|default:"N/A" }}</h3>
+                            <p class="stat-label">Assessment Fairness</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h3 class="stat-value">{{ teaching_evaluation_avg.avg_overall|floatformat:2|default:"N/A" }}</h3>
+                            <p class="stat-label">Overall Rating</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">Recent Programme Reviews</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Programme</th>
+                                <th>Review Date</th>
+                                <th>Overall Rating</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for review in recent_reviews %}
+                            <tr>
+                                <td>{{ review.programme.name }}</td>
+                                <td>{{ review.review_date|date:"M d, Y" }}</td>
+                                <td>{{ review.overall_rating|floatformat:1 }}/5</td>
+                                <td>
+                                    <span class="badge bg-{{ review.status }}">{{ review.get_status_display }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No recent reviews</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="section-card">
+                <h2 class="section-title">Compliance Status</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in compliance_summary %}
+                            <tr>
+                                <td>{{ item.status }}</td>
+                                <td>{{ item.count }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">No compliance data</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Average Programme Rating</h2>
+                <div class="text-center">
+                    <h1 class="display-4">{{ avg_programme_rating|floatformat:2 }}/5.0</h1>
+                    <p class="text-muted">Based on completed programme reviews</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

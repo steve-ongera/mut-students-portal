@@ -1,4 +1,94 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Progress Review Reports</h1>
+            <p class="text-muted">Periodic progress review reports</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Progress Reports</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>School</th>
+                                <th>Report Title</th>
+                                <th>Type</th>
+                                <th>Period</th>
+                                <th>Overall Progress</th>
+                                <th>Budget Utilization</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for report in reports %}
+                            <tr>
+                                <td>{{ report.school.name }}</td>
+                                <td>{{ report.title }}</td>
+                                <td>{{ report.get_report_type_display }}</td>
+                                <td>
+                                    <small>
+                                        {{ report.reporting_period_start|date:"M d, Y" }}<br>
+                                        to {{ report.reporting_period_end|date:"M d, Y" }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar" style="width: {{ report.overall_progress_percentage }}%">
+                                            {{ report.overall_progress_percentage }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ report.budget_utilization_percentage }}%</td>
+                                <td>
+                                    <span class="badge bg-{{ report.status }}">{{ report.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary">View Report</button>
+                                    {% if report.report_document %}
+                                    <a href="{{ report.report_document.url }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="ri-download-line"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No progress reports found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if reports.has_other_pages %}
+                <nav>
+                    <ul class="pagination justify-content-center">
+                        {% if reports.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reports.previous_page_number }}">Previous</a>
+                        </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ reports.number }}</span>
+                        </li>
+                        {% if reports.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ reports.next_page_number }}">Next</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

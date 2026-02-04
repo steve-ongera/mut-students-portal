@@ -1,4 +1,105 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Staff Development</h1>
+            <p class="text-muted">Training and development programs</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ training_stats.total_trainings }}</div>
+                <div class="stat-label">Total Trainings</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ training_stats.completed }}</div>
+                <div class="stat-label">Completed</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">KES {{ training_stats.total_cost|floatformat:0 }}</div>
+                <div class="stat-label">Total Investment</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Training by Type</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Training Type</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in training_by_type %}
+                            <tr>
+                                <td>{{ item.training_type }}</td>
+                                <td>{{ item.count }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center text-muted">No training data</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Recent Trainings</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Lecturer</th>
+                                <th>Training Title</th>
+                                <th>Type</th>
+                                <th>Organizer</th>
+                                <th>Date</th>
+                                <th>Cost</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for training in recent_trainings %}
+                            <tr>
+                                <td>{{ training.lecturer.user.get_full_name }}</td>
+                                <td>{{ training.title }}</td>
+                                <td>{{ training.get_training_type_display }}</td>
+                                <td>{{ training.organizer }}</td>
+                                <td>{{ training.start_date|date:"M d, Y" }}</td>
+                                <td>KES {{ training.cost|floatformat:0 }}</td>
+                                <td>
+                                    <span class="badge bg-{{ training.status }}">{{ training.get_status_display }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">No recent trainings</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

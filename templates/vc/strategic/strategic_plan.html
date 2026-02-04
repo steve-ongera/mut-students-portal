@@ -1,4 +1,94 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Strategic Plan</h1>
+            <p class="text-muted">University strategic goals and objectives</p>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ total_goals }}</div>
+                <div class="stat-label">Total Strategic Goals</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ achieved_goals }}</div>
+                <div class="stat-label">Achieved Goals</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-value">{{ overall_progress|floatformat:1 }}%</div>
+                <div class="stat-label">Overall Progress</div>
+            </div>
+        </div>
+    </div>
+
+    {% for category_name, category_data in goals_by_category.items %}
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="section-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h2 class="section-title mb-0">{{ category_name }}</h2>
+                    <div>
+                        <span class="badge bg-primary">{{ category_data.count }} Goals</span>
+                        <span class="badge bg-success">{{ category_data.avg_progress|floatformat:1 }}% Progress</span>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Goal</th>
+                                <th>Target Year</th>
+                                <th>Progress</th>
+                                <th>Status</th>
+                                <th>Champion</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for goal in category_data.goals %}
+                            <tr>
+                                <td>
+                                    <strong>{{ goal.title }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ goal.description|truncatewords:15 }}</small>
+                                </td>
+                                <td>{{ goal.target_year.name }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar" style="width: {{ goal.progress_percentage }}%">
+                                            {{ goal.progress_percentage }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ goal.status }}">{{ goal.get_status_display }}</span>
+                                </td>
+                                <td>{{ goal.champion.get_full_name|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <p class="mb-0">No strategic goals defined yet.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}

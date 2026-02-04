@@ -1,4 +1,58 @@
-{% extends "vc/vc_base.html" %}
-{% block content %}
-<!-- Under development -->
+{% extends 'vc/vc_base.html' %}
+
+{% block vc_content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3">Management Board</h1>
+            <p class="text-muted">Management board meetings and decisions</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="section-card">
+                <h2 class="section-title">Recent Meetings</h2>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Meeting Number</th>
+                                <th>Date</th>
+                                <th>Academic Year</th>
+                                <th>Minutes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for meeting in meetings %}
+                            <tr>
+                                <td>{{ meeting.meeting_number }}</td>
+                                <td>{{ meeting.meeting_date|date:"M d, Y" }}</td>
+                                <td>{{ meeting.academic_year.name }}</td>
+                                <td>
+                                    {% if meeting.minutes_document %}
+                                    <a href="{{ meeting.minutes_document.url }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="ri-file-pdf-line me-1"></i>Download
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">Not available</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">No meetings found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
