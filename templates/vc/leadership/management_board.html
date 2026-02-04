@@ -1,58 +1,598 @@
 {% extends 'vc/vc_base.html' %}
+{% load static %}
+
+{% block title %}Management Board{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Management Board{% endblock %}
+{% block page_subtitle %}Management board meetings and decisions{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h3">Management Board</h1>
-            <p class="text-muted">Management board meetings and decisions</p>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'vc_dashboard' %}">VC Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Management Board</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Management Board</h1>
+                <p class="text-muted mb-0">Management board meetings and decisions</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-group-line me-2"></i>
+                    {{ meetings|length }} meeting(s)
+                </span>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="section-card">
-                <h2 class="section-title">Recent Meetings</h2>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Meeting Number</th>
-                                <th>Date</th>
-                                <th>Academic Year</th>
-                                <th>Minutes</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for meeting in meetings %}
-                            <tr>
-                                <td>{{ meeting.meeting_number }}</td>
-                                <td>{{ meeting.meeting_date|date:"M d, Y" }}</td>
-                                <td>{{ meeting.academic_year.name }}</td>
-                                <td>
-                                    {% if meeting.minutes_document %}
-                                    <a href="{{ meeting.minutes_document.url }}" class="btn btn-sm btn-outline-secondary">
-                                        <i class="ri-file-pdf-line me-1"></i>Download
-                                    </a>
-                                    {% else %}
-                                    <span class="text-muted">Not available</span>
+    <!-- Quick Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="management-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-number h4 fw-bold text-primary mb-2">{{ stats.total_meetings }}</div>
+                    <div class="stat-label text-muted">Total Meetings</div>
+                    <div class="mt-3">
+                        <i class="ri-calendar-line fs-3 text-primary opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-number h4 fw-bold text-info mb-2">{{ stats.current_year_meetings }}</div>
+                    <div class="stat-label text-muted">This Year</div>
+                    <div class="mt-3">
+                        <i class="ri-calendar-2-line fs-3 text-info opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-number h4 fw-bold text-success mb-2">{{ stats.minutes_available }}</div>
+                    <div class="stat-label text-muted">Minutes Available</div>
+                    <div class="mt-3">
+                        <i class="ri-file-text-line fs-3 text-success opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="management-card h-100">
+                <div class="card-body text-center">
+                    <div class="stat-number h4 fw-bold text-warning mb-2">{{ stats.upcoming_meetings }}</div>
+                    <div class="stat-label text-muted">Upcoming</div>
+                    <div class="mt-3">
+                        <i class="ri-time-line fs-3 text-warning opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Meetings Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Recent Meetings</h5>
+            <div class="card-subtitle">Management board meetings and decisions</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Meeting Details</th>
+                            <th>Date & Time</th>
+                            <th>Academic Year</th>
+                            <th>Status</th>
+                            <th>Minutes</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for meeting in meetings %}
+                        <tr>
+                            <td class="ps-4">
+                                <div>
+                                    <strong class="text-primary">{{ meeting.meeting_number }}</strong>
+                                    {% if meeting.title %}
+                                    <div class="mt-1">
+                                        <small class="text-muted">{{ meeting.title|truncatechars:80 }}</small>
+                                    </div>
                                     {% endif %}
-                                </td>
-                                <td>
-                                    <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center text-muted">No meetings found</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="small">{{ meeting.meeting_date|date:"d M Y" }}</div>
+                                    <small class="text-muted">{{ meeting.meeting_date  }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="fw-medium">{{ meeting.academic_year.name }}</div>
+                                    {% if meeting.term %}
+                                    <small class="text-muted">{{ meeting.term }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if meeting.status == 'scheduled' %}
+                                <span class="status-badge status-deferred">
+                                    <i class="ri-time-line me-1"></i>
+                                    Scheduled
+                                </span>
+                                {% elif meeting.status == 'completed' %}
+                                <span class="status-badge status-active">
+                                    <i class="ri-checkbox-circle-line me-1"></i>
+                                    Completed
+                                </span>
+                                {% elif meeting.status == 'cancelled' %}
+                                <span class="status-badge status-suspended">
+                                    <i class="ri-close-circle-line me-1"></i>
+                                    Cancelled
+                                </span>
+                                {% elif meeting.status == 'ongoing' %}
+                                <span class="status-badge status-graduated">
+                                    <i class="ri-play-circle-line me-1"></i>
+                                    Ongoing
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-other">
+                                    {{ meeting.get_status_display }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if meeting.minutes_document %}
+                                <div class="document-status">
+                                    <a href="{{ meeting.minutes_document.url }}" 
+                                       class="btn btn-icon btn-outline-danger btn-sm"
+                                       title="Download PDF"
+                                       data-bs-toggle="tooltip"
+                                       target="_blank">
+                                        <i class="ri-file-pdf-line"></i>
+                                    </a>
+                                    {% if meeting.minutes_approved %}
+                                    <span class="badge bg-success-subtle text-success small ms-2">Approved</span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning small ms-2">Draft</span>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <div class="no-document">
+                                    <span class="text-muted small">Not available</span>
+                                    <div>
+                                        <button type="button" 
+                                                class="btn btn-icon btn-outline-secondary btn-sm mt-1"
+                                                title="Upload Minutes"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-upload-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="#" 
+                                           class="btn btn-icon btn-outline-primary btn-sm"
+                                           title="View Details"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        
+                                        {% if meeting.minutes_document %}
+                                        <a href="#" 
+                                           class="btn btn-icon btn-outline-info btn-sm"
+                                           title="View Minutes"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-file-text-line"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        {% if meeting.attendance_sheet %}
+                                        <a href="{{ meeting.attendance_sheet.url }}" 
+                                           class="btn btn-icon btn-outline-success btn-sm"
+                                           title="Attendance Sheet"
+                                           data-bs-toggle="tooltip"
+                                           target="_blank">
+                                            <i class="ri-user-line"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        {% if meeting.status == 'scheduled' %}
+                                        <button type="button" 
+                                                class="btn btn-icon btn-outline-warning btn-sm"
+                                                title="Edit Meeting"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-edit-line"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-calendar-event-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No meetings found</h5>
+                                    <p class="text-muted mb-0">No management board meetings have been scheduled yet</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Meetings -->
+    {% if upcoming_meetings %}
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Upcoming Meetings</h5>
+            <div class="card-subtitle">Scheduled management board meetings</div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% for meeting in upcoming_meetings|slice:":3" %}
+                <div class="col-md-4">
+                    <div class="upcoming-meeting border rounded p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1 fw-medium">{{ meeting.meeting_number }}</h6>
+                                <small class="text-muted">{{ meeting.title|default:"Management Board Meeting" }}</small>
+                            </div>
+                            <span class="badge bg-warning-subtle text-warning">Upcoming</span>
+                        </div>
+                        <div class="meeting-details">
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="ri-calendar-2-line me-2 text-muted small"></i>
+                                <small>{{ meeting.meeting_date|date:"l, F d, Y" }}</small>
+                            </div>
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="ri-time-line me-2 text-muted small"></i>
+                                <small>{{ meeting.meeting_date|date:"h:i A" }}</small>
+                            </div>
+                            {% if meeting.venue %}
+                            <div class="d-flex align-items-center">
+                                <i class="ri-map-pin-line me-2 text-muted small"></i>
+                                <small>{{ meeting.venue }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="mt-3 pt-2 border-top">
+                            <a href="#" class="btn btn-sm btn-outline-primary w-100">
+                                View Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if upcoming_meetings|length > 3 %}
+            <div class="text-center mt-3">
+                <a href="#" class="btn btn-sm btn-outline-secondary">View All Upcoming Meetings</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Meeting Actions -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Meeting Actions</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#scheduleMeetingModal">
+                        <i class="ri-calendar-event-line me-2"></i>
+                        Schedule New Meeting
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="btn btn-outline-info w-100">
+                        <i class="ri-calendar-line me-2"></i>
+                        View Calendar
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="btn btn-outline-secondary w-100">
+                        <i class="ri-archive-line me-2"></i>
+                        View Archive
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Schedule Meeting Modal -->
+<div class="modal fade" id="scheduleMeetingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="#">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Schedule Management Board Meeting</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Meeting Number</label>
+                            <input type="text" name="meeting_number" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Meeting Title</label>
+                            <input type="text" name="title" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Meeting Date</label>
+                            <input type="datetime-local" name="meeting_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Venue</label>
+                            <input type="text" name="venue" class="form-control" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Agenda</label>
+                            <textarea name="agenda" class="form-control" rows="4" placeholder="Meeting agenda items..."></textarea>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Academic Year</label>
+                            <select name="academic_year" class="form-select" required>
+                                <option value="">Select Academic Year</option>
+                                <!-- Options will be populated -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Schedule Meeting</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover { color: var(--color-primary); }
+    .breadcrumb-item.active { color: var(--color-gray-800); font-weight: 500; }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body { padding: 1.5rem; }
+    
+    .stat-number {
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .status-active {
+        background: rgba(76, 175, 80, 0.1);
+        color: var(--color-success);
+    }
+    
+    .status-deferred {
+        background: rgba(255, 152, 0, 0.1);
+        color: #FF9800;
+    }
+    
+    .status-graduated {
+        background: rgba(33, 150, 243, 0.1);
+        color: var(--color-info);
+    }
+    
+    .status-suspended {
+        background: rgba(244, 67, 54, 0.1);
+        color: var(--color-danger);
+    }
+    
+    .status-other {
+        background: var(--color-gray-100);
+        color: var(--color-gray-600);
+    }
+    
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover { transform: translateY(-2px); }
+    
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-warning-subtle { background-color: rgba(255, 152, 0, 0.1); }
+    
+    .upcoming-meeting {
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .upcoming-meeting:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: var(--color-primary);
+    }
+    
+    .meeting-details small {
+        font-size: 0.8125rem;
+    }
+    
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize date pickers
+    const dateInputs = document.querySelectorAll('input[type="datetime-local"]');
+    dateInputs.forEach(input => {
+        // Set min date to today
+        const today = new Date().toISOString().slice(0, 16);
+        input.min = today;
+    });
+    
+    // Add upcoming meeting indicators
+    const upcomingBadges = document.querySelectorAll('.badge.bg-warning-subtle');
+    upcomingBadges.forEach(badge => {
+        badge.classList.add('pulse-animation');
+    });
+});
+
+// Add pulse animation for upcoming meetings
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); }
+        70% { box-shadow: 0 0 0 6px rgba(255, 152, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+    }
+    .pulse-animation {
+        animation: pulse 2s infinite;
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}

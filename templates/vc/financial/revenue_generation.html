@@ -1,100 +1,686 @@
 {% extends 'vc/vc_base.html' %}
+{% load static %}
+
+{% block title %}Revenue Generation{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Revenue Generation{% endblock %}
+{% block page_subtitle %}University revenue sources and tracking{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h3">Revenue Generation</h1>
-            <p class="text-muted">University revenue sources and tracking</p>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'vc_dashboard' %}">VC Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="#">Financial Performance</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Revenue Generation</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">Revenue Generation</h1>
+                <p class="text-muted mb-0">University revenue sources and tracking</p>
+            </div>
+            <div class="text-end">
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addRevenueModal">
+                    <i class="ri-add-line me-2"></i>Add Revenue
+                </button>
+            </div>
         </div>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="section-card">
-                <h2 class="section-title">Revenue by School</h2>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>School</th>
-                                <th>Total Revenue</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in school_revenue %}
-                            <tr>
-                                <td>{{ item.school__name }}</td>
-                                <td>KES {{ item.total|floatformat:0 }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="2" class="text-center text-muted">No revenue data</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <!-- Revenue Summary -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Revenue Summary</h5>
+            <div class="card-subtitle">{{ current_year.name }} Revenue Overview</div>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-xl-3 col-md-6">
+                    <div class="text-center p-4 border rounded">
+                        <div class="stat-number h4 fw-bold text-success mb-2">
+                            KES {{ revenue_summary.total_revenue|floatformat:0 }}
+                        </div>
+                        <div class="stat-label text-muted mb-3">Total Revenue</div>
+                        <i class="ri-money-dollar-circle-line fs-3 text-success opacity-75"></i>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="text-center p-4 border rounded">
+                        <div class="stat-number h4 fw-bold text-primary mb-2">
+                            {{ revenue_summary.school_count }}
+                        </div>
+                        <div class="stat-label text-muted mb-3">Schools</div>
+                        <i class="ri-building-4-line fs-3 text-primary opacity-75"></i>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="text-center p-4 border rounded">
+                        <div class="stat-number h4 fw-bold text-info mb-2">
+                            {{ revenue_summary.transaction_count }}
+                        </div>
+                        <div class="stat-label text-muted mb-3">Transactions</div>
+                        <i class="ri-exchange-dollar-line fs-3 text-info opacity-75"></i>
+                    </div>
+                </div>
+                <div class="col-xl-3 col-md-6">
+                    <div class="text-center p-4 border rounded">
+                        <div class="stat-number h4 fw-bold text-warning mb-2">
+                            KES {{ revenue_summary.average_revenue|floatformat:0 }}
+                        </div>
+                        <div class="stat-label text-muted mb-3">Avg per School</div>
+                        <i class="ri-calculator-line fs-3 text-warning opacity-75"></i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="section-card">
-                <h2 class="section-title">Revenue Records</h2>
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>School</th>
-                                <th>Revenue Type</th>
-                                <th>Source</th>
-                                <th>Amount</th>
-                                <th>Received Date</th>
-                                <th>Receipt Number</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for revenue in revenues %}
-                            <tr>
-                                <td>{{ revenue.school.name }}</td>
-                                <td>{{ revenue.get_revenue_type_display }}</td>
-                                <td>{{ revenue.source_name }}</td>
-                                <td>KES {{ revenue.amount|floatformat:0 }}</td>
-                                <td>{{ revenue.received_date|date:"M d, Y" }}</td>
-                                <td>{{ revenue.receipt_number|default:"-" }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">No revenue records found</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+    <!-- Revenue by School -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Revenue by School</h5>
+            <div class="card-subtitle">School-wise revenue distribution</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">School</th>
+                            <th>Total Revenue</th>
+                            <th>Percentage</th>
+                            <th>Last Transaction</th>
+                            <th>Average per Month</th>
+                            <th class="pe-4">Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in school_revenue %}
+                        <tr>
+                            <td class="ps-4">
+                                <div>
+                                    <strong>{{ item.school__name }}</strong>
+                                    <div class="mt-1">
+                                        <small class="text-muted">{{ item.school__code|default:"" }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-medium text-success">
+                                    KES {{ item.total|floatformat:0 }}
+                                </div>
+                            </td>
+                            <td>
+                                {% widthratio item.total revenue_summary.total_revenue 100 as percentage %}
+                                <div class="d-flex align-items-center">
+                                    <div class="flex-grow-1 me-3">
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" style="width: {{ percentage }}%"></div>
+                                        </div>
+                                    </div>
+                                    <span class="text-muted small">{{ percentage|floatformat:1 }}%</span>
+                                </div>
+                            </td>
+                            <td>
+                                {% if item.last_transaction %}
+                                <div>
+                                    <div class="small">{{ item.last_transaction|date:"d M Y" }}</div>
+                                    <small class="text-muted">{{ item.last_transaction|date:"h:i A" }}</small>
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-info fw-medium">
+                                    KES {{ item.monthly_average|floatformat:0|default:"0" }}
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                {% if item.growth %}
+                                <span class="trend-indicator {% if item.growth >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    <i class="ri-arrow-{% if item.growth >= 0 %}up{% else %}down{% endif %}-line me-1"></i>
+                                    {{ item.growth|floatformat:1 }}%
+                                </span>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-building-4-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No school revenue data</h5>
+                                    <p class="text-muted mb-0">Revenue data has not been recorded yet</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-                {% if revenues.has_other_pages %}
-                <nav>
-                    <ul class="pagination justify-content-center">
-                        {% if revenues.has_previous %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ revenues.previous_page_number }}">Previous</a>
-                        </li>
-                        {% endif %}
-                        <li class="page-item active">
-                            <span class="page-link">{{ revenues.number }}</span>
-                        </li>
-                        {% if revenues.has_next %}
-                        <li class="page-item">
-                            <a class="page-link" href="?page={{ revenues.next_page_number }}">Next</a>
-                        </li>
-                        {% endif %}
-                    </ul>
-                </nav>
+    <!-- Revenue Records -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Revenue Records</h5>
+            <div class="card-subtitle">Detailed revenue transactions</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">School</th>
+                            <th>Revenue Type</th>
+                            <th>Source</th>
+                            <th>Amount</th>
+                            <th>Received Date</th>
+                            <th>Receipt Number</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for revenue in revenues %}
+                        <tr>
+                            <td class="ps-4">
+                                <div>
+                                    <strong>{{ revenue.school.name }}</strong>
+                                    <div class="mt-1">
+                                        <small class="text-muted">{{ revenue.school.code }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if revenue.revenue_type == 'tuition' %}bg-primary-subtle text-primary{% elif revenue.revenue_type == 'research' %}bg-info-subtle text-info{% elif revenue.revenue_type == 'donation' %}bg-success-subtle text-success{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                    {{ revenue.get_revenue_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="fw-medium">{{ revenue.source_name }}</div>
+                                    {% if revenue.source_details %}
+                                    <small class="text-muted">{{ revenue.source_details|truncatechars:30 }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-success">
+                                    KES {{ revenue.amount|floatformat:0 }}
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="small">{{ revenue.received_date|date:"d M Y" }}</div>
+                                    <small class="text-muted">{{ revenue.received_date }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if revenue.receipt_number %}
+                                <div class="receipt-info">
+                                    <span class="badge bg-light text-dark">{{ revenue.receipt_number }}</span>
+                                    {% if revenue.receipt_file %}
+                                    <small class="text-muted d-block">Document available</small>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted small">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        <a href="#" 
+                                           class="btn btn-icon btn-outline-primary btn-sm"
+                                           title="View Details"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-eye-line"></i>
+                                        </a>
+                                        
+                                        {% if revenue.receipt_file %}
+                                        <a href="{{ revenue.receipt_file.url }}" 
+                                           class="btn btn-icon btn-outline-info btn-sm"
+                                           title="View Receipt"
+                                           data-bs-toggle="tooltip"
+                                           target="_blank">
+                                            <i class="ri-file-text-line"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        <button type="button" 
+                                                class="btn btn-icon btn-outline-warning btn-sm"
+                                                title="Edit Record"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-edit-line"></i>
+                                        </button>
+                                        
+                                        <button type="button" 
+                                                class="btn btn-icon btn-outline-danger btn-sm"
+                                                title="Delete Record"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-delete-bin-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-money-dollar-circle-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No revenue records found</h5>
+                                    <p class="text-muted mb-0">Start by adding your first revenue record</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if revenues.has_other_pages %}
+    <div class="pagination-container mt-4">
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if revenues.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ revenues.previous_page_number }}">
+                        <i class="ri-arrow-left-line"></i>
+                    </a>
+                </li>
                 {% endif %}
+                
+                {% for i in revenues.paginator.page_range %}
+                    {% if revenues.number == i %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ i }}</span>
+                    </li>
+                    {% elif i > revenues.number|add:'-3' and i < revenues.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if revenues.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ revenues.next_page_number }}">
+                        <i class="ri-arrow-right-line"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+
+    <!-- Revenue Actions -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Revenue Actions</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#addRevenueModal">
+                        <i class="ri-add-line me-2"></i>
+                        Add Revenue Record
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="btn btn-outline-info w-100">
+                        <i class="ri-file-text-line me-2"></i>
+                        Generate Reports
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="btn btn-outline-success w-100">
+                        <i class="ri-download-line me-2"></i>
+                        Export Data
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Add Revenue Modal -->
+<div class="modal fade" id="addRevenueModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="#">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Revenue Record</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">School</label>
+                            <select name="school" class="form-select" required>
+                                <option value="">Select School</option>
+                                <!-- Options will be populated -->
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Revenue Type</label>
+                            <select name="revenue_type" class="form-select" required>
+                                <option value="">Select Type</option>
+                                <option value="tuition">Tuition Fees</option>
+                                <option value="research">Research Grants</option>
+                                <option value="donation">Donations</option>
+                                <option value="government">Government Funding</option>
+                                <option value="other">Other Income</option>
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Source Name</label>
+                            <input type="text" name="source_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Source Details</label>
+                            <textarea name="source_details" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Amount (KES)</label>
+                            <input type="number" name="amount" class="form-control" required step="0.01">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Received Date</label>
+                            <input type="date" name="received_date" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Receipt Number</label>
+                            <input type="text" name="receipt_number" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Receipt File</label>
+                            <input type="file" name="receipt_file" class="form-control">
+                        </div>
+                        <div class="col-md-12">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Additional notes..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Revenue</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover { color: var(--color-primary); }
+    .breadcrumb-item.active { color: var(--color-gray-800); font-weight: 500; }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body { padding: 1.5rem; }
+    
+    .stat-number {
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-success-subtle { background-color: rgba(76, 175, 80, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.8125rem;
+        font-weight: 600;
+    }
+    
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover { transform: translateY(-2px); }
+    
+    .receipt-info .badge {
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+    
+    .pagination .page-link {
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        padding: 0.5rem 0.75rem;
+        margin: 0 0.25rem;
+        border-radius: var(--radius-sm);
+    }
+    
+    .pagination .page-link:hover {
+        background: var(--color-gray-100);
+    }
+    
+    .pagination .page-item.active .page-link {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .modal-content {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+    
+    .modal-header {
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .modal-footer {
+        border-top: 1px solid var(--color-gray-200);
+        padding: 1.25rem 1.5rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Add revenue amount formatting
+    const revenueAmounts = document.querySelectorAll('.text-success.fw-bold');
+    revenueAmounts.forEach(amount => {
+        const text = amount.textContent;
+        const match = text.match(/KES (\d+(?:,\d{3})*(?:\.\d{2})?)/);
+        if (match) {
+            const formatted = parseFloat(match[1].replace(/,/g, '')).toLocaleString('en-US', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+            amount.textContent = `KES ${formatted}`;
+        }
+    });
+    
+    // Add trend indicator animations
+    const trendIndicators = document.querySelectorAll('.trend-indicator');
+    trendIndicators.forEach(indicator => {
+        if (indicator.classList.contains('text-success')) {
+            indicator.classList.add('trend-up');
+        } else if (indicator.classList.contains('text-danger')) {
+            indicator.classList.add('trend-down');
+        }
+    });
+    
+    // Add progress bar animations
+    const progressBars = document.querySelectorAll('.progress-bar');
+    progressBars.forEach(bar => {
+        const width = bar.style.width;
+        bar.style.width = '0%';
+        setTimeout(() => {
+            bar.style.transition = 'width 1s ease-in-out';
+            bar.style.width = width;
+        }, 300);
+    });
+    
+    // Highlight top revenue schools
+    const revenueRows = document.querySelectorAll('.table tbody tr');
+    if (revenueRows.length > 0) {
+        revenueRows[0].classList.add('top-revenue');
+        if (revenueRows.length > 1) revenueRows[1].classList.add('second-revenue');
+        if (revenueRows.length > 2) revenueRows[2].classList.add('third-revenue');
+    }
+});
+
+// Add custom styles for animations and highlights
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes trendUp {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+        100% { transform: translateY(0); }
+    }
+    @keyframes trendDown {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(3px); }
+        100% { transform: translateY(0); }
+    }
+    .trend-up {
+        animation: trendUp 2s infinite;
+    }
+    .trend-down {
+        animation: trendDown 2s infinite;
+    }
+    .top-revenue {
+        background: linear-gradient(90deg, rgba(76, 175, 80, 0.05), rgba(76, 175, 80, 0.02));
+        border-left: 4px solid var(--color-success);
+    }
+    .second-revenue {
+        background: linear-gradient(90deg, rgba(33, 150, 243, 0.05), rgba(33, 150, 243, 0.02));
+        border-left: 4px solid var(--color-info);
+    }
+    .third-revenue {
+        background: linear-gradient(90deg, rgba(255, 152, 0, 0.05), rgba(255, 152, 0, 0.02));
+        border-left: 4px solid #FF9800;
+    }
+`;
+document.head.appendChild(style);
+</script>
 {% endblock %}

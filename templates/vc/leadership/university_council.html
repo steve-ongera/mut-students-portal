@@ -1,59 +1,446 @@
 {% extends 'vc/vc_base.html' %}
+{% load static %}
+
+{% block title %}University Council{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}University Council{% endblock %}
+{% block page_subtitle %}University governing body members{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h1 class="h3">University Council</h1>
-            <p class="text-muted">{{ total_members }} Council Members</p>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'vc_dashboard' %}">VC Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">University Council</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1 class="h3 fw-semibold mb-2">University Council</h1>
+                <p class="text-muted mb-0">University governing body members</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-light text-dark px-3 py-2">
+                    <i class="ri-government-line me-2"></i>
+                    {{ total_members }} member(s)
+                </span>
+            </div>
         </div>
     </div>
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="section-card">
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Position</th>
-                                <th>Organization</th>
-                                <th>Appointment Date</th>
-                                <th>Term End</th>
-                                <th>Contact</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for member in council_members %}
-                            <tr>
-                                <td>
+    <!-- Council Members Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Council Members</h5>
+            <div class="card-subtitle">University Governing Body</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Member</th>
+                            <th>Position</th>
+                            <th>Organization</th>
+                            <th>Appointment Date</th>
+                            <th>Term End</th>
+                            <th>Contact Information</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in council_members %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <!-- Profile Photo -->
                                     {% if member.profile_photo %}
-                                    <img src="{{ member.profile_photo.url }}" class="rounded-circle me-2" width="40" height="40" alt="{{ member.name }}">
+                                    <div class="member-avatar me-3">
+                                        <img src="{{ member.profile_photo.url }}" 
+                                             class="rounded-circle" 
+                                             alt="{{ member.name }}"
+                                             width="40" 
+                                             height="40">
+                                    </div>
+                                    {% else %}
+                                    <div class="member-avatar me-3">
+                                        <div class="rounded-circle bg-secondary-subtle d-flex align-items-center justify-content-center"
+                                             style="width: 40px; height: 40px;">
+                                            <i class="ri-user-line text-secondary"></i>
+                                        </div>
+                                    </div>
                                     {% endif %}
-                                    {{ member.name }}
-                                </td>
-                                <td>{{ member.get_member_type_display }}</td>
-                                <td>{{ member.organization|default:"-" }}</td>
-                                <td>{{ member.appointment_date|date:"M d, Y" }}</td>
-                                <td>{{ member.term_end_date|date:"M d, Y"|default:"-" }}</td>
-                                <td>
-                                    <small>
-                                        {{ member.email }}<br>
-                                        {{ member.phone_number }}
+                                    
+                                    <!-- Member Name -->
+                                    <div>
+                                        <h6 class="mb-0 fw-medium">{{ member.name }}</h6>
+                                        {% if member.member_type %}
+                                        <small class="text-muted">{{ member.get_member_type_display }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge {% if member.member_type == 'chairperson' %}bg-primary-subtle text-primary{% elif member.member_type == 'secretary' %}bg-info-subtle text-info{% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                    {{ member.get_member_type_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="fw-medium">{{ member.organization|default:"-" }}</div>
+                                    {% if member.position %}
+                                    <small class="text-muted">{{ member.position }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <div class="small">{{ member.appointment_date|date:"d M Y" }}</div>
+                                    {% if member.years_served %}
+                                    <small class="text-muted">{{ member.years_served }} year(s)</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {% if member.term_end_date %}
+                                <div class="term-date">
+                                    <div class="small">{{ member.term_end_date|date:"d M Y" }}</div>
+                                    {% if member.days_remaining %}
+                                    <small class="text-muted {% if member.days_remaining < 30 %}text-danger{% elif member.days_remaining < 90 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ member.days_remaining }} days left
                                     </small>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6" class="text-center text-muted">No council members found</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="contact-info">
+                                    {% if member.email %}
+                                    <div class="d-flex align-items-center mb-1">
+                                        <i class="ri-mail-line me-2 text-muted small"></i>
+                                        <small>{{ member.email }}</small>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if member.phone_number %}
+                                    <div class="d-flex align-items-center">
+                                        <i class="ri-phone-line me-2 text-muted small"></i>
+                                        <small>{{ member.phone_number }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="action-buttons-group">
+                                    <div class="d-flex gap-1">
+                                        {% if member.email %}
+                                        <a href="mailto:{{ member.email }}" 
+                                           class="btn btn-icon btn-outline-primary btn-sm"
+                                           title="Send Email"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-mail-send-line"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        {% if member.phone_number %}
+                                        <a href="tel:{{ member.phone_number }}" 
+                                           class="btn btn-icon btn-outline-success btn-sm"
+                                           title="Call"
+                                           data-bs-toggle="tooltip">
+                                            <i class="ri-phone-line"></i>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        <button type="button" 
+                                                class="btn btn-icon btn-outline-info btn-sm"
+                                                title="View Profile"
+                                                data-bs-toggle="tooltip">
+                                            <i class="ri-profile-line"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-government-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No council members found</h5>
+                                    <p class="text-muted mb-0">No council members have been registered yet</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Council Statistics -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Council Statistics</h5>
+            <div class="card-subtitle">Member Distribution</div>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <div class="stat-number h3 fw-bold text-primary mb-1">
+                            {{ total_members }}
+                        </div>
+                        <div class="stat-label text-muted">Total Members</div>
+                        <div class="mt-2">
+                            <i class="ri-group-line fs-3 text-primary opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <div class="stat-number h3 fw-bold text-info mb-1">
+                            {{ members_by_type.chairperson|default:"0" }}
+                        </div>
+                        <div class="stat-label text-muted">Chairpersons</div>
+                        <div class="mt-2">
+                            <i class="ri-user-star-line fs-3 text-info opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <div class="stat-number h3 fw-bold text-success mb-1">
+                            {{ members_by_type.external|default:"0" }}
+                        </div>
+                        <div class="stat-label text-muted">External Members</div>
+                        <div class="mt-2">
+                            <i class="ri-user-settings-line fs-3 text-success opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center p-3 border rounded">
+                        <div class="stat-number h3 fw-bold text-warning mb-1">
+                            {{ members_by_type.internal|default:"0" }}
+                        </div>
+                        <div class="stat-label text-muted">Internal Members</div>
+                        <div class="mt-2">
+                            <i class="ri-user-line fs-3 text-warning opacity-75"></i>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Term Expiry Alert -->
+    {% if expiring_soon_count > 0 %}
+    <div class="alert alert-warning mt-4">
+        <div class="d-flex align-items-start">
+            <i class="ri-alert-line fs-4 me-3 mt-1"></i>
+            <div>
+                <h6 class="alert-heading mb-1">Term Expiry Alert</h6>
+                <p class="mb-0">
+                    {{ expiring_soon_count }} council member(s) have their term ending within the next 90 days.
+                    <a href="#" class="alert-link">Review expiring terms</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --color-primary: #2E7D32;
+        --color-success: #4CAF50;
+        --color-danger: #F44336;
+        --color-info: #2196F3;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+    
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+    
+    .breadcrumb {
+        background: transparent;
+        padding: 0.75rem 0;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--color-gray-200);
+    }
+    
+    .breadcrumb-item a {
+        color: var(--color-gray-600);
+        text-decoration: none;
+    }
+    
+    .breadcrumb-item a:hover { color: var(--color-primary); }
+    .breadcrumb-item.active { color: var(--color-gray-800); font-weight: 500; }
+    
+    .management-card {
+        background: white;
+        border: 1px solid var(--color-gray-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+    }
+    
+    .management-card .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--color-gray-200);
+        background: var(--color-gray-100);
+    }
+    
+    .management-card .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--color-gray-800);
+        margin-bottom: 0.25rem;
+    }
+    
+    .management-card .card-subtitle {
+        font-size: 0.8125rem;
+        color: var(--color-gray-600);
+    }
+    
+    .management-card .card-body { padding: 1.5rem; }
+    
+    .member-avatar img {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+    }
+    
+    .member-avatar .rounded-circle {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .bg-primary-subtle { background-color: rgba(46, 125, 50, 0.1); }
+    .bg-info-subtle { background-color: rgba(33, 150, 243, 0.1); }
+    .bg-secondary-subtle { background-color: rgba(108, 117, 125, 0.08); }
+    
+    .table thead th {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-gray-600);
+        border-top: none;
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem 0.75rem;
+        background: var(--color-gray-100);
+    }
+    
+    .table tbody td {
+        padding: 1rem 0.75rem;
+        vertical-align: middle;
+        border-color: var(--color-gray-200);
+    }
+    
+    .table tbody tr:hover {
+        background-color: rgba(46, 125, 50, 0.02);
+    }
+    
+    .contact-info small {
+        font-size: 0.75rem;
+        word-break: break-word;
+    }
+    
+    .term-date .small {
+        font-size: 0.8125rem;
+        font-weight: 500;
+    }
+    
+    .stat-number {
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: var(--color-gray-600);
+        margin-bottom: 0.5rem;
+    }
+    
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-sm);
+    }
+    
+    .btn-icon:hover { transform: translateY(-2px); }
+    
+    .empty-state {
+        padding: 2rem 1rem;
+    }
+    
+    .alert {
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+    }
+    
+    .alert-warning {
+        background-color: rgba(255, 152, 0, 0.1);
+        border-color: rgba(255, 152, 0, 0.2);
+        color: #856404;
+    }
+    
+    .alert-link {
+        color: #856404;
+        text-decoration: underline;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Add term expiry warning styling
+    const termCells = document.querySelectorAll('.term-date');
+    termCells.forEach(cell => {
+        const daysLeftText = cell.querySelector('.text-muted');
+        if (daysLeftText) {
+            const daysText = daysLeftText.textContent;
+            const daysMatch = daysText.match(/(\d+)/);
+            if (daysMatch) {
+                const daysLeft = parseInt(daysMatch[0]);
+                if (daysLeft < 30) {
+                    daysLeftText.classList.add('text-danger', 'fw-bold');
+                } else if (daysLeft < 90) {
+                    daysLeftText.classList.add('text-warning', 'fw-medium');
+                }
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
