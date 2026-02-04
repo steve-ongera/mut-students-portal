@@ -28994,3 +28994,1241 @@ def registrar_export_results_csv_view(request, semester_id):
         ])
     
     return response
+
+
+"""
+Vice Chancellor Views
+Comprehensive views for VC dashboard and university-wide oversight
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib import messages
+from django.db.models import Sum, Count, Avg, Q, F
+from django.http import JsonResponse, HttpResponse
+from django.utils import timezone
+from django.core.paginator import Paginator
+from datetime import datetime, timedelta
+from decimal import Decimal
+import json
+
+# Import all necessary models
+from .models import (
+    User, School, Department, AcademicYear, Semester,
+    Student, Lecturer, Programme, Unit,
+    # Financial models
+    SchoolBudget, BudgetAllocation, ExpenditureTracking, RevenueSource,
+    # Strategic models
+    StrategicGoal, PerformanceIndicator, AnnualPlan, ProgressReport,
+    # HR models
+    StaffRecruitment, PerformanceAppraisal, StaffPromotion, StaffTraining,
+    # Research models
+    ResearchProject, ResearchGrant, Publication, ResearchCenter,
+    # Quality Assurance models
+    TeachingEvaluation, ProgrammeReview, AuditReport, ComplianceCheck, QualityMetric,
+    # Partnerships models
+    Partnership, MOU, CollaborativeProject, AlumniRelation,
+    # Governance models (to be added)
+    UniversityCouncil, SenateSession, ManagementBoardMeeting,
+    # Infrastructure models (to be added)
+    CapitalProject, InternationalRanking, RiskRegister,
+    # Other models
+    Announcement, Event
+)
+
+
+# ============= HELPER FUNCTIONS =============
+
+def is_vc(user):
+    """Check if user is VC"""
+    return user.is_authenticated and user.role == 'vc'
+
+
+def get_current_academic_year():
+    """Get current academic year"""
+    return AcademicYear.objects.filter(is_current=True).first()
+
+
+def get_current_semester():
+    """Get current semester"""
+    return Semester.objects.filter(is_current=True).first()
+
+
+# ============= DASHBOARD =============
+
+@login_required
+@user_passes_test(is_vc)
+def vc_dashboard(request):
+    """Main VC Dashboard with university-wide overview"""
+    context = {
+        'page_title': "Vice Chancellor's Dashboard",
+    }
+    
+    # Get current academic period
+    current_year = get_current_academic_year()
+    current_semester = get_current_semester()
+    context['current_year'] = current_year
+    context['current_semester'] = current_semester
+    
+    # ===== ACADEMIC STATISTICS =====
+    context['total_schools'] = School.objects.filter(is_active=True).count()
+    context['total_departments'] = Department.objects.filter(is_active=True).count()
+    context['total_programmes'] = Programme.objects.filter(is_active=True).count()
+    context['total_students'] = Student.objects.filter(student_status='active').count()
+    context['total_lecturers'] = Lecturer.objects.filter(is_active=True).count()
+    
+    # Students by programme type
+    students_by_type = Student.objects.filter(
+        student_status='active'
+    ).values('programme__programme_type').annotate(
+        count=Count('id')
+    )
+    context['students_by_type'] = students_by_type
+    
+    # ===== FINANCIAL OVERVIEW =====
+    if current_year:
+        # Total university budget
+        total_budget = SchoolBudget.objects.filter(
+            financial_year=current_year,
+            status='active'
+        ).aggregate(
+            total=Sum('total_allocation'),
+            spent=Sum('amount_spent')
+        )
+        context['total_budget'] = total_budget['total'] or 0
+        context['total_spent'] = total_budget['spent'] or 0
+        context['budget_balance'] = context['total_budget'] - context['total_spent']
+        
+        if context['total_budget'] > 0:
+            context['budget_utilization'] = (context['total_spent'] / context['total_budget']) * 100
+        else:
+            context['budget_utilization'] = 0
+        
+        # Revenue sources
+        revenue_data = RevenueSource.objects.filter(
+            academic_year=current_year
+        ).values('revenue_type').annotate(
+            total=Sum('amount')
+        ).order_by('-total')
+        context['revenue_data'] = revenue_data
+        context['total_revenue'] = sum(item['total'] for item in revenue_data)
+    
+    # ===== RESEARCH METRICS =====
+    research_stats = {
+        'active_projects': ResearchProject.objects.filter(
+            status__in=['approved', 'ongoing']
+        ).count(),
+        'completed_projects': ResearchProject.objects.filter(
+            status='completed'
+        ).count(),
+        'active_grants': ResearchGrant.objects.filter(
+            status='active'
+        ).count(),
+        'total_grant_value': ResearchGrant.objects.filter(
+            status='active'
+        ).aggregate(Sum('amount_awarded'))['amount_awarded__sum'] or 0,
+    }
+    
+    if current_year:
+        research_stats['publications_this_year'] = Publication.objects.filter(
+            year=current_year.start_date.year
+        ).count()
+    
+    context['research_stats'] = research_stats
+    
+    # ===== STRATEGIC GOALS PROGRESS =====
+    strategic_goals = StrategicGoal.objects.filter(
+        status='active'
+    ).order_by('category')[:6]  # Top 6 goals
+    context['strategic_goals'] = strategic_goals
+    
+    # ===== QUALITY METRICS =====
+    if current_year:
+        quality_data = QualityMetric.objects.filter(
+            academic_year=current_year,
+            is_target_met=False
+        ).order_by('-variance_percentage')[:5]
+        context['quality_concerns'] = quality_data
+    
+    # ===== PENDING APPROVALS =====
+    pending_items = {
+        'budgets': SchoolBudget.objects.filter(status='submitted').count(),
+        'recruitments': StaffRecruitment.objects.filter(
+            status__in=['open', 'interviewing']
+        ).count(),
+        'research_grants': ResearchGrant.objects.filter(status='under_review').count(),
+        'programme_reviews': ProgrammeReview.objects.filter(status='in_progress').count(),
+    }
+    context['pending_items'] = pending_items
+    context['total_pending'] = sum(pending_items.values())
+    
+    # ===== RECENT ACTIVITIES =====
+    # Recent announcements
+    context['recent_announcements'] = Announcement.objects.filter(
+        is_published=True,
+        target_audience='all'
+    ).order_by('-created_at')[:5]
+    
+    # Upcoming events
+    context['upcoming_events'] = Event.objects.filter(
+        start_date__gte=timezone.now(),
+        is_published=True
+    ).order_by('start_date')[:5]
+    
+    # ===== SCHOOL PERFORMANCE =====
+    schools_performance = School.objects.filter(is_active=True).annotate(
+        student_count=Count('departments__programmes__students', 
+                          filter=Q(departments__programmes__students__student_status='active')),
+        lecturer_count=Count('departments__lecturers', filter=Q(departments__lecturers__is_active=True)),
+        programme_count=Count('departments__programmes', filter=Q(departments__programmes__is_active=True))
+    ).order_by('name')
+    context['schools_performance'] = schools_performance
+    
+    # ===== RISK OVERVIEW =====
+    high_risks = RiskRegister.objects.filter(
+        status='active',
+        risk_score__gte=15  # High risk threshold
+    ).count()
+    context['high_risk_count'] = high_risks
+    
+    return render(request, 'vc/dashboard.html', context)
+
+
+# ============= UNIVERSITY LEADERSHIP =============
+
+@login_required
+@user_passes_test(is_vc)
+def executive_committee(request):
+    """Executive Committee overview"""
+    context = {
+        'page_title': 'Executive Committee',
+    }
+    
+    # Get executive members (VC, Deputy VCs, Registrar, etc.)
+    executives = User.objects.filter(
+        role__in=['vc', 'deputy_vc', 'registrar'],
+        is_active_user=True
+    )
+    context['executives'] = executives
+    
+    return render(request, 'vc/leadership/executive_committee.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def university_council(request):
+    """University Council management"""
+    context = {
+        'page_title': 'University Council',
+    }
+    
+    # Get council members
+    council_members = UniversityCouncil.objects.filter(is_active=True).order_by('member_type', 'name')
+    context['council_members'] = council_members
+    
+    # Statistics
+    context['total_members'] = council_members.count()
+    context['external_members'] = council_members.exclude(member_type='ex_officio').count()
+    
+    return render(request, 'vc/leadership/university_council.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def senate_management(request):
+    """Senate sessions and management"""
+    context = {
+        'page_title': 'University Senate',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    # Recent senate sessions
+    senate_sessions = SenateSession.objects.filter(
+        academic_year=current_year
+    ).order_by('-session_date')
+    
+    paginator = Paginator(senate_sessions, 15)
+    page = request.GET.get('page')
+    context['senate_sessions'] = paginator.get_page(page)
+    
+    # Upcoming session
+    context['next_session'] = SenateSession.objects.filter(
+        status='scheduled',
+        session_date__gte=timezone.now().date()
+    ).order_by('session_date').first()
+    
+    return render(request, 'vc/leadership/senate.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def management_board(request):
+    """Management Board meetings"""
+    context = {
+        'page_title': 'Management Board',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    meetings = ManagementBoardMeeting.objects.filter(
+        academic_year=current_year
+    ).order_by('-meeting_date')
+    
+    paginator = Paginator(meetings, 15)
+    page = request.GET.get('page')
+    context['meetings'] = paginator.get_page(page)
+    
+    return render(request, 'vc/leadership/management_board.html', context)
+
+
+# ============= STRATEGIC VISION =============
+
+@login_required
+@user_passes_test(is_vc)
+def strategic_plan(request):
+    """University strategic plan overview"""
+    context = {
+        'page_title': 'Strategic Plan',
+    }
+    
+    # Get all strategic goals grouped by category
+    goals_by_category = {}
+    categories = dict(StrategicGoal.GOAL_CATEGORY)
+    
+    for category_key, category_name in categories.items():
+        goals = StrategicGoal.objects.filter(
+            category=category_key,
+            status='active'
+        ).order_by('title')
+        
+        if goals.exists():
+            # Calculate category progress
+            total_progress = sum(goal.progress_percentage for goal in goals)
+            avg_progress = total_progress / goals.count() if goals.count() > 0 else 0
+            
+            goals_by_category[category_name] = {
+                'goals': goals,
+                'count': goals.count(),
+                'avg_progress': avg_progress
+            }
+    
+    context['goals_by_category'] = goals_by_category
+    
+    # Overall strategic plan progress
+    all_goals = StrategicGoal.objects.filter(status='active')
+    if all_goals.exists():
+        context['overall_progress'] = all_goals.aggregate(
+            Avg('progress_percentage')
+        )['progress_percentage__avg'] or 0
+    else:
+        context['overall_progress'] = 0
+    
+    context['total_goals'] = all_goals.count()
+    context['achieved_goals'] = all_goals.filter(status='achieved').count()
+    
+    return render(request, 'vc/strategic/strategic_plan.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def strategic_goals(request):
+    """Detailed strategic goals management"""
+    context = {
+        'page_title': 'Strategic Goals',
+    }
+    
+    # Filter options
+    category = request.GET.get('category', '')
+    status = request.GET.get('status', '')
+    
+    goals = StrategicGoal.objects.all()
+    
+    if category:
+        goals = goals.filter(category=category)
+    if status:
+        goals = goals.filter(status=status)
+    
+    goals = goals.order_by('-progress_percentage', 'target_year')
+    
+    paginator = Paginator(goals, 20)
+    page = request.GET.get('page')
+    context['goals'] = paginator.get_page(page)
+    
+    context['categories'] = StrategicGoal.GOAL_CATEGORY
+    context['statuses'] = StrategicGoal.GOAL_STATUS
+    context['selected_category'] = category
+    context['selected_status'] = status
+    
+    return render(request, 'vc/strategic/strategic_goals.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def performance_dashboard(request):
+    """University-wide performance dashboard"""
+    context = {
+        'page_title': 'Performance Dashboard',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Get all KPIs
+        kpis = PerformanceIndicator.objects.filter(
+            is_active=True,
+            baseline_year=current_year
+        ).select_related('strategic_goal').order_by('indicator_code')
+        
+        # Group by goal
+        kpis_by_goal = {}
+        for kpi in kpis:
+            goal_title = kpi.strategic_goal.title if kpi.strategic_goal else 'No Goal'
+            if goal_title not in kpis_by_goal:
+                kpis_by_goal[goal_title] = []
+            kpis_by_goal[goal_title].append(kpi)
+        
+        context['kpis_by_goal'] = kpis_by_goal
+        
+        # Summary statistics
+        total_kpis = kpis.count()
+        achieved_kpis = kpis.filter(achievement_percentage__gte=100).count()
+        on_track_kpis = kpis.filter(
+            achievement_percentage__gte=75,
+            achievement_percentage__lt=100
+        ).count()
+        behind_kpis = kpis.filter(achievement_percentage__lt=75).count()
+        
+        context['kpi_summary'] = {
+            'total': total_kpis,
+            'achieved': achieved_kpis,
+            'on_track': on_track_kpis,
+            'behind': behind_kpis
+        }
+    
+    return render(request, 'vc/strategic/performance_dashboard.html', context)
+
+
+# ============= ACADEMIC EXCELLENCE =============
+
+@login_required
+@user_passes_test(is_vc)
+def academic_quality(request):
+    """Academic quality overview"""
+    context = {
+        'page_title': 'Academic Quality',
+    }
+    
+    current_year = get_current_academic_year()
+    current_semester = get_current_semester()
+    
+    if current_semester:
+        # Teaching evaluations summary
+        evaluations = TeachingEvaluation.objects.filter(
+            semester=current_semester,
+            status='published'
+        ).aggregate(
+            avg_content=Avg('avg_content_delivery'),
+            avg_engagement=Avg('avg_engagement'),
+            avg_assessment=Avg('avg_assessment_fairness'),
+            avg_overall=Avg('overall_rating')
+        )
+        context['teaching_evaluation_avg'] = evaluations
+    
+    # Programme reviews
+    if current_year:
+        recent_reviews = ProgrammeReview.objects.filter(
+            academic_year=current_year
+        ).order_by('-review_date')[:10]
+        context['recent_reviews'] = recent_reviews
+        
+        # Average ratings
+        review_avg = ProgrammeReview.objects.filter(
+            academic_year=current_year,
+            status='completed'
+        ).aggregate(
+            Avg('overall_rating')
+        )
+        context['avg_programme_rating'] = review_avg['overall_rating__avg'] or 0
+    
+    # Compliance status
+    compliance_summary = ComplianceCheck.objects.filter(
+        academic_year=current_year
+    ).values('status').annotate(count=Count('id'))
+    context['compliance_summary'] = compliance_summary
+    
+    return render(request, 'vc/academic/quality.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def research_performance(request):
+    """Research performance overview"""
+    context = {
+        'page_title': 'Research Performance',
+    }
+    
+    current_year_num = timezone.now().year
+    
+    # Research projects by status
+    projects_by_status = ResearchProject.objects.values('status').annotate(
+        count=Count('id'),
+        total_budget=Sum('total_budget')
+    )
+    context['projects_by_status'] = projects_by_status
+    
+    # Research grants
+    grants_summary = ResearchGrant.objects.aggregate(
+        total_applied=Count('id'),
+        total_approved=Count('id', filter=Q(status='approved')),
+        total_amount_applied=Sum('amount_applied'),
+        total_amount_awarded=Sum('amount_awarded')
+    )
+    context['grants_summary'] = grants_summary
+    
+    # Publications trend (last 5 years)
+    publications_trend = []
+    for year in range(current_year_num - 4, current_year_num + 1):
+        count = Publication.objects.filter(year=year).count()
+        publications_trend.append({'year': year, 'count': count})
+    context['publications_trend'] = publications_trend
+    
+    # Top publishing schools
+    top_schools = School.objects.annotate(
+        pub_count=Count('publications')
+    ).order_by('-pub_count')[:5]
+    context['top_schools'] = top_schools
+    
+    # Research centers
+    context['research_centers'] = ResearchCenter.objects.filter(is_active=True)
+    
+    return render(request, 'vc/academic/research_performance.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def teaching_excellence(request):
+    """Teaching excellence metrics"""
+    context = {
+        'page_title': 'Teaching Excellence',
+    }
+    
+    current_semester = get_current_semester()
+    
+    if current_semester:
+        # Top performing lecturers based on evaluations
+        top_lecturers = TeachingEvaluation.objects.filter(
+            semester=current_semester,
+            status='published'
+        ).select_related('unit_allocation__lecturer').order_by('-overall_rating')[:20]
+        
+        context['top_lecturers'] = top_lecturers
+        
+        # Department performance
+        dept_performance = Department.objects.annotate(
+            avg_rating=Avg(
+                'units__programme_assignments__allocations__teaching_evaluations__overall_rating',
+                filter=Q(
+                    units__programme_assignments__allocations__teaching_evaluations__semester=current_semester,
+                    units__programme_assignments__allocations__teaching_evaluations__status='published'
+                )
+            )
+        ).order_by('-avg_rating')
+        
+        context['dept_performance'] = dept_performance
+    
+    return render(request, 'vc/academic/teaching_excellence.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def international_rankings(request):
+    """International rankings tracking"""
+    context = {
+        'page_title': 'International Rankings',
+    }
+    
+    # Get latest rankings for each type
+    latest_rankings = []
+    for ranking_type, ranking_name in InternationalRanking.RANKING_TYPE:
+        latest = InternationalRanking.objects.filter(
+            ranking_type=ranking_type
+        ).order_by('-year').first()
+        if latest:
+            latest_rankings.append(latest)
+    
+    context['latest_rankings'] = latest_rankings
+    
+    # Rankings trend
+    rankings_trend = InternationalRanking.objects.order_by('ranking_type', '-year')
+    context['rankings_trend'] = rankings_trend
+    
+    return render(request, 'vc/academic/international_rankings.html', context)
+
+
+# ============= FINANCIAL OVERSIGHT =============
+
+@login_required
+@user_passes_test(is_vc)
+def university_budget(request):
+    """University-wide budget overview"""
+    context = {
+        'page_title': 'University Budget',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # School budgets
+        school_budgets = SchoolBudget.objects.filter(
+            financial_year=current_year
+        ).select_related('school').order_by('school__name')
+        
+        context['school_budgets'] = school_budgets
+        
+        # Totals
+        totals = school_budgets.aggregate(
+            total_allocation=Sum('total_allocation'),
+            total_spent=Sum('amount_spent'),
+            total_balance=Sum('balance')
+        )
+        context['totals'] = totals
+        
+        # Budget by category
+        category_totals = school_budgets.aggregate(
+            personnel=Sum('personnel_budget'),
+            operations=Sum('operations_budget'),
+            development=Sum('development_budget'),
+            research=Sum('research_budget')
+        )
+        context['category_totals'] = category_totals
+    
+    return render(request, 'vc/financial/university_budget.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def financial_performance(request):
+    """Financial performance metrics"""
+    context = {
+        'page_title': 'Financial Performance',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Revenue vs Expenditure
+        total_revenue = RevenueSource.objects.filter(
+            academic_year=current_year
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        total_expenditure = ExpenditureTracking.objects.filter(
+            budget_allocation__school_budget__financial_year=current_year,
+            status='paid'
+        ).aggregate(Sum('amount'))['amount__sum'] or 0
+        
+        context['total_revenue'] = total_revenue
+        context['total_expenditure'] = total_expenditure
+        context['net_position'] = total_revenue - total_expenditure
+        
+        # Revenue by source
+        revenue_by_source = RevenueSource.objects.filter(
+            academic_year=current_year
+        ).values('revenue_type').annotate(
+            total=Sum('amount')
+        ).order_by('-total')
+        context['revenue_by_source'] = revenue_by_source
+        
+        # Expenditure by type
+        expenditure_by_type = ExpenditureTracking.objects.filter(
+            budget_allocation__school_budget__financial_year=current_year,
+            status='paid'
+        ).values('expenditure_type').annotate(
+            total=Sum('amount')
+        ).order_by('-total')
+        context['expenditure_by_type'] = expenditure_by_type
+        
+        # Monthly trend
+        # (Implementation depends on your date tracking needs)
+    
+    return render(request, 'vc/financial/performance.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def revenue_generation(request):
+    """Revenue generation tracking"""
+    context = {
+        'page_title': 'Revenue Generation',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Revenue sources
+        revenues = RevenueSource.objects.filter(
+            academic_year=current_year
+        ).select_related('school').order_by('-amount')
+        
+        paginator = Paginator(revenues, 25)
+        page = request.GET.get('page')
+        context['revenues'] = paginator.get_page(page)
+        
+        # Summary by school
+        school_revenue = RevenueSource.objects.filter(
+            academic_year=current_year
+        ).values('school__name').annotate(
+            total=Sum('amount')
+        ).order_by('-total')
+        context['school_revenue'] = school_revenue
+    
+    return render(request, 'vc/financial/revenue_generation.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def investment_strategy(request):
+    """Investment and endowment strategy"""
+    context = {
+        'page_title': 'Investment Strategy',
+    }
+    
+    # This would integrate with your investment tracking system
+    # Placeholder for now
+    
+    return render(request, 'vc/financial/investment_strategy.html', context)
+
+
+# ============= INFRASTRUCTURE DEVELOPMENT =============
+
+@login_required
+@user_passes_test(is_vc)
+def capital_projects_list(request):
+    """Capital projects overview"""
+    context = {
+        'page_title': 'Capital Projects',
+    }
+    
+    # Filter options
+    status = request.GET.get('status', '')
+    
+    projects = CapitalProject.objects.all()
+    if status:
+        projects = projects.filter(status=status)
+    
+    projects = projects.order_by('-start_date')
+    
+    paginator = Paginator(projects, 15)
+    page = request.GET.get('page')
+    context['projects'] = paginator.get_page(page)
+    
+    # Statistics
+    stats = CapitalProject.objects.aggregate(
+        total_projects=Count('id'),
+        total_budget=Sum('total_budget'),
+        total_spent=Sum('amount_spent'),
+        ongoing=Count('id', filter=Q(status='construction')),
+        completed=Count('id', filter=Q(status='completed'))
+    )
+    context['stats'] = stats
+    
+    context['statuses'] = CapitalProject.PROJECT_STATUS
+    context['selected_status'] = status
+    
+    return render(request, 'vc/infrastructure/capital_projects.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def facility_development(request):
+    """Facility development tracking"""
+    context = {
+        'page_title': 'Facility Development',
+    }
+    
+    # Recent and ongoing facility projects
+    projects = CapitalProject.objects.filter(
+        status__in=['design', 'construction']
+    ).order_by('-start_date')
+    
+    context['projects'] = projects
+    
+    return render(request, 'vc/infrastructure/facility_development.html', context)
+
+
+# ============= HUMAN CAPITAL =============
+
+@login_required
+@user_passes_test(is_vc)
+def staff_development(request):
+    """Staff development overview"""
+    context = {
+        'page_title': 'Staff Development',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Training statistics
+        training_stats = StaffTraining.objects.filter(
+            start_date__year=current_year.start_date.year
+        ).aggregate(
+            total_trainings=Count('id'),
+            total_cost=Sum('cost'),
+            completed=Count('id', filter=Q(status='completed'))
+        )
+        context['training_stats'] = training_stats
+        
+        # Training by type
+        training_by_type = StaffTraining.objects.filter(
+            start_date__year=current_year.start_date.year
+        ).values('training_type').annotate(
+            count=Count('id')
+        )
+        context['training_by_type'] = training_by_type
+        
+        # Recent trainings
+        recent_trainings = StaffTraining.objects.filter(
+            start_date__year=current_year.start_date.year
+        ).select_related('lecturer').order_by('-start_date')[:15]
+        context['recent_trainings'] = recent_trainings
+    
+    return render(request, 'vc/hr/staff_development.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def talent_management(request):
+    """Talent management and succession planning"""
+    context = {
+        'page_title': 'Talent Management',
+    }
+    
+    # High performers
+    current_year = get_current_academic_year()
+    if current_year:
+        high_performers = PerformanceAppraisal.objects.filter(
+            academic_year=current_year,
+            overall_rating__in=['outstanding', 'exceeds']
+        ).select_related('lecturer').order_by('-overall_score')
+        
+        context['high_performers'] = high_performers
+    
+    # Pending promotions
+    pending_promotions = StaffPromotion.objects.filter(
+        status__in=['pending', 'under_review']
+    ).select_related('lecturer').order_by('-application_date')
+    context['pending_promotions'] = pending_promotions
+    
+    return render(request, 'vc/hr/talent_management.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def performance_management(request):
+    """Performance management system"""
+    context = {
+        'page_title': 'Performance Management',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Appraisal statistics
+        appraisals = PerformanceAppraisal.objects.filter(
+            academic_year=current_year
+        )
+        
+        # Rating distribution
+        rating_dist = appraisals.values('overall_rating').annotate(
+            count=Count('id')
+        )
+        context['rating_distribution'] = rating_dist
+        
+        # Average scores by school
+        school_performance = School.objects.annotate(
+            avg_score=Avg(
+                'departments__lecturers__performance_appraisals__overall_score',
+                filter=Q(departments__lecturers__performance_appraisals__academic_year=current_year)
+            )
+        ).order_by('-avg_score')
+        context['school_performance'] = school_performance
+    
+    return render(request, 'vc/hr/performance_management.html', context)
+
+
+# ============= STAKEHOLDER RELATIONS =============
+
+@login_required
+@user_passes_test(is_vc)
+def partnerships_overview(request):
+    """Partnerships overview"""
+    context = {
+        'page_title': 'Partnerships & Linkages',
+    }
+    
+    # Active partnerships by type
+    partnerships_by_type = Partnership.objects.filter(
+        status='active'
+    ).values('partnership_type').annotate(
+        count=Count('id')
+    )
+    context['partnerships_by_type'] = partnerships_by_type
+    
+    # Recent partnerships
+    recent_partnerships = Partnership.objects.filter(
+        status='active'
+    ).order_by('-start_date')[:15]
+    context['recent_partnerships'] = recent_partnerships
+    
+    # Collaborative projects
+    active_projects = CollaborativeProject.objects.filter(
+        status='ongoing'
+    ).count()
+    context['active_projects'] = active_projects
+    
+    # MOUs expiring soon (within 3 months)
+    expiring_soon = MOU.objects.filter(
+        status='active',
+        expiry_date__lte=timezone.now().date() + timedelta(days=90),
+        expiry_date__gte=timezone.now().date()
+    ).order_by('expiry_date')
+    context['expiring_mous'] = expiring_soon
+    
+    return render(request, 'vc/stakeholders/partnerships.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def alumni_relations_view(request):
+    """Alumni relations tracking"""
+    context = {
+        'page_title': 'Alumni Relations',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Alumni engagements this year
+        engagements = AlumniRelation.objects.filter(
+            engagement_date__year=current_year.start_date.year
+        )
+        
+        # By engagement type
+        by_type = engagements.values('engagement_type').annotate(
+            count=Count('id'),
+            total_value=Sum('contribution_value')
+        ).order_by('-count')
+        context['engagements_by_type'] = by_type
+        
+        # Recent engagements
+        recent = engagements.order_by('-engagement_date')[:15]
+        context['recent_engagements'] = recent
+        
+        # Total contributions
+        context['total_contributions'] = engagements.aggregate(
+            Sum('contribution_value')
+        )['contribution_value__sum'] or 0
+    
+    return render(request, 'vc/stakeholders/alumni_relations.html', context)
+
+
+# ============= RISK & GOVERNANCE =============
+
+@login_required
+@user_passes_test(is_vc)
+def risk_management(request):
+    """Risk management dashboard"""
+    context = {
+        'page_title': 'Risk Management',
+    }
+    
+    # Risk register
+    risks = RiskRegister.objects.filter(status='active').order_by('-risk_score')
+    
+    # High risks (score >= 15)
+    high_risks = risks.filter(risk_score__gte=15)
+    context['high_risks'] = high_risks
+    
+    # Risk by category
+    risks_by_category = risks.values('risk_category').annotate(
+        count=Count('id'),
+        avg_score=Avg('risk_score')
+    ).order_by('-avg_score')
+    context['risks_by_category'] = risks_by_category
+    
+    # All risks
+    context['all_risks'] = risks
+    
+    return render(request, 'vc/governance/risk_management.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def governance_framework(request):
+    """Governance framework"""
+    context = {
+        'page_title': 'Governance Framework',
+    }
+    
+    # Governance structure information
+    # This would typically include organizational charts, policies, etc.
+    
+    return render(request, 'vc/governance/framework.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def compliance_monitoring(request):
+    """Compliance monitoring"""
+    context = {
+        'page_title': 'Compliance Monitoring',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Compliance checks
+        compliance_checks = ComplianceCheck.objects.filter(
+            academic_year=current_year
+        ).order_by('-check_date')
+        
+        # Status summary
+        status_summary = compliance_checks.values('status').annotate(
+            count=Count('id')
+        )
+        context['status_summary'] = status_summary
+        
+        # Non-compliant items requiring action
+        non_compliant = compliance_checks.filter(
+            status='non_compliant',
+            action_required=True,
+            is_resolved=False
+        )
+        context['non_compliant_items'] = non_compliant
+        
+        # Recent checks
+        context['recent_checks'] = compliance_checks[:20]
+    
+    return render(request, 'vc/governance/compliance.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def audit_assurance(request):
+    """Audit and assurance"""
+    context = {
+        'page_title': 'Audit & Assurance',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Audit reports
+        audits = AuditReport.objects.filter(
+            academic_year=current_year
+        ).order_by('-audit_date')
+        
+        context['audits'] = audits
+        
+        # Statistics
+        stats = audits.aggregate(
+            total=Count('id'),
+            completed=Count('id', filter=Q(status='completed')),
+            ongoing=Count('id', filter=Q(status='ongoing'))
+        )
+        context['stats'] = stats
+    
+    return render(request, 'vc/governance/audit.html', context)
+
+
+# ============= UNIVERSITY PERFORMANCE =============
+
+@login_required
+@user_passes_test(is_vc)
+def kpi_dashboard(request):
+    """Key Performance Indicators dashboard"""
+    context = {
+        'page_title': 'Key Performance Indicators',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # All active KPIs
+        kpis = PerformanceIndicator.objects.filter(
+            is_active=True
+        ).select_related('strategic_goal').order_by('indicator_code')
+        
+        # Performance summary
+        total_kpis = kpis.count()
+        achieved = kpis.filter(achievement_percentage__gte=100).count()
+        on_track = kpis.filter(
+            achievement_percentage__gte=75,
+            achievement_percentage__lt=100
+        ).count()
+        at_risk = kpis.filter(achievement_percentage__lt=75).count()
+        
+        context['summary'] = {
+            'total': total_kpis,
+            'achieved': achieved,
+            'on_track': on_track,
+            'at_risk': at_risk
+        }
+        
+        context['kpis'] = kpis
+    
+    return render(request, 'vc/performance/kpi_dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def benchmarking(request):
+    """Benchmarking analysis"""
+    context = {
+        'page_title': 'Benchmarking',
+    }
+    
+    # International rankings comparison
+    latest_rankings = InternationalRanking.objects.order_by('ranking_type', '-year')
+    context['rankings'] = latest_rankings
+    
+    # Peer comparison data would go here
+    # This would typically involve comparison with other universities
+    
+    return render(request, 'vc/performance/benchmarking.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def progress_tracking(request):
+    """Progress tracking for plans and goals"""
+    context = {
+        'page_title': 'Progress Tracking',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        # Annual plans progress
+        annual_plans = AnnualPlan.objects.filter(
+            academic_year=current_year
+        ).select_related('school')
+        
+        context['annual_plans'] = annual_plans
+        
+        # Strategic goals progress
+        strategic_goals = StrategicGoal.objects.filter(
+            status='active'
+        ).order_by('-progress_percentage')
+        
+        context['strategic_goals'] = strategic_goals
+    
+    return render(request, 'vc/performance/progress_tracking.html', context)
+
+
+@login_required
+@user_passes_test(is_vc)
+def progress_reviews(request):
+    """Progress review reports"""
+    context = {
+        'page_title': 'Progress Reviews',
+    }
+    
+    current_year = get_current_academic_year()
+    
+    if current_year:
+        reports = ProgressReport.objects.filter(
+            academic_year=current_year
+        ).select_related('school').order_by('-reporting_period_end')
+        
+        paginator = Paginator(reports, 15)
+        page = request.GET.get('page')
+        context['reports'] = paginator.get_page(page)
+    
+    return render(request, 'vc/performance/progress_reviews.html', context)
+
+
+# ============= ANNOUNCEMENTS & COMMUNICATION =============
+
+@login_required
+@user_passes_test(is_vc)
+def create_announcement(request):
+    """Create university-wide announcement"""
+    if request.method == 'POST':
+        # Handle announcement creation
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        announcement_type = request.POST.get('announcement_type')
+        target_audience = request.POST.get('target_audience')
+        is_pinned = request.POST.get('is_pinned') == 'on'
+        
+        announcement = Announcement.objects.create(
+            title=title,
+            content=content,
+            announcement_type=announcement_type,
+            target_audience=target_audience,
+            is_pinned=is_pinned,
+            created_by=request.user,
+            is_published=True,
+            publish_date=timezone.now()
+        )
+        
+        messages.success(request, 'Announcement created successfully!')
+        return redirect('vc_dashboard')
+    
+    context = {
+        'page_title': 'Create Announcement',
+    }
+    return render(request, 'vc/communication/create_announcement.html', context)
+
+
+# ============= REPORTS & ANALYTICS =============
+
+@login_required
+@user_passes_test(is_vc)
+def generate_executive_report(request):
+    """Generate comprehensive executive report"""
+    context = {
+        'page_title': 'Executive Report',
+    }
+    
+    current_year = get_current_academic_year()
+    current_semester = get_current_semester()
+    
+    if current_year:
+        # Compile comprehensive data
+        report_data = {
+            'academic_year': current_year,
+            'semester': current_semester,
+            'generated_date': timezone.now(),
+            
+            # Academic metrics
+            'total_students': Student.objects.filter(student_status='active').count(),
+            'total_lecturers': Lecturer.objects.filter(is_active=True).count(),
+            'total_programmes': Programme.objects.filter(is_active=True).count(),
+            
+            # Financial metrics
+            'budget': SchoolBudget.objects.filter(
+                financial_year=current_year
+            ).aggregate(
+                total=Sum('total_allocation'),
+                spent=Sum('amount_spent')
+            ),
+            
+            # Research metrics
+            'research': {
+                'active_projects': ResearchProject.objects.filter(status='ongoing').count(),
+                'publications': Publication.objects.filter(year=current_year.start_date.year).count(),
+                'grants': ResearchGrant.objects.filter(status='active').count(),
+            },
+            
+            # Strategic progress
+            'strategic_progress': StrategicGoal.objects.filter(
+                status='active'
+            ).aggregate(Avg('progress_percentage'))['progress_percentage__avg'] or 0,
+        }
+        
+        context['report_data'] = report_data
+    
+    return render(request, 'vc/reports/executive_report.html', context)

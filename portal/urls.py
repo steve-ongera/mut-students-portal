@@ -796,5 +796,62 @@ urlpatterns = [
     # Export Functions
     path('registrar/export/students/csv/', views.registrar_export_students_csv_view, name='registrar_export_students_csv'),
     path('registrar/export/results/<int:semester_id>/csv/', views.registrar_export_results_csv_view, name='registrar_export_results_csv'),
+    
+    # ============= DASHBOARD =============
+    path('vc/dashboard/', views.vc_dashboard, name='vc_dashboard'),
+    
+    # ============= UNIVERSITY LEADERSHIP =============
+    path('vc/leadership/executive-committee/', views.executive_committee, name='vc_executive_committee'),
+    path('vc/leadership/university-council/', views.university_council, name='vc_university_council'),
+    path('vc/leadership/senate/', views.senate_management, name='vc_senate'),
+    path('vc/leadership/management-board/', views.management_board, name='vc_management_board'),
+    
+    # ============= STRATEGIC VISION =============
+    path('vc/strategic/plan/', views.strategic_plan, name='vc_strategic_plan'),
+    path('vc/strategic/goals/', views.strategic_goals, name='vc_strategic_goals'),
+    path('vc/strategic/performance-dashboard/', views.performance_dashboard, name='vc_performance_dashboard'),
+    
+    # ============= ACADEMIC EXCELLENCE =============
+    path('vc/academic/quality/', views.academic_quality, name='vc_academic_quality'),
+    path('vc/academic/research-performance/', views.research_performance, name='vc_research_performance'),
+    path('vc/academic/teaching-excellence/', views.teaching_excellence, name='vc_teaching_excellence'),
+    path('vc/academic/international-rankings/', views.international_rankings, name='vc_international_rankings'),
+    
+    # ============= FINANCIAL OVERSIGHT =============
+    path('vc/financial/budget/', views.university_budget, name='vc_university_budget'),
+    path('vc/financial/performance/', views.financial_performance, name='vc_financial_performance'),
+    path('vc/financial/revenue/', views.revenue_generation, name='vc_revenue_generation'),
+    path('vc/financial/investment/', views.investment_strategy, name='vc_investment_strategy'),
+    
+    # ============= INFRASTRUCTURE DEVELOPMENT =============
+    path('vc/infrastructure/capital-projects/', views.capital_projects_list, name='vc_capital_projects'),
+    path('vc/infrastructure/facility-development/', views.facility_development, name='vc_facility_development'),
+    
+    # ============= HUMAN CAPITAL =============
+    path('vc/hr/staff-development/', views.staff_development, name='vc_staff_development'),
+    path('vc/hr/talent-management/', views.talent_management, name='vc_talent_management'),
+    path('vc/hr/performance-management/', views.performance_management, name='vc_performance_management'),
+    
+    # ============= STAKEHOLDER RELATIONS =============
+    path('vc/stakeholders/partnerships/', views.partnerships_overview, name='vc_partnerships'),
+    path('vc/stakeholders/alumni-relations/', views.alumni_relations_view, name='vc_alumni_relations'),
+    
+    # ============= RISK & GOVERNANCE =============
+    path('vc/governance/risk-management/', views.risk_management, name='vc_risk_management'),
+    path('vc/governance/framework/', views.governance_framework, name='vc_governance_framework'),
+    path('vc/governance/compliance/', views.compliance_monitoring, name='vc_compliance_monitoring'),
+    path('vc/governance/audit/', views.audit_assurance, name='vc_audit_assurance'),
+    
+    # ============= UNIVERSITY PERFORMANCE =============
+    path('vc/performance/kpi/', views.kpi_dashboard, name='vc_kpi_dashboard'),
+    path('vc/performance/benchmarking/', views.benchmarking, name='vc_benchmarking'),
+    path('vc/performance/progress-tracking/', views.progress_tracking, name='vc_progress_tracking'),
+    path('vc/performance/reviews/', views.progress_reviews, name='vc_progress_reviews'),
+    
+    # ============= COMMUNICATION =============
+    path('vc/communication/create-announcement/', views.create_announcement, name='vc_create_announcement'),
+    
+    # ============= REPORTS =============
+    path('vc/reports/executive/', views.generate_executive_report, name='vc_executive_report'),
        
 ]
