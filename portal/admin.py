@@ -1578,7 +1578,1339 @@ class ContactInfoAdmin(admin.ModelAdmin):
     search_fields = ['department', 'email']
     ordering = ['display_order']
     
+
+# ============= GOVERNANCE MODELS ADMIN =============
+
+@admin.register(UniversityCouncil)
+class UniversityCouncilAdmin(admin.ModelAdmin):
+    list_display = ['name', 'member_type', 'organization', 'position', 'appointment_date', 'term_end_date', 'is_active_badge']
+    list_filter = ['member_type', 'is_active', 'appointment_date']
+    search_fields = ['name', 'organization', 'position', 'email']
+    ordering = ['member_type', 'name']
+    date_hierarchy = 'appointment_date'
     
+    fieldsets = (
+        ('Member Information', {
+            'fields': ('name', 'member_type', 'organization', 'position')
+        }),
+        ('Term Details', {
+            'fields': ('appointment_date', 'term_end_date', 'is_active')
+        }),
+        ('Contact Information', {
+            'fields': ('email', 'phone_number')
+        }),
+        ('Additional Details', {
+            'fields': ('profile_photo', 'bio'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def is_active_badge(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color: green;">●</span> Active')
+        return format_html('<span style="color: red;">●</span> Inactive')
+    is_active_badge.short_description = 'Status'
+
+
+@admin.register(SenateSession)
+class SenateSessionAdmin(admin.ModelAdmin):
+    list_display = ['session_number', 'session_date', 'venue', 'status', 'chaired_by', 'attendee_count']
+    list_filter = ['status', 'session_date', 'academic_year']
+    search_fields = ['session_number', 'venue', 'agenda', 'decisions']
+    ordering = ['-session_date']
+    date_hierarchy = 'session_date'
+    filter_horizontal = ['attendees']
+    
+    fieldsets = (
+        ('Session Information', {
+            'fields': ('session_number', 'academic_year', 'session_date', 'venue', 'status')
+        }),
+        ('Session Details', {
+            'fields': ('agenda', 'minutes', 'decisions')
+        }),
+        ('Participants', {
+            'fields': ('chaired_by', 'attendees')
+        }),
+        ('Documents', {
+            'fields': ('minutes_document',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def attendee_count(self, obj):
+        return obj.attendees.count()
+    attendee_count.short_description = 'Attendees'
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.session_number:
+            # Auto-generate session number
+            year = obj.session_date.year
+            last_session = SenateSession.objects.filter(
+                session_number__startswith=f'SEN-{year}-'
+            ).order_by('-session_number').first()
+            
+            if last_session:
+                last_num = int(last_session.session_number.split('-')[-1])
+                next_num = last_num + 1
+            else:
+                next_num = 1
+            
+            obj.session_number = f'SEN-{year}-{next_num:03d}'
+        
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(ManagementBoardMeeting)
+class ManagementBoardMeetingAdmin(admin.ModelAdmin):
+    list_display = ['meeting_number', 'meeting_date', 'academic_year', 'has_decisions']
+    list_filter = ['meeting_date', 'academic_year']
+    search_fields = ['meeting_number', 'agenda', 'decisions']
+    ordering = ['-meeting_date']
+    date_hierarchy = 'meeting_date'
+    
+    fieldsets = (
+        ('Meeting Information', {
+            'fields': ('meeting_number', 'academic_year', 'meeting_date')
+        }),
+        ('Meeting Content', {
+            'fields': ('agenda', 'decisions', 'action_items')
+        }),
+        ('Documents', {
+            'fields': ('minutes_document',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_decisions(self, obj):
+        if obj.decisions:
+            return format_html('<span style="color: green;">✓</span>')
+        return format_html('<span style="color: orange;">-</span>')
+    has_decisions.short_description = 'Decisions'
+
+
+# ============= RANKINGS & INFRASTRUCTURE ADMIN =============
+
+@admin.register(InternationalRanking)
+class InternationalRankingAdmin(admin.ModelAdmin):
+    list_display = ['ranking_type', 'year', 'overall_rank', 'national_rank', 'regional_rank', 'score', 'trend_indicator']
+    list_filter = ['ranking_type', 'year']
+    search_fields = ['ranking_type', 'analysis']
+    ordering = ['-year', 'ranking_type']
+    
+    fieldsets = (
+        ('Ranking Details', {
+            'fields': ('ranking_type', 'year')
+        }),
+        ('Rankings', {
+            'fields': ('overall_rank', 'national_rank', 'regional_rank', 'score')
+        }),
+        ('Category Scores', {
+            'fields': ('category_scores',),
+            'description': 'JSON field for category-specific scores'
+        }),
+        ('Analysis', {
+            'fields': ('analysis', 'report_document'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def trend_indicator(self, obj):
+        # Get previous year ranking
+        previous = InternationalRanking.objects.filter(
+            ranking_type=obj.ranking_type,
+            year=obj.year - 1
+        ).first()
+        
+        if previous and previous.overall_rank and obj.overall_rank:
+            if obj.overall_rank < previous.overall_rank:
+                return format_html('<span style="color: green;">↑ Improved</span>')
+            elif obj.overall_rank > previous.overall_rank:
+                return format_html('<span style="color: red;">↓ Declined</span>')
+            else:
+                return format_html('<span style="color: blue;">→ Same</span>')
+        return '-'
+    trend_indicator.short_description = 'Trend'
+
+
+@admin.register(CapitalProject)
+class CapitalProjectAdmin(admin.ModelAdmin):
+    list_display = ['project_number', 'project_name', 'location', 'total_budget', 'amount_spent', 'completion_percentage', 'status', 'progress_bar']
+    list_filter = ['status', 'start_date', 'expected_completion']
+    search_fields = ['project_number', 'project_name', 'location', 'contractor']
+    ordering = ['-start_date']
+    date_hierarchy = 'start_date'
+    
+    fieldsets = (
+        ('Project Information', {
+            'fields': ('project_number', 'project_name', 'description', 'location')
+        }),
+        ('Financial Details', {
+            'fields': ('total_budget', 'amount_spent', 'funding_source')
+        }),
+        ('Implementation', {
+            'fields': ('contractor', 'project_manager', 'status')
+        }),
+        ('Timeline', {
+            'fields': ('start_date', 'expected_completion', 'actual_completion', 'completion_percentage')
+        }),
+    )
+    
+    readonly_fields = ['project_number']
+    
+    def progress_bar(self, obj):
+        percentage = obj.completion_percentage
+        color = 'green' if percentage >= 75 else 'orange' if percentage >= 50 else 'red'
+        return format_html(
+            '<div style="width:100px; background-color:#f0f0f0; border-radius:3px;">'
+            '<div style="width:{}px; background-color:{}; height:20px; border-radius:3px; text-align:center; color:white; line-height:20px;">'
+            '{}%</div></div>',
+            int(percentage),
+            color,
+            int(percentage)
+        )
+    progress_bar.short_description = 'Progress'
+
+
+@admin.register(RiskRegister)
+class RiskRegisterAdmin(admin.ModelAdmin):
+    list_display = ['risk_number', 'risk_title', 'risk_category', 'likelihood', 'impact', 'risk_score', 'risk_level', 'risk_owner', 'status']
+    list_filter = ['risk_category', 'likelihood', 'impact', 'status']
+    search_fields = ['risk_number', 'risk_title', 'risk_description']
+    ordering = ['-risk_score', 'risk_category']
+    
+    fieldsets = (
+        ('Risk Identification', {
+            'fields': ('risk_number', 'risk_category', 'risk_title', 'risk_description')
+        }),
+        ('Risk Assessment', {
+            'fields': ('likelihood', 'impact', 'risk_score')
+        }),
+        ('Risk Management', {
+            'fields': ('mitigation_strategy', 'risk_owner', 'status', 'review_date')
+        }),
+    )
+    
+    readonly_fields = ['risk_number']
+    
+    def risk_level(self, obj):
+        score = obj.risk_score
+        if score >= 15:
+            return format_html('<span style="background-color:red; color:white; padding:3px 8px; border-radius:3px;">HIGH</span>')
+        elif score >= 10:
+            return format_html('<span style="background-color:orange; color:white; padding:3px 8px; border-radius:3px;">MEDIUM</span>')
+        else:
+            return format_html('<span style="background-color:green; color:white; padding:3px 8px; border-radius:3px;">LOW</span>')
+    risk_level.short_description = 'Risk Level'
+    
+    def save_model(self, request, obj, form, change):
+        # Calculate risk score
+        likelihood_scores = {'rare': 1, 'unlikely': 2, 'possible': 3, 'likely': 4, 'almost_certain': 5}
+        impact_scores = {'insignificant': 1, 'minor': 2, 'moderate': 3, 'major': 4, 'catastrophic': 5}
+        
+        obj.risk_score = likelihood_scores.get(obj.likelihood, 3) * impact_scores.get(obj.impact, 3)
+        super().save_model(request, obj, form, change)
+
+
+# ============= QUALITY ASSURANCE ADMIN =============
+
+@admin.register(TeachingEvaluation)
+class TeachingEvaluationAdmin(admin.ModelAdmin):
+    list_display = ['unit_code', 'lecturer_name', 'semester', 'total_responses', 'response_rate_display', 'overall_rating', 'status']
+    list_filter = ['status', 'semester', 'academic_year']
+    search_fields = ['unit_allocation__programme_unit__unit__code', 'unit_allocation__lecturer__user__first_name', 'unit_allocation__lecturer__user__last_name']
+    ordering = ['-semester__academic_year__start_date', '-overall_rating']
+    
+    fieldsets = (
+        ('Evaluation Details', {
+            'fields': ('unit_allocation', 'academic_year', 'semester')
+        }),
+        ('Evaluation Period', {
+            'fields': ('start_date', 'end_date', 'status')
+        }),
+        ('Response Data', {
+            'fields': ('total_responses', 'total_enrolled', 'response_rate')
+        }),
+        ('Average Ratings', {
+            'fields': ('avg_content_delivery', 'avg_engagement', 'avg_assessment_fairness', 'avg_availability', 'overall_rating')
+        }),
+        ('Feedback', {
+            'fields': ('positive_comments', 'improvement_areas'),
+            'classes': ('collapse',)
+        }),
+        ('Publication', {
+            'fields': ('is_published', 'published_date')
+        }),
+    )
+    
+    readonly_fields = ['response_rate']
+    
+    def unit_code(self, obj):
+        return obj.unit_allocation.programme_unit.unit.code
+    unit_code.short_description = 'Unit'
+    
+    def lecturer_name(self, obj):
+        return obj.unit_allocation.lecturer.user.get_full_name()
+    lecturer_name.short_description = 'Lecturer'
+    
+    def response_rate_display(self, obj):
+        rate = obj.response_rate
+        color = 'green' if rate >= 70 else 'orange' if rate >= 50 else 'red'
+        return format_html('<span style="color:{};">{:.1f}%</span>', color, rate)
+    response_rate_display.short_description = 'Response Rate'
+
+
+@admin.register(ProgrammeReview)
+class ProgrammeReviewAdmin(admin.ModelAdmin):
+    list_display = ['programme', 'review_type', 'review_date', 'overall_rating', 'status', 'rating_badge']
+    list_filter = ['review_type', 'status', 'academic_year']
+    search_fields = ['programme__name', 'programme__code', 'review_panel']
+    ordering = ['-review_date']
+    date_hierarchy = 'review_date'
+    
+    fieldsets = (
+        ('Review Information', {
+            'fields': ('programme', 'review_type', 'academic_year', 'review_date', 'review_panel')
+        }),
+        ('SWOT Analysis', {
+            'fields': ('strengths', 'weaknesses', 'opportunities', 'threats')
+        }),
+        ('Recommendations', {
+            'fields': ('recommendations', 'action_plan')
+        }),
+        ('Ratings', {
+            'fields': ('curriculum_rating', 'teaching_quality_rating', 'resources_rating', 
+                      'student_satisfaction_rating', 'employability_rating', 'overall_rating')
+        }),
+        ('Follow-up', {
+            'fields': ('follow_up_date', 'follow_up_notes'),
+            'classes': ('collapse',)
+        }),
+        ('Approval', {
+            'fields': ('status', 'conducted_by', 'approved_by', 'report_document')
+        }),
+    )
+    
+    readonly_fields = ['overall_rating']
+    
+    def rating_badge(self, obj):
+        rating = obj.overall_rating
+        if rating >= 4.0:
+            color = 'green'
+        elif rating >= 3.0:
+            color = 'orange'
+        else:
+            color = 'red'
+        return format_html('<span style="color:{};">★ {:.2f}</span>', color, rating)
+    rating_badge.short_description = 'Rating'
+
+
+@admin.register(AuditReport)
+class AuditReportAdmin(admin.ModelAdmin):
+    list_display = ['audit_number', 'audit_type', 'audit_date', 'school', 'department', 'status', 'has_follow_up']
+    list_filter = ['audit_type', 'status', 'audit_date']
+    search_fields = ['audit_number', 'auditor_name', 'auditor_organization', 'key_findings']
+    ordering = ['-audit_date']
+    date_hierarchy = 'audit_date'
+    
+    fieldsets = (
+        ('Audit Information', {
+            'fields': ('audit_number', 'audit_type', 'academic_year', 'school', 'department')
+        }),
+        ('Auditor Details', {
+            'fields': ('audit_date', 'auditor_name', 'auditor_organization')
+        }),
+        ('Findings', {
+            'fields': ('executive_summary', 'key_findings', 'non_conformities', 'observations')
+        }),
+        ('Recommendations', {
+            'fields': ('recommendations', 'management_response', 'corrective_actions')
+        }),
+        ('Timeline', {
+            'fields': ('implementation_deadline', 'follow_up_date')
+        }),
+        ('Status & Documents', {
+            'fields': ('status', 'audit_document')
+        }),
+    )
+    
+    readonly_fields = ['audit_number']
+    
+    def has_follow_up(self, obj):
+        if obj.follow_up_date:
+            return format_html('<span style="color: green;">✓</span>')
+        return format_html('<span style="color: red;">✗</span>')
+    has_follow_up.short_description = 'Follow-up'
+
+
+@admin.register(ComplianceCheck)
+class ComplianceCheckAdmin(admin.ModelAdmin):
+    list_display = ['school', 'compliance_area', 'check_date', 'status', 'action_required', 'is_resolved', 'deadline']
+    list_filter = ['compliance_area', 'status', 'action_required', 'is_resolved']
+    search_fields = ['school__name', 'requirement', 'evidence']
+    ordering = ['-check_date']
+    date_hierarchy = 'check_date'
+    
+    fieldsets = (
+        ('Compliance Details', {
+            'fields': ('school', 'compliance_area', 'academic_year', 'check_date')
+        }),
+        ('Requirements', {
+            'fields': ('requirement', 'criteria')
+        }),
+        ('Status', {
+            'fields': ('status', 'evidence', 'gaps')
+        }),
+        ('Actions', {
+            'fields': ('action_required', 'action_plan', 'responsible_person', 'deadline')
+        }),
+        ('Resolution', {
+            'fields': ('is_resolved', 'resolution_date', 'resolution_notes'),
+            'classes': ('collapse',)
+        }),
+        ('Documents', {
+            'fields': ('checked_by', 'supporting_documents')
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # New object
+            obj.checked_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(QualityMetric)
+class QualityMetricAdmin(admin.ModelAdmin):
+    list_display = ['metric_name', 'school', 'programme', 'metric_type', 'target_value', 'actual_value', 'variance_display', 'target_met', 'trend']
+    list_filter = ['metric_type', 'measurement_period', 'is_target_met', 'trend', 'school']
+    search_fields = ['metric_name', 'description']
+    ordering = ['-measurement_date', 'school']
+    date_hierarchy = 'measurement_date'
+    
+    fieldsets = (
+        ('Metric Information', {
+            'fields': ('school', 'programme', 'metric_type', 'academic_year', 'measurement_period')
+        }),
+        ('Metric Details', {
+            'fields': ('metric_name', 'description', 'unit_of_measure')
+        }),
+        ('Performance', {
+            'fields': ('target_value', 'actual_value', 'is_target_met', 'variance', 'variance_percentage')
+        }),
+        ('Analysis', {
+            'fields': ('trend', 'comments', 'action_items')
+        }),
+        ('Recording', {
+            'fields': ('measurement_date', 'recorded_by')
+        }),
+    )
+    
+    readonly_fields = ['variance', 'variance_percentage', 'is_target_met']
+    
+    def variance_display(self, obj):
+        variance = obj.variance_percentage
+        if variance >= 0:
+            return format_html('<span style="color:green;">+{:.1f}%</span>', variance)
+        return format_html('<span style="color:red;">{:.1f}%</span>', variance)
+    variance_display.short_description = 'Variance'
+    
+    def target_met(self, obj):
+        if obj.is_target_met:
+            return format_html('<span style="color:green;">✓</span>')
+        return format_html('<span style="color:red;">✗</span>')
+    target_met.short_description = 'Met'
+
+
+# ============= RESEARCH MODELS ADMIN =============
+
+@admin.register(ResearchProject)
+class ResearchProjectAdmin(admin.ModelAdmin):
+    list_display = ['project_code', 'title_short', 'project_type', 'school', 'principal_investigator', 'total_budget', 'status', 'duration']
+    list_filter = ['project_type', 'status', 'school']
+    search_fields = ['project_code', 'title', 'principal_investigator__user__first_name', 'principal_investigator__user__last_name']
+    ordering = ['-start_date']
+    date_hierarchy = 'start_date'
+    filter_horizontal = ['co_investigators']
+    
+    fieldsets = (
+        ('Project Information', {
+            'fields': ('project_code', 'title', 'project_type', 'school', 'department')
+        }),
+        ('Research Team', {
+            'fields': ('principal_investigator', 'co_investigators')
+        }),
+        ('Project Details', {
+            'fields': ('abstract', 'objectives', 'methodology', 'expected_outcomes')
+        }),
+        ('Timeline', {
+            'fields': ('start_date', 'end_date', 'duration_months')
+        }),
+        ('Funding', {
+            'fields': ('total_budget', 'funding_source', 'funds_allocated', 'funds_utilized')
+        }),
+        ('Status & Outputs', {
+            'fields': ('status', 'publications_count', 'patents_count')
+        }),
+        ('Approval', {
+            'fields': ('approved_by', 'approval_date', 'proposal_document', 'final_report')
+        }),
+    )
+    
+    readonly_fields = ['project_code']
+    
+    def title_short(self, obj):
+        return obj.title[:50] + '...' if len(obj.title) > 50 else obj.title
+    title_short.short_description = 'Title'
+    
+    def duration(self, obj):
+        return f"{obj.duration_months} months"
+    duration.short_description = 'Duration'
+
+
+@admin.register(ResearchGrant)
+class ResearchGrantAdmin(admin.ModelAdmin):
+    list_display = ['grant_number', 'grant_title_short', 'grant_type', 'funding_agency', 'amount_applied', 'amount_awarded', 'status', 'application_date']
+    list_filter = ['grant_type', 'status', 'application_date']
+    search_fields = ['grant_number', 'grant_title', 'funding_agency']
+    ordering = ['-application_date']
+    date_hierarchy = 'application_date'
+    filter_horizontal = ['co_applicants']
+    
+    fieldsets = (
+        ('Grant Information', {
+            'fields': ('grant_number', 'grant_title', 'grant_type', 'funding_agency')
+        }),
+        ('Applicants', {
+            'fields': ('principal_applicant', 'co_applicants', 'school')
+        }),
+        ('Financial Details', {
+            'fields': ('amount_applied', 'amount_awarded')
+        }),
+        ('Timeline', {
+            'fields': ('application_date', 'decision_date', 'project_start_date', 'project_end_date')
+        }),
+        ('Status', {
+            'fields': ('status',)
+        }),
+        ('Documents', {
+            'fields': ('proposal_document', 'award_letter')
+        }),
+        ('Reporting', {
+            'fields': ('progress_reports', 'final_report_submitted'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['grant_number']
+    
+    def grant_title_short(self, obj):
+        return obj.grant_title[:50] + '...' if len(obj.grant_title) > 50 else obj.grant_title
+    grant_title_short.short_description = 'Title'
+
+
+@admin.register(Publication)
+class PublicationAdmin(admin.ModelAdmin):
+    list_display = ['title_short', 'publication_type', 'corresponding_author', 'year', 'is_peer_reviewed', 'citations_count', 'impact_factor']
+    list_filter = ['publication_type', 'year', 'is_peer_reviewed', 'school']
+    search_fields = ['title', 'journal_name', 'conference_name', 'publisher', 'doi']
+    ordering = ['-publication_date']
+    date_hierarchy = 'publication_date'
+    filter_horizontal = ['authors']
+    
+    fieldsets = (
+        ('Publication Information', {
+            'fields': ('title', 'publication_type', 'publication_date', 'year')
+        }),
+        ('Authors', {
+            'fields': ('authors', 'corresponding_author', 'school')
+        }),
+        ('Publication Details', {
+            'fields': ('journal_name', 'conference_name', 'publisher', 'isbn_issn', 'doi')
+        }),
+        ('Quality Metrics', {
+            'fields': ('is_peer_reviewed', 'impact_factor', 'citations_count')
+        }),
+        ('Content', {
+            'fields': ('abstract', 'keywords'),
+            'classes': ('collapse',)
+        }),
+        ('Links & Files', {
+            'fields': ('url', 'pdf_file')
+        }),
+        ('Research Link', {
+            'fields': ('research_project',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def title_short(self, obj):
+        return obj.title[:60] + '...' if len(obj.title) > 60 else obj.title
+    title_short.short_description = 'Title'
+
+
+@admin.register(ResearchCenter)
+class ResearchCenterAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'school', 'director', 'annual_budget', 'establishment_date', 'is_active']
+    list_filter = ['school', 'is_active', 'establishment_date']
+    search_fields = ['code', 'name', 'description', 'focus_areas']
+    ordering = ['name']
+    
+    fieldsets = (
+        ('Center Information', {
+            'fields': ('code', 'name', 'school', 'description')
+        }),
+        ('Leadership', {
+            'fields': ('director', 'deputy_director')
+        }),
+        ('Research Focus', {
+            'fields': ('focus_areas', 'objectives')
+        }),
+        ('Resources', {
+            'fields': ('location', 'facilities', 'annual_budget')
+        }),
+        ('Contact', {
+            'fields': ('email', 'phone_number', 'website')
+        }),
+        ('Status', {
+            'fields': ('establishment_date', 'is_active')
+        }),
+    )
+
+
+@admin.register(InnovationProject)
+class InnovationProjectAdmin(admin.ModelAdmin):
+    list_display = ['project_code', 'title_short', 'school', 'project_lead', 'status', 'technology_readiness_level', 'has_ip_protection']
+    list_filter = ['status', 'technology_readiness_level', 'has_ip_protection', 'school']
+    search_fields = ['project_code', 'title', 'description']
+    ordering = ['-start_date']
+    filter_horizontal = ['team_members']
+    
+    fieldsets = (
+        ('Project Information', {
+            'fields': ('project_code', 'title', 'school', 'description')
+        }),
+        ('Team', {
+            'fields': ('project_lead', 'team_members')
+        }),
+        ('Innovation Details', {
+            'fields': ('problem_statement', 'solution', 'innovation_type')
+        }),
+        ('Development', {
+            'fields': ('status', 'technology_readiness_level')
+        }),
+        ('IP & Commercialization', {
+            'fields': ('has_ip_protection', 'ip_type', 'ip_reference', 'market_potential', 'target_market')
+        }),
+        ('Funding', {
+            'fields': ('budget', 'funding_received', 'revenue_generated')
+        }),
+        ('Timeline', {
+            'fields': ('start_date', 'expected_completion', 'actual_completion')
+        }),
+        ('Documents', {
+            'fields': ('business_plan', 'technical_document'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['project_code']
+    
+    def title_short(self, obj):
+        return obj.title[:50] + '...' if len(obj.title) > 50 else obj.title
+    title_short.short_description = 'Title'
+
+
+# ============= HR MODELS ADMIN =============
+
+@admin.register(PerformanceAppraisal)
+class PerformanceAppraisalAdmin(admin.ModelAdmin):
+    list_display = ['lecturer', 'academic_year', 'appraisal_period', 'overall_score', 'overall_rating', 'review_date', 'rating_badge']
+    list_filter = ['appraisal_period', 'overall_rating', 'academic_year']
+    search_fields = ['lecturer__employee_number', 'lecturer__user__first_name', 'lecturer__user__last_name']
+    ordering = ['-review_date']
+    date_hierarchy = 'review_date'
+    
+    fieldsets = (
+        ('Appraisal Information', {
+            'fields': ('lecturer', 'academic_year', 'appraisal_period', 'review_date')
+        }),
+        ('Performance Scores (0-100)', {
+            'fields': ('teaching_quality', 'research_output', 'service_delivery', 'student_feedback', 'professional_development')
+        }),
+        ('Overall Performance', {
+            'fields': ('overall_score', 'overall_rating')
+        }),
+        ('Feedback', {
+            'fields': ('strengths', 'areas_for_improvement', 'training_needs', 'career_development_plan')
+        }),
+        ('Goals', {
+            'fields': ('goals_set', 'previous_goals_achievement'),
+            'classes': ('collapse',)
+        }),
+        ('Approval', {
+            'fields': ('self_assessment', 'hod_comments', 'hod_approved_by', 'dean_comments', 'dean_approved_by', 'appraisal_document')
+        }),
+    )
+    
+    readonly_fields = ['overall_score', 'overall_rating']
+    
+    def rating_badge(self, obj):
+        rating_colors = {
+            'outstanding': 'green',
+            'exceeds': 'blue',
+            'meets': 'orange',
+            'needs_improvement': 'red',
+            'unsatisfactory': 'darkred'
+        }
+        color = rating_colors.get(obj.overall_rating, 'gray')
+        return format_html(
+            '<span style="background-color:{}; color:white; padding:3px 8px; border-radius:3px;">{}</span>',
+            color,
+            obj.get_overall_rating_display()
+        )
+    rating_badge.short_description = 'Rating'
+
+
+@admin.register(StaffPromotion)
+class StaffPromotionAdmin(admin.ModelAdmin):
+    list_display = ['lecturer', 'current_designation', 'proposed_designation', 'application_date', 'status', 'decision_date']
+    list_filter = ['status', 'application_date', 'current_designation', 'proposed_designation']
+    search_fields = ['lecturer__employee_number', 'lecturer__user__first_name', 'lecturer__user__last_name']
+    ordering = ['-application_date']
+    date_hierarchy = 'application_date'
+    
+    fieldsets = (
+        ('Promotion Information', {
+            'fields': ('lecturer', 'current_designation', 'proposed_designation', 'academic_year', 'application_date')
+        }),
+        ('Qualifications', {
+            'fields': ('years_in_current_position', 'highest_qualification', 'additional_qualifications')
+        }),
+        ('Performance Metrics', {
+            'fields': ('teaching_years', 'publications_count', 'research_grants_count', 'phd_supervisions')
+        }),
+        ('Justification', {
+            'fields': ('justification', 'supporting_documents')
+        }),
+        ('HOD Review', {
+            'fields': ('hod_recommendation', 'hod_recommended_by', 'hod_recommendation_date'),
+            'classes': ('collapse',)
+        }),
+        ('Dean/School Review', {
+            'fields': ('school_recommendation', 'dean_recommended_by', 'dean_recommendation_date'),
+            'classes': ('collapse',)
+        }),
+        ('Final Decision', {
+            'fields': ('status', 'final_decision', 'decided_by', 'decision_date')
+        }),
+        ('Implementation', {
+            'fields': ('effective_date', 'new_salary_scale'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(StaffTraining)
+class StaffTrainingAdmin(admin.ModelAdmin):
+    list_display = ['lecturer', 'training_type', 'title', 'organizer', 'start_date', 'duration_days', 'cost', 'status', 'certificate_obtained']
+    list_filter = ['training_type', 'status', 'is_sponsored', 'certificate_obtained', 'start_date']
+    search_fields = ['title', 'organizer', 'lecturer__user__first_name', 'lecturer__user__last_name']
+    ordering = ['-start_date']
+    date_hierarchy = 'start_date'
+    
+    fieldsets = (
+        ('Training Information', {
+            'fields': ('lecturer', 'training_type', 'title', 'organizer', 'venue')
+        }),
+        ('Timeline', {
+            'fields': ('start_date', 'end_date', 'duration_days')
+        }),
+        ('Financial', {
+            'fields': ('cost', 'funding_source', 'is_sponsored')
+        }),
+        ('Outcomes', {
+            'fields': ('skills_acquired', 'certificate_obtained', 'certificate_file')
+        }),
+        ('Relevance', {
+            'fields': ('relevance_to_role', 'expected_impact')
+        }),
+        ('Approval & Status', {
+            'fields': ('status', 'approved_by', 'approval_date')
+        }),
+        ('Post-Training', {
+            'fields': ('completion_report', 'report_submitted_date'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(DisciplinaryCase)
+class DisciplinaryCaseAdmin(admin.ModelAdmin):
+    list_display = ['case_number', 'lecturer', 'severity', 'incident_date', 'status', 'decision_date', 'is_appealed']
+    list_filter = ['severity', 'status', 'is_appealed', 'incident_date']
+    search_fields = ['case_number', 'lecturer__employee_number', 'allegation']
+    ordering = ['-reported_date']
+    date_hierarchy = 'reported_date'
+    
+    fieldsets = (
+        ('Case Information', {
+            'fields': ('case_number', 'lecturer', 'academic_year', 'incident_date', 'reported_date', 'reported_by')
+        }),
+        ('Case Details', {
+            'fields': ('allegation', 'severity', 'evidence', 'witness_statements')
+        }),
+        ('Investigation', {
+            'fields': ('investigating_officer', 'investigation_findings', 'investigation_completed_date'),
+            'classes': ('collapse',)
+        }),
+        ('Hearing', {
+            'fields': ('hearing_date', 'hearing_venue', 'hearing_panel', 'hearing_minutes'),
+            'classes': ('collapse',)
+        }),
+        ('Decision', {
+            'fields': ('status', 'decision', 'disciplinary_action', 'decided_by', 'decision_date')
+        }),
+        ('Appeal', {
+            'fields': ('is_appealed', 'appeal_details', 'appeal_decision'),
+            'classes': ('collapse',)
+        }),
+        ('Documents', {
+            'fields': ('supporting_documents',)
+        }),
+    )
+    
+    readonly_fields = ['case_number']
+
+
+@admin.register(StaffRecruitment)
+class StaffRecruitmentAdmin(admin.ModelAdmin):
+    list_display = ['recruitment_number', 'position_title', 'position_type', 'school', 'department', 'application_deadline', 'total_applications', 'status']
+    list_filter = ['position_type', 'contract_type', 'status', 'advertised_date']
+    search_fields = ['recruitment_number', 'position_title', 'school__name', 'department__name']
+    ordering = ['-advertised_date']
+    date_hierarchy = 'advertised_date'
+    
+    fieldsets = (
+        ('Recruitment Information', {
+            'fields': ('recruitment_number', 'school', 'department', 'academic_year')
+        }),
+        ('Position Details', {
+            'fields': ('position_title', 'position_type', 'contract_type', 'number_of_positions', 'salary_scale')
+        }),
+        ('Requirements', {
+            'fields': ('qualifications_required', 'experience_required', 'responsibilities', 'key_competencies')
+        }),
+        ('Job Details', {
+            'fields': ('job_description', 'reporting_to', 'location'),
+            'classes': ('collapse',)
+        }),
+        ('Timeline', {
+            'fields': ('advertised_date', 'application_deadline', 'shortlisting_date', 'interview_date', 'expected_start_date')
+        }),
+        ('Applications', {
+            'fields': ('total_applications', 'shortlisted_candidates', 'interviewed_candidates')
+        }),
+        ('Interview', {
+            'fields': ('interview_panel_members', 'interview_venue'),
+            'classes': ('collapse',)
+        }),
+        ('Selection', {
+            'fields': ('status', 'selected_candidate_name', 'selected_candidate_email', 'selected_candidate_phone')
+        }),
+        ('Offer', {
+            'fields': ('offer_letter_sent', 'offer_sent_date', 'offer_expiry_date', 'offer_accepted_date'),
+            'classes': ('collapse',)
+        }),
+        ('Contract', {
+            'fields': ('contract_start_date', 'contract_end_date', 'probation_period_months'),
+            'classes': ('collapse',)
+        }),
+        ('Approvals', {
+            'fields': ('approved_by_hod', 'approved_by_dean', 'approved_by_hr'),
+            'classes': ('collapse',)
+        }),
+        ('Documents', {
+            'fields': ('job_advertisement', 'shortlisting_report', 'interview_report', 'offer_letter')
+        }),
+        ('Notes', {
+            'fields': ('recruitment_justification', 'rejection_reason', 'closure_notes'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['recruitment_number']
+
+
+# ============= FINANCIAL MODELS ADMIN =============
+
+@admin.register(SchoolBudget)
+class SchoolBudgetAdmin(admin.ModelAdmin):
+    list_display = ['school', 'financial_year', 'total_allocation', 'amount_spent', 'balance', 'utilization_percentage', 'status']
+    list_filter = ['status', 'financial_year', 'school']
+    search_fields = ['school__name', 'school__code']
+    ordering = ['-financial_year__start_date', 'school__name']
+    
+    fieldsets = (
+        ('Budget Information', {
+            'fields': ('school', 'financial_year', 'status')
+        }),
+        ('Budget Amounts', {
+            'fields': ('total_allocation', 'amount_spent', 'balance')
+        }),
+        ('Budget Breakdown', {
+            'fields': ('personnel_budget', 'operations_budget', 'development_budget', 'research_budget')
+        }),
+        ('Approval Workflow', {
+            'fields': ('submitted_by', 'submitted_date', 'approved_by', 'approval_date')
+        }),
+        ('Notes', {
+            'fields': ('remarks',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['balance']
+    
+    def utilization_percentage(self, obj):
+        if obj.total_allocation > 0:
+            percentage = (obj.amount_spent / obj.total_allocation) * 100
+            color = 'red' if percentage > 90 else 'orange' if percentage > 75 else 'green'
+            return format_html('<span style="color:{};">{:.1f}%</span>', color, percentage)
+        return '0%'
+    utilization_percentage.short_description = 'Utilization'
+
+
+@admin.register(BudgetAllocation)
+class BudgetAllocationAdmin(admin.ModelAdmin):
+    list_display = ['department', 'school_budget', 'allocation_amount', 'amount_utilized', 'balance', 'utilization_percentage', 'allocation_date']
+    list_filter = ['school_budget__financial_year', 'school_budget__school', 'allocation_date']
+    search_fields = ['department__name', 'department__code']
+    ordering = ['-allocation_date']
+    
+    fieldsets = (
+        ('Allocation Information', {
+            'fields': ('school_budget', 'department', 'allocation_date')
+        }),
+        ('Financial Details', {
+            'fields': ('allocation_amount', 'amount_utilized', 'balance', 'utilization_percentage')
+        }),
+        ('Category Breakdown', {
+            'fields': ('personnel', 'operations', 'equipment', 'supplies')
+        }),
+        ('Allocation Details', {
+            'fields': ('allocated_by', 'remarks')
+        }),
+    )
+    
+    readonly_fields = ['balance', 'utilization_percentage']
+
+
+@admin.register(ExpenditureTracking)
+class ExpenditureTrackingAdmin(admin.ModelAdmin):
+    list_display = ['transaction_number', 'budget_allocation', 'expenditure_type', 'payee_name', 'amount', 'transaction_date', 'status']
+    list_filter = ['expenditure_type', 'status', 'transaction_date']
+    search_fields = ['transaction_number', 'payee_name', 'description', 'invoice_number']
+    ordering = ['-transaction_date']
+    date_hierarchy = 'transaction_date'
+    
+    fieldsets = (
+        ('Transaction Information', {
+            'fields': ('transaction_number', 'budget_allocation', 'expenditure_type', 'description')
+        }),
+        ('Payee Details', {
+            'fields': ('payee_name', 'invoice_number', 'invoice_date')
+        }),
+        ('Financial', {
+            'fields': ('amount', 'transaction_date', 'payment_date')
+        }),
+        ('Approval', {
+            'fields': ('status', 'requested_by', 'approved_by')
+        }),
+        ('Documents', {
+            'fields': ('supporting_document', 'payment_voucher')
+        }),
+        ('Notes', {
+            'fields': ('remarks',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['transaction_number']
+
+
+@admin.register(RevenueSource)
+class RevenueSourceAdmin(admin.ModelAdmin):
+    list_display = ['school', 'revenue_type', 'source_name', 'amount', 'received_date', 'receipt_number']
+    list_filter = ['revenue_type', 'received_date', 'school', 'academic_year']
+    search_fields = ['source_name', 'receipt_number', 'description']
+    ordering = ['-received_date']
+    date_hierarchy = 'received_date'
+    
+    fieldsets = (
+        ('Revenue Information', {
+            'fields': ('school', 'academic_year', 'revenue_type', 'source_name')
+        }),
+        ('Financial Details', {
+            'fields': ('amount', 'received_date', 'receipt_number')
+        }),
+        ('Description', {
+            'fields': ('description',)
+        }),
+        ('Recording', {
+            'fields': ('recorded_by', 'supporting_document')
+        }),
+        ('Notes', {
+            'fields': ('remarks',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# ============= PARTNERSHIP MODELS ADMIN =============
+
+@admin.register(Partnership)
+class PartnershipAdmin(admin.ModelAdmin):
+    list_display = ['partner_name', 'partnership_type', 'school', 'country', 'start_date', 'end_date', 'status']
+    list_filter = ['partnership_type', 'status', 'country', 'school']
+    search_fields = ['partner_name', 'description', 'contact_person']
+    ordering = ['-start_date']
+    date_hierarchy = 'start_date'
+    
+    fieldsets = (
+        ('Partnership Information', {
+            'fields': ('school', 'partner_name', 'partnership_type', 'country')
+        }),
+        ('Contact Details', {
+            'fields': ('contact_person', 'contact_email', 'contact_phone')
+        }),
+        ('Partnership Details', {
+            'fields': ('description', 'areas_of_collaboration', 'benefits')
+        }),
+        ('Management', {
+            'fields': ('focal_person', 'status')
+        }),
+        ('Timeline', {
+            'fields': ('start_date', 'end_date')
+        }),
+        ('Additional', {
+            'fields': ('website', 'logo'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(MOU)
+class MOUAdmin(admin.ModelAdmin):
+    list_display = ['mou_number', 'partnership', 'title_short', 'signing_date', 'expiry_date', 'days_to_expiry', 'status', 'renewal_notice_sent']
+    list_filter = ['status', 'signing_date', 'renewal_notice_sent']
+    search_fields = ['mou_number', 'title', 'partnership__partner_name']
+    ordering = ['expiry_date']
+    date_hierarchy = 'signing_date'
+    
+    fieldsets = (
+        ('MOU Information', {
+            'fields': ('mou_number', 'partnership', 'title')
+        }),
+        ('Dates', {
+            'fields': ('signing_date', 'effective_date', 'expiry_date')
+        }),
+        ('Terms', {
+            'fields': ('scope', 'deliverables', 'responsibilities')
+        }),
+        ('Signatories', {
+            'fields': ('university_signatory', 'partner_signatory')
+        }),
+        ('Status', {
+            'fields': ('status',)
+        }),
+        ('Documents', {
+            'fields': ('mou_document',)
+        }),
+        ('Renewal', {
+            'fields': ('renewal_notice_sent', 'renewal_date'),
+            'classes': ('collapse',)
+        }),
+        ('Notes', {
+            'fields': ('remarks',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ['mou_number']
+    
+    def title_short(self, obj):
+        return obj.title[:50] + '...' if len(obj.title) > 50 else obj.title
+    title_short.short_description = 'Title'
+    
+    def days_to_expiry(self, obj):
+        from datetime import date
+        days = (obj.expiry_date - date.today()).days
+        if days < 0:
+            return format_html('<span style="color:red;">Expired</span>')
+        elif days < 30:
+            return format_html('<span style="color:red;">{} days</span>', days)
+        elif days < 90:
+            return format_html('<span style="color:orange;">{} days</span>', days)
+        return format_html('<span style="color:green;">{} days</span>', days)
+    days_to_expiry.short_description = 'Expires In'
+
+
+@admin.register(CollaborativeProject)
+class CollaborativeProjectAdmin(admin.ModelAdmin):
+    list_display = ['title_short', 'partnership', 'project_leader', 'start_date', 'end_date', 'total_budget', 'status']
+    list_filter = ['status', 'start_date']
+    search_fields = ['title', 'description', 'partnership__partner_name']
+    ordering = ['-start_date']
+    date_hierarchy = 'start_date'
+    filter_horizontal = ['team_members']
+    
+    fieldsets = (
+        ('Project Information', {
+            'fields': ('partnership', 'title', 'description', 'objectives')
+        }),
+        ('Team', {
+            'fields': ('project_leader', 'team_members')
+        }),
+        ('Timeline', {
+            'fields': ('start_date', 'end_date')
+        }),
+        ('Budget', {
+            'fields': ('total_budget', 'university_contribution', 'partner_contribution')
+        }),
+        ('Outputs', {
+            'fields': ('publications', 'students_trained')
+        }),
+        ('Status', {
+            'fields': ('status',)
+        }),
+        ('Reports', {
+            'fields': ('progress_report', 'final_report'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def title_short(self, obj):
+        return obj.title[:60] + '...' if len(obj.title) > 60 else obj.title
+    title_short.short_description = 'Title'
+
+
+@admin.register(AlumniRelation)
+class AlumniRelationAdmin(admin.ModelAdmin):
+    list_display = ['alumni_name', 'programme', 'graduation_year', 'current_organization', 'engagement_type', 'engagement_date', 'contribution_value']
+    list_filter = ['engagement_type', 'graduation_year', 'engagement_date', 'programme']
+    search_fields = ['alumni_name', 'current_organization', 'current_position']
+    ordering = ['-engagement_date']
+    date_hierarchy = 'engagement_date'
+    
+    fieldsets = (
+        ('Alumni Information', {
+            'fields': ('alumni_name', 'programme', 'graduation_year', 'current_organization', 'current_position')
+        }),
+        ('Engagement', {
+            'fields': ('engagement_type', 'engagement_date', 'description')
+        }),
+        ('Impact', {
+            'fields': ('students_impacted', 'contribution_value')
+        }),
+        ('Contact', {
+            'fields': ('email', 'phone_number')
+        }),
+        ('Coordination', {
+            'fields': ('coordinated_by', 'remarks')
+        }),
+    )
+
+
+# ============= STRATEGIC PLANNING ADMIN =============
+
+@admin.register(StrategicGoal)
+class StrategicGoalAdmin(admin.ModelAdmin):
+    list_display = ['title_short', 'school', 'category', 'target_year', 'progress_percentage', 'progress_bar', 'status', 'champion']
+    list_filter = ['category', 'status', 'school', 'target_year']
+    search_fields = ['title', 'description', 'target_metric']
+    ordering = ['-progress_percentage', 'target_year']
+    
+    fieldsets = (
+        ('Goal Information', {
+            'fields': ('school', 'category', 'title', 'description')
+        }),
+        ('Timeline', {
+            'fields': ('start_year', 'target_year')
+        }),
+        ('Targets', {
+            'fields': ('target_metric', 'baseline_value', 'target_value', 'current_value')
+        }),
+        ('Progress', {
+            'fields': ('progress_percentage',)
+        }),
+        ('Responsibility', {
+            'fields': ('champion', 'status')
+        }),
+        ('Budget', {
+            'fields': ('estimated_budget',)
+        }),
+        ('Notes', {
+            'fields': ('remarks',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def title_short(self, obj):
+        return obj.title[:50] + '...' if len(obj.title) > 50 else obj.title
+    title_short.short_description = 'Title'
+    
+    def progress_bar(self, obj):
+        percentage = obj.progress_percentage
+        color = 'green' if percentage >= 75 else 'orange' if percentage >= 50 else 'red'
+        return format_html(
+            '<div style="width:100px; background-color:#f0f0f0; border-radius:3px;">'
+            '<div style="width:{}px; background-color:{}; height:20px; border-radius:3px; text-align:center; color:white; line-height:20px;">'
+            '{}%</div></div>',
+            int(percentage),
+            color,
+            int(percentage)
+        )
+    progress_bar.short_description = 'Progress'
+
+
+@admin.register(PerformanceIndicator)
+class PerformanceIndicatorAdmin(admin.ModelAdmin):
+    list_display = ['indicator_code', 'indicator_name_short', 'strategic_goal', 'target_value', 'current_value', 'achievement_percentage', 'is_active']
+    list_filter = ['indicator_type', 'is_active', 'baseline_year']
+    search_fields = ['indicator_code', 'indicator_name', 'description']
+    ordering = ['indicator_code']
+    
+    fieldsets = (
+        ('Indicator Information', {
+            'fields': ('strategic_goal', 'indicator_code', 'indicator_name', 'description', 'indicator_type')
+        }),
+        ('Measurement', {
+            'fields': ('unit_of_measure', 'baseline_year', 'baseline_value', 'target_value', 'current_value', 'achievement_percentage')
+        }),
+        ('Data Collection', {
+            'fields': ('data_source', 'collection_frequency', 'responsible_person')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+    )
+    
+    readonly_fields = ['achievement_percentage']
+    
+    def indicator_name_short(self, obj):
+        return obj.indicator_name[:60] + '...' if len(obj.indicator_name) > 60 else obj.indicator_name
+    indicator_name_short.short_description = 'Indicator'
+
+
+@admin.register(AnnualPlan)
+class AnnualPlanAdmin(admin.ModelAdmin):
+    list_display = ['school', 'academic_year', 'title', 'total_budget', 'allocated_budget', 'status']
+    list_filter = ['status', 'academic_year', 'school']
+    search_fields = ['title', 'description', 'key_priorities']
+    ordering = ['-academic_year__start_date', 'school']
+    
+    fieldsets = (
+        ('Plan Information', {
+            'fields': ('school', 'academic_year', 'title', 'description')
+        }),
+        ('Priorities', {
+            'fields': ('key_priorities',)
+        }),
+        ('Budget', {
+            'fields': ('total_budget', 'allocated_budget')
+        }),
+        ('Status', {
+            'fields': ('status',)
+        }),
+        ('Approval', {
+            'fields': ('prepared_by', 'approved_by', 'approval_date', 'plan_document')
+        }),
+    )
+
+
+@admin.register(AnnualPlanActivity)
+class AnnualPlanActivityAdmin(admin.ModelAdmin):
+    list_display = ['activity_code', 'activity_name_short', 'annual_plan', 'responsible_person', 'start_date', 'end_date', 'completion_percentage', 'status']
+    list_filter = ['status', 'annual_plan__academic_year', 'annual_plan__school']
+    search_fields = ['activity_code', 'activity_name', 'description']
+    ordering = ['annual_plan', 'activity_code']
+    
+    fieldsets = (
+        ('Activity Information', {
+            'fields': ('annual_plan', 'strategic_goal', 'activity_code', 'activity_name', 'description')
+        }),
+        ('Timeline', {
+            'fields': ('start_date', 'end_date')
+        }),
+        ('Resources', {
+            'fields': ('budget_allocated', 'budget_utilized')
+        }),
+        ('Responsibility', {
+            'fields': ('responsible_person', 'status', 'completion_percentage')
+        }),
+        ('Deliverables', {
+            'fields': ('expected_output', 'actual_output')
+        }),
+        ('Notes', {
+            'fields': ('remarks',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def activity_name_short(self, obj):
+        return obj.activity_name[:50] + '...' if len(obj.activity_name) > 50 else obj.activity_name
+    activity_name_short.short_description = 'Activity'
+
+
+@admin.register(ProgressReport)
+class ProgressReportAdmin(admin.ModelAdmin):
+    list_display = ['title', 'school', 'report_type', 'reporting_period_end', 'overall_progress_percentage', 'status']
+    list_filter = ['report_type', 'status', 'academic_year', 'school']
+    search_fields = ['title', 'executive_summary']
+    ordering = ['-reporting_period_end']
+    date_hierarchy = 'reporting_period_end'
+    
+    fieldsets = (
+        ('Report Information', {
+            'fields': ('school', 'academic_year', 'annual_plan', 'report_type', 'title')
+        }),
+        ('Reporting Period', {
+            'fields': ('reporting_period_start', 'reporting_period_end')
+        }),
+        ('Content', {
+            'fields': ('executive_summary', 'achievements', 'challenges', 'recommendations')
+        }),
+        ('Metrics', {
+            'fields': ('overall_progress_percentage', 'budget_utilization_percentage')
+        }),
+        ('Status', {
+            'fields': ('status',)
+        }),
+        ('Workflow', {
+            'fields': ('prepared_by', 'reviewed_by', 'published_by', 'published_date', 'report_document')
+        }),
+    )
+
+
+@admin.register(DeanApproval)
+class DeanApprovalAdmin(admin.ModelAdmin):
+    list_display = ['approval_type', 'title', 'department', 'requested_by', 'request_date', 'priority', 'status']
+    list_filter = ['approval_type', 'priority', 'status', 'request_date']
+    search_fields = ['title', 'description', 'department__name']
+    ordering = ['-request_date']
+    date_hierarchy = 'request_date'
+    
+    fieldsets = (
+        ('Request Information', {
+            'fields': ('department', 'approval_type', 'title', 'description', 'priority')
+        }),
+        ('Request Details', {
+            'fields': ('requested_by', 'request_date', 'supporting_document')
+        }),
+        ('Approval', {
+            'fields': ('status', 'approved_by', 'decision_date', 'decision_notes')
+        }),
+    )
+ 
 # Customize admin site
 admin.site.site_header = "MUT University Management System"
 admin.site.site_title = "MUT Admin"
