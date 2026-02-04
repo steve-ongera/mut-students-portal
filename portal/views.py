@@ -127,9 +127,12 @@ def redirect_user_dashboard(user):
     elif role == 'procurement':
         return redirect('procurement_dashboard')
     
+    elif role == 'vc':
+        return redirect('vc_dashboard')
+    
     # Default fallback
     else:
-        return redirect('admin_dashboard')
+        return redirect('login')
 
 
 def logout_view(request):

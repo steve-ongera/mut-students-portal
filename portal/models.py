@@ -5353,3 +5353,182 @@ class StudentSpecialNeed(models.Model):
     class Meta:
         db_table = 'student_special_needs'
         ordering = ['-created_at']
+        
+        
+        
+# ============= GOVERNANCE MODELS (Missing) =============
+
+class UniversityCouncil(models.Model):
+    """University Council members and meetings"""
+    MEMBER_TYPE = (
+        ('chairman', 'Chairman'),
+        ('vice_chairman', 'Vice Chairman'),
+        ('member', 'Council Member'),
+        ('secretary', 'Secretary'),
+        ('ex_officio', 'Ex-Officio Member'),
+    )
+    
+    name = models.CharField(max_length=200)
+    member_type = models.CharField(max_length=20, choices=MEMBER_TYPE)
+    organization = models.CharField(max_length=200, blank=True)
+    position = models.CharField(max_length=200)
+    appointment_date = models.DateField()
+    term_end_date = models.DateField(null=True, blank=True)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=15)
+    is_active = models.BooleanField(default=True)
+    profile_photo = models.ImageField(upload_to='council/', null=True, blank=True)
+    bio = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'university_council'
+        ordering = ['member_type', 'name']
+
+
+class SenateSession(models.Model):
+    """Senate meetings and decisions"""
+    SESSION_STATUS = (
+        ('scheduled', 'Scheduled'),
+        ('ongoing', 'Ongoing'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    )
+    
+    session_number = models.CharField(max_length=50, unique=True)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE,
+                                     related_name='senate_sessions')
+    session_date = models.DateField()
+    venue = models.CharField(max_length=200)
+    agenda = models.TextField()
+    minutes = models.TextField(blank=True)
+    decisions = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=SESSION_STATUS, default='scheduled')
+    chaired_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True)
+    attendees = models.ManyToManyField('User', related_name='senate_attended', blank=True)
+    minutes_document = models.FileField(upload_to='senate/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'senate_sessions'
+        ordering = ['-session_date']
+
+
+class ManagementBoardMeeting(models.Model):
+    """Management Board meetings"""
+    meeting_number = models.CharField(max_length=50, unique=True)
+    academic_year = models.ForeignKey('AcademicYear', on_delete=models.CASCADE)
+    meeting_date = models.DateField()
+    agenda = models.TextField()
+    decisions = models.TextField(blank=True)
+    action_items = models.TextField(blank=True)
+    minutes_document = models.FileField(upload_to='management_board/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'management_board_meetings'
+        ordering = ['-meeting_date']
+
+
+class InternationalRanking(models.Model):
+    """University international rankings"""
+    RANKING_TYPE = (
+        ('qs', 'QS World University Rankings'),
+        ('times', 'Times Higher Education'),
+        ('arwu', 'Academic Ranking of World Universities'),
+        ('usnews', 'US News Rankings'),
+        ('webometrics', 'Webometrics'),
+    )
+    
+    ranking_type = models.CharField(max_length=20, choices=RANKING_TYPE)
+    year = models.IntegerField()
+    overall_rank = models.IntegerField(null=True, blank=True)
+    national_rank = models.IntegerField(null=True, blank=True)
+    regional_rank = models.IntegerField(null=True, blank=True)
+    score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    category_scores = models.JSONField(default=dict)
+    analysis = models.TextField(blank=True)
+    report_document = models.FileField(upload_to='rankings/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'international_rankings'
+        unique_together = ('ranking_type', 'year')
+        ordering = ['-year', 'ranking_type']
+
+
+class CapitalProject(models.Model):
+    """Capital development projects"""
+    PROJECT_STATUS = (
+        ('planning', 'Planning'),
+        ('design', 'Design'),
+        ('tendering', 'Tendering'),
+        ('construction', 'Under Construction'),
+        ('completed', 'Completed'),
+        ('on_hold', 'On Hold'),
+    )
+    
+    project_number = models.CharField(max_length=50, unique=True)
+    project_name = models.CharField(max_length=300)
+    description = models.TextField()
+    location = models.CharField(max_length=200)
+    total_budget = models.DecimalField(max_digits=15, decimal_places=2)
+    amount_spent = models.DecimalField(max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    funding_source = models.CharField(max_length=200)
+    contractor = models.CharField(max_length=200, blank=True)
+    start_date = models.DateField()
+    expected_completion = models.DateField()
+    actual_completion = models.DateField(null=True, blank=True)
+    completion_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('0.00'))
+    status = models.CharField(max_length=20, choices=PROJECT_STATUS, default='planning')
+    project_manager = models.ForeignKey('User', on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'capital_projects'
+        ordering = ['-created_at']
+
+
+class RiskRegister(models.Model):
+    """Enterprise risk register"""
+    RISK_CATEGORY = (
+        ('strategic', 'Strategic Risk'),
+        ('operational', 'Operational Risk'),
+        ('financial', 'Financial Risk'),
+        ('compliance', 'Compliance Risk'),
+        ('reputational', 'Reputational Risk'),
+        ('technology', 'Technology Risk'),
+    )
+    
+    LIKELIHOOD = (
+        ('rare', 'Rare'),
+        ('unlikely', 'Unlikely'),
+        ('possible', 'Possible'),
+        ('likely', 'Likely'),
+        ('almost_certain', 'Almost Certain'),
+    )
+    
+    IMPACT = (
+        ('insignificant', 'Insignificant'),
+        ('minor', 'Minor'),
+        ('moderate', 'Moderate'),
+        ('major', 'Major'),
+        ('catastrophic', 'Catastrophic'),
+    )
+    
+    risk_number = models.CharField(max_length=50, unique=True)
+    risk_category = models.CharField(max_length=20, choices=RISK_CATEGORY)
+    risk_title = models.CharField(max_length=300)
+    risk_description = models.TextField()
+    likelihood = models.CharField(max_length=20, choices=LIKELIHOOD)
+    impact = models.CharField(max_length=20, choices=IMPACT)
+    risk_score = models.IntegerField(default=0)  # Calculated
+    mitigation_strategy = models.TextField()
+    risk_owner = models.ForeignKey('User', on_delete=models.SET_NULL, null=True)
+    review_date = models.DateField()
+    status = models.CharField(max_length=20, default='active')
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'risk_register'
+        ordering = ['-risk_score']
