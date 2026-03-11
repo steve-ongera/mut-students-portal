@@ -1,0 +1,29 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Process Requisition{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'requisition_list' %}">Requisitions</a></li>
+    <li class="breadcrumb-item active">Mark as Processed</li>
+  </ol>
+</nav>
+
+<div class="card">
+  <div class="card-header">
+    <h5>Mark Requisition as Processed — {{ requisition.requisition_number }}</h5>
+  </div>
+  <div class="card-body">
+    <p><strong>Department:</strong> {{ requisition.department.name }}</p>
+    <p><strong>Purpose:</strong> {{ requisition.purpose }}</p>
+    <p><strong>Current Status:</strong> {{ requisition.get_status_display }}</p>
+    <p>Marking this requisition as processed means all items have been ordered and fulfilled. This action cannot be undone.</p>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">Confirm — Mark as Processed</button>
+      <a href="{% url 'requisition_detail' requisition.requisition_number %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

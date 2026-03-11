@@ -1,0 +1,105 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Supplier Report{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Supplier Report</li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6>Total Active Suppliers</h6>
+        <h2>{{ total_active }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-body">
+        <h6>Total Inactive Suppliers</h6>
+        <h2>{{ total_inactive }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h5>Top 10 Suppliers by Rating</h5></div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Contact Person</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Rating</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for supplier in top_suppliers %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ supplier.supplier_code }}</td>
+          <td>{{ supplier.name }}</td>
+          <td>{{ supplier.contact_person }}</td>
+          <td>{{ supplier.email }}</td>
+          <td>{{ supplier.phone_number }}</td>
+          <td>{{ supplier.rating }} / 5.00</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-4">No suppliers found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h5>All Active Suppliers</h5></div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Contact Person</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Tax PIN</th>
+          <th>Bank</th>
+          <th>Rating</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for supplier in suppliers %}
+        <tr>
+          <td>{{ supplier.supplier_code }}</td>
+          <td>{{ supplier.name }}</td>
+          <td>{{ supplier.contact_person }}</td>
+          <td>{{ supplier.email }}</td>
+          <td>{{ supplier.phone_number }}</td>
+          <td>{{ supplier.tax_pin|default:"—" }}</td>
+          <td>{{ supplier.bank_name|default:"—" }}</td>
+          <td>{{ supplier.rating }} / 5.00</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center py-4">No active suppliers found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

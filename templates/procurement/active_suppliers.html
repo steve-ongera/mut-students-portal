@@ -1,0 +1,55 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Active Suppliers{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
+    <li class="breadcrumb-item active">Active Suppliers</li>
+  </ol>
+</nav>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5>Active Suppliers ({{ total }} total)</h5>
+    <a href="{% url 'add_supplier' %}" class="btn btn-primary btn-sm">Add Supplier</a>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Code</th>
+          <th>Name</th>
+          <th>Contact Person</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Rating</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for supplier in suppliers %}
+        <tr>
+          <td>{{ supplier.supplier_code }}</td>
+          <td>{{ supplier.name }}</td>
+          <td>{{ supplier.contact_person }}</td>
+          <td>{{ supplier.email }}</td>
+          <td>{{ supplier.phone_number }}</td>
+          <td>{{ supplier.rating }} / 5</td>
+          <td>
+            <a href="{% url 'supplier_detail' supplier.supplier_code %}" class="btn btn-sm btn-outline-primary">View</a>
+            <a href="{% url 'edit_supplier' supplier.supplier_code %}" class="btn btn-sm btn-outline-warning">Edit</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-4">No active suppliers found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

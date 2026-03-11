@@ -1,0 +1,30 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Delete Category{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'category_list' %}">Categories</a></li>
+    <li class="breadcrumb-item active">Delete Category</li>
+  </ol>
+</nav>
+
+<div class="card">
+  <div class="card-header"><h5>Delete Category</h5></div>
+  <div class="card-body">
+    <p>Are you sure you want to permanently delete the following category? This action cannot be undone and may affect existing requisition items linked to this category.</p>
+    <table class="table table-borderless w-50">
+      <tr><th>Name</th><td>{{ category.name }}</td></tr>
+      <tr><th>Code</th><td>{{ category.code }}</td></tr>
+      <tr><th>Description</th><td>{{ category.description|default:"—" }}</td></tr>
+      <tr><th>Parent Category</th><td>{{ category.parent_category.name|default:"None (Top Level)" }}</td></tr>
+    </table>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Yes, Delete Category</button>
+      <a href="{% url 'category_list' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

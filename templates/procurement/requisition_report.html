@@ -1,0 +1,90 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Requisition Summary Report{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Requisition Summary Report</li>
+  </ol>
+</nav>
+
+<div class="card mb-4">
+  <div class="card-header"><h5>Filter Report</h5></div>
+  <div class="card-body">
+    <form method="get">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">Academic Year</label>
+          <select name="academic_year" class="form-select">
+            <option value="">All Years</option>
+            {% for year in academic_years %}
+            <option value="{{ year.id }}" {% if year_filter == year.id|stringformat:"i" %}selected{% endif %}>{{ year.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">Apply Filter</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h5>Summary</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-4">
+        <p><strong>Total Requisitions:</strong> {{ requisitions|length }}</p>
+      </div>
+      <div class="col-md-4">
+        <p><strong>Total Estimated Value:</strong> KES {{ total_value|floatformat:2 }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h5>Requisition Details</h5></div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Requisition No.</th>
+          <th>Department</th>
+          <th>Purpose</th>
+          <th>Requested By</th>
+          <th>Academic Year</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in requisitions %}
+        <tr>
+          <td>{{ req.requisition_number }}</td>
+          <td>{{ req.department.name }}</td>
+          <td>{{ req.purpose|truncatechars:40 }}</td>
+          <td>{{ req.requested_by.get_full_name }}</td>
+          <td>{{ req.academic_year }}</td>
+          <td>{{ req.get_status_display }}</td>
+          <td>{{ req.created_at|date:"d M Y" }}</td>
+          <td>
+            <a href="{% url 'requisition_detail' req.requisition_number %}" class="btn btn-sm btn-outline-primary">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center py-4">No requisitions found for the selected filters.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Approve Requisition{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'requisition_list' %}">Requisitions</a></li>
+    <li class="breadcrumb-item active">Approve</li>
+  </ol>
+</nav>
+
+<div class="card">
+  <div class="card-header"><h5>Approve Requisition — {{ requisition.requisition_number }}</h5></div>
+  <div class="card-body">
+    <p>Department: <strong>{{ requisition.department.name }}</strong></p>
+    <p>Purpose: {{ requisition.purpose }}</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label">Remarks (optional)</label>
+        <textarea name="remarks" class="form-control" rows="3"></textarea>
+      </div>
+      <button type="submit" class="btn btn-success">Confirm Approval</button>
+      <a href="{% url 'requisition_detail' requisition.requisition_number %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Approved Requisitions{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'requisition_list' %}">Requisitions</a></li>
+    <li class="breadcrumb-item active">Approved Requisitions</li>
+  </ol>
+</nav>
+
+<div class="card">
+  <div class="card-header">
+    <h5>Approved Requisitions ({{ total }} total)</h5>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Requisition No.</th>
+          <th>Department</th>
+          <th>Purpose</th>
+          <th>Requested By</th>
+          <th>Approved By</th>
+          <th>Approval Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in requisitions %}
+        <tr>
+          <td>{{ req.requisition_number }}</td>
+          <td>{{ req.department.name }}</td>
+          <td>{{ req.purpose|truncatechars:40 }}</td>
+          <td>{{ req.requested_by.get_full_name }}</td>
+          <td>{{ req.approved_by_procurement.get_full_name|default:"—" }}</td>
+          <td>{{ req.final_approval_date|date:"d M Y"|default:"—" }}</td>
+          <td>
+            <a href="{% url 'requisition_detail' req.requisition_number %}" class="btn btn-sm btn-outline-primary">View</a>
+            <a href="{% url 'process_requisition' req.requisition_number %}" class="btn btn-sm btn-outline-success">Mark Processed</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-4">No approved requisitions found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

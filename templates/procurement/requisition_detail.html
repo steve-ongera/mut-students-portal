@@ -1,0 +1,81 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Requisition {{ requisition.requisition_number }}{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'requisition_list' %}">Requisitions</a></li>
+    <li class="breadcrumb-item active">{{ requisition.requisition_number }}</li>
+  </ol>
+</nav>
+
+<div class="card mb-4">
+  <div class="card-header">
+    <h5>Requisition Details — {{ requisition.requisition_number }}</h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <p><strong>Department:</strong> {{ requisition.department.name }}</p>
+        <p><strong>Requested By:</strong> {{ requisition.requested_by.get_full_name }}</p>
+        <p><strong>Purpose:</strong> {{ requisition.purpose }}</p>
+        <p><strong>Academic Year:</strong> {{ requisition.academic_year }}</p>
+      </div>
+      <div class="col-md-6">
+        <p><strong>Status:</strong> {{ requisition.get_status_display }}</p>
+        <p><strong>Date Created:</strong> {{ requisition.created_at|date:"d M Y H:i" }}</p>
+        {% if requisition.approved_by_hod %}<p><strong>Approved by HOD:</strong> {{ requisition.approved_by_hod.get_full_name }}</p>{% endif %}
+        {% if requisition.approved_by_hos %}<p><strong>Approved by HOS:</strong> {{ requisition.approved_by_hos.get_full_name }}</p>{% endif %}
+        {% if requisition.remarks %}<p><strong>Remarks:</strong> {{ requisition.remarks }}</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header"><h5>Requisition Items</h5></div>
+  <div class="card-body p-0">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th>Qty</th>
+          <th>Unit</th>
+          <th>Unit Price (KES)</th>
+          <th>Total (KES)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ item.category.name }}</td>
+          <td>{{ item.item_description }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.unit_of_measure }}</td>
+          <td>{{ item.estimated_unit_price|floatformat:2 }}</td>
+          <td>{{ item.total_estimated_price|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td colspan="6"><strong>Total Estimated Value</strong></td>
+          <td><strong>KES {{ total_value|floatformat:2 }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if requisition.status == 'pending_procurement' %}
+<div class="d-flex gap-2">
+  <a href="{% url 'approve_requisition' requisition.requisition_number %}" class="btn btn-success">Approve</a>
+  <a href="{% url 'reject_requisition' requisition.requisition_number %}" class="btn btn-danger">Reject</a>
+</div>
+{% elif requisition.status == 'approved' %}
+<a href="{% url 'process_requisition' requisition.requisition_number %}" class="btn btn-primary">Mark as Processed</a>
+{% endif %}
+
+{% endblock %}

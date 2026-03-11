@@ -1,0 +1,31 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Deactivate Supplier{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'supplier_detail' supplier.supplier_code %}">{{ supplier.name }}</a></li>
+    <li class="breadcrumb-item active">Deactivate</li>
+  </ol>
+</nav>
+
+<div class="card">
+  <div class="card-header"><h5>Deactivate Supplier</h5></div>
+  <div class="card-body">
+    <p>Are you sure you want to deactivate the following supplier? They will no longer appear in active supplier lists.</p>
+    <table class="table table-borderless w-50">
+      <tr><th>Name</th><td>{{ supplier.name }}</td></tr>
+      <tr><th>Code</th><td>{{ supplier.supplier_code }}</td></tr>
+      <tr><th>Contact Person</th><td>{{ supplier.contact_person }}</td></tr>
+      <tr><th>Email</th><td>{{ supplier.email }}</td></tr>
+    </table>
+    <form method="post">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Yes, Deactivate Supplier</button>
+      <a href="{% url 'supplier_detail' supplier.supplier_code %}" class="btn btn-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
