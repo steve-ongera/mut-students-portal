@@ -7464,10 +7464,422 @@ def export_maintenance_report(request):
     return response
 
 
-@login_required
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+from django.db.models import Q, Count, Sum
+from django.utils import timezone
+from django.core.paginator import Paginator
+from .models import (
+    PurchaseRequisition, RequisitionItem,
+    Supplier, ProcurementCategory, Department, AcademicYear
+)
+
+
+def procurement_required(view_func):
+    """Decorator to restrict access to procurement officers."""
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        if request.user.role != 'procurement':
+            messages.error(request, 'Access denied. Procurement Officer access required.')
+            return redirect('login')
+        return view_func(request, *args, **kwargs)
+    return wrapper
+
+
+# ─── Dashboard ────────────────────────────────────────────────────────────────
+
+@procurement_required
 def procurement_dashboard(request):
-    context = {'page_title': 'Procurement Dashboard'}
+    total_requisitions = PurchaseRequisition.objects.count()
+    pending = PurchaseRequisition.objects.filter(status='pending_procurement').count()
+    approved = PurchaseRequisition.objects.filter(status='approved').count()
+    processed = PurchaseRequisition.objects.filter(status='processed').count()
+    rejected = PurchaseRequisition.objects.filter(status='rejected').count()
+    total_suppliers = Supplier.objects.filter(is_active=True).count()
+    total_categories = ProcurementCategory.objects.count()
+
+    recent_requisitions = PurchaseRequisition.objects.select_related(
+        'department', 'requested_by'
+    ).order_by('-created_at')[:10]
+
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    context = {
+        'total_requisitions': total_requisitions,
+        'pending': pending,
+        'approved': approved,
+        'processed': processed,
+        'rejected': rejected,
+        'total_suppliers': total_suppliers,
+        'total_categories': total_categories,
+        'recent_requisitions': recent_requisitions,
+        'current_year': current_year,
+    }
     return render(request, 'procurement/dashboard.html', context)
+
+
+# ─── Requisitions ─────────────────────────────────────────────────────────────
+
+@procurement_required
+def requisition_list(request):
+    search = request.GET.get('search', '')
+    status_filter = request.GET.get('status', '')
+    dept_filter = request.GET.get('department', '')
+
+    qs = PurchaseRequisition.objects.select_related(
+        'department', 'requested_by', 'academic_year'
+    ).prefetch_related('items')
+
+    if search:
+        qs = qs.filter(
+            Q(requisition_number__icontains=search) |
+            Q(department__name__icontains=search) |
+            Q(purpose__icontains=search)
+        )
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if dept_filter:
+        qs = qs.filter(department_id=dept_filter)
+
+    qs = qs.order_by('-created_at')
+    paginator = Paginator(qs, 20)
+    page = request.GET.get('page')
+    requisitions = paginator.get_page(page)
+
+    departments = Department.objects.filter(is_active=True)
+    status_choices = PurchaseRequisition.REQUISITION_STATUS
+
+    context = {
+        'requisitions': requisitions,
+        'total_requisitions': qs.count(),
+        'search_query': search,
+        'status_filter': status_filter,
+        'dept_filter': dept_filter,
+        'departments': departments,
+        'status_choices': status_choices,
+    }
+    return render(request, 'procurement/requisition_list.html', context)
+
+
+@procurement_required
+def pending_requisitions(request):
+    requisitions = PurchaseRequisition.objects.filter(
+        status='pending_procurement'
+    ).select_related('department', 'requested_by').order_by('-created_at')
+    return render(request, 'procurement/pending_requisitions.html', {
+        'requisitions': requisitions,
+        'total': requisitions.count(),
+    })
+
+
+@procurement_required
+def approved_requisitions(request):
+    requisitions = PurchaseRequisition.objects.filter(
+        status='approved'
+    ).select_related('department', 'requested_by').order_by('-created_at')
+    return render(request, 'procurement/approved_requisitions.html', {
+        'requisitions': requisitions,
+        'total': requisitions.count(),
+    })
+
+
+@procurement_required
+def rejected_requisitions(request):
+    requisitions = PurchaseRequisition.objects.filter(
+        status='rejected'
+    ).select_related('department', 'requested_by').order_by('-created_at')
+    return render(request, 'procurement/rejected_requisitions.html', {
+        'requisitions': requisitions,
+        'total': requisitions.count(),
+    })
+
+
+@procurement_required
+def processed_requisitions(request):
+    requisitions = PurchaseRequisition.objects.filter(
+        status='processed'
+    ).select_related('department', 'requested_by').order_by('-created_at')
+    return render(request, 'procurement/processed_requisitions.html', {
+        'requisitions': requisitions,
+        'total': requisitions.count(),
+    })
+
+
+@procurement_required
+def requisition_detail(request, requisition_number):
+    requisition = get_object_or_404(
+        PurchaseRequisition.objects.select_related(
+            'department', 'requested_by', 'academic_year',
+            'approved_by_hod', 'approved_by_hos', 'approved_by_procurement'
+        ).prefetch_related('items__category'),
+        requisition_number=requisition_number
+    )
+    total_value = requisition.items.aggregate(
+        total=Sum('total_estimated_price')
+    )['total'] or 0
+
+    context = {
+        'requisition': requisition,
+        'items': requisition.items.all(),
+        'total_value': total_value,
+    }
+    return render(request, 'procurement/requisition_detail.html', context)
+
+
+@procurement_required
+def approve_requisition(request, requisition_number):
+    requisition = get_object_or_404(PurchaseRequisition, requisition_number=requisition_number)
+    if request.method == 'POST':
+        remarks = request.POST.get('remarks', '')
+        requisition.status = 'approved'
+        requisition.approved_by_procurement = request.user
+        requisition.final_approval_date = timezone.now()
+        if remarks:
+            requisition.remarks = remarks
+        requisition.save()
+        messages.success(request, f'Requisition {requisition_number} approved successfully.')
+        return redirect('requisition_detail', requisition_number=requisition_number)
+    return render(request, 'procurement/approve_requisition.html', {'requisition': requisition})
+
+
+@procurement_required
+def reject_requisition(request, requisition_number):
+    requisition = get_object_or_404(PurchaseRequisition, requisition_number=requisition_number)
+    if request.method == 'POST':
+        remarks = request.POST.get('remarks', '')
+        requisition.status = 'rejected'
+        if remarks:
+            requisition.remarks = remarks
+        requisition.save()
+        messages.success(request, f'Requisition {requisition_number} rejected.')
+        return redirect('requisition_detail', requisition_number=requisition_number)
+    return render(request, 'procurement/reject_requisition.html', {'requisition': requisition})
+
+
+@procurement_required
+def process_requisition(request, requisition_number):
+    requisition = get_object_or_404(PurchaseRequisition, requisition_number=requisition_number)
+    if request.method == 'POST':
+        requisition.status = 'processed'
+        requisition.save()
+        messages.success(request, f'Requisition {requisition_number} marked as processed.')
+        return redirect('requisition_detail', requisition_number=requisition_number)
+    return render(request, 'procurement/process_requisition.html', {'requisition': requisition})
+
+
+# ─── Suppliers ────────────────────────────────────────────────────────────────
+
+@procurement_required
+def supplier_list(request):
+    search = request.GET.get('search', '')
+    qs = Supplier.objects.all()
+    if search:
+        qs = qs.filter(
+            Q(name__icontains=search) |
+            Q(supplier_code__icontains=search) |
+            Q(contact_person__icontains=search) |
+            Q(email__icontains=search)
+        )
+    qs = qs.order_by('name')
+    paginator = Paginator(qs, 20)
+    suppliers = paginator.get_page(request.GET.get('page'))
+    return render(request, 'procurement/supplier_list.html', {
+        'suppliers': suppliers,
+        'total_suppliers': qs.count(),
+        'search_query': search,
+    })
+
+
+@procurement_required
+def add_supplier(request):
+    if request.method == 'POST':
+        try:
+            supplier = Supplier.objects.create(
+                name=request.POST['name'],
+                supplier_code=request.POST['supplier_code'],
+                contact_person=request.POST['contact_person'],
+                email=request.POST['email'],
+                phone_number=request.POST['phone_number'],
+                alternative_phone=request.POST.get('alternative_phone', ''),
+                address=request.POST['address'],
+                tax_pin=request.POST.get('tax_pin', ''),
+                bank_name=request.POST.get('bank_name', ''),
+                bank_account=request.POST.get('bank_account', ''),
+            )
+            messages.success(request, f'Supplier {supplier.name} added successfully.')
+            return redirect('supplier_list')
+        except Exception as e:
+            messages.error(request, f'Error adding supplier: {str(e)}')
+    return render(request, 'procurement/add_supplier.html')
+
+
+@procurement_required
+def active_suppliers(request):
+    suppliers = Supplier.objects.filter(is_active=True).order_by('name')
+    return render(request, 'procurement/active_suppliers.html', {
+        'suppliers': suppliers,
+        'total': suppliers.count(),
+    })
+
+
+@procurement_required
+def supplier_ratings(request):
+    suppliers = Supplier.objects.filter(is_active=True).order_by('-rating')
+    return render(request, 'procurement/supplier_ratings.html', {
+        'suppliers': suppliers,
+    })
+
+
+@procurement_required
+def supplier_detail(request, supplier_code):
+    supplier = get_object_or_404(Supplier, supplier_code=supplier_code)
+    return render(request, 'procurement/supplier_detail.html', {'supplier': supplier})
+
+
+@procurement_required
+def edit_supplier(request, supplier_code):
+    supplier = get_object_or_404(Supplier, supplier_code=supplier_code)
+    if request.method == 'POST':
+        try:
+            supplier.name = request.POST['name']
+            supplier.contact_person = request.POST['contact_person']
+            supplier.email = request.POST['email']
+            supplier.phone_number = request.POST['phone_number']
+            supplier.alternative_phone = request.POST.get('alternative_phone', '')
+            supplier.address = request.POST['address']
+            supplier.tax_pin = request.POST.get('tax_pin', '')
+            supplier.bank_name = request.POST.get('bank_name', '')
+            supplier.bank_account = request.POST.get('bank_account', '')
+            supplier.is_active = request.POST.get('is_active') == 'on'
+            supplier.save()
+            messages.success(request, f'Supplier {supplier.name} updated successfully.')
+            return redirect('supplier_detail', supplier_code=supplier_code)
+        except Exception as e:
+            messages.error(request, f'Error updating supplier: {str(e)}')
+    return render(request, 'procurement/edit_supplier.html', {'supplier': supplier})
+
+
+@procurement_required
+def delete_supplier(request, supplier_code):
+    supplier = get_object_or_404(Supplier, supplier_code=supplier_code)
+    if request.method == 'POST':
+        supplier.is_active = False
+        supplier.save()
+        messages.success(request, f'Supplier {supplier.name} deactivated.')
+        return redirect('supplier_list')
+    return render(request, 'procurement/delete_supplier.html', {'supplier': supplier})
+
+
+# ─── Categories ───────────────────────────────────────────────────────────────
+
+@procurement_required
+def category_list(request):
+    categories = ProcurementCategory.objects.prefetch_related('subcategories').filter(
+        parent_category__isnull=True
+    ).order_by('name')
+    return render(request, 'procurement/category_list.html', {
+        'categories': categories,
+        'total': ProcurementCategory.objects.count(),
+    })
+
+
+@procurement_required
+def add_category(request):
+    if request.method == 'POST':
+        try:
+            parent_id = request.POST.get('parent_category')
+            parent = ProcurementCategory.objects.get(pk=parent_id) if parent_id else None
+            category = ProcurementCategory.objects.create(
+                name=request.POST['name'],
+                code=request.POST['code'],
+                description=request.POST.get('description', ''),
+                parent_category=parent,
+            )
+            messages.success(request, f'Category {category.name} added successfully.')
+            return redirect('category_list')
+        except Exception as e:
+            messages.error(request, f'Error adding category: {str(e)}')
+    parent_categories = ProcurementCategory.objects.filter(parent_category__isnull=True)
+    return render(request, 'procurement/add_category.html', {'parent_categories': parent_categories})
+
+
+@procurement_required
+def edit_category(request, pk):
+    category = get_object_or_404(ProcurementCategory, pk=pk)
+    if request.method == 'POST':
+        try:
+            category.name = request.POST['name']
+            category.code = request.POST['code']
+            category.description = request.POST.get('description', '')
+            parent_id = request.POST.get('parent_category')
+            category.parent_category = ProcurementCategory.objects.get(pk=parent_id) if parent_id else None
+            category.save()
+            messages.success(request, 'Category updated successfully.')
+            return redirect('category_list')
+        except Exception as e:
+            messages.error(request, f'Error updating category: {str(e)}')
+    parent_categories = ProcurementCategory.objects.filter(parent_category__isnull=True).exclude(pk=pk)
+    return render(request, 'procurement/edit_category.html', {
+        'category': category,
+        'parent_categories': parent_categories,
+    })
+
+
+@procurement_required
+def delete_category(request, pk):
+    category = get_object_or_404(ProcurementCategory, pk=pk)
+    if request.method == 'POST':
+        category.delete()
+        messages.success(request, 'Category deleted successfully.')
+        return redirect('category_list')
+    return render(request, 'procurement/delete_category.html', {'category': category})
+
+
+# ─── Reports ──────────────────────────────────────────────────────────────────
+
+@procurement_required
+def procurement_report(request):
+    by_status = PurchaseRequisition.objects.values('status').annotate(count=Count('id'))
+    by_department = PurchaseRequisition.objects.values(
+        'department__name'
+    ).annotate(count=Count('id'), total=Sum('items__total_estimated_price')).order_by('-count')
+
+    context = {
+        'by_status': by_status,
+        'by_department': by_department,
+    }
+    return render(request, 'procurement/procurement_report.html', context)
+
+
+@procurement_required
+def requisition_report(request):
+    year_filter = request.GET.get('academic_year', '')
+    qs = PurchaseRequisition.objects.select_related('department', 'academic_year', 'requested_by')
+    if year_filter:
+        qs = qs.filter(academic_year_id=year_filter)
+    total_value = RequisitionItem.objects.filter(
+        requisition__in=qs
+    ).aggregate(total=Sum('total_estimated_price'))['total'] or 0
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    return render(request, 'procurement/requisition_report.html', {
+        'requisitions': qs.order_by('-created_at'),
+        'total_value': total_value,
+        'academic_years': academic_years,
+        'year_filter': year_filter,
+    })
+
+
+@procurement_required
+def supplier_report(request):
+    suppliers = Supplier.objects.filter(is_active=True).order_by('-rating')
+    top_suppliers = suppliers[:10]
+    return render(request, 'procurement/supplier_report.html', {
+        'suppliers': suppliers,
+        'top_suppliers': top_suppliers,
+        'total_active': suppliers.count(),
+        'total_inactive': Supplier.objects.filter(is_active=False).count(),
+    })
 
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required

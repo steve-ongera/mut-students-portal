@@ -19,6 +19,38 @@ urlpatterns = [
     path('hostel/dashboard/', views.hostel_dashboard, name='hostel_dashboard'),
     path('procurement/dashboard/', views.procurement_dashboard, name='procurement_dashboard'),
     
+    # Requisitions
+    path('procurement/requisitions/', views.requisition_list, name='requisition_list'),
+    path('procurement/requisitions/pending/', views.pending_requisitions, name='pending_requisitions'),
+    path('procurement/requisitions/approved/', views.approved_requisitions, name='approved_requisitions'),
+    path('procurement/requisitions/rejected/', views.rejected_requisitions, name='rejected_requisitions'),
+    path('procurement/requisitions/processed/', views.processed_requisitions, name='processed_requisitions'),
+    path('procurement/requisitions/<str:requisition_number>/', views.requisition_detail, name='requisition_detail'),
+    path('procurement/requisitions/<str:requisition_number>/approve/', views.approve_requisition, name='approve_requisition'),
+    path('procurement/requisitions/<str:requisition_number>/reject/', views.reject_requisition, name='reject_requisition'),
+    path('procurement/requisitions/<str:requisition_number>/process/', views.process_requisition, name='process_requisition'),
+
+    # Suppliers
+    path('procurement/suppliers/', views.supplier_list, name='supplier_list'),
+    path('procurement/suppliers/add/', views.add_supplier, name='add_supplier'),
+    path('procurement/suppliers/active/', views.active_suppliers, name='active_suppliers'),
+    path('procurement/suppliers/ratings/', views.supplier_ratings, name='supplier_ratings'),
+    path('procurement/suppliers/<str:supplier_code>/', views.supplier_detail, name='supplier_detail'),
+    path('procurement/suppliers/<str:supplier_code>/edit/', views.edit_supplier, name='edit_supplier'),
+    path('procurement/suppliers/<str:supplier_code>/delete/', views.delete_supplier, name='delete_supplier'),
+
+    # Categories
+    path('procurement/categories/', views.category_list, name='category_list'),
+    path('procurement/categories/add/', views.add_category, name='add_category'),
+    path('procurement/categories/<int:pk>/edit/', views.edit_category, name='edit_category'),
+    path('procurement/categories/<int:pk>/delete/', views.delete_category, name='delete_category'),
+
+    # Reports
+    path('procurement/reports/', views.procurement_report, name='procurement_report'),
+    path('procurement/reports/requisitions/', views.requisition_report, name='requisition_report'),
+    path('procurement/reports/suppliers/', views.supplier_report, name='supplier_report'),
+
+    
     # Student list and management
     path('students/', views.student_list, name='student_list'),
     path('students/add/', views.add_student, name='add_student'),
