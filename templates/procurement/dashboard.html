@@ -1,0 +1,83 @@
+{% extends 'procurement/procurement_base.html' %}
+{% block title %}Procurement Dashboard{% endblock %}
+{% block page_title %}Procurement Dashboard{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item active">Dashboard</li>
+  </ol>
+</nav>
+
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <h6>Total Requisitions</h6>
+        <h2>{{ total_requisitions }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <h6>Pending Approval</h6>
+        <h2>{{ pending }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <h6>Approved</h6>
+        <h2>{{ approved }}</h2>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card">
+      <div class="card-body">
+        <h6>Active Suppliers</h6>
+        <h2>{{ total_suppliers }}</h2>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h5>Recent Requisitions</h5>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Requisition No.</th>
+          <th>Department</th>
+          <th>Requested By</th>
+          <th>Status</th>
+          <th>Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in recent_requisitions %}
+        <tr>
+          <td>{{ req.requisition_number }}</td>
+          <td>{{ req.department.name }}</td>
+          <td>{{ req.requested_by.get_full_name }}</td>
+          <td>{{ req.get_status_display }}</td>
+          <td>{{ req.created_at|date:"d M Y" }}</td>
+          <td>
+            <a href="{% url 'requisition_detail' req.requisition_number %}" class="btn btn-sm btn-outline-primary">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center">No requisitions found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
