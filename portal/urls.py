@@ -21,6 +21,7 @@ urlpatterns = [
     
     # Requisitions
     path('procurement/requisitions/', views.requisition_list, name='requisition_list'),
+    path('procurement/requisitions/add/', views.add_requisition, name='add_requisition'),
     path('procurement/requisitions/pending/', views.pending_requisitions, name='pending_requisitions'),
     path('procurement/requisitions/approved/', views.approved_requisitions, name='approved_requisitions'),
     path('procurement/requisitions/rejected/', views.rejected_requisitions, name='rejected_requisitions'),
@@ -29,6 +30,8 @@ urlpatterns = [
     path('procurement/requisitions/<str:requisition_number>/approve/', views.approve_requisition, name='approve_requisition'),
     path('procurement/requisitions/<str:requisition_number>/reject/', views.reject_requisition, name='reject_requisition'),
     path('procurement/requisitions/<str:requisition_number>/process/', views.process_requisition, name='process_requisition'),
+    
+    
 
     # Suppliers
     path('procurement/suppliers/', views.supplier_list, name='supplier_list'),

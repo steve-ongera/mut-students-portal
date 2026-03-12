@@ -127,6 +127,9 @@ def redirect_user_dashboard(user):
     elif role == 'procurement':
         return redirect('procurement_dashboard')
     
+    elif role == 'store':
+        return redirect('store_dashboard')
+    
     elif role == 'vc':
         return redirect('vc_dashboard')
     
@@ -7851,6 +7854,132 @@ def procurement_report(request):
     }
     return render(request, 'procurement/procurement_report.html', context)
 
+@procurement_required
+def add_requisition(request):
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    categories = ProcurementCategory.objects.all().order_by('name')
+    academic_years = AcademicYear.objects.all().order_by('-start_date')
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    if request.method == 'POST':
+        try:
+            # ── Generate requisition number ─────────────────────────────
+            year = timezone.now().year
+            last = PurchaseRequisition.objects.filter(
+                requisition_number__startswith=f'REQ-{year}-'
+            ).order_by('-created_at').first()
+
+            if last:
+                try:
+                    last_num = int(last.requisition_number.split('-')[-1])
+                except ValueError:
+                    last_num = 0
+            else:
+                last_num = 0
+
+            requisition_number = f'REQ-{year}-{last_num + 1:04d}'
+
+            # ── Core fields ─────────────────────────────────────────────
+            department_id  = request.POST.get('department')
+            academic_year_id = request.POST.get('academic_year')
+            purpose        = request.POST.get('purpose', '').strip()
+            remarks        = request.POST.get('remarks', '').strip()
+
+            if not department_id or not academic_year_id or not purpose:
+                messages.error(request, 'Department, Academic Year, and Purpose are required.')
+                return render(request, 'procurement/add_requisition.html', {
+                    'departments': departments,
+                    'categories': categories,
+                    'academic_years': academic_years,
+                    'current_year': current_year,
+                    'post_data': request.POST,
+                })
+
+            department   = Department.objects.get(pk=department_id)
+            academic_year = AcademicYear.objects.get(pk=academic_year_id)
+
+            # ── Collect items from POST ──────────────────────────────────
+            # Each item row sends:
+            #   item_description[]  category[]  quantity[]
+            #   unit_of_measure[]   estimated_unit_price[]  specifications[]
+            descriptions  = request.POST.getlist('item_description[]')
+            cat_ids       = request.POST.getlist('category[]')
+            quantities    = request.POST.getlist('quantity[]')
+            units         = request.POST.getlist('unit_of_measure[]')
+            unit_prices   = request.POST.getlist('estimated_unit_price[]')
+            specifications = request.POST.getlist('specifications[]')
+
+            if not descriptions or all(d.strip() == '' for d in descriptions):
+                messages.error(request, 'At least one item is required.')
+                return render(request, 'procurement/add_requisition.html', {
+                    'departments': departments,
+                    'categories': categories,
+                    'academic_years': academic_years,
+                    'current_year': current_year,
+                    'post_data': request.POST,
+                })
+
+            # ── Create the requisition ───────────────────────────────────
+            requisition = PurchaseRequisition.objects.create(
+                requisition_number=requisition_number,
+                department=department,
+                academic_year=academic_year,
+                requested_by=request.user,
+                purpose=purpose,
+                remarks=remarks,
+                status='pending_hod',
+            )
+
+            # ── Create items ─────────────────────────────────────────────
+            for i, desc in enumerate(descriptions):
+                if not desc.strip():
+                    continue
+                try:
+                    category  = ProcurementCategory.objects.get(pk=cat_ids[i])
+                    qty       = int(quantities[i])
+                    unit      = units[i].strip()
+                    price_str = unit_prices[i].replace(',', '').strip()
+                    unit_price = float(price_str) if price_str else 0.0
+                    spec      = specifications[i].strip() if i < len(specifications) else ''
+
+                    RequisitionItem.objects.create(
+                        requisition=requisition,
+                        category=category,
+                        item_description=desc.strip(),
+                        quantity=qty,
+                        unit_of_measure=unit,
+                        estimated_unit_price=unit_price,
+                        total_estimated_price=qty * unit_price,
+                        specifications=spec,
+                    )
+                except (ProcurementCategory.DoesNotExist, ValueError, IndexError) as e:
+                    # Roll back if any item fails
+                    requisition.delete()
+                    messages.error(request, f'Error on item {i + 1}: {str(e)}')
+                    return render(request, 'procurement/add_requisition.html', {
+                        'departments': departments,
+                        'categories': categories,
+                        'academic_years': academic_years,
+                        'current_year': current_year,
+                        'post_data': request.POST,
+                    })
+
+            messages.success(
+                request,
+                f'Requisition {requisition_number} created successfully and submitted for HOD approval.'
+            )
+            return redirect('requisition_detail', requisition_number=requisition_number)
+
+        except Exception as e:
+            messages.error(request, f'Unexpected error: {str(e)}')
+
+    return render(request, 'procurement/add_requisition.html', {
+        'departments': departments,
+        'categories': categories,
+        'academic_years': academic_years,
+        'current_year': current_year,
+        'post_data': {},
+    })
 
 @procurement_required
 def requisition_report(request):
