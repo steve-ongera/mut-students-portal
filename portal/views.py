@@ -30884,3 +30884,965 @@ def generate_executive_report(request):
         context['report_data'] = report_data
     
     return render(request, 'vc/reports/executive_report.html', context)
+
+
+"""
+store/views.py  –  Store Manager views
+
+All views are protected with @store_required (a role-based decorator
+that mirrors the pattern used elsewhere in this project).
+"""
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db.models import (
+    Count, Sum, Q, F, Value, DecimalField,
+    ExpressionWrapper,
+)
+from django.db.models.functions import TruncMonth, TruncDate, Coalesce
+from django.utils import timezone
+from django.core.paginator import Paginator
+from django.http import JsonResponse
+from datetime import timedelta
+from decimal import Decimal
+import json
+
+from .models import (
+    Supplier,
+    ProcurementCategory,
+    PurchaseRequisition,
+    RequisitionItem,
+    AcademicYear,
+    Department,
+    User,
+)
+from .decorators import store_required          # adjust import to your project
+from .forms import (                            # create these forms as needed
+    SupplierForm,
+    ProcurementCategoryForm,
+    RequisitionFilterForm,
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  DASHBOARD
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_dashboard(request):
+    """Main store / stock dashboard."""
+    now          = timezone.now()
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+    thirty_ago   = now - timedelta(days=30)
+    six_months   = now - timedelta(days=180)
+
+    # ── KPI counts ────────────────────────────────────────────────────────
+    total_requisitions  = PurchaseRequisition.objects.count()
+    pending_fulfillment = PurchaseRequisition.objects.filter(
+        status__in=['approved', 'pending_procurement']
+    ).count()
+    processed_count     = PurchaseRequisition.objects.filter(status='processed').count()
+    total_suppliers     = Supplier.objects.filter(is_active=True).count()
+    total_categories    = ProcurementCategory.objects.count()
+    rejected_count      = PurchaseRequisition.objects.filter(status='rejected').count()
+    draft_count         = PurchaseRequisition.objects.filter(status='draft').count()
+    approved_count      = PurchaseRequisition.objects.filter(status='approved').count()
+
+    # ── Spend figures ──────────────────────────────────────────────────────
+    total_spend   = RequisitionItem.objects.filter(
+        requisition__status='processed'
+    ).aggregate(total=Coalesce(Sum('total_estimated_price'), Decimal('0.00')))['total']
+
+    pending_value = RequisitionItem.objects.filter(
+        requisition__status__in=['pending_procurement', 'approved']
+    ).aggregate(total=Coalesce(Sum('total_estimated_price'), Decimal('0.00')))['total']
+
+    # ── Monthly trend (last 6 months) ─────────────────────────────────────
+    monthly_trend = (
+        PurchaseRequisition.objects
+        .filter(created_at__gte=six_months)
+        .annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(total=Count('id'))
+        .order_by('month')
+    )
+    trend_labels = [e['month'].strftime('%b %Y') for e in monthly_trend]
+    trend_data   = [e['total']                   for e in monthly_trend]
+
+    # ── Status distribution ────────────────────────────────────────────────
+    status_labels = ['Pending', 'Approved', 'Processed', 'Rejected', 'Draft']
+    status_data   = [
+        pending_fulfillment, approved_count,
+        processed_count, rejected_count, draft_count
+    ]
+
+    # ── Spend by department (top 8) ───────────────────────────────────────
+    dept_spend = (
+        RequisitionItem.objects
+        .filter(requisition__status='processed')
+        .values('requisition__department__code', 'requisition__department__name')
+        .annotate(total=Sum('total_estimated_price'))
+        .order_by('-total')[:8]
+    )
+    dept_labels = [d['requisition__department__code'] or 'N/A' for d in dept_spend]
+    dept_data   = [float(d['total'] or 0)               for d in dept_spend]
+
+    # ── Top categories by value (top 6) ───────────────────────────────────
+    category_breakdown = (
+        RequisitionItem.objects
+        .values('category__name')
+        .annotate(count=Count('id'), total=Sum('total_estimated_price'))
+        .order_by('-total')[:6]
+    )
+    cat_labels = [c['category__name'] or 'Uncategorised' for c in category_breakdown]
+    cat_values = [float(c['total'] or 0)                  for c in category_breakdown]
+
+    # ── Daily activity (last 30 days) ─────────────────────────────────────
+    daily_activity = (
+        PurchaseRequisition.objects
+        .filter(created_at__gte=thirty_ago)
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(count=Count('id'))
+        .order_by('day')
+    )
+    daily_labels = [d['day'].strftime('%d %b') for d in daily_activity]
+    daily_data   = [d['count']                  for d in daily_activity]
+
+    # ── Supplier rating distribution ──────────────────────────────────────
+    supplier_ratings = {
+        'Excellent (4-5)': Supplier.objects.filter(rating__gte=4, is_active=True).count(),
+        'Good (3-4)':      Supplier.objects.filter(rating__gte=3, rating__lt=4, is_active=True).count(),
+        'Average (2-3)':   Supplier.objects.filter(rating__gte=2, rating__lt=3, is_active=True).count(),
+        'Poor (<2)':       Supplier.objects.filter(rating__lt=2,  is_active=True).count(),
+    }
+
+    # ── Recent requisitions ───────────────────────────────────────────────
+    recent_requisitions = (
+        PurchaseRequisition.objects
+        .select_related('department', 'requested_by')
+        .order_by('-created_at')[:10]
+    )
+
+    context = {
+        # KPIs
+        'total_requisitions':  total_requisitions,
+        'pending_fulfillment': pending_fulfillment,
+        'processed_count':     processed_count,
+        'total_suppliers':     total_suppliers,
+        'total_categories':    total_categories,
+        'rejected_count':      rejected_count,
+        'draft_count':         draft_count,
+        'approved_count':      approved_count,
+        'total_spend':         total_spend,
+        'pending_value':       pending_value,
+        'current_year':        current_year,
+        # Table
+        'recent_requisitions': recent_requisitions,
+        # Chart data (JSON-serialised)
+        'trend_labels':               json.dumps(trend_labels),
+        'trend_data':                 json.dumps(trend_data),
+        'status_labels':              json.dumps(status_labels),
+        'status_data':                json.dumps(status_data),
+        'dept_labels':                json.dumps(dept_labels),
+        'dept_data':                  json.dumps(dept_data),
+        'cat_labels':                 json.dumps(cat_labels),
+        'cat_values':                 json.dumps(cat_values),
+        'daily_labels':               json.dumps(daily_labels),
+        'daily_data':                 json.dumps(daily_data),
+        'supplier_rating_labels':     json.dumps(list(supplier_ratings.keys())),
+        'supplier_rating_data':       json.dumps(list(supplier_ratings.values())),
+    }
+    return render(request, 'store/dashboard.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  INVENTORY  (backed by RequisitionItem / processed requisitions)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_inventory_list(request):
+    """Show all items from processed requisitions — acts as the stock ledger."""
+    search  = request.GET.get('search', '').strip()
+    cat_id  = request.GET.get('category', '')
+    dept_id = request.GET.get('department', '')
+
+    items = (
+        RequisitionItem.objects
+        .select_related(
+            'requisition', 'requisition__department',
+            'requisition__requested_by', 'category',
+        )
+        .filter(requisition__status='processed')
+        .order_by('-requisition__created_at')
+    )
+
+    if search:
+        items = items.filter(item_description__icontains=search)
+    if cat_id:
+        items = items.filter(category_id=cat_id)
+    if dept_id:
+        items = items.filter(requisition__department_id=dept_id)
+
+    categories  = ProcurementCategory.objects.order_by('name')
+    departments = Department.objects.filter(is_active=True).order_by('name')
+
+    paginator = Paginator(items, 25)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':    page_obj,
+        'items':       page_obj,
+        'categories':  categories,
+        'departments': departments,
+        'search':      search,
+        'cat_id':      cat_id,
+        'dept_id':     dept_id,
+        'total_items': items.count(),
+    }
+    return render(request, 'store/inventory_list.html', context)
+
+
+@store_required
+def store_low_stock(request):
+    """Items where quantity falls below a threshold (≤ 5 units treated as low)."""
+    LOW_THRESHOLD = 5
+
+    low_items = (
+        RequisitionItem.objects
+        .select_related('requisition__department', 'category')
+        .filter(requisition__status='processed', quantity__lte=LOW_THRESHOLD)
+        .order_by('quantity')
+    )
+
+    paginator = Paginator(low_items, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':      page_obj,
+        'items':         page_obj,
+        'low_threshold': LOW_THRESHOLD,
+        'total_low':     low_items.count(),
+    }
+    return render(request, 'store/low_stock.html', context)
+
+
+@store_required
+def store_stock_in(request):
+    """Record stock received — links to an approved requisition."""
+    approved_requisitions = (
+        PurchaseRequisition.objects
+        .filter(status__in=['approved', 'pending_procurement'])
+        .select_related('department', 'requested_by')
+        .prefetch_related('items')
+        .order_by('-created_at')
+    )
+
+    if request.method == 'POST':
+        req_id = request.POST.get('requisition_id')
+        req    = get_object_or_404(PurchaseRequisition, pk=req_id)
+        req.status = 'processed'
+        req.save()
+        messages.success(request, f'Requisition {req.requisition_number} marked as received and processed.')
+        return redirect('store_stock_in')
+
+    paginator = Paginator(approved_requisitions, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':              page_obj,
+        'approved_requisitions': page_obj,
+    }
+    return render(request, 'store/stock_in.html', context)
+
+
+@store_required
+def store_stock_out(request):
+    """Record items issued out of store to departments."""
+    search  = request.GET.get('search', '').strip()
+    dept_id = request.GET.get('department', '')
+
+    issued_items = (
+        RequisitionItem.objects
+        .select_related('requisition__department', 'category')
+        .filter(requisition__status='processed')
+        .order_by('-requisition__final_approval_date')
+    )
+
+    if search:
+        issued_items = issued_items.filter(item_description__icontains=search)
+    if dept_id:
+        issued_items = issued_items.filter(requisition__department_id=dept_id)
+
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    paginator   = Paginator(issued_items, 25)
+    page_obj    = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':    page_obj,
+        'items':       page_obj,
+        'departments': departments,
+        'search':      search,
+        'dept_id':     dept_id,
+    }
+    return render(request, 'store/stock_out.html', context)
+
+
+@store_required
+def store_stock_adjustment(request):
+    """Manual stock quantity adjustments with reason logging."""
+    adjustments = (
+        RequisitionItem.objects
+        .select_related('requisition__department', 'category')
+        .filter(requisition__status='processed')
+        .order_by('-requisition__updated_at')
+    )
+
+    paginator = Paginator(adjustments, 25)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'items':    page_obj,
+    }
+    return render(request, 'store/stock_adjustment.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  REQUISITIONS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_requisitions_all(request):
+    """All requisitions — store manager read/action view."""
+    search     = request.GET.get('search', '').strip()
+    status_f   = request.GET.get('status', '')
+    dept_f     = request.GET.get('department', '')
+    date_from  = request.GET.get('date_from', '')
+    date_to    = request.GET.get('date_to', '')
+
+    reqs = (
+        PurchaseRequisition.objects
+        .select_related('department', 'requested_by',
+                        'approved_by_hod', 'approved_by_hos',
+                        'approved_by_procurement', 'academic_year')
+        .prefetch_related('items')
+        .order_by('-created_at')
+    )
+
+    if search:
+        reqs = reqs.filter(
+            Q(requisition_number__icontains=search) |
+            Q(purpose__icontains=search) |
+            Q(department__name__icontains=search)
+        )
+    if status_f:
+        reqs = reqs.filter(status=status_f)
+    if dept_f:
+        reqs = reqs.filter(department_id=dept_f)
+    if date_from:
+        reqs = reqs.filter(created_at__date__gte=date_from)
+    if date_to:
+        reqs = reqs.filter(created_at__date__lte=date_to)
+
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    paginator   = Paginator(reqs, 20)
+    page_obj    = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':    page_obj,
+        'requisitions': page_obj,
+        'departments':  departments,
+        'search':       search,
+        'status_f':     status_f,
+        'dept_f':       dept_f,
+        'date_from':    date_from,
+        'date_to':      date_to,
+        'total':        reqs.count(),
+        'status_choices': PurchaseRequisition.REQUISITION_STATUS,
+    }
+    return render(request, 'store/requisitions_all.html', context)
+
+
+@store_required
+def store_requisitions_pending(request):
+    """Requisitions awaiting procurement action."""
+    reqs = (
+        PurchaseRequisition.objects
+        .filter(status__in=['pending_procurement', 'approved_hod', 'approved_hos'])
+        .select_related('department', 'requested_by')
+        .prefetch_related('items')
+        .order_by('-created_at')
+    )
+
+    paginator = Paginator(reqs, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':     page_obj,
+        'requisitions': page_obj,
+        'total':        reqs.count(),
+    }
+    return render(request, 'store/requisitions_pending.html', context)
+
+
+@store_required
+def store_requisitions_approved(request):
+    """Fully approved requisitions ready for goods delivery."""
+    reqs = (
+        PurchaseRequisition.objects
+        .filter(status='approved')
+        .select_related('department', 'requested_by',
+                        'approved_by_procurement')
+        .prefetch_related('items')
+        .order_by('-final_approval_date')
+    )
+
+    paginator = Paginator(reqs, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':     page_obj,
+        'requisitions': page_obj,
+        'total':        reqs.count(),
+    }
+    return render(request, 'store/requisitions_approved.html', context)
+
+
+@store_required
+def store_requisition_detail(request, pk):
+    """Detail view for a single requisition."""
+    req   = get_object_or_404(
+        PurchaseRequisition.objects.select_related(
+            'department', 'academic_year',
+            'requested_by', 'approved_by_hod',
+            'approved_by_hos', 'approved_by_procurement',
+        ).prefetch_related('items__category'),
+        pk=pk,
+    )
+    items       = req.items.all()
+    total_value = items.aggregate(
+        total=Coalesce(Sum('total_estimated_price'), Decimal('0.00'))
+    )['total']
+
+    context = {
+        'req':         req,
+        'items':       items,
+        'total_value': total_value,
+    }
+    return render(request, 'store/requisition_detail.html', context)
+
+
+@store_required
+def store_requisition_fulfillment(request):
+    """Mark approved requisitions as fulfilled / processed."""
+    if request.method == 'POST':
+        req_id = request.POST.get('requisition_id')
+        action = request.POST.get('action')
+        req    = get_object_or_404(PurchaseRequisition, pk=req_id)
+
+        if action == 'process':
+            req.status  = 'processed'
+            req.remarks = request.POST.get('remarks', '')
+            req.save()
+            messages.success(
+                request,
+                f'Requisition {req.requisition_number} marked as processed.'
+            )
+        elif action == 'reject':
+            req.status  = 'rejected'
+            req.remarks = request.POST.get('remarks', 'Rejected by Store Manager')
+            req.save()
+            messages.warning(
+                request,
+                f'Requisition {req.requisition_number} has been rejected.'
+            )
+        return redirect('store_requisition_fulfillment')
+
+    reqs = (
+        PurchaseRequisition.objects
+        .filter(status='approved')
+        .select_related('department', 'requested_by')
+        .prefetch_related('items')
+        .order_by('final_approval_date')
+    )
+
+    paginator = Paginator(reqs, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':     page_obj,
+        'requisitions': page_obj,
+        'total':        reqs.count(),
+    }
+    return render(request, 'store/requisition_fulfillment.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SUPPLIERS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_supplier_list(request):
+    search = request.GET.get('search', '').strip()
+
+    suppliers = Supplier.objects.order_by('name')
+    if search:
+        suppliers = suppliers.filter(
+            Q(name__icontains=search) |
+            Q(supplier_code__icontains=search) |
+            Q(contact_person__icontains=search)
+        )
+
+    paginator = Paginator(suppliers, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':  page_obj,
+        'suppliers': page_obj,
+        'search':    search,
+        'total':     suppliers.count(),
+    }
+    return render(request, 'store/supplier_list.html', context)
+
+
+@store_required
+def store_supplier_add(request):
+    if request.method == 'POST':
+        form = SupplierForm(request.POST)
+        if form.is_valid():
+            supplier = form.save()
+            messages.success(request, f'Supplier "{supplier.name}" added successfully.')
+            return redirect('store_supplier_list')
+    else:
+        form = SupplierForm()
+
+    return render(request, 'store/supplier_form.html', {'form': form, 'action': 'Add'})
+
+
+@store_required
+def store_supplier_edit(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == 'POST':
+        form = SupplierForm(request.POST, instance=supplier)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Supplier "{supplier.name}" updated.')
+            return redirect('store_supplier_list')
+    else:
+        form = SupplierForm(instance=supplier)
+
+    return render(request, 'store/supplier_form.html', {
+        'form': form, 'supplier': supplier, 'action': 'Edit'
+    })
+
+
+@store_required
+def store_supplier_detail(request, pk):
+    supplier = get_object_or_404(Supplier, pk=pk)
+    # Requisitions linked through items for this supplier (approximation via dept)
+    context = {'supplier': supplier}
+    return render(request, 'store/supplier_detail.html', context)
+
+
+@store_required
+def store_supplier_performance(request):
+    """Suppliers ranked by rating and order count."""
+    suppliers = (
+        Supplier.objects
+        .filter(is_active=True)
+        .order_by('-rating', 'name')
+    )
+
+    rating_buckets = {
+        'Excellent (4-5)': suppliers.filter(rating__gte=4).count(),
+        'Good (3-4)':      suppliers.filter(rating__gte=3, rating__lt=4).count(),
+        'Average (2-3)':   suppliers.filter(rating__gte=2, rating__lt=3).count(),
+        'Poor (<2)':       suppliers.filter(rating__lt=2).count(),
+    }
+
+    paginator = Paginator(suppliers, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':       page_obj,
+        'suppliers':      page_obj,
+        'rating_buckets': rating_buckets,
+        'total':          suppliers.count(),
+    }
+    return render(request, 'store/supplier_performance.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  CATEGORIES
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_category_list(request):
+    categories = (
+        ProcurementCategory.objects
+        .select_related('parent_category')
+        .annotate(item_count=Count('requisition_items'))
+        .order_by('name')
+    )
+
+    paginator = Paginator(categories, 25)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':   page_obj,
+        'categories': page_obj,
+        'total':      categories.count(),
+    }
+    return render(request, 'store/category_list.html', context)
+
+
+@store_required
+def store_category_add(request):
+    if request.method == 'POST':
+        form = ProcurementCategoryForm(request.POST)
+        if form.is_valid():
+            cat = form.save()
+            messages.success(request, f'Category "{cat.name}" created.')
+            return redirect('store_category_list')
+    else:
+        form = ProcurementCategoryForm()
+
+    return render(request, 'store/category_form.html', {'form': form, 'action': 'Add'})
+
+
+@store_required
+def store_category_edit(request, pk):
+    category = get_object_or_404(ProcurementCategory, pk=pk)
+    if request.method == 'POST':
+        form = ProcurementCategoryForm(request.POST, instance=category)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f'Category "{category.name}" updated.')
+            return redirect('store_category_list')
+    else:
+        form = ProcurementCategoryForm(instance=category)
+
+    return render(request, 'store/category_form.html', {
+        'form': form, 'category': category, 'action': 'Edit'
+    })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  GOODS RECEIVED NOTES  (GRN)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_grn_list(request):
+    """Processed requisitions treated as GRNs."""
+    grns = (
+        PurchaseRequisition.objects
+        .filter(status='processed')
+        .select_related('department', 'requested_by', 'approved_by_procurement')
+        .prefetch_related('items')
+        .order_by('-final_approval_date')
+    )
+
+    paginator = Paginator(grns, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'grns':     page_obj,
+        'total':    grns.count(),
+    }
+    return render(request, 'store/grn_list.html', context)
+
+
+@store_required
+def store_grn_create(request):
+    """Convert an approved requisition into a GRN (mark as processed)."""
+    approved = (
+        PurchaseRequisition.objects
+        .filter(status='approved')
+        .select_related('department', 'requested_by')
+        .prefetch_related('items__category')
+        .order_by('final_approval_date')
+    )
+
+    if request.method == 'POST':
+        req_id = request.POST.get('requisition_id')
+        req    = get_object_or_404(PurchaseRequisition, pk=req_id, status='approved')
+        req.status  = 'processed'
+        req.remarks = request.POST.get('remarks', 'GRN created by store manager')
+        req.save()
+        messages.success(
+            request,
+            f'GRN created for requisition {req.requisition_number}.'
+        )
+        return redirect('store_grn_list')
+
+    context = {
+        'approved_requisitions': approved,
+        'total': approved.count(),
+    }
+    return render(request, 'store/grn_create.html', context)
+
+
+@store_required
+def store_grn_pending(request):
+    """Approved requisitions awaiting goods delivery."""
+    pending = (
+        PurchaseRequisition.objects
+        .filter(status='approved')
+        .select_related('department', 'requested_by')
+        .prefetch_related('items')
+        .order_by('final_approval_date')
+    )
+
+    paginator = Paginator(pending, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'pending':  page_obj,
+        'total':    pending.count(),
+    }
+    return render(request, 'store/grn_pending.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  ISSUANCE & DISPATCH
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_issue_items(request):
+    """Issue items to requesting departments."""
+    if request.method == 'POST':
+        req_id = request.POST.get('requisition_id')
+        req    = get_object_or_404(PurchaseRequisition, pk=req_id)
+        req.status  = 'processed'
+        req.remarks = 'Items issued by Store Manager'
+        req.save()
+        messages.success(
+            request,
+            f'Items for requisition {req.requisition_number} issued successfully.'
+        )
+        return redirect('store_issue_items')
+
+    to_issue = (
+        PurchaseRequisition.objects
+        .filter(status='approved')
+        .select_related('department', 'requested_by')
+        .prefetch_related('items__category')
+        .order_by('final_approval_date')
+    )
+
+    paginator = Paginator(to_issue, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'to_issue': page_obj,
+        'total':    to_issue.count(),
+    }
+    return render(request, 'store/issue_items.html', context)
+
+
+@store_required
+def store_issuance_history(request):
+    """Historical log of all issued items."""
+    search  = request.GET.get('search', '').strip()
+    dept_id = request.GET.get('department', '')
+
+    history = (
+        PurchaseRequisition.objects
+        .filter(status='processed')
+        .select_related('department', 'requested_by', 'approved_by_procurement')
+        .prefetch_related('items__category')
+        .order_by('-final_approval_date')
+    )
+
+    if search:
+        history = history.filter(
+            Q(requisition_number__icontains=search) |
+            Q(department__name__icontains=search)
+        )
+    if dept_id:
+        history = history.filter(department_id=dept_id)
+
+    departments = Department.objects.filter(is_active=True).order_by('name')
+    paginator   = Paginator(history, 20)
+    page_obj    = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj':    page_obj,
+        'history':     page_obj,
+        'departments': departments,
+        'search':      search,
+        'dept_id':     dept_id,
+        'total':       history.count(),
+    }
+    return render(request, 'store/issuance_history.html', context)
+
+
+@store_required
+def store_pending_dispatch(request):
+    """Approved requisitions not yet dispatched."""
+    pending = (
+        PurchaseRequisition.objects
+        .filter(status='approved')
+        .select_related('department', 'requested_by')
+        .prefetch_related('items')
+        .order_by('final_approval_date')
+    )
+
+    paginator = Paginator(pending, 20)
+    page_obj  = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'pending':  page_obj,
+        'total':    pending.count(),
+    }
+    return render(request, 'store/pending_dispatch.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  REPORTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_inventory_report(request):
+    """Full inventory report grouped by category."""
+    categories = (
+        ProcurementCategory.objects
+        .annotate(
+            total_items=Count(
+                'requisition_items',
+                filter=Q(requisition_items__requisition__status='processed')
+            ),
+            total_value=Coalesce(
+                Sum(
+                    'requisition_items__total_estimated_price',
+                    filter=Q(requisition_items__requisition__status='processed')
+                ),
+                Decimal('0.00'),
+            )
+        )
+        .order_by('-total_value')
+    )
+
+    grand_value = categories.aggregate(
+        grand=Coalesce(Sum('total_value'), Decimal('0.00'))
+    )['grand']
+
+    context = {
+        'categories':  categories,
+        'grand_value': grand_value,
+    }
+    return render(request, 'store/report_inventory.html', context)
+
+
+@store_required
+def store_movement_report(request):
+    """Stock movement report: items received vs issued per department."""
+    dept_summary = (
+        RequisitionItem.objects
+        .filter(requisition__status='processed')
+        .values(
+            'requisition__department__code',
+            'requisition__department__name',
+        )
+        .annotate(
+            total_items=Count('id'),
+            total_qty=Sum('quantity'),
+            total_value=Coalesce(Sum('total_estimated_price'), Decimal('0.00')),
+        )
+        .order_by('-total_value')
+    )
+
+    context = {
+        'dept_summary': dept_summary,
+        'total_records': dept_summary.count(),
+    }
+    return render(request, 'store/report_movement.html', context)
+
+
+@store_required
+def store_consumption_report(request):
+    """Consumption report: top items by quantity ordered."""
+    items = (
+        RequisitionItem.objects
+        .filter(requisition__status='processed')
+        .values('item_description', 'unit_of_measure', 'category__name')
+        .annotate(
+            total_qty=Sum('quantity'),
+            total_value=Coalesce(Sum('total_estimated_price'), Decimal('0.00')),
+            order_count=Count('id'),
+        )
+        .order_by('-total_qty')[:50]
+    )
+
+    context = {
+        'items': items,
+        'total': len(list(items)),
+    }
+    return render(request, 'store/report_consumption.html', context)
+
+
+@store_required
+def store_valuation_report(request):
+    """Stock valuation: total estimated value of processed items."""
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    valuation = (
+        RequisitionItem.objects
+        .filter(requisition__status='processed')
+        .aggregate(
+            total_value=Coalesce(Sum('total_estimated_price'), Decimal('0.00')),
+            total_items=Count('id'),
+            total_qty=Sum('quantity'),
+        )
+    )
+
+    dept_valuation = (
+        RequisitionItem.objects
+        .filter(requisition__status='processed')
+        .values('requisition__department__name', 'requisition__department__code')
+        .annotate(
+            dept_value=Coalesce(Sum('total_estimated_price'), Decimal('0.00')),
+            dept_items=Count('id'),
+        )
+        .order_by('-dept_value')
+    )
+
+    context = {
+        'valuation':      valuation,
+        'dept_valuation': dept_valuation,
+        'current_year':   current_year,
+    }
+    return render(request, 'store/report_valuation.html', context)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  SETTINGS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@store_required
+def store_reorder_settings(request):
+    """View / edit reorder levels per category (informational page)."""
+    categories = (
+        ProcurementCategory.objects
+        .select_related('parent_category')
+        .annotate(item_count=Count('requisition_items'))
+        .order_by('name')
+    )
+    return render(request, 'store/reorder_settings.html', {'categories': categories})
+
+
+@store_required
+def store_location_settings(request):
+    """Manage physical storage locations per category."""
+    categories = (
+        ProcurementCategory.objects
+        .select_related('parent_category')
+        .order_by('name')
+    )
+    return render(request, 'store/location_settings.html', {'categories': categories})
