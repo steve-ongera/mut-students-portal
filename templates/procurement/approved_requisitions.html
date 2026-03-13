@@ -1,54 +1,593 @@
 {% extends 'procurement/procurement_base.html' %}
-{% block title %}Approved Requisitions{% endblock %}
-{% block content %}
+{% load static %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Approved Requisitions{% endblock %}
+{% block page_subtitle %}Review and process requisitions that have been approved{% endblock %}
+
+{% block content %}
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'requisition_list' %}">Requisitions</a></li>
-    <li class="breadcrumb-item active">Approved Requisitions</li>
-  </ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'requisition_list' %}">Requisitions</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Approved Requisitions</li>
+    </ol>
 </nav>
 
-<div class="card">
-  <div class="card-header">
-    <h5>Approved Requisitions ({{ total }} total)</h5>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead>
-        <tr>
-          <th>Requisition No.</th>
-          <th>Department</th>
-          <th>Purpose</th>
-          <th>Requested By</th>
-          <th>Approved By</th>
-          <th>Approval Date</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for req in requisitions %}
-        <tr>
-          <td>{{ req.requisition_number }}</td>
-          <td>{{ req.department.name }}</td>
-          <td>{{ req.purpose|truncatechars:40 }}</td>
-          <td>{{ req.requested_by.get_full_name }}</td>
-          <td>{{ req.approved_by_procurement.get_full_name|default:"—" }}</td>
-          <td>{{ req.final_approval_date|date:"d M Y"|default:"—" }}</td>
-          <td>
-            <a href="{% url 'requisition_detail' req.requisition_number %}" class="btn btn-sm btn-outline-primary">View</a>
-            <a href="{% url 'process_requisition' req.requisition_number %}" class="btn btn-sm btn-outline-success">Mark Processed</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="7" class="text-center py-4">No approved requisitions found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Approved Requisitions</h1>
+                <p class="text-muted mb-0">
+                    Review and process requisitions that have been approved
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="badge-chip d-flex align-items-center gap-1" style="background: rgba(46,125,50,0.1); color: var(--color-primary);">
+                    <i class="ri-checkbox-circle-line"></i>
+                    <span>{{ total }} Approved</span>
+                </span>
+                <a href="{% url 'requisition_list' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-list-check fs-5"></i>
+                    <span>All Requisitions</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Approved Requisitions Card -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Approved Requisitions</h5>
+                <div class="card-subtitle">Requisitions ready for processing</div>
+            </div>
+            <span class="badge-chip" style="background: rgba(46,125,50,0.1); color: var(--color-primary);">
+                <i class="ri-checkbox-circle-line me-1"></i> {{ total }} Approved
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Requisition No.</th>
+                            <th>Department</th>
+                            <th>Purpose</th>
+                            <th>Requested By</th>
+                            <th>Approved By</th>
+                            <th>Approval Date</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requisitions %}
+                        <tr>
+                            <td class="ps-4">
+                                <strong>{{ req.requisition_number }}</strong>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="dept-avatar">{{ req.department.code|default:req.department.name|slice:":2"|upper }}</div>
+                                    <span class="fw-medium">{{ req.department.name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ req.purpose|truncatechars:40 }}</span>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.requested_by.get_full_name|default:req.requested_by.username }}</span>
+                                <small class="text-muted d-block">{{ req.requested_by.email }}</small>
+                            </td>
+                            <td>
+                                {% if req.approved_by_procurement %}
+                                    <span class="fw-medium">{{ req.approved_by_procurement.get_full_name }}</span>
+                                    <small class="text-muted d-block">{{ req.approved_by_procurement.email }}</small>
+                                {% elif req.approved_by_hod %}
+                                    <span class="fw-medium">{{ req.approved_by_hod.get_full_name }}</span>
+                                    <small class="text-muted d-block">HOD</small>
+                                {% elif req.approved_by_hos %}
+                                    <span class="fw-medium">{{ req.approved_by_hos.get_full_name }}</span>
+                                    <small class="text-muted d-block">HOS</small>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if req.final_approval_date %}
+                                    <span>{{ req.final_approval_date|date:"d M Y" }}</span>
+                                    <small class="text-muted d-block">{{ req.final_approval_date|time:"H:i" }}</small>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'requisition_detail' req.requisition_number %}"
+                                       class="btn btn-icon btn-outline-primary btn-sm"
+                                       title="View Details" data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    <a href="{% url 'process_requisition' req.requisition_number %}"
+                                       class="btn btn-icon btn-outline-success btn-sm"
+                                       title="Mark as Processed" data-bs-toggle="tooltip">
+                                        <i class="ri-check-double-line"></i>
+                                    </a>
+                                    <div class="dropdown">
+                                        <button class="btn btn-icon btn-outline-secondary btn-sm" 
+                                                type="button" 
+                                                data-bs-toggle="dropdown" 
+                                                aria-expanded="false"
+                                                title="More Actions" data-bs-toggle="tooltip">
+                                            <i class="ri-more-2-fill"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'requisition_detail' req.requisition_number %}">
+                                                    <i class="ri-eye-line me-2"></i>View Details
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'process_requisition' req.requisition_number %}">
+                                                    <i class="ri-check-double-line me-2 text-success"></i>Mark Processed
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="#">
+                                                    <i class="ri-printer-line me-2"></i>Print Requisition
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" href="#">
+                                                    <i class="ri-mail-send-line me-2"></i>Email Approver
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon mb-3">
+                                        <i class="ri-file-list-3-line display-1 text-primary opacity-50"></i>
+                                    </div>
+                                    <h5 class="text-muted">No Approved Requisitions</h5>
+                                    <p class="text-muted mb-3">There are no approved requisitions waiting for processing.</p>
+                                    <a href="{% url 'requisition_list' %}" class="btn btn-primary btn-sm">
+                                        <i class="ri-list-check me-1"></i> View All Requisitions
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    {% if requisitions %}
+    <div class="row g-3 mt-4">
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="kpi-card kpi-success">
+                <div class="kpi-icon"><i class="ri-checkbox-circle-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ total }}</div>
+                    <div class="kpi-label">Total Approved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="kpi-card kpi-primary">
+                <div class="kpi-icon"><i class="ri-stack-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ pending_processed|default:"0" }}</div>
+                    <div class="kpi-label">Pending Process</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="kpi-card kpi-info">
+                <div class="kpi-icon"><i class="ri-money-dollar-circle-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">KES {{ total_value|floatformat:0|default:"0" }}</div>
+                    <div class="kpi-label">Total Value</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="kpi-card kpi-warning">
+                <div class="kpi-icon"><i class="ri-building-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ unique_departments|default:requisitions|length }}</div>
+                    <div class="kpi-label">Departments</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-primary-light: rgba(46,125,50,0.08);
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+
+    /* Breadcrumb */
+    .breadcrumb { 
+        background: transparent; 
+        padding: .75rem 0; 
+        margin-bottom: 1rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+    }
+    .breadcrumb-item a { 
+        color: var(--color-gray-600); 
+        text-decoration: none; 
+        transition: color .2s; 
+    }
+    .breadcrumb-item a:hover { 
+        color: var(--color-primary); 
+    }
+    .breadcrumb-item.active { 
+        color: var(--color-gray-800); 
+        font-weight: 500; 
+    }
+
+    /* Page Header */
+    .page-header { 
+        padding: 1rem 0; 
+    }
+    .page-header h1 { 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+    }
+
+    /* Management Card */
+    .management-card { 
+        background: white; 
+        border: 1px solid var(--color-gray-200); 
+        border-radius: var(--radius-lg); 
+        overflow: hidden; 
+    }
+    .management-card .card-header { 
+        padding: 1.25rem 1.5rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+        background: var(--color-gray-100); 
+    }
+    .management-card .card-title { 
+        font-size: 1rem; 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .management-card .card-subtitle { 
+        font-size: .8125rem; 
+        color: var(--color-gray-600); 
+    }
+    .management-card .card-body { 
+        padding: 1.5rem; 
+    }
+
+    /* Badge Chip */
+    .badge-chip { 
+        background: var(--color-gray-200); 
+        color: var(--color-gray-600); 
+        font-size: .74rem; 
+        font-weight: 500; 
+        padding: .3rem .75rem; 
+        border-radius: 20px; 
+        white-space: nowrap; 
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+        border-radius: var(--radius-lg); 
+        padding: 1.25rem;
+        display: flex; 
+        align-items: center; 
+        gap: 1rem;
+        border: 1px solid transparent;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .kpi-card:hover { 
+        transform: translateY(-3px); 
+        box-shadow: var(--shadow-md); 
+    }
+    .kpi-success { 
+        background: rgba(76,175,80,.08); 
+        border-color: rgba(76,175,80,.2); 
+    }
+    .kpi-primary { 
+        background: rgba(46,125,50,.08); 
+        border-color: rgba(46,125,50,.2); 
+    }
+    .kpi-info { 
+        background: rgba(33,150,243,.08); 
+        border-color: rgba(33,150,243,.2); 
+    }
+    .kpi-warning { 
+        background: rgba(255,152,0,.08); 
+        border-color: rgba(255,152,0,.2); 
+    }
+
+    .kpi-icon {
+        width: 46px; 
+        height: 46px; 
+        border-radius: var(--radius-md);
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        font-size: 1.4rem; 
+        flex-shrink: 0;
+    }
+    .kpi-success .kpi-icon { 
+        background: rgba(76,175,80,.12);  
+        color: var(--color-success); 
+    }
+    .kpi-primary .kpi-icon { 
+        background: rgba(46,125,50,.12); 
+        color: var(--color-primary); 
+    }
+    .kpi-info .kpi-icon { 
+        background: rgba(33,150,243,.12); 
+        color: var(--color-info); 
+    }
+    .kpi-warning .kpi-icon { 
+        background: rgba(255,152,0,.12);  
+        color: var(--color-warning); 
+    }
+
+    .kpi-value { 
+        font-size: 1.75rem; 
+        font-weight: 700; 
+        line-height: 1; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .kpi-label { 
+        font-size: .78rem; 
+        font-weight: 500; 
+        color: var(--color-gray-600); 
+        text-transform: uppercase; 
+        letter-spacing: .4px; 
+    }
+
+    /* Table */
+    .table thead th {
+        font-size: .8125rem; 
+        font-weight: 600; 
+        text-transform: uppercase; 
+        letter-spacing: .5px;
+        color: var(--color-gray-600); 
+        border-top: none; 
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem .75rem; 
+        background: var(--color-gray-100);
+    }
+    .table tbody td { 
+        padding: .9rem .75rem; 
+        vertical-align: middle; 
+        border-color: var(--color-gray-200); 
+    }
+    .table tbody tr { 
+        transition: background-color .2s ease; 
+    }
+    .table tbody tr:hover { 
+        background-color: rgba(46,125,50,.02); 
+    }
+
+    /* Dept Avatar */
+    .dept-avatar {
+        width: 36px; 
+        height: 36px; 
+        border-radius: var(--radius-sm);
+        background: var(--color-primary-light); 
+        color: var(--color-primary);
+        font-size: .7rem; 
+        font-weight: 700;
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        flex-shrink: 0;
+    }
+
+    /* Action Icons */
+    .btn-icon {
+        width: 32px; 
+        height: 32px; 
+        padding: 0;
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center;
+        border-radius: var(--radius-sm); 
+        transition: transform .2s ease;
+    }
+    .btn-icon:hover { 
+        transform: translateY(-2px); 
+    }
+    
+    .btn-outline-primary {
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-outline-success {
+        color: var(--color-success);
+        border-color: var(--color-success);
+    }
+    
+    .btn-outline-success:hover {
+        background-color: var(--color-success);
+        color: white;
+    }
+    
+    .btn-outline-secondary {
+        color: var(--color-gray-600);
+        border-color: var(--color-gray-200);
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        color: var(--color-gray-800);
+        border-color: var(--color-gray-300);
+    }
+
+    /* Dropdown Menu */
+    .dropdown-menu {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        box-shadow: var(--shadow-md);
+        padding: 0.5rem;
+        font-family: var(--font-family);
+    }
+    
+    .dropdown-item {
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .dropdown-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    .dropdown-item i {
+        font-size: 1.1rem;
+    }
+    
+    .dropdown-divider {
+        border-color: var(--color-gray-200);
+        margin: 0.5rem 0;
+    }
+
+    /* Empty State */
+    .empty-state { 
+        padding: 3rem 1rem; 
+        text-align: center; 
+    }
+    
+    .empty-state-icon {
+        line-height: 1;
+    }
+    
+    .empty-state i { 
+        font-size: 3rem; 
+        margin-bottom: 1rem; 
+    }
+    
+    .opacity-50 {
+        opacity: 0.5;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background-color: #1b5e20;
+        border-color: #1b5e20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .table thead th {
+            font-size: 0.7rem;
+            padding: 0.75rem 0.5rem;
+        }
+        
+        .table tbody td {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-icon {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .badge-chip {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 1.4rem;
+        }
+        
+        .kpi-card {
+            padding: 1rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize Bootstrap dropdowns
+    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+    var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        return new bootstrap.Dropdown(dropdownToggleEl);
+    });
+});
+</script>
 
 {% endblock %}
