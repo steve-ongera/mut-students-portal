@@ -1,83 +1,658 @@
 {% extends 'procurement/procurement_base.html' %}
-{% block title %}Procurement Dashboard{% endblock %}
-{% block page_title %}Procurement Dashboard{% endblock %}
-{% block content %}
+{% load static %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Procurement Dashboard{% endblock %}
+{% block page_subtitle %}Monitor requisitions, suppliers, and spending analytics{% endblock %}
+
+{% block content %}
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item active">Dashboard</li>
-  </ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Procurement</li>
+    </ol>
 </nav>
 
-<div class="row mb-4">
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h6>Total Requisitions</h6>
-        <h2>{{ total_requisitions }}</h2>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h6>Pending Approval</h6>
-        <h2>{{ pending }}</h2>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h6>Approved</h6>
-        <h2>{{ approved }}</h2>
-      </div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="card">
-      <div class="card-body">
-        <h6>Active Suppliers</h6>
-        <h2>{{ total_suppliers }}</h2>
-      </div>
-    </div>
-  </div>
-</div>
+<div class="content-container">
 
-<div class="card">
-  <div class="card-header">
-    <h5>Recent Requisitions</h5>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead>
-        <tr>
-          <th>Requisition No.</th>
-          <th>Department</th>
-          <th>Requested By</th>
-          <th>Status</th>
-          <th>Date</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for req in recent_requisitions %}
-        <tr>
-          <td>{{ req.requisition_number }}</td>
-          <td>{{ req.department.name }}</td>
-          <td>{{ req.requested_by.get_full_name }}</td>
-          <td>{{ req.get_status_display }}</td>
-          <td>{{ req.created_at|date:"d M Y" }}</td>
-          <td>
-            <a href="{% url 'requisition_detail' req.requisition_number %}" class="btn btn-sm btn-outline-primary">View</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6" class="text-center">No requisitions found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Procurement Dashboard</h1>
+                <p class="text-muted mb-0">
+                    Monitor requisitions, suppliers, and spending analytics
+                    {% if current_year %}
+                    &mdash; <span class="fw-medium text-dark">{{ current_year }}</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="#" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                    <i class="ri-add-line fs-5"></i>
+                    <span>New Requisition</span>
+                </a>
+                <a href="#" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-download-line fs-5"></i>
+                    <span>Export</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Cards Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="kpi-card kpi-primary">
+                <div class="kpi-icon"><i class="ri-file-list-3-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ total_requisitions }}</div>
+                    <div class="kpi-label">Total Requisitions</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card kpi-warning">
+                <div class="kpi-icon"><i class="ri-time-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ pending }}</div>
+                    <div class="kpi-label">Pending Approval</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card kpi-success">
+                <div class="kpi-icon"><i class="ri-checkbox-circle-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ processed }}</div>
+                    <div class="kpi-label">Processed</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="kpi-card kpi-info">
+                <div class="kpi-icon"><i class="ri-store-2-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ total_suppliers }}</div>
+                    <div class="kpi-label">Active Suppliers</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spend Summary Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="spend-card spend-processed">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="spend-label">Total Spend (Processed)</div>
+                        <div class="spend-value">KES {{ total_spend|floatformat:2 }}</div>
+                    </div>
+                    <div class="spend-icon"><i class="ri-money-dollar-circle-line"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="spend-card spend-pending">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="spend-label">Pending Value</div>
+                        <div class="spend-value">KES {{ pending_value|floatformat:2 }}</div>
+                    </div>
+                    <div class="spend-icon"><i class="ri-loader-4-line"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="spend-card spend-neutral">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <div class="spend-label">Procurement Categories</div>
+                        <div class="spend-value">{{ total_categories }}</div>
+                    </div>
+                    <div class="spend-icon"><i class="ri-apps-2-line"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1: Trend + Donut -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-8">
+            <div class="management-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Requisition Trend</h5>
+                        <div class="card-subtitle">Monthly requisitions over the last 6 months</div>
+                    </div>
+                    <span class="badge-chip">Last 6 Months</span>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position:relative;height:280px;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="management-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Status Distribution</h5>
+                    <div class="card-subtitle">Breakdown by current status</div>
+                </div>
+                <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                    <div class="chart-container" style="position:relative;height:210px;width:210px;">
+                        <canvas id="statusDonut"></canvas>
+                    </div>
+                    <div class="donut-legend mt-3 w-100">
+                        <div class="donut-legend-item">
+                            <span class="legend-dot" style="background:#FF9800;"></span>
+                            <span class="legend-label">Pending</span>
+                            <span class="legend-value ms-auto">{{ pending }}</span>
+                        </div>
+                        <div class="donut-legend-item">
+                            <span class="legend-dot" style="background:#2E7D32;"></span>
+                            <span class="legend-label">Approved</span>
+                            <span class="legend-value ms-auto">{{ approved }}</span>
+                        </div>
+                        <div class="donut-legend-item">
+                            <span class="legend-dot" style="background:#4CAF50;"></span>
+                            <span class="legend-label">Processed</span>
+                            <span class="legend-value ms-auto">{{ processed }}</span>
+                        </div>
+                        <div class="donut-legend-item">
+                            <span class="legend-dot" style="background:#F44336;"></span>
+                            <span class="legend-label">Rejected</span>
+                            <span class="legend-value ms-auto">{{ rejected }}</span>
+                        </div>
+                        <div class="donut-legend-item">
+                            <span class="legend-dot" style="background:#9E9E9E;"></span>
+                            <span class="legend-label">Draft</span>
+                            <span class="legend-value ms-auto">{{ draft }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2: Dept Spend + Supplier Ratings -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+            <div class="management-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Spend by Department</h5>
+                        <div class="card-subtitle">Top 8 departments by processed spend</div>
+                    </div>
+                    <span class="badge-chip">Processed Only</span>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position:relative;height:270px;">
+                        <canvas id="deptBarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div class="management-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Supplier Ratings</h5>
+                    <div class="card-subtitle">Distribution of active supplier ratings</div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position:relative;height:270px;">
+                        <canvas id="supplierRatingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 3: Category + Daily Activity -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="management-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Requisitions by Category</h5>
+                    <div class="card-subtitle">Top 6 procurement categories by value</div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position:relative;height:270px;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="management-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Daily Activity</h5>
+                        <div class="card-subtitle">Requisitions submitted per day</div>
+                    </div>
+                    <span class="badge-chip">Last 30 Days</span>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position:relative;height:270px;">
+                        <canvas id="dailyAreaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Requisitions Table -->
+    <div class="management-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Recent Requisitions</h5>
+                <div class="card-subtitle">Last 10 submitted purchase requisitions</div>
+            </div>
+            <a href="{% url 'requisition_list' %}" class="btn btn-sm btn-outline-primary">
+                View All <i class="ri-arrow-right-line ms-1"></i>
+            </a>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Req. Number</th>
+                            <th>Department</th>
+                            <th>Requested By</th>
+                            <th>Purpose</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in recent_requisitions %}
+                        <tr>
+                            <td class="ps-4">
+                                <strong>{{ req.requisition_number }}</strong>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="dept-avatar">{{ req.department.code|slice:":2"|upper }}</div>
+                                    <div>
+                                        <span class="fw-medium">{{ req.department.code }}</span>
+                                        <small class="text-muted d-block">{{ req.department.name|truncatechars:25 }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.requested_by.get_full_name }}</span>
+                                <small class="text-muted d-block">{{ req.requested_by.email }}</small>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ req.purpose|truncatechars:40 }}</span>
+                            </td>
+                            <td>
+                                <span>{{ req.created_at|date:"d M Y" }}</span>
+                                <small class="text-muted d-block">{{ req.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                {% if req.status == 'pending_procurement' %}
+                                    <span class="status-badge status-pending"><i class="ri-time-line me-1"></i>Pending</span>
+                                {% elif req.status == 'approved' or req.status == 'approved_hod' or req.status == 'approved_hos' %}
+                                    <span class="status-badge status-approved"><i class="ri-checkbox-circle-line me-1"></i>Approved</span>
+                                {% elif req.status == 'processed' %}
+                                    <span class="status-badge status-processed"><i class="ri-check-double-line me-1"></i>Processed</span>
+                                {% elif req.status == 'rejected' %}
+                                    <span class="status-badge status-rejected"><i class="ri-close-circle-line me-1"></i>Rejected</span>
+                                {% elif req.status == 'draft' %}
+                                    <span class="status-badge status-draft"><i class="ri-draft-line me-1"></i>Draft</span>
+                                {% else %}
+                                    <span class="status-badge status-draft">{{ req.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'requisition_detail' req.id %}"
+                                       class="btn btn-icon btn-outline-primary btn-sm"
+                                       title="View Details" data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    {% if req.status == 'pending_procurement' %}
+                                    <a href="{% url 'approve_requisition' req.id %}"
+                                       class="btn btn-icon btn-outline-success btn-sm"
+                                       title="Approve" data-bs-toggle="tooltip">
+                                        <i class="ri-checkbox-circle-line"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if req.status == 'draft' %}
+                                    <a href="#"
+                                       class="btn btn-icon btn-outline-warning btn-sm"
+                                       title="Edit" data-bs-toggle="tooltip">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-list-3-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No requisitions found</h5>
+                                    <p class="text-muted mb-3">Start by creating your first purchase requisition</p>
+                                    <a href="#" class="btn btn-primary btn-sm">
+                                        <i class="ri-add-line me-1"></i> Create Requisition
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /content-container -->
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-primary-light: rgba(46,125,50,0.08);
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+
+    /* Breadcrumb */
+    .breadcrumb { background:transparent; padding:.75rem 0; margin-bottom:1rem; border-bottom:1px solid var(--color-gray-200); }
+    .breadcrumb-item a { color:var(--color-gray-600); text-decoration:none; transition:color .2s; }
+    .breadcrumb-item a:hover { color:var(--color-primary); }
+    .breadcrumb-item.active { color:var(--color-gray-800); font-weight:500; }
+
+    /* Page Header */
+    .page-header { padding:1rem 0; }
+    .page-header h1 { font-weight:600; color:var(--color-gray-800); }
+
+    /* KPI Cards */
+    .kpi-card {
+        border-radius:var(--radius-lg); padding:1.25rem;
+        display:flex; align-items:center; gap:1rem;
+        border:1px solid transparent;
+        transition:transform .2s ease, box-shadow .2s ease;
+    }
+    .kpi-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-md); }
+    .kpi-primary { background:var(--color-primary-light); border-color:rgba(46,125,50,.15); }
+    .kpi-warning { background:rgba(255,152,0,.08); border-color:rgba(255,152,0,.2); }
+    .kpi-success { background:rgba(76,175,80,.08); border-color:rgba(76,175,80,.2); }
+    .kpi-info    { background:rgba(33,150,243,.08); border-color:rgba(33,150,243,.2); }
+
+    .kpi-icon {
+        width:46px; height:46px; border-radius:var(--radius-md);
+        display:flex; align-items:center; justify-content:center;
+        font-size:1.4rem; flex-shrink:0;
+    }
+    .kpi-primary .kpi-icon { background:rgba(46,125,50,.12); color:var(--color-primary); }
+    .kpi-warning .kpi-icon { background:rgba(255,152,0,.12);  color:var(--color-warning); }
+    .kpi-success .kpi-icon { background:rgba(76,175,80,.12);  color:var(--color-success); }
+    .kpi-info    .kpi-icon { background:rgba(33,150,243,.12); color:var(--color-info); }
+
+    .kpi-value { font-size:1.75rem; font-weight:700; line-height:1; color:var(--color-gray-800); margin-bottom:.2rem; }
+    .kpi-label { font-size:.78rem; font-weight:500; color:var(--color-gray-600); text-transform:uppercase; letter-spacing:.4px; }
+
+    /* Spend Cards */
+    .spend-card {
+        border-radius:var(--radius-lg); padding:1.25rem 1.5rem;
+        border:1px solid transparent;
+        transition:transform .2s ease, box-shadow .2s ease;
+    }
+    .spend-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-sm); }
+    .spend-processed { background:rgba(76,175,80,.07); border-color:rgba(76,175,80,.2); }
+    .spend-pending   { background:rgba(255,152,0,.07); border-color:rgba(255,152,0,.2); }
+    .spend-neutral   { background:rgba(33,150,243,.07); border-color:rgba(33,150,243,.2); }
+    .spend-label { font-size:.78rem; font-weight:500; text-transform:uppercase; letter-spacing:.4px; color:var(--color-gray-600); margin-bottom:.4rem; }
+    .spend-value { font-size:1.35rem; font-weight:700; color:var(--color-gray-800); }
+    .spend-icon {
+        width:42px; height:42px; border-radius:50%;
+        background:rgba(255,255,255,.6);
+        display:flex; align-items:center; justify-content:center;
+        font-size:1.3rem; color:var(--color-gray-600);
+    }
+
+    /* Management Card */
+    .management-card { background:white; border:1px solid var(--color-gray-200); border-radius:var(--radius-lg); overflow:hidden; }
+    .management-card .card-header { padding:1.25rem 1.5rem; border-bottom:1px solid var(--color-gray-200); background:var(--color-gray-100); }
+    .management-card .card-title { font-size:1rem; font-weight:600; color:var(--color-gray-800); margin-bottom:.2rem; }
+    .management-card .card-subtitle { font-size:.8125rem; color:var(--color-gray-600); }
+    .management-card .card-body { padding:1.5rem; }
+
+    /* Badge Chip */
+    .badge-chip { background:var(--color-gray-200); color:var(--color-gray-600); font-size:.74rem; font-weight:500; padding:.3rem .75rem; border-radius:20px; white-space:nowrap; }
+
+    /* Donut Legend */
+    .donut-legend { display:flex; flex-direction:column; gap:.45rem; }
+    .donut-legend-item { display:flex; align-items:center; gap:.5rem; font-size:.8125rem; color:var(--color-gray-800); }
+    .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .legend-label { flex:1; }
+    .legend-value { font-weight:600; }
+
+    /* Table */
+    .table thead th {
+        font-size:.8125rem; font-weight:600; text-transform:uppercase; letter-spacing:.5px;
+        color:var(--color-gray-600); border-top:none; border-bottom:1px solid var(--color-gray-200);
+        padding:1rem .75rem; background:var(--color-gray-100);
+    }
+    .table tbody td { padding:.9rem .75rem; vertical-align:middle; border-color:var(--color-gray-200); }
+    .table tbody tr { transition:background-color .2s ease; }
+    .table tbody tr:hover { background-color:rgba(46,125,50,.02); }
+
+    /* Dept Avatar */
+    .dept-avatar {
+        width:36px; height:36px; border-radius:var(--radius-sm);
+        background:var(--color-primary-light); color:var(--color-primary);
+        font-size:.7rem; font-weight:700;
+        display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display:inline-flex; align-items:center;
+        padding:.25rem .75rem; border-radius:20px;
+        font-size:.74rem; font-weight:600;
+        text-transform:uppercase; letter-spacing:.3px; white-space:nowrap;
+    }
+    .status-pending   { background:rgba(255,152,0,.1);   color:var(--color-warning); }
+    .status-approved  { background:rgba(46,125,50,.1);   color:var(--color-primary); }
+    .status-processed { background:rgba(76,175,80,.1);   color:var(--color-success); }
+    .status-rejected  { background:rgba(244,67,54,.1);   color:var(--color-danger); }
+    .status-draft     { background:rgba(108,117,125,.1); color:var(--color-gray-600); }
+
+    /* Action Icons */
+    .btn-icon {
+        width:32px; height:32px; padding:0;
+        display:inline-flex; align-items:center; justify-content:center;
+        border-radius:var(--radius-sm); transition:transform .2s ease;
+    }
+    .btn-icon:hover { transform:translateY(-2px); }
+
+    /* Empty State */
+    .empty-state { padding:3rem 1rem; text-align:center; }
+    .empty-state i { font-size:3rem; margin-bottom:1rem; }
+
+    @media (max-width:576px) {
+        .kpi-value  { font-size:1.4rem; }
+        .spend-value { font-size:1.1rem; }
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    const colors = {
+        primary: '#2E7D32',
+        success: '#4CAF50',
+        warning: '#FF9800',
+        info:    '#2196F3',
+        danger:  '#F44336',
+        gray:    '#9E9E9E',
+    };
+
+    const trendLabels  = {{ trend_labels|safe }};
+    const trendData    = {{ trend_data|safe }};
+    const statusLabels = {{ status_labels|safe }};
+    const statusData   = {{ status_data|safe }};
+    const deptLabels   = {{ dept_labels|safe }};
+    const deptData     = {{ dept_data|safe }};
+    const catLabels    = {{ cat_labels|safe }};
+    const catValues    = {{ cat_values|safe }};
+    const dailyLabels  = {{ daily_labels|safe }};
+    const dailyData    = {{ daily_data|safe }};
+    const ratingLabels = {{ supplier_rating_labels|safe }};
+    const ratingData   = {{ supplier_rating_data|safe }};
+
+    const tooltipDefaults = {
+        backgroundColor: '#1a1a2e',
+        titleColor: '#fff',
+        bodyColor: '#ccc',
+        padding: 10,
+        cornerRadius: 8,
+        boxPadding: 4,
+    };
+
+    const baseOpts = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tooltipDefaults }
+    };
+
+    /* 1. Monthly Trend — Line */
+    new Chart(document.getElementById('trendChart'), {
+        type: 'line',
+        data: {
+            labels: trendLabels,
+            datasets: [{
+                label: 'Requisitions', data: trendData,
+                borderColor: colors.primary, backgroundColor: 'rgba(46,125,50,0.08)',
+                tension: 0.4, fill: true,
+                pointBackgroundColor: colors.primary, pointRadius: 4, pointHoverRadius: 6, borderWidth: 2,
+            }]
+        },
+        options: { ...baseOpts, scales: {
+            x: { grid:{display:false}, ticks:{font:{size:11},color:'#6c757d'} },
+            y: { beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:11},color:'#6c757d',stepSize:1} }
+        }}
+    });
+
+    /* 2. Status — Doughnut */
+    new Chart(document.getElementById('statusDonut'), {
+        type: 'doughnut',
+        data: {
+            labels: statusLabels,
+            datasets: [{
+                data: statusData,
+                backgroundColor: [colors.warning, colors.primary, colors.success, colors.danger, colors.gray],
+                borderWidth: 2, borderColor: '#fff', hoverOffset: 6,
+            }]
+        },
+        options: { ...baseOpts, cutout: '70%' }
+    });
+
+    /* 3. Dept Spend — Vertical Bar */
+    new Chart(document.getElementById('deptBarChart'), {
+        type: 'bar',
+        data: {
+            labels: deptLabels,
+            datasets: [{
+                label: 'Spend (KES)', data: deptData,
+                backgroundColor: deptData.map((_, i) => i === 0 ? colors.primary : 'rgba(46,125,50,0.5)'),
+                borderRadius: 6, borderSkipped: false,
+            }]
+        },
+        options: { ...baseOpts, scales: {
+            x: { grid:{display:false}, ticks:{font:{size:11},color:'#6c757d'} },
+            y: { beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'},
+                 ticks:{font:{size:10},color:'#6c757d',callback:v=>'KES '+(v>=1000?(v/1000).toFixed(0)+'K':v)} }
+        }}
+    });
+
+    /* 4. Supplier Ratings — Horizontal Bar */
+    new Chart(document.getElementById('supplierRatingChart'), {
+        type: 'bar',
+        data: {
+            labels: ratingLabels,
+            datasets: [{
+                label: 'Suppliers', data: ratingData,
+                backgroundColor: [colors.success, colors.primary, colors.warning, colors.danger],
+                borderRadius: 6, borderSkipped: false,
+            }]
+        },
+        options: { ...baseOpts, indexAxis: 'y', scales: {
+            x: { beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:11},color:'#6c757d',stepSize:1} },
+            y: { grid:{display:false}, ticks:{font:{size:11},color:'#6c757d'} }
+        }}
+    });
+
+    /* 5. Category — Horizontal Bar */
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'bar',
+        data: {
+            labels: catLabels,
+            datasets: [{
+                label: 'Total Value (KES)', data: catValues,
+                backgroundColor: [
+                    'rgba(46,125,50,0.7)','rgba(33,150,243,0.7)','rgba(255,152,0,0.7)',
+                    'rgba(76,175,80,0.7)','rgba(233,30,99,0.7)','rgba(103,58,183,0.7)',
+                ],
+                borderRadius: 5, borderSkipped: false,
+            }]
+        },
+        options: { ...baseOpts, indexAxis: 'y', scales: {
+            x: { beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'},
+                 ticks:{font:{size:10},color:'#6c757d',callback:v=>'KES '+(v>=1000?(v/1000).toFixed(0)+'K':v)} },
+            y: { grid:{display:false}, ticks:{font:{size:11},color:'#6c757d'} }
+        }}
+    });
+
+    /* 6. Daily Activity — Area Line */
+    new Chart(document.getElementById('dailyAreaChart'), {
+        type: 'line',
+        data: {
+            labels: dailyLabels,
+            datasets: [{
+                label: 'Requisitions', data: dailyData,
+                borderColor: colors.info, backgroundColor: 'rgba(33,150,243,0.07)',
+                tension: 0.4, fill: true,
+                pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: colors.info, borderWidth: 2,
+            }]
+        },
+        options: { ...baseOpts, scales: {
+            x: { grid:{display:false}, ticks:{font:{size:9},color:'#6c757d',maxTicksLimit:10} },
+            y: { beginAtZero:true, grid:{color:'rgba(0,0,0,0.04)'}, ticks:{font:{size:10},color:'#6c757d',stepSize:1} }
+        }}
+    });
+
+    /* Bootstrap tooltips */
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
 
 {% endblock %}

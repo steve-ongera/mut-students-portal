@@ -7492,35 +7492,146 @@ def procurement_required(view_func):
 
 # ─── Dashboard ────────────────────────────────────────────────────────────────
 
+from django.shortcuts import render
+from django.db.models import Count, Sum, Q
+from django.db.models.functions import TruncMonth, TruncDate
+from django.utils import timezone
+from datetime import timedelta
+import json
+
+
 @procurement_required
 def procurement_dashboard(request):
-    total_requisitions = PurchaseRequisition.objects.count()
-    pending = PurchaseRequisition.objects.filter(status='pending_procurement').count()
-    approved = PurchaseRequisition.objects.filter(status='approved').count()
-    processed = PurchaseRequisition.objects.filter(status='processed').count()
-    rejected = PurchaseRequisition.objects.filter(status='rejected').count()
-    total_suppliers = Supplier.objects.filter(is_active=True).count()
-    total_categories = ProcurementCategory.objects.count()
+    now = timezone.now()
+    current_year = AcademicYear.objects.filter(is_current=True).first()
 
+    # ── Core KPIs ────────────────────────────────────────────────────────────
+    total_requisitions = PurchaseRequisition.objects.count()
+    pending            = PurchaseRequisition.objects.filter(status='pending_procurement').count()
+    approved           = PurchaseRequisition.objects.filter(status='approved').count()
+    processed          = PurchaseRequisition.objects.filter(status='processed').count()
+    rejected           = PurchaseRequisition.objects.filter(status='rejected').count()
+    draft              = PurchaseRequisition.objects.filter(status='draft').count()
+    total_suppliers    = Supplier.objects.filter(is_active=True).count()
+    total_categories   = ProcurementCategory.objects.count()
+
+    # ── Recent Requisitions ───────────────────────────────────────────────────
     recent_requisitions = PurchaseRequisition.objects.select_related(
         'department', 'requested_by'
     ).order_by('-created_at')[:10]
 
-    current_year = AcademicYear.objects.filter(is_current=True).first()
+    # ── Spend / Value ────────────────────────────────────────────────────────
+    total_spend = RequisitionItem.objects.filter(
+        requisition__status='processed'
+    ).aggregate(total=Sum('total_estimated_price'))['total'] or 0
+
+    pending_value = RequisitionItem.objects.filter(
+        requisition__status__in=['pending_procurement', 'approved']
+    ).aggregate(total=Sum('total_estimated_price'))['total'] or 0
+
+    # ── Monthly Requisition Trend (last 6 months) — for Line Chart ────────────
+    six_months_ago = now - timedelta(days=180)
+    monthly_trend = (
+        PurchaseRequisition.objects
+        .filter(created_at__gte=six_months_ago)
+        .annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(total=Count('id'))
+        .order_by('month')
+    )
+
+    trend_labels = []
+    trend_data   = []
+    for entry in monthly_trend:
+        trend_labels.append(entry['month'].strftime('%b %Y'))
+        trend_data.append(entry['total'])
+
+    # ── Status Distribution — for Donut Chart ────────────────────────────────
+    status_labels = ['Pending', 'Approved', 'Processed', 'Rejected', 'Draft']
+    status_data   = [pending, approved, processed, rejected, draft]
+
+    # ── Spend by Department (top 8) — for Bar Chart ───────────────────────────
+    dept_spend = (
+        RequisitionItem.objects
+        .filter(requisition__status='processed')
+        .values('requisition__department__code', 'requisition__department__name')
+        .annotate(total=Sum('total_estimated_price'))
+        .order_by('-total')[:8]
+    )
+    dept_labels = [d['requisition__department__code'] or 'N/A' for d in dept_spend]
+    dept_data   = [float(d['total'] or 0) for d in dept_spend]
+
+    # ── Requisitions by Category (top 6) — for Horizontal Bar Chart ───────────
+    category_breakdown = (
+        RequisitionItem.objects
+        .values('category__name')
+        .annotate(count=Count('id'), total=Sum('total_estimated_price'))
+        .order_by('-total')[:6]
+    )
+    cat_labels = [c['category__name'] or 'Uncategorised' for c in category_breakdown]
+    cat_counts = [c['count'] for c in category_breakdown]
+    cat_values = [float(c['total'] or 0) for c in category_breakdown]
+
+    # ── Daily Activity (last 30 days) — for Area/Line Sparkline ──────────────
+    thirty_days_ago = now - timedelta(days=30)
+    daily_activity = (
+        PurchaseRequisition.objects
+        .filter(created_at__gte=thirty_days_ago)
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(count=Count('id'))
+        .order_by('day')
+    )
+    daily_labels = [d['day'].strftime('%d %b') for d in daily_activity]
+    daily_data   = [d['count'] for d in daily_activity]
+
+    # ── Supplier Rating Distribution — for Radar / Bar ───────────────────────
+    supplier_ratings = {
+        'Excellent (4-5)':  Supplier.objects.filter(rating__gte=4, is_active=True).count(),
+        'Good (3-4)':       Supplier.objects.filter(rating__gte=3, rating__lt=4, is_active=True).count(),
+        'Average (2-3)':    Supplier.objects.filter(rating__gte=2, rating__lt=3, is_active=True).count(),
+        'Poor (<2)':        Supplier.objects.filter(rating__lt=2, is_active=True).count(),
+    }
 
     context = {
+        # KPIs
         'total_requisitions': total_requisitions,
-        'pending': pending,
-        'approved': approved,
-        'processed': processed,
-        'rejected': rejected,
-        'total_suppliers': total_suppliers,
-        'total_categories': total_categories,
-        'recent_requisitions': recent_requisitions,
-        'current_year': current_year,
-    }
-    return render(request, 'procurement/dashboard.html', context)
+        'pending':            pending,
+        'approved':           approved,
+        'processed':          processed,
+        'rejected':           rejected,
+        'draft':              draft,
+        'total_suppliers':    total_suppliers,
+        'total_categories':   total_categories,
+        'total_spend':        total_spend,
+        'pending_value':      pending_value,
 
+        # Recent records
+        'recent_requisitions': recent_requisitions,
+        'current_year':        current_year,
+
+        # Chart data (serialised so the template can pass them to JS)
+        'trend_labels':    json.dumps(trend_labels),
+        'trend_data':      json.dumps(trend_data),
+
+        'status_labels':   json.dumps(status_labels),
+        'status_data':     json.dumps(status_data),
+
+        'dept_labels':     json.dumps(dept_labels),
+        'dept_data':       json.dumps(dept_data),
+
+        'cat_labels':      json.dumps(cat_labels),
+        'cat_counts':      json.dumps(cat_counts),
+        'cat_values':      json.dumps(cat_values),
+
+        'daily_labels':    json.dumps(daily_labels),
+        'daily_data':      json.dumps(daily_data),
+
+        'supplier_rating_labels': json.dumps(list(supplier_ratings.keys())),
+        'supplier_rating_data':   json.dumps(list(supplier_ratings.values())),
+    }
+
+    return render(request, 'procurement/dashboard.html', context)
 
 # ─── Requisitions ─────────────────────────────────────────────────────────────
 
