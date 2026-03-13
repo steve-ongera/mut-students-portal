@@ -805,3 +805,100 @@ class BulkBedCreationForm(forms.Form):
         }),
         label='Number of Beds'
     )
+    
+    
+from django import forms
+from .models import Supplier, ProcurementCategory, PurchaseRequisition
+
+
+class SupplierForm(forms.ModelForm):
+    class Meta:
+        model = Supplier
+        fields = [
+            'name',
+            'supplier_code',
+            'contact_person',
+            'email',
+            'phone_number',
+            'alternative_phone',
+            'address',
+            'tax_pin',
+            'bank_name',
+            'bank_account',
+            'rating',
+            'is_active',
+        ]
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'supplier_code': forms.TextInput(attrs={'class': 'form-control'}),
+            'contact_person': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'alternative_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'tax_pin': forms.TextInput(attrs={'class': 'form-control'}),
+            'bank_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'bank_account': forms.TextInput(attrs={'class': 'form-control'}),
+            'rating': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+                'max': '5',
+            }),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class ProcurementCategoryForm(forms.ModelForm):
+    class Meta:
+        model = ProcurementCategory
+        fields = ['name', 'code', 'description', 'parent_category']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'code': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'parent_category': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['parent_category'].required = False
+        self.fields['parent_category'].empty_label = '-- No Parent (Top-level Category) --'
+        # Exclude self from parent choices when editing
+        if self.instance.pk:
+            self.fields['parent_category'].queryset = (
+                ProcurementCategory.objects.exclude(pk=self.instance.pk)
+            )
+
+
+class RequisitionFilterForm(forms.Form):
+    """
+    Filter form used in store_requisitions_all and similar list views.
+    All fields are optional — empty values mean 'no filter applied'.
+    """
+    STATUS_CHOICES = [('', 'All Statuses')] + list(PurchaseRequisition.REQUISITION_STATUS)
+
+    search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search by number, purpose, department…',
+        }),
+    )
+    status = forms.ChoiceField(
+        required=False,
+        choices=STATUS_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    department = forms.IntegerField(
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+    )
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+    )
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+    )

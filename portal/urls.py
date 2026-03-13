@@ -888,5 +888,54 @@ urlpatterns = [
     
     # ============= REPORTS =============
     path('vc/reports/executive/', views.generate_executive_report, name='vc_executive_report'),
+    
+    # Dashboard
+    path('store/',  views.store_dashboard,  name='store_dashboard'),
+ 
+    # Inventory
+    path('inventory/', views.store_inventory_list,  name='store_inventory_list'),
+    path('inventory/stock-in/', views.store_stock_in, name='store_stock_in'),
+    path('inventory/stock-out/', views.store_stock_out, name='store_stock_out'),
+    path('inventory/adjustment/', views.store_stock_adjustment,  name='store_stock_adjustment'),
+    path('inventory/low-stock/',views.store_low_stock,  name='store_low_stock'),
+ 
+    # Requisitions
+    path('requisitions/', views.store_requisitions_all,       name='store_requisitions_all'),
+    path('requisitions/pending/', views.store_requisitions_pending,   name='store_requisitions_pending'),
+    path('requisitions/approved/',  views.store_requisitions_approved,  name='store_requisitions_approved'),
+    path('requisitions/<int:pk>/', views.store_requisition_detail,     name='store_requisition_detail'),
+    path('requisitions/fulfillment/',   views.store_requisition_fulfillment,name='store_requisition_fulfillment'),
+ 
+    # Goods Received Notes
+    path('grn/', views.store_grn_list, name='store_grn_list'),
+    path('grn/create/',views.store_grn_create, name='store_grn_create'),
+    path('grn/pending/', views.store_grn_pending, name='store_grn_pending'),
+ 
+    # Suppliers
+    path('suppliers/', views.store_supplier_list, name='store_supplier_list'),
+    path('suppliers/add/', views.store_supplier_add, name='store_supplier_add'),
+    path('suppliers/<int:pk>/edit/', views.store_supplier_edit, name='store_supplier_edit'),
+    path('suppliers/<int:pk>/', views.store_supplier_detail, name='store_supplier_detail'),
+    path('suppliers/performance/', views.store_supplier_performance,   name='store_supplier_performance'),
+ 
+    # Categories
+    path('categories/',views.store_category_list, name='store_category_list'),
+    path('categories/add/',  views.store_category_add, name='store_category_add'),
+    path('categories/<int:pk>/edit/',  views.store_category_edit, name='store_category_edit'),
+ 
+    # Issuance & Dispatch
+    path('issuance/',  views.store_issue_items,  name='store_issue_items'),
+    path('issuance/history/',   views.store_issuance_history, name='store_issuance_history'),
+    path('issuance/pending-dispatch/',  views.store_pending_dispatch,  name='store_pending_dispatch'),
+ 
+    # Reports
+    path('reports/inventory/',  views.store_inventory_report, name='store_inventory_report'),
+    path('reports/movement/',   views.store_movement_report,   name='store_movement_report'),
+    path('reports/consumption/',views.store_consumption_report, name='store_consumption_report'),
+    path('reports/valuation/',  views.store_valuation_report, name='store_valuation_report'),
+ 
+    # Settings
+    path('settings/reorder-levels/',  views.store_reorder_settings,  name='store_reorder_settings'),
+    path('settings/storage-locations/', views.store_location_settings, name='store_location_settings'),
        
 ]
