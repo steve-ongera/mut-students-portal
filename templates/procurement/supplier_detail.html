@@ -1,79 +1,638 @@
 {% extends 'procurement/procurement_base.html' %}
-{% block title %}Supplier — {{ supplier.name }}{% endblock %}
-{% block content %}
+{% load static %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Supplier — {{ supplier.name }}{% endblock %}
+{% block page_subtitle %}View complete supplier information and details{% endblock %}
+
+{% block content %}
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
-    <li class="breadcrumb-item active">{{ supplier.name }}</li>
-  </ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ supplier.name }}</li>
+    </ol>
 </nav>
 
-<div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h5>{{ supplier.name }}</h5>
-    <div>
-      <a href="{% url 'edit_supplier' supplier.supplier_code %}" class="btn btn-sm btn-outline-warning">Edit</a>
-      <a href="{% url 'delete_supplier' supplier.supplier_code %}" class="btn btn-sm btn-outline-danger">Deactivate</a>
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="supplier-large-avatar">
+                    {{ supplier.name|slice:":1"|upper }}
+                </div>
+                <div>
+                    <h1 class="h3 fw-semibold mb-1">{{ supplier.name }}</h1>
+                    <p class="text-muted mb-0 d-flex align-items-center gap-2">
+                        <span class="badge-chip" style="background: var(--color-primary-light); color: var(--color-primary);">
+                            {{ supplier.supplier_code }}
+                        </span>
+                        <span class="badge-chip d-flex align-items-center gap-1">
+                            <i class="ri-star-fill text-warning"></i>
+                            <span>{{ supplier.rating|default:"0" }}/5 Rating</span>
+                        </span>
+                        {% if supplier.is_active %}
+                        <span class="status-badge status-approved">
+                            <i class="ri-checkbox-circle-line me-1"></i>Active
+                        </span>
+                        {% else %}
+                        <span class="status-badge status-draft">
+                            <i class="ri-indeterminate-circle-line me-1"></i>Inactive
+                        </span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'edit_supplier' supplier.supplier_code %}" 
+                   class="btn btn-primary d-flex align-items-center gap-2">
+                    <i class="ri-edit-line fs-5"></i>
+                    <span>Edit Supplier</span>
+                </a>
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary d-flex align-items-center gap-2" 
+                            type="button" 
+                            data-bs-toggle="dropdown" 
+                            aria-expanded="false">
+                        <i class="ri-more-2-fill fs-5"></i>
+                        <span>Actions</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="mailto:{{ supplier.email }}">
+                                <i class="ri-mail-send-line me-2"></i>Send Email
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="tel:{{ supplier.phone_number }}">
+                                <i class="ri-phone-line me-2"></i>Call
+                            </a>
+                        </li>
+                        {% if supplier.website %}
+                        <li>
+                            <a class="dropdown-item" href="{{ supplier.website }}" target="_blank">
+                                <i class="ri-global-line me-2"></i>Visit Website
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'supplier_list' %}">
+                                <i class="ri-arrow-left-line me-2"></i>Back to Suppliers
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="{% url 'delete_supplier' supplier.supplier_code %}">
+                                <i class="ri-delete-bin-line me-2"></i>Deactivate Supplier
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-  <div class="card-body">
-    <div class="row">
-      <div class="col-md-6">
-        <table class="table table-borderless">
-          <tr>
-            <th width="40%">Supplier Code</th>
-            <td>{{ supplier.supplier_code }}</td>
-          </tr>
-          <tr>
-            <th>Contact Person</th>
-            <td>{{ supplier.contact_person }}</td>
-          </tr>
-          <tr>
-            <th>Email</th>
-            <td>{{ supplier.email }}</td>
-          </tr>
-          <tr>
-            <th>Phone</th>
-            <td>{{ supplier.phone_number }}</td>
-          </tr>
-          <tr>
-            <th>Alternative Phone</th>
-            <td>{{ supplier.alternative_phone|default:"—" }}</td>
-          </tr>
-        </table>
-      </div>
-      <div class="col-md-6">
-        <table class="table table-borderless">
-          <tr>
-            <th width="40%">Address</th>
-            <td>{{ supplier.address }}</td>
-          </tr>
-          <tr>
-            <th>Tax PIN</th>
-            <td>{{ supplier.tax_pin|default:"—" }}</td>
-          </tr>
-          <tr>
-            <th>Bank Name</th>
-            <td>{{ supplier.bank_name|default:"—" }}</td>
-          </tr>
-          <tr>
-            <th>Bank Account</th>
-            <td>{{ supplier.bank_account|default:"—" }}</td>
-          </tr>
-          <tr>
-            <th>Rating</th>
-            <td>{{ supplier.rating }} / 5.00</td>
-          </tr>
-          <tr>
-            <th>Status</th>
-            <td>{% if supplier.is_active %}Active{% else %}Inactive{% endif %}</td>
-          </tr>
-        </table>
-      </div>
+
+    <!-- Supplier Information Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Supplier Information</h5>
+            <div class="card-subtitle">Complete details and contact information</div>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                <!-- Left Column -->
+                <div class="col-md-6">
+                    <div class="detail-group">
+                        <div class="detail-item">
+                            <span class="detail-label">Supplier Code</span>
+                            <p class="mt-1 fw-medium">{{ supplier.supplier_code }}</p>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Contact Person</span>
+                            <p class="mt-1 fw-medium">{{ supplier.contact_person|default:"—" }}</p>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Email Address</span>
+                            {% if supplier.email %}
+                            <p class="mt-1">
+                                <a href="mailto:{{ supplier.email }}" class="text-decoration-none d-flex align-items-center gap-2">
+                                    <i class="ri-mail-line text-primary"></i>
+                                    <span>{{ supplier.email }}</span>
+                                </a>
+                            </p>
+                            {% else %}
+                            <p class="mt-1 text-muted">—</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Phone Number</span>
+                            {% if supplier.phone_number %}
+                            <p class="mt-1">
+                                <a href="tel:{{ supplier.phone_number }}" class="text-decoration-none d-flex align-items-center gap-2">
+                                    <i class="ri-phone-line text-primary"></i>
+                                    <span>{{ supplier.phone_number }}</span>
+                                </a>
+                            </p>
+                            {% else %}
+                            <p class="mt-1 text-muted">—</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Alternative Phone</span>
+                            {% if supplier.alternative_phone %}
+                            <p class="mt-1">
+                                <a href="tel:{{ supplier.alternative_phone }}" class="text-decoration-none d-flex align-items-center gap-2">
+                                    <i class="ri-phone-line text-primary"></i>
+                                    <span>{{ supplier.alternative_phone }}</span>
+                                </a>
+                            </p>
+                            {% else %}
+                            <p class="mt-1 text-muted">—</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Column -->
+                <div class="col-md-6">
+                    <div class="detail-group">
+                        <div class="detail-item">
+                            <span class="detail-label">Physical Address</span>
+                            {% if supplier.address %}
+                            <p class="mt-1 d-flex align-items-start gap-2">
+                                <i class="ri-map-pin-line text-primary mt-1"></i>
+                                <span>{{ supplier.address|linebreaksbr }}</span>
+                            </p>
+                            {% else %}
+                            <p class="mt-1 text-muted">—</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Tax PIN</span>
+                            <p class="mt-1 fw-medium">{{ supplier.tax_pin|default:"—" }}</p>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Bank Details</span>
+                            {% if supplier.bank_name or supplier.bank_account %}
+                            <div class="mt-1 p-3 bg-light rounded">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <i class="ri-bank-line text-primary"></i>
+                                    <span class="fw-medium">{{ supplier.bank_name|default:"Bank name not specified" }}</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="ri-money-dollar-circle-line text-primary"></i>
+                                    <span>A/C: {{ supplier.bank_account|default:"Not provided" }}</span>
+                                </div>
+                            </div>
+                            {% else %}
+                            <p class="mt-1 text-muted">—</p>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Rating</span>
+                            <div class="mt-1 d-flex align-items-center gap-2">
+                                <div class="d-flex align-items-center gap-1">
+                                    {% with rating=supplier.rating|default:0 %}
+                                        {% for i in "12345"|make_list %}
+                                            {% if forloop.counter <= rating %}
+                                                <i class="ri-star-fill text-warning fs-5"></i>
+                                            {% else %}
+                                                <i class="ri-star-line text-warning fs-5"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endwith %}
+                                </div>
+                                <span class="fw-medium">{{ supplier.rating|default:"0" }} / 5.00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <span class="detail-label">Status</span>
+                            <div class="mt-1">
+                                {% if supplier.is_active %}
+                                <span class="status-badge status-approved">
+                                    <i class="ri-checkbox-circle-line me-1"></i>Active Supplier
+                                </span>
+                                {% else %}
+                                <span class="status-badge status-draft">
+                                    <i class="ri-indeterminate-circle-line me-1"></i>Inactive Supplier
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+
+    <!-- Additional Information Card -->
+    <div class="row g-3">
+        <div class="col-12 col-md-6">
+            <div class="management-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Procurement Summary</h5>
+                    <div class="card-subtitle">Supplier performance and history</div>
+                </div>
+                <div class="card-body">
+                    <div class="summary-stats">
+                        <div class="summary-stat-item">
+                            <span class="summary-stat-label">Total Orders</span>
+                            <span class="summary-stat-value">{{ total_orders|default:"0" }}</span>
+                        </div>
+                        <div class="summary-stat-item">
+                            <span class="summary-stat-label">Total Spend</span>
+                            <span class="summary-stat-value">KES {{ total_spend|default:"0"|floatformat:0 }}</span>
+                        </div>
+                        <div class="summary-stat-item">
+                            <span class="summary-stat-label">Average Order Value</span>
+                            <span class="summary-stat-value">KES {{ avg_order_value|default:"0"|floatformat:0 }}</span>
+                        </div>
+                        <div class="summary-stat-item">
+                            <span class="summary-stat-label">On-Time Delivery</span>
+                            <span class="summary-stat-value">{{ on_time_delivery|default:"98" }}%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 col-md-6">
+            <div class="management-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Quick Actions</h5>
+                    <div class="card-subtitle">Common tasks for this supplier</div>
+                </div>
+                <div class="card-body">
+                    <div class="quick-actions-grid">
+                        <a href="#" class="quick-action-item">
+                            <i class="ri-file-list-3-line"></i>
+                            <span>View Orders</span>
+                        </a>
+                        <a href="#" class="quick-action-item">
+                            <i class="ri-add-circle-line"></i>
+                            <span>New Order</span>
+                        </a>
+                        <a href="#" class="quick-action-item">
+                            <i class="ri-star-line"></i>
+                            <span>Update Rating</span>
+                        </a>
+                        <a href="#" class="quick-action-item">
+                            <i class="ri-file-pdf-line"></i>
+                            <span>Generate Report</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-primary-light: rgba(46,125,50,0.08);
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+
+    /* Breadcrumb */
+    .breadcrumb { 
+        background: transparent; 
+        padding: .75rem 0; 
+        margin-bottom: 1rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+    }
+    .breadcrumb-item a { 
+        color: var(--color-gray-600); 
+        text-decoration: none; 
+        transition: color .2s; 
+    }
+    .breadcrumb-item a:hover { 
+        color: var(--color-primary); 
+    }
+    .breadcrumb-item.active { 
+        color: var(--color-gray-800); 
+        font-weight: 500; 
+    }
+
+    /* Page Header */
+    .page-header { 
+        padding: 1rem 0; 
+    }
+    .page-header h1 { 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+    }
+
+    /* Management Card */
+    .management-card { 
+        background: white; 
+        border: 1px solid var(--color-gray-200); 
+        border-radius: var(--radius-lg); 
+        overflow: hidden; 
+    }
+    .management-card .card-header { 
+        padding: 1.25rem 1.5rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+        background: var(--color-gray-100); 
+    }
+    .management-card .card-title { 
+        font-size: 1rem; 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .management-card .card-subtitle { 
+        font-size: .8125rem; 
+        color: var(--color-gray-600); 
+    }
+    .management-card .card-body { 
+        padding: 1.5rem; 
+    }
+
+    /* Badge Chip */
+    .badge-chip { 
+        background: var(--color-gray-200); 
+        color: var(--color-gray-600); 
+        font-size: .74rem; 
+        font-weight: 500; 
+        padding: .3rem .75rem; 
+        border-radius: 20px; 
+        white-space: nowrap; 
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex; 
+        align-items: center;
+        padding: .25rem .75rem; 
+        border-radius: 20px;
+        font-size: .74rem; 
+        font-weight: 600;
+        text-transform: uppercase; 
+        letter-spacing: .3px; 
+        white-space: nowrap;
+    }
+    .status-approved { 
+        background: rgba(46,125,50,.1);   
+        color: var(--color-primary); 
+    }
+    .status-draft     { 
+        background: rgba(108,117,125,.1); 
+        color: var(--color-gray-600); 
+    }
+
+    /* Supplier Large Avatar */
+    .supplier-large-avatar {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--color-primary-light);
+        color: var(--color-primary);
+        font-size: 2rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 3px solid white;
+        box-shadow: var(--shadow-md);
+    }
+
+    /* Detail Items */
+    .detail-label {
+        font-size: .75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        color: var(--color-gray-600);
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    
+    .detail-item {
+        border-bottom: 1px dashed var(--color-gray-200);
+        padding-bottom: 1.25rem;
+        margin-bottom: 1.25rem;
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+        margin-bottom: 0;
+    }
+
+    /* Summary Stats */
+    .summary-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    
+    .summary-stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px dashed var(--color-gray-200);
+    }
+    
+    .summary-stat-item:last-child {
+        border-bottom: none;
+    }
+    
+    .summary-stat-label {
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+    }
+    
+    .summary-stat-value {
+        font-weight: 600;
+        color: var(--color-gray-800);
+        font-size: 1.1rem;
+    }
+
+    /* Quick Actions Grid */
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    
+    .quick-action-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem 1rem;
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        color: var(--color-gray-800);
+        transition: all 0.2s ease;
+        border: 1px solid transparent;
+    }
+    
+    .quick-action-item:hover {
+        background: white;
+        border-color: var(--color-primary);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .quick-action-item i {
+        font-size: 2rem;
+        color: var(--color-primary);
+        margin-bottom: 0.75rem;
+    }
+    
+    .quick-action-item span {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background-color: #1b5e20;
+        border-color: #1b5e20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-600);
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+        transform: translateY(-1px);
+    }
+
+    /* Dropdown Menu */
+    .dropdown-menu {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        box-shadow: var(--shadow-md);
+        padding: 0.5rem;
+        font-family: var(--font-family);
+    }
+    
+    .dropdown-item {
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .dropdown-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    .dropdown-item i {
+        font-size: 1.1rem;
+    }
+    
+    .dropdown-divider {
+        border-color: var(--color-gray-200);
+        margin: 0.5rem 0;
+    }
+
+    /* Links */
+    a.text-decoration-none {
+        color: var(--color-gray-800);
+    }
+    
+    a.text-decoration-none:hover {
+        color: var(--color-primary);
+    }
+
+    /* Background Light */
+    .bg-light {
+        background-color: var(--color-gray-100) !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .supplier-large-avatar {
+            width: 48px;
+            height: 48px;
+            font-size: 1.5rem;
+        }
+        
+        .quick-actions-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .summary-stat-value {
+            font-size: 1rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize Bootstrap dropdowns
+    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+    var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        return new bootstrap.Dropdown(dropdownToggleEl);
+    });
+});
+</script>
 
 {% endblock %}

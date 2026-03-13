@@ -1,76 +1,609 @@
 {% extends 'procurement/procurement_base.html' %}
-{% block title %}Edit Supplier{% endblock %}
-{% block content %}
+{% load static %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Edit Supplier{% endblock %}
+{% block page_subtitle %}Update supplier information and details{% endblock %}
+
+{% block content %}
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'supplier_detail' supplier.supplier_code %}">{{ supplier.name }}</a></li>
-    <li class="breadcrumb-item active">Edit</li>
-  </ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'supplier_detail' supplier.supplier_code %}">{{ supplier.name }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Edit</li>
+    </ol>
 </nav>
 
-<div class="card">
-  <div class="card-header"><h5>Edit Supplier — {{ supplier.name }}</h5></div>
-  <div class="card-body">
-    <form method="post">
-      {% csrf_token %}
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">Supplier Name <span class="text-danger">*</span></label>
-          <input type="text" name="name" class="form-control" value="{{ supplier.name }}" required>
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="supplier-avatar">
+                    {{ supplier.name|slice:":1"|upper }}
+                </div>
+                <div>
+                    <h1 class="h3 fw-semibold mb-1">Edit Supplier</h1>
+                    <p class="text-muted mb-0">
+                        <span class="badge-chip" style="background: var(--color-primary-light); color: var(--color-primary);">
+                            {{ supplier.supplier_code }}
+                        </span>
+                        <span class="ms-2">{{ supplier.name }}</span>
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'supplier_detail' supplier.supplier_code %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-arrow-left-line fs-5"></i>
+                    <span>Back to Details</span>
+                </a>
+            </div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Supplier Code</label>
-          <input type="text" class="form-control" value="{{ supplier.supplier_code }}" disabled>
-          <small class="text-muted">Supplier code cannot be changed.</small>
+    </div>
+
+    <!-- Edit Form Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Edit Supplier Information</h5>
+            <div class="card-subtitle">Update the details below to modify supplier information</div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Contact Person <span class="text-danger">*</span></label>
-          <input type="text" name="contact_person" class="form-control" value="{{ supplier.contact_person }}" required>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <!-- Form Sections -->
+                <div class="row g-4">
+                    <!-- Basic Information Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">Basic Information</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="name" id="supplierName" class="form-control" 
+                                           placeholder="Supplier Name" value="{{ supplier.name }}" required>
+                                    <label for="supplierName">
+                                        Supplier Name <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" id="supplierCode" class="form-control" 
+                                           value="{{ supplier.supplier_code }}" disabled>
+                                    <label for="supplierCode">Supplier Code</label>
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="ri-information-line me-1"></i>Supplier code cannot be changed.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">Contact Information</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="contact_person" id="contactPerson" class="form-control" 
+                                           placeholder="Contact Person" value="{{ supplier.contact_person }}" required>
+                                    <label for="contactPerson">
+                                        Contact Person <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="email" name="email" id="supplierEmail" class="form-control" 
+                                           placeholder="Email Address" value="{{ supplier.email }}" required>
+                                    <label for="supplierEmail">
+                                        Email Address <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="phone_number" id="phoneNumber" class="form-control" 
+                                           placeholder="Phone Number" value="{{ supplier.phone_number }}" required>
+                                    <label for="phoneNumber">
+                                        Phone Number <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="alternative_phone" id="altPhone" class="form-control" 
+                                           placeholder="Alternative Phone" value="{{ supplier.alternative_phone }}">
+                                    <label for="altPhone">Alternative Phone</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">Address & Location</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <textarea name="address" id="supplierAddress" class="form-control" 
+                                              style="height: 100px;" placeholder="Physical Address" required>{{ supplier.address }}</textarea>
+                                    <label for="supplierAddress">
+                                        Physical Address <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Information Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">Financial Information</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="text" name="tax_pin" id="taxPin" class="form-control" 
+                                           placeholder="Tax PIN" value="{{ supplier.tax_pin }}">
+                                    <label for="taxPin">Tax PIN</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="text" name="bank_name" id="bankName" class="form-control" 
+                                           placeholder="Bank Name" value="{{ supplier.bank_name }}">
+                                    <label for="bankName">Bank Name</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="text" name="bank_account" id="bankAccount" class="form-control" 
+                                           placeholder="Bank Account" value="{{ supplier.bank_account }}">
+                                    <label for="bankAccount">Bank Account</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">Status Settings</h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="status-toggle-card">
+                                    <div class="form-check form-switch">
+                                        <input type="checkbox" name="is_active" class="form-check-input" 
+                                               id="isActive" {% if supplier.is_active %}checked{% endif %}>
+                                        <label class="form-check-label" for="isActive">
+                                            <span class="fw-medium">Active Supplier</span>
+                                            <span class="d-block text-muted small">
+                                                Inactive suppliers will not appear in selection lists for new requisitions
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions mt-4 pt-3 border-top">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{% url 'supplier_detail' supplier.supplier_code %}" 
+                           class="btn btn-outline-secondary d-flex align-items-center gap-2 px-4 py-2">
+                            <i class="ri-close-line fs-5"></i>
+                            <span>Cancel</span>
+                        </a>
+                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2 px-4 py-2">
+                            <i class="ri-save-line fs-5"></i>
+                            <span>Save Changes</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Email <span class="text-danger">*</span></label>
-          <input type="email" name="email" class="form-control" value="{{ supplier.email }}" required>
+    </div>
+
+    <!-- Help Card -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Editing Tips</h5>
+            <div class="card-subtitle">Guidelines for updating supplier information</div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Phone Number <span class="text-danger">*</span></label>
-          <input type="text" name="phone_number" class="form-control" value="{{ supplier.phone_number }}" required>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="help-item">
+                        <div class="help-icon">
+                            <i class="ri-information-line"></i>
+                        </div>
+                        <div class="help-content">
+                            <h6>Required Fields</h6>
+                            <p class="small text-muted">Fields marked with <span class="text-danger">*</span> are required and cannot be left empty.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="help-item">
+                        <div class="help-icon">
+                            <i class="ri-lock-line"></i>
+                        </div>
+                        <div class="help-content">
+                            <h6>Supplier Code</h6>
+                            <p class="small text-muted">The supplier code is system-generated and cannot be modified after creation.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="help-item">
+                        <div class="help-icon">
+                            <i class="ri-history-line"></i>
+                        </div>
+                        <div class="help-content">
+                            <h6>Change History</h6>
+                            <p class="small text-muted">All changes are logged and can be reviewed in the supplier audit trail.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Alternative Phone</label>
-          <input type="text" name="alternative_phone" class="form-control" value="{{ supplier.alternative_phone }}">
-        </div>
-        <div class="col-12">
-          <label class="form-label">Address <span class="text-danger">*</span></label>
-          <textarea name="address" class="form-control" rows="2" required>{{ supplier.address }}</textarea>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Tax PIN</label>
-          <input type="text" name="tax_pin" class="form-control" value="{{ supplier.tax_pin }}">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Bank Name</label>
-          <input type="text" name="bank_name" class="form-control" value="{{ supplier.bank_name }}">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Bank Account</label>
-          <input type="text" name="bank_account" class="form-control" value="{{ supplier.bank_account }}">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Active</label>
-          <div class="form-check mt-2">
-            <input type="checkbox" name="is_active" class="form-check-input" id="isActive" {% if supplier.is_active %}checked{% endif %}>
-            <label class="form-check-label" for="isActive">Supplier is active</label>
-          </div>
-        </div>
-        <div class="col-12">
-          <button type="submit" class="btn btn-primary">Save Changes</button>
-          <a href="{% url 'supplier_detail' supplier.supplier_code %}" class="btn btn-secondary">Cancel</a>
-        </div>
-      </div>
-    </form>
-  </div>
+    </div>
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-primary-light: rgba(46,125,50,0.08);
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+
+    /* Breadcrumb */
+    .breadcrumb { 
+        background: transparent; 
+        padding: .75rem 0; 
+        margin-bottom: 1rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+    }
+    .breadcrumb-item a { 
+        color: var(--color-gray-600); 
+        text-decoration: none; 
+        transition: color .2s; 
+    }
+    .breadcrumb-item a:hover { 
+        color: var(--color-primary); 
+    }
+    .breadcrumb-item.active { 
+        color: var(--color-gray-800); 
+        font-weight: 500; 
+    }
+
+    /* Page Header */
+    .page-header { 
+        padding: 1rem 0; 
+    }
+    .page-header h1 { 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+    }
+
+    /* Management Card */
+    .management-card { 
+        background: white; 
+        border: 1px solid var(--color-gray-200); 
+        border-radius: var(--radius-lg); 
+        overflow: hidden; 
+    }
+    .management-card .card-header { 
+        padding: 1.25rem 1.5rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+        background: var(--color-gray-100); 
+    }
+    .management-card .card-title { 
+        font-size: 1rem; 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .management-card .card-subtitle { 
+        font-size: .8125rem; 
+        color: var(--color-gray-600); 
+    }
+    .management-card .card-body { 
+        padding: 1.5rem; 
+    }
+
+    /* Badge Chip */
+    .badge-chip { 
+        background: var(--color-gray-200); 
+        color: var(--color-gray-600); 
+        font-size: .74rem; 
+        font-weight: 500; 
+        padding: .3rem .75rem; 
+        border-radius: 20px; 
+        white-space: nowrap; 
+    }
+
+    /* Supplier Avatar */
+    .supplier-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--color-primary-light);
+        color: var(--color-primary);
+        font-size: 1.5rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Form Section Title */
+    .form-section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-primary);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-primary-light);
+    }
+
+    /* Form Floating */
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        font-family: var(--font-family);
+        font-size: 0.9rem;
+        height: calc(3.5rem + 2px);
+    }
+    
+    .form-floating > .form-control:focus,
+    .form-floating > .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .form-floating > label {
+        font-family: var(--font-family);
+        font-size: 0.85rem;
+        color: var(--color-gray-600);
+        padding-left: 1rem;
+    }
+    
+    .form-floating textarea.form-control {
+        height: auto;
+        min-height: 100px;
+    }
+    
+    .form-floating input:disabled {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-600);
+    }
+
+    /* Status Toggle Card */
+    .status-toggle-card {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .form-switch {
+        padding-left: 3em;
+    }
+    
+    .form-check-input {
+        width: 2.5em;
+        height: 1.25em;
+        margin-left: -3em;
+        cursor: pointer;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-success);
+        border-color: var(--color-success);
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+    }
+
+    /* Help Items */
+    .help-item {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .help-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        background: var(--color-primary-light);
+        color: var(--color-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+    
+    .help-content h6 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--color-gray-800);
+    }
+    
+    .help-content p {
+        margin-bottom: 0;
+        line-height: 1.4;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background-color: #1b5e20;
+        border-color: #1b5e20;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-600);
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+        transform: translateY(-2px);
+    }
+    
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Form Actions */
+    .form-actions {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+    }
+
+    /* Border Top */
+    .border-top {
+        border-top-color: var(--color-gray-200) !important;
+    }
+
+    /* Text Colors */
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .supplier-avatar {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .form-section-title {
+            font-size: 0.8rem;
+        }
+        
+        .help-item {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .help-icon {
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Form validation enhancement
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                } else {
+                    field.classList.remove('is-invalid');
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+                // Show error message
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger alert-dismissible fade show';
+                alert.innerHTML = `
+                    <i class="ri-error-warning-line me-2"></i>
+                    Please fill in all required fields.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                form.prepend(alert);
+                
+                // Scroll to first invalid field
+                const firstInvalid = form.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        });
+        
+        // Remove invalid class on input
+        form.querySelectorAll('[required]').forEach(field => {
+            field.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+            });
+        });
+    }
+});
+</script>
 
 {% endblock %}

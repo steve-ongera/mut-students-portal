@@ -1,67 +1,713 @@
 {% extends 'procurement/procurement_base.html' %}
-{% block title %}Add Supplier{% endblock %}
-{% block content %}
+{% load static %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Add New Supplier{% endblock %}
+{% block page_subtitle %}Register a new vendor or supplier in the system{% endblock %}
+
+{% block content %}
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
-    <li class="breadcrumb-item active">Add Supplier</li>
-  </ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Add Supplier</li>
+    </ol>
 </nav>
 
-<div class="card">
-  <div class="card-header"><h5>Add New Supplier</h5></div>
-  <div class="card-body">
-    <form method="post">
-      {% csrf_token %}
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label">Supplier Name <span class="text-danger">*</span></label>
-          <input type="text" name="name" class="form-control" required>
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="supplier-avatar-add">
+                    <i class="ri-store-2-line"></i>
+                </div>
+                <div>
+                    <h1 class="h3 fw-semibold mb-1">Add New Supplier</h1>
+                    <p class="text-muted mb-0">
+                        Register a new vendor or supplier in the procurement system
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'supplier_list' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-arrow-left-line fs-5"></i>
+                    <span>Back to Suppliers</span>
+                </a>
+            </div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Supplier Code <span class="text-danger">*</span></label>
-          <input type="text" name="supplier_code" class="form-control" required>
+    </div>
+
+    <!-- Add Supplier Form Card -->
+    <div class="management-card">
+        <div class="card-header">
+            <h5 class="card-title">Supplier Registration Form</h5>
+            <div class="card-subtitle">Fill in the details below to add a new supplier</div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Contact Person <span class="text-danger">*</span></label>
-          <input type="text" name="contact_person" class="form-control" required>
+        <div class="card-body">
+            <form method="post" id="addSupplierForm">
+                {% csrf_token %}
+                
+                <!-- Form Sections -->
+                <div class="row g-4">
+                    <!-- Basic Information Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">
+                            <i class="ri-information-line me-2"></i>
+                            Basic Information
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="name" id="supplierName" class="form-control" 
+                                           placeholder="Supplier Name" required>
+                                    <label for="supplierName">
+                                        Supplier Name <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="supplier_code" id="supplierCode" class="form-control" 
+                                           placeholder="Supplier Code" required>
+                                    <label for="supplierCode">
+                                        Supplier Code <span class="text-danger">*</span>
+                                    </label>
+                                    <small class="text-muted d-block mt-1">
+                                        <i class="ri-information-line me-1"></i>Unique identifier for the supplier
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">
+                            <i class="ri-contacts-line me-2"></i>
+                            Contact Information
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="contact_person" id="contactPerson" class="form-control" 
+                                           placeholder="Contact Person" required>
+                                    <label for="contactPerson">
+                                        Contact Person <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="email" name="email" id="supplierEmail" class="form-control" 
+                                           placeholder="Email Address" required>
+                                    <label for="supplierEmail">
+                                        Email Address <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="phone_number" id="phoneNumber" class="form-control" 
+                                           placeholder="Phone Number" required>
+                                    <label for="phoneNumber">
+                                        Phone Number <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-floating">
+                                    <input type="text" name="alternative_phone" id="altPhone" class="form-control" 
+                                           placeholder="Alternative Phone">
+                                    <label for="altPhone">Alternative Phone</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">
+                            <i class="ri-map-pin-line me-2"></i>
+                            Address & Location
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-floating">
+                                    <textarea name="address" id="supplierAddress" class="form-control" 
+                                              style="height: 100px;" placeholder="Physical Address" required></textarea>
+                                    <label for="supplierAddress">
+                                        Physical Address <span class="text-danger">*</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Financial Information Section -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">
+                            <i class="ri-bank-line me-2"></i>
+                            Financial Information
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="text" name="tax_pin" id="taxPin" class="form-control" 
+                                           placeholder="Tax PIN">
+                                    <label for="taxPin">Tax PIN</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="text" name="bank_name" id="bankName" class="form-control" 
+                                           placeholder="Bank Name">
+                                    <label for="bankName">Bank Name</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <input type="text" name="bank_account" id="bankAccount" class="form-control" 
+                                           placeholder="Bank Account">
+                                    <label for="bankAccount">Bank Account</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Section (Default Active) -->
+                    <div class="col-12">
+                        <h6 class="form-section-title">
+                            <i class="ri-toggle-line me-2"></i>
+                            Status Settings
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="status-toggle-card">
+                                    <div class="form-check form-switch">
+                                        <input type="checkbox" name="is_active" class="form-check-input" 
+                                               id="isActive" checked>
+                                        <label class="form-check-label" for="isActive">
+                                            <span class="fw-medium">Active Supplier</span>
+                                            <span class="d-block text-muted small">
+                                                New suppliers are active by default. Uncheck to create as inactive.
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions mt-4 pt-3 border-top">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <a href="{% url 'supplier_list' %}" 
+                           class="btn btn-outline-secondary d-flex align-items-center gap-2 px-4 py-2">
+                            <i class="ri-close-line fs-5"></i>
+                            <span>Cancel</span>
+                        </a>
+                        <button type="submit" class="btn btn-primary d-flex align-items-center gap-2 px-4 py-2" id="submitBtn">
+                            <i class="ri-save-line fs-5"></i>
+                            <span>Save Supplier</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Email <span class="text-danger">*</span></label>
-          <input type="email" name="email" class="form-control" required>
+    </div>
+
+    <!-- Help Card -->
+    <div class="management-card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">Registration Tips</h5>
+            <div class="card-subtitle">Guidelines for adding a new supplier</div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Phone Number <span class="text-danger">*</span></label>
-          <input type="text" name="phone_number" class="form-control" required>
+        <div class="card-body">
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="help-item">
+                        <div class="help-icon">
+                            <i class="ri-information-line"></i>
+                        </div>
+                        <div class="help-content">
+                            <h6>Required Fields</h6>
+                            <p class="small text-muted">Fields marked with <span class="text-danger">*</span> are required and must be filled.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="help-item">
+                        <div class="help-icon">
+                            <i class="ri-barcode-line"></i>
+                        </div>
+                        <div class="help-content">
+                            <h6>Supplier Code</h6>
+                            <p class="small text-muted">Use a unique code that will help identify the supplier easily (e.g., SUP001).</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="help-item">
+                        <div class="help-icon">
+                            <i class="ri-mail-check-line"></i>
+                        </div>
+                        <div class="help-content">
+                            <h6>Email Validation</h6>
+                            <p class="small text-muted">Ensure email addresses are valid as they will be used for purchase orders.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-6">
-          <label class="form-label">Alternative Phone</label>
-          <input type="text" name="alternative_phone" class="form-control">
-        </div>
-        <div class="col-12">
-          <label class="form-label">Address <span class="text-danger">*</span></label>
-          <textarea name="address" class="form-control" rows="2" required></textarea>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Tax PIN</label>
-          <input type="text" name="tax_pin" class="form-control">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Bank Name</label>
-          <input type="text" name="bank_name" class="form-control">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Bank Account</label>
-          <input type="text" name="bank_account" class="form-control">
-        </div>
-        <div class="col-12">
-          <button type="submit" class="btn btn-primary">Save Supplier</button>
-          <a href="{% url 'supplier_list' %}" class="btn btn-secondary">Cancel</a>
-        </div>
-      </div>
-    </form>
-  </div>
+    </div>
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-primary-light: rgba(46,125,50,0.08);
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+
+    /* Breadcrumb */
+    .breadcrumb { 
+        background: transparent; 
+        padding: .75rem 0; 
+        margin-bottom: 1rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+    }
+    .breadcrumb-item a { 
+        color: var(--color-gray-600); 
+        text-decoration: none; 
+        transition: color .2s; 
+    }
+    .breadcrumb-item a:hover { 
+        color: var(--color-primary); 
+    }
+    .breadcrumb-item.active { 
+        color: var(--color-gray-800); 
+        font-weight: 500; 
+    }
+
+    /* Page Header */
+    .page-header { 
+        padding: 1rem 0; 
+    }
+    .page-header h1 { 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+    }
+
+    /* Management Card */
+    .management-card { 
+        background: white; 
+        border: 1px solid var(--color-gray-200); 
+        border-radius: var(--radius-lg); 
+        overflow: hidden; 
+    }
+    .management-card .card-header { 
+        padding: 1.25rem 1.5rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+        background: var(--color-gray-100); 
+    }
+    .management-card .card-title { 
+        font-size: 1rem; 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .management-card .card-subtitle { 
+        font-size: .8125rem; 
+        color: var(--color-gray-600); 
+    }
+    .management-card .card-body { 
+        padding: 1.5rem; 
+    }
+
+    /* Supplier Avatar for Add Page */
+    .supplier-avatar-add {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--color-primary-light);
+        color: var(--color-primary);
+        font-size: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Form Section Title */
+    .form-section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--color-primary);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--color-primary-light);
+        display: flex;
+        align-items: center;
+    }
+
+    /* Form Floating */
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        font-family: var(--font-family);
+        font-size: 0.9rem;
+        height: calc(3.5rem + 2px);
+    }
+    
+    .form-floating > .form-control:focus,
+    .form-floating > .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .form-floating > label {
+        font-family: var(--font-family);
+        font-size: 0.85rem;
+        color: var(--color-gray-600);
+        padding-left: 1rem;
+    }
+    
+    .form-floating textarea.form-control {
+        height: auto;
+        min-height: 100px;
+    }
+
+    /* Status Toggle Card */
+    .status-toggle-card {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        border: 1px solid var(--color-gray-200);
+    }
+    
+    .form-switch {
+        padding-left: 3em;
+    }
+    
+    .form-check-input {
+        width: 2.5em;
+        height: 1.25em;
+        margin-left: -3em;
+        cursor: pointer;
+    }
+    
+    .form-check-input:checked {
+        background-color: var(--color-success);
+        border-color: var(--color-success);
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+    }
+
+    /* Help Items */
+    .help-item {
+        display: flex;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .help-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-sm);
+        background: var(--color-primary-light);
+        color: var(--color-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+    
+    .help-content h6 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--color-gray-800);
+    }
+    
+    .help-content p {
+        margin-bottom: 0;
+        line-height: 1.4;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background-color: #1b5e20;
+        border-color: #1b5e20;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-600);
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+        transform: translateY(-2px);
+    }
+    
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Form Actions */
+    .form-actions {
+        background: var(--color-gray-100);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+    }
+
+    /* Border Top */
+    .border-top {
+        border-top-color: var(--color-gray-200) !important;
+    }
+
+    /* Text Colors */
+    .text-danger {
+        color: var(--color-danger) !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .supplier-avatar-add {
+            width: 40px;
+            height: 40px;
+            font-size: 1.2rem;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .form-section-title {
+            font-size: 0.8rem;
+        }
+        
+        .help-item {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .help-icon {
+            margin-bottom: 0.5rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Form validation and submission handling
+    const form = document.getElementById('addSupplierForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+            let firstInvalid = null;
+            
+            // Check all required fields
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.classList.add('is-invalid');
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = field;
+                    
+                    // Add invalid feedback if not present
+                    let feedback = field.parentElement.querySelector('.invalid-feedback');
+                    if (!feedback) {
+                        feedback = document.createElement('div');
+                        feedback.className = 'invalid-feedback';
+                        feedback.textContent = 'This field is required.';
+                        field.parentElement.appendChild(feedback);
+                    }
+                } else {
+                    field.classList.remove('is-invalid');
+                    const feedback = field.parentElement.querySelector('.invalid-feedback');
+                    if (feedback) feedback.remove();
+                }
+            });
+            
+            // Email validation
+            const emailField = document.getElementById('supplierEmail');
+            if (emailField && emailField.value.trim()) {
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailPattern.test(emailField.value.trim())) {
+                    emailField.classList.add('is-invalid');
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = emailField;
+                    
+                    let feedback = emailField.parentElement.querySelector('.invalid-feedback');
+                    if (!feedback) {
+                        feedback = document.createElement('div');
+                        feedback.className = 'invalid-feedback';
+                        feedback.textContent = 'Please enter a valid email address.';
+                        emailField.parentElement.appendChild(feedback);
+                    }
+                }
+            }
+            
+            // Phone number validation (basic)
+            const phoneField = document.getElementById('phoneNumber');
+            if (phoneField && phoneField.value.trim()) {
+                const phonePattern = /^[\d\s\+\-\(\)]{10,}$/;
+                if (!phonePattern.test(phoneField.value.trim())) {
+                    phoneField.classList.add('is-invalid');
+                    isValid = false;
+                    if (!firstInvalid) firstInvalid = phoneField;
+                    
+                    let feedback = phoneField.parentElement.querySelector('.invalid-feedback');
+                    if (!feedback) {
+                        feedback = document.createElement('div');
+                        feedback.className = 'invalid-feedback';
+                        feedback.textContent = 'Please enter a valid phone number.';
+                        phoneField.parentElement.appendChild(feedback);
+                    }
+                }
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                
+                // Show error alert
+                const alert = document.createElement('div');
+                alert.className = 'alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2';
+                alert.innerHTML = `
+                    <i class="ri-error-warning-line fs-5"></i>
+                    <div>
+                        <strong>Validation Error</strong><br>
+                        Please correct the errors in the form before submitting.
+                    </div>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                `;
+                form.prepend(alert);
+                
+                // Scroll to first invalid field
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            } else {
+                // Disable submit button and show loading state
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <span>Saving Supplier...</span>
+                `;
+            }
+        });
+        
+        // Remove invalid class on input
+        form.querySelectorAll('[required], #supplierEmail, #phoneNumber').forEach(field => {
+            field.addEventListener('input', function() {
+                this.classList.remove('is-invalid');
+                const feedback = this.parentElement.querySelector('.invalid-feedback');
+                if (feedback) feedback.remove();
+            });
+        });
+    }
+    
+    // Generate supplier code suggestion
+    const nameField = document.getElementById('supplierName');
+    const codeField = document.getElementById('supplierCode');
+    
+    if (nameField && codeField) {
+        nameField.addEventListener('blur', function() {
+            if (!codeField.value.trim() && this.value.trim()) {
+                // Generate a simple code suggestion from the name
+                const nameWords = this.value.trim().split(' ');
+                let code = '';
+                if (nameWords.length > 0) {
+                    code = nameWords[0].substring(0, 3).toUpperCase();
+                    if (nameWords.length > 1) {
+                        code += nameWords[1].substring(0, 2).toUpperCase();
+                    }
+                    // Add random numbers
+                    code += Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+                    
+                    // Set the value but don't override if already filled
+                    codeField.value = code;
+                    
+                    // Add a small hint
+                    const hint = document.createElement('small');
+                    hint.className = 'text-success d-block mt-1';
+                    hint.innerHTML = '<i class="ri-sparkling-line me-1"></i>Suggested code generated from name';
+                    
+                    // Remove any existing hint
+                    const existingHint = codeField.parentElement.querySelector('.text-success');
+                    if (existingHint) existingHint.remove();
+                    
+                    codeField.parentElement.appendChild(hint);
+                    
+                    // Remove hint after 5 seconds
+                    setTimeout(() => {
+                        if (hint.parentElement) hint.remove();
+                    }, 5000);
+                }
+            }
+        });
+    }
+});
+</script>
 
 {% endblock %}

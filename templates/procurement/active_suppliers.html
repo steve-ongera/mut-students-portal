@@ -1,55 +1,758 @@
 {% extends 'procurement/procurement_base.html' %}
-{% block title %}Active Suppliers{% endblock %}
-{% block content %}
+{% load static %}
 
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}Active Suppliers{% endblock %}
+{% block page_subtitle %}View and manage all active vendors and suppliers{% endblock %}
+
+{% block content %}
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
-    <li class="breadcrumb-item active">Active Suppliers</li>
-  </ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'supplier_list' %}">Suppliers</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Active Suppliers</li>
+    </ol>
 </nav>
 
-<div class="card">
-  <div class="card-header d-flex justify-content-between align-items-center">
-    <h5>Active Suppliers ({{ total }} total)</h5>
-    <a href="{% url 'add_supplier' %}" class="btn btn-primary btn-sm">Add Supplier</a>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead>
-        <tr>
-          <th>Code</th>
-          <th>Name</th>
-          <th>Contact Person</th>
-          <th>Email</th>
-          <th>Phone</th>
-          <th>Rating</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for supplier in suppliers %}
-        <tr>
-          <td>{{ supplier.supplier_code }}</td>
-          <td>{{ supplier.name }}</td>
-          <td>{{ supplier.contact_person }}</td>
-          <td>{{ supplier.email }}</td>
-          <td>{{ supplier.phone_number }}</td>
-          <td>{{ supplier.rating }} / 5</td>
-          <td>
-            <a href="{% url 'supplier_detail' supplier.supplier_code %}" class="btn btn-sm btn-outline-primary">View</a>
-            <a href="{% url 'edit_supplier' supplier.supplier_code %}" class="btn btn-sm btn-outline-warning">Edit</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="7" class="text-center py-4">No active suppliers found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Active Suppliers</h1>
+                <p class="text-muted mb-0">
+                    View and manage all active vendors and suppliers
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <span class="badge-chip d-flex align-items-center gap-1" style="background: rgba(46,125,50,0.1); color: var(--color-primary);">
+                    <i class="ri-checkbox-circle-line"></i>
+                    <span>{{ total }} Active</span>
+                </span>
+                <a href="{% url 'add_supplier' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                    <i class="ri-add-line fs-5"></i>
+                    <span>Add Supplier</span>
+                </a>
+                <a href="{% url 'supplier_list' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-list-check fs-5"></i>
+                    <span>All Suppliers</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Suppliers Card -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Active Supplier Directory</h5>
+                <div class="card-subtitle">Currently active vendors and suppliers</div>
+            </div>
+            <span class="badge-chip" style="background: rgba(46,125,50,0.1); color: var(--color-primary);">
+                <i class="ri-checkbox-circle-line me-1"></i> {{ total }} Active
+            </span>
+        </div>
+        
+        <!-- Search Bar -->
+        <div class="card-body border-bottom">
+            <form method="get" class="row g-3">
+                <div class="col-md-8 col-lg-9">
+                    <div class="form-floating">
+                        <input type="text" name="search" id="searchInput" class="form-control" 
+                               placeholder="Search active suppliers..." value="{{ search_query }}">
+                        <label for="searchInput">Search by name, code, contact person, or email...</label>
+                    </div>
+                </div>
+                <div class="col-md-4 col-lg-3 d-flex gap-2">
+                    <button class="btn btn-primary flex-grow-1 d-flex align-items-center justify-content-center gap-2" type="submit">
+                        <i class="ri-search-line"></i>
+                        <span>Search</span>
+                    </button>
+                    {% if search_query %}
+                    <a href="{% url 'active_suppliers' %}" class="btn btn-outline-secondary d-flex align-items-center justify-content-center" 
+                       title="Clear Search" data-bs-toggle="tooltip">
+                        <i class="ri-close-line"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <!-- Suppliers Table -->
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Code</th>
+                            <th>Name</th>
+                            <th>Contact Person</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Rating</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in suppliers %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="badge-chip" style="background: var(--color-primary-light); color: var(--color-primary);">
+                                    {{ supplier.supplier_code }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="supplier-avatar">{{ supplier.name|slice:":1"|upper }}</div>
+                                    <span class="fw-medium">{{ supplier.name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ supplier.contact_person|default:"—" }}</span>
+                            </td>
+                            <td>
+                                {% if supplier.email %}
+                                <a href="mailto:{{ supplier.email }}" class="text-decoration-none">
+                                    <span>{{ supplier.email|truncatechars:25 }}</span>
+                                    <small class="text-muted d-block"><i class="ri-mail-line"></i> Send email</small>
+                                </a>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if supplier.phone_number %}
+                                <a href="tel:{{ supplier.phone_number }}" class="text-decoration-none">
+                                    <span>{{ supplier.phone_number }}</span>
+                                    <small class="text-muted d-block"><i class="ri-phone-line"></i> Call</small>
+                                </a>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-1" 
+                                     title="{{ supplier.rating|default:'0' }}/5 rating" data-bs-toggle="tooltip">
+                                    {% with rating=supplier.rating|default:0 %}
+                                        {% for i in "12345"|make_list %}
+                                            {% if forloop.counter <= rating %}
+                                                <i class="ri-star-fill text-warning"></i>
+                                            {% else %}
+                                                <i class="ri-star-line text-warning"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endwith %}
+                                    <span class="ms-1 small fw-medium">{{ supplier.rating|default:"0" }}/5</span>
+                                </div>
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'supplier_detail' supplier.supplier_code %}"
+                                       class="btn btn-icon btn-outline-primary btn-sm"
+                                       title="View Details" data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    <a href="{% url 'edit_supplier' supplier.supplier_code %}"
+                                       class="btn btn-icon btn-outline-warning btn-sm"
+                                       title="Edit Supplier" data-bs-toggle="tooltip">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                    <div class="dropdown">
+                                        <button class="btn btn-icon btn-outline-secondary btn-sm" 
+                                                type="button" 
+                                                data-bs-toggle="dropdown" 
+                                                aria-expanded="false"
+                                                title="More Actions" data-bs-toggle="tooltip">
+                                            <i class="ri-more-2-fill"></i>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'supplier_detail' supplier.supplier_code %}">
+                                                    <i class="ri-eye-line me-2"></i>View Details
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="{% url 'edit_supplier' supplier.supplier_code %}">
+                                                    <i class="ri-edit-line me-2 text-warning"></i>Edit
+                                                </a>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <a class="dropdown-item" href="mailto:{{ supplier.email }}">
+                                                    <i class="ri-mail-send-line me-2"></i>Send Email
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item" href="tel:{{ supplier.phone_number }}">
+                                                    <i class="ri-phone-line me-2"></i>Call
+                                                </a>
+                                            </li>
+                                            {% if supplier.website %}
+                                            <li>
+                                                <a class="dropdown-item" href="{{ supplier.website }}" target="_blank">
+                                                    <i class="ri-global-line me-2"></i>Visit Website
+                                                </a>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon mb-3">
+                                        <i class="ri-store-2-line display-1 text-success opacity-50"></i>
+                                    </div>
+                                    <h5 class="text-muted">No Active Suppliers Found</h5>
+                                    <p class="text-muted mb-3">
+                                        {% if search_query %}
+                                            No active suppliers match your search criteria.
+                                        {% else %}
+                                            There are no active suppliers in the system.
+                                        {% endif %}
+                                    </p>
+                                    <div class="d-flex gap-2 justify-content-center">
+                                        {% if search_query %}
+                                        <a href="{% url 'active_suppliers' %}" class="btn btn-outline-secondary btn-sm">
+                                            <i class="ri-close-line me-1"></i> Clear Search
+                                        </a>
+                                        {% endif %}
+                                        <a href="{% url 'add_supplier' %}" class="btn btn-primary btn-sm">
+                                            <i class="ri-add-line me-1"></i> Add Supplier
+                                        </a>
+                                        <a href="{% url 'supplier_list' %}" class="btn btn-outline-primary btn-sm">
+                                            <i class="ri-list-check me-1"></i> View All Suppliers
+                                        </a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if suppliers.has_other_pages %}
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <div class="text-muted small">
+                Showing {{ suppliers.start_index }} - {{ suppliers.end_index }} of {{ total }} active suppliers
+            </div>
+            <nav aria-label="Supplier pagination">
+                <ul class="pagination mb-0">
+                    {% if suppliers.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ suppliers.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" aria-label="Previous">
+                            <i class="ri-arrow-left-s-line"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                    </li>
+                    {% endif %}
+
+                    {% for i in suppliers.paginator.page_range %}
+                        {% if suppliers.number == i %}
+                        <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% elif i > suppliers.number|add:'-3' and i < suppliers.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}">{{ i }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if suppliers.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ suppliers.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}" aria-label="Next">
+                            <i class="ri-arrow-right-s-line"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row g-3 mt-4">
+        <div class="col-12 col-md-4">
+            <div class="kpi-card kpi-success">
+                <div class="kpi-icon"><i class="ri-store-2-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ total }}</div>
+                    <div class="kpi-label">Active Suppliers</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="kpi-card kpi-primary">
+                <div class="kpi-icon"><i class="ri-star-half-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ avg_rating|default:"4.2" }}</div>
+                    <div class="kpi-label">Average Rating</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="kpi-card kpi-info">
+                <div class="kpi-icon"><i class="ri-file-list-3-line"></i></div>
+                <div class="kpi-body">
+                    <div class="kpi-value">{{ total_orders|default:"0" }}</div>
+                    <div class="kpi-label">Total Orders</div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-primary-light: rgba(46,125,50,0.08);
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
+
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+
+    /* Breadcrumb */
+    .breadcrumb { 
+        background: transparent; 
+        padding: .75rem 0; 
+        margin-bottom: 1rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+    }
+    .breadcrumb-item a { 
+        color: var(--color-gray-600); 
+        text-decoration: none; 
+        transition: color .2s; 
+    }
+    .breadcrumb-item a:hover { 
+        color: var(--color-primary); 
+    }
+    .breadcrumb-item.active { 
+        color: var(--color-gray-800); 
+        font-weight: 500; 
+    }
+
+    /* Page Header */
+    .page-header { 
+        padding: 1rem 0; 
+    }
+    .page-header h1 { 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+    }
+
+    /* Management Card */
+    .management-card { 
+        background: white; 
+        border: 1px solid var(--color-gray-200); 
+        border-radius: var(--radius-lg); 
+        overflow: hidden; 
+    }
+    .management-card .card-header { 
+        padding: 1.25rem 1.5rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+        background: var(--color-gray-100); 
+    }
+    .management-card .card-title { 
+        font-size: 1rem; 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .management-card .card-subtitle { 
+        font-size: .8125rem; 
+        color: var(--color-gray-600); 
+    }
+    .management-card .card-body { 
+        padding: 1.5rem; 
+    }
+    .management-card .card-footer {
+        padding: 1rem 1.5rem;
+        background: var(--color-gray-100);
+        border-top: 1px solid var(--color-gray-200);
+    }
+
+    /* Badge Chip */
+    .badge-chip { 
+        background: var(--color-gray-200); 
+        color: var(--color-gray-600); 
+        font-size: .74rem; 
+        font-weight: 500; 
+        padding: .3rem .75rem; 
+        border-radius: 20px; 
+        white-space: nowrap; 
+    }
+
+    /* KPI Cards */
+    .kpi-card {
+        border-radius: var(--radius-lg); 
+        padding: 1.25rem;
+        display: flex; 
+        align-items: center; 
+        gap: 1rem;
+        border: 1px solid transparent;
+        transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .kpi-card:hover { 
+        transform: translateY(-3px); 
+        box-shadow: var(--shadow-md); 
+    }
+    .kpi-success { 
+        background: rgba(76,175,80,.08); 
+        border-color: rgba(76,175,80,.2); 
+    }
+    .kpi-primary { 
+        background: rgba(46,125,50,.08); 
+        border-color: rgba(46,125,50,.2); 
+    }
+    .kpi-info { 
+        background: rgba(33,150,243,.08); 
+        border-color: rgba(33,150,243,.2); 
+    }
+
+    .kpi-icon {
+        width: 46px; 
+        height: 46px; 
+        border-radius: var(--radius-md);
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+        font-size: 1.4rem; 
+        flex-shrink: 0;
+    }
+    .kpi-success .kpi-icon { 
+        background: rgba(76,175,80,.12);  
+        color: var(--color-success); 
+    }
+    .kpi-primary .kpi-icon { 
+        background: rgba(46,125,50,.12); 
+        color: var(--color-primary); 
+    }
+    .kpi-info .kpi-icon { 
+        background: rgba(33,150,243,.12); 
+        color: var(--color-info); 
+    }
+
+    .kpi-value { 
+        font-size: 1.75rem; 
+        font-weight: 700; 
+        line-height: 1; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .kpi-label { 
+        font-size: .78rem; 
+        font-weight: 500; 
+        color: var(--color-gray-600); 
+        text-transform: uppercase; 
+        letter-spacing: .4px; 
+    }
+
+    /* Form Floating */
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        font-family: var(--font-family);
+        font-size: 0.9rem;
+        height: calc(3.5rem + 2px);
+    }
+    
+    .form-floating > .form-control:focus,
+    .form-floating > .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .form-floating > label {
+        font-family: var(--font-family);
+        font-size: 0.85rem;
+        color: var(--color-gray-600);
+        padding-left: 1rem;
+    }
+
+    /* Table */
+    .table thead th {
+        font-size: .8125rem; 
+        font-weight: 600; 
+        text-transform: uppercase; 
+        letter-spacing: .5px;
+        color: var(--color-gray-600); 
+        border-top: none; 
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem .75rem; 
+        background: var(--color-gray-100);
+    }
+    .table tbody td { 
+        padding: .9rem .75rem; 
+        vertical-align: middle; 
+        border-color: var(--color-gray-200); 
+    }
+    .table tbody tr { 
+        transition: background-color .2s ease; 
+    }
+    .table tbody tr:hover { 
+        background-color: rgba(46,125,50,.02); 
+    }
+
+    /* Supplier Avatar */
+    .supplier-avatar {
+        width: 36px; 
+        height: 36px; 
+        border-radius: 50%;
+        background: var(--color-primary-light); 
+        color: var(--color-primary);
+        font-size: 1rem; 
+        font-weight: 600;
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        flex-shrink: 0;
+        border: 2px solid white;
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* Action Icons */
+    .btn-icon {
+        width: 32px; 
+        height: 32px; 
+        padding: 0;
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center;
+        border-radius: var(--radius-sm); 
+        transition: transform .2s ease;
+    }
+    .btn-icon:hover { 
+        transform: translateY(-2px); 
+    }
+    
+    .btn-outline-primary {
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-outline-warning {
+        color: var(--color-warning);
+        border-color: var(--color-warning);
+    }
+    
+    .btn-outline-warning:hover {
+        background-color: var(--color-warning);
+        color: white;
+    }
+    
+    .btn-outline-secondary {
+        color: var(--color-gray-600);
+        border-color: var(--color-gray-200);
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        color: var(--color-gray-800);
+        border-color: var(--color-gray-300);
+    }
+
+    /* Dropdown Menu */
+    .dropdown-menu {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        box-shadow: var(--shadow-md);
+        padding: 0.5rem;
+        font-family: var(--font-family);
+    }
+    
+    .dropdown-item {
+        border-radius: var(--radius-sm);
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease;
+    }
+    
+    .dropdown-item:hover {
+        background-color: var(--color-gray-100);
+    }
+    
+    .dropdown-item i {
+        font-size: 1.1rem;
+    }
+    
+    .dropdown-divider {
+        border-color: var(--color-gray-200);
+        margin: 0.5rem 0;
+    }
+
+    /* Pagination */
+    .pagination {
+        gap: 0.25rem;
+    }
+    
+    .page-link {
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .page-link:hover {
+        background-color: var(--color-primary-light);
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+    
+    .page-item.active .page-link {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .page-item.disabled .page-link {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-400);
+    }
+
+    /* Empty State */
+    .empty-state { 
+        padding: 3rem 1rem; 
+        text-align: center; 
+    }
+    
+    .empty-state-icon {
+        line-height: 1;
+    }
+    
+    .empty-state i { 
+        font-size: 3rem; 
+        margin-bottom: 1rem; 
+    }
+    
+    .opacity-50 {
+        opacity: 0.5;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background-color: #1b5e20;
+        border-color: #1b5e20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Border Bottom */
+    .border-bottom {
+        border-bottom-color: var(--color-gray-200) !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .table thead th {
+            font-size: 0.7rem;
+            padding: 0.75rem 0.5rem;
+        }
+        
+        .table tbody td {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-icon {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .badge-chip {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+        }
+        
+        .kpi-value {
+            font-size: 1.4rem;
+        }
+        
+        .kpi-card {
+            padding: 1rem;
+        }
+        
+        .supplier-avatar {
+            width: 30px;
+            height: 30px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Initialize Bootstrap dropdowns
+    var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
+    var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        return new bootstrap.Dropdown(dropdownToggleEl);
+    });
+});
+</script>
 
 {% endblock %}
