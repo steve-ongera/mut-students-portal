@@ -1,102 +1,583 @@
 {% extends 'procurement/procurement_base.html' %}
-{% block title %}All Requisitions{% endblock %}
+{% load static %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block page_title %}All Requisitions{% endblock %}
+{% block page_subtitle %}View and manage all purchase requisitions{% endblock %}
+
 {% block content %}
-
 <nav aria-label="breadcrumb">
-  <ol class="breadcrumb">
-    <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">All Requisitions</li>
-  </ol>
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'procurement_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">All Requisitions</li>
+    </ol>
 </nav>
 
-<div class="card mb-4">
-  <div class="card-header"><h5>Filters</h5></div>
-  <div class="card-body">
-    <form method="get">
-      <div class="row g-3">
-        <div class="col-md-4">
-          <input type="text" name="search" class="form-control" placeholder="Search requisitions..." value="{{ search_query }}">
+<div class="content-container">
+    <!-- Page Header -->
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">All Requisitions</h1>
+                <p class="text-muted mb-0">
+                    View and manage all purchase requisitions
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'add_requisition' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                    <i class="ri-add-line fs-5"></i>
+                    <span>New Requisition</span>
+                </a>
+                <a href="#" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-download-line fs-5"></i>
+                    <span>Export</span>
+                </a>
+            </div>
         </div>
-        <div class="col-md-3">
-          <select name="status" class="form-select">
-            <option value="">All Statuses</option>
-            {% for code, label in status_choices %}
-            <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
+    </div>
+
+    <!-- Filters Card -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Filters</h5>
+            <div class="card-subtitle">Narrow down requisitions by search, status, or department</div>
         </div>
-        <div class="col-md-3">
-          <select name="department" class="form-select">
-            <option value="">All Departments</option>
-            {% for dept in departments %}
-            <option value="{{ dept.id }}" {% if dept_filter == dept.id|stringformat:"i" %}selected{% endif %}>{{ dept.name }}</option>
-            {% endfor %}
-          </select>
+        <div class="card-body">
+            <form method="get">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-floating">
+                            <input type="text" name="search" id="searchInput" class="form-control" placeholder="Search requisitions..." value="{{ search_query }}">
+                            <label for="searchInput">Search requisitions...</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating">
+                            <select name="status" id="statusSelect" class="form-select">
+                                <option value="">All Statuses</option>
+                                {% for code, label in status_choices %}
+                                <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="statusSelect">Status</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-floating">
+                            <select name="department" id="deptSelect" class="form-select">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}" {% if dept_filter == dept.id|stringformat:"i" %}selected{% endif %}>{{ dept.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="deptSelect">Department</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100 d-flex align-items-center justify-content-center gap-2">
+                            <i class="ri-filter-3-line"></i>
+                            <span>Filter</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn btn-primary w-100">Filter</button>
-        </div>
+    </div>
+
+    <!-- Requisitions Table Card -->
+    <div class="management-card">
         <div class="card-header d-flex justify-content-between align-items-center">
-        <h5>Requisitions ({{ total_requisitions }} total)</h5>
-        <a href="{% url 'add_requisition' %}" class="btn btn-primary btn-sm">
-            <i class="ri-add-line"></i> New Requisition
-        </a>
+            <div>
+                <h5 class="card-title">Requisitions</h5>
+                <div class="card-subtitle">Showing {{ requisitions.start_index }} - {{ requisitions.end_index }} of {{ total_requisitions }} total</div>
+            </div>
+            <span class="badge-chip">{{ total_requisitions }} Total</span>
         </div>
-      </div>
-    </form>
-  </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Requisition No.</th>
+                            <th>Department</th>
+                            <th>Purpose</th>
+                            <th>Requested By</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requisitions %}
+                        <tr>
+                            <td class="ps-4">
+                                <strong>{{ req.requisition_number }}</strong>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="dept-avatar">{{ req.department.code|default:req.department.name|slice:":2"|upper }}</div>
+                                    <span class="fw-medium">{{ req.department.name }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="text-muted">{{ req.purpose|truncatechars:40 }}</span>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.requested_by.get_full_name|default:req.requested_by.username }}</span>
+                                <small class="text-muted d-block">{{ req.requested_by.email }}</small>
+                            </td>
+                            <td>
+                                {% if req.status == 'pending_procurement' or req.status == 'pending' %}
+                                    <span class="status-badge status-pending"><i class="ri-time-line me-1"></i>Pending</span>
+                                {% elif req.status == 'approved' or req.status == 'approved_hod' or req.status == 'approved_hos' %}
+                                    <span class="status-badge status-approved"><i class="ri-checkbox-circle-line me-1"></i>Approved</span>
+                                {% elif req.status == 'processed' %}
+                                    <span class="status-badge status-processed"><i class="ri-check-double-line me-1"></i>Processed</span>
+                                {% elif req.status == 'rejected' %}
+                                    <span class="status-badge status-rejected"><i class="ri-close-circle-line me-1"></i>Rejected</span>
+                                {% elif req.status == 'draft' %}
+                                    <span class="status-badge status-draft"><i class="ri-draft-line me-1"></i>Draft</span>
+                                {% else %}
+                                    <span class="status-badge status-draft">{{ req.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span>{{ req.created_at|date:"d M Y" }}</span>
+                                <small class="text-muted d-block">{{ req.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'requisition_detail' req.requisition_number %}"
+                                       class="btn btn-icon btn-outline-primary btn-sm"
+                                       title="View Details" data-bs-toggle="tooltip">
+                                        <i class="ri-eye-line"></i>
+                                    </a>
+                                    {% if req.status == 'pending_procurement' or req.status == 'pending' %}
+                                    <a href="{% url 'approve_requisition' req.id %}"
+                                       class="btn btn-icon btn-outline-success btn-sm"
+                                       title="Approve" data-bs-toggle="tooltip">
+                                        <i class="ri-checkbox-circle-line"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if req.status == 'draft' %}
+                                    <a href="#"
+                                       class="btn btn-icon btn-outline-warning btn-sm"
+                                       title="Edit" data-bs-toggle="tooltip">
+                                        <i class="ri-edit-line"></i>
+                                    </a>
+                                    {% endif %}
+                                    <a href="#"
+                                       class="btn btn-icon btn-outline-secondary btn-sm"
+                                       title="More Actions" data-bs-toggle="dropdown">
+                                        <i class="ri-more-2-fill"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-list-3-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No requisitions found</h5>
+                                    <p class="text-muted mb-3">Try adjusting your filters or create a new requisition</p>
+                                    <a href="{% url 'add_requisition' %}" class="btn btn-primary btn-sm">
+                                        <i class="ri-add-line me-1"></i> Create Requisition
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if requisitions.has_other_pages %}
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="text-muted small">
+            Showing page {{ requisitions.number }} of {{ requisitions.paginator.num_pages }}
+        </div>
+        <nav aria-label="Page navigation">
+            <ul class="pagination mb-0">
+                {% if requisitions.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ requisitions.previous_page_number }}&search={{ search_query }}&status={{ status_filter }}&department={{ dept_filter }}" aria-label="Previous">
+                        <i class="ri-arrow-left-s-line"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="ri-arrow-left-s-line"></i></span>
+                </li>
+                {% endif %}
+
+                {% for i in requisitions.paginator.page_range %}
+                    {% if requisitions.number == i %}
+                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                    {% elif i > requisitions.number|add:'-3' and i < requisitions.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ i }}&search={{ search_query }}&status={{ status_filter }}&department={{ dept_filter }}">{{ i }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if requisitions.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ requisitions.next_page_number }}&search={{ search_query }}&status={{ status_filter }}&department={{ dept_filter }}" aria-label="Next">
+                        <i class="ri-arrow-right-s-line"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="ri-arrow-right-s-line"></i></span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
 </div>
 
-<div class="card">
-  <div class="card-header">
-    <h5>Requisitions ({{ total_requisitions }} total)</h5>
-  </div>
-  <div class="card-body p-0">
-    <table class="table table-hover mb-0">
-      <thead>
-        <tr>
-          <th>Requisition No.</th>
-          <th>Department</th>
-          <th>Purpose</th>
-          <th>Requested By</th>
-          <th>Status</th>
-          <th>Date</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for req in requisitions %}
-        <tr>
-          <td>{{ req.requisition_number }}</td>
-          <td>{{ req.department.name }}</td>
-          <td>{{ req.purpose|truncatechars:40 }}</td>
-          <td>{{ req.requested_by.get_full_name }}</td>
-          <td>{{ req.get_status_display }}</td>
-          <td>{{ req.created_at|date:"d M Y" }}</td>
-          <td>
-            <a href="{% url 'requisition_detail' req.requisition_number %}" class="btn btn-sm btn-outline-primary">View</a>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="7" class="text-center py-4">No requisitions found.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+<style>
+    :root {
+        --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        --radius-sm: 6px;
+        --radius-md: 8px;
+        --radius-lg: 12px;
+        --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        --color-primary: #2E7D32;
+        --color-primary-light: rgba(46,125,50,0.08);
+        --color-success: #4CAF50;
+        --color-warning: #FF9800;
+        --color-info: #2196F3;
+        --color-danger: #F44336;
+        --color-gray-100: #f8f9fa;
+        --color-gray-200: #e9ecef;
+        --color-gray-300: #dee2e6;
+        --color-gray-600: #6c757d;
+        --color-gray-800: #343a40;
+    }
 
-{% if requisitions.has_other_pages %}
-<nav class="mt-3">
-  <ul class="pagination justify-content-center">
-    {% if requisitions.has_previous %}
-    <li class="page-item"><a class="page-link" href="?page={{ requisitions.previous_page_number }}&search={{ search_query }}&status={{ status_filter }}&department={{ dept_filter }}">Previous</a></li>
-    {% endif %}
-    <li class="page-item disabled"><span class="page-link">Page {{ requisitions.number }} of {{ requisitions.paginator.num_pages }}</span></li>
-    {% if requisitions.has_next %}
-    <li class="page-item"><a class="page-link" href="?page={{ requisitions.next_page_number }}&search={{ search_query }}&status={{ status_filter }}&department={{ dept_filter }}">Next</a></li>
-    {% endif %}
-  </ul>
-</nav>
-{% endif %}
+    body { font-family: var(--font-family); }
+    .content-container { padding: 0 0.5rem; }
+
+    /* Breadcrumb */
+    .breadcrumb { 
+        background: transparent; 
+        padding: .75rem 0; 
+        margin-bottom: 1rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+    }
+    .breadcrumb-item a { 
+        color: var(--color-gray-600); 
+        text-decoration: none; 
+        transition: color .2s; 
+    }
+    .breadcrumb-item a:hover { 
+        color: var(--color-primary); 
+    }
+    .breadcrumb-item.active { 
+        color: var(--color-gray-800); 
+        font-weight: 500; 
+    }
+
+    /* Page Header */
+    .page-header { 
+        padding: 1rem 0; 
+    }
+    .page-header h1 { 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+    }
+
+    /* Management Card */
+    .management-card { 
+        background: white; 
+        border: 1px solid var(--color-gray-200); 
+        border-radius: var(--radius-lg); 
+        overflow: hidden; 
+    }
+    .management-card .card-header { 
+        padding: 1.25rem 1.5rem; 
+        border-bottom: 1px solid var(--color-gray-200); 
+        background: var(--color-gray-100); 
+    }
+    .management-card .card-title { 
+        font-size: 1rem; 
+        font-weight: 600; 
+        color: var(--color-gray-800); 
+        margin-bottom: .2rem; 
+    }
+    .management-card .card-subtitle { 
+        font-size: .8125rem; 
+        color: var(--color-gray-600); 
+    }
+    .management-card .card-body { 
+        padding: 1.5rem; 
+    }
+
+    /* Badge Chip */
+    .badge-chip { 
+        background: var(--color-gray-200); 
+        color: var(--color-gray-600); 
+        font-size: .74rem; 
+        font-weight: 500; 
+        padding: .3rem .75rem; 
+        border-radius: 20px; 
+        white-space: nowrap; 
+    }
+
+    /* Form Floating */
+    .form-floating > .form-control,
+    .form-floating > .form-select {
+        border-radius: var(--radius-md);
+        border: 1px solid var(--color-gray-200);
+        font-family: var(--font-family);
+        font-size: 0.9rem;
+        height: calc(3.5rem + 2px);
+    }
+    
+    .form-floating > .form-control:focus,
+    .form-floating > .form-select:focus {
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.1);
+    }
+    
+    .form-floating > label {
+        font-family: var(--font-family);
+        font-size: 0.85rem;
+        color: var(--color-gray-600);
+        padding-left: 1rem;
+    }
+
+    /* Buttons */
+    .btn-primary {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background-color: #1b5e20;
+        border-color: #1b5e20;
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-sm);
+    }
+    
+    .btn-outline-secondary {
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-600);
+        border-radius: var(--radius-md);
+        font-weight: 500;
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-300);
+        color: var(--color-gray-800);
+        transform: translateY(-1px);
+    }
+    
+    .btn-sm {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8125rem;
+    }
+
+    /* Table */
+    .table thead th {
+        font-size: .8125rem; 
+        font-weight: 600; 
+        text-transform: uppercase; 
+        letter-spacing: .5px;
+        color: var(--color-gray-600); 
+        border-top: none; 
+        border-bottom: 1px solid var(--color-gray-200);
+        padding: 1rem .75rem; 
+        background: var(--color-gray-100);
+    }
+    .table tbody td { 
+        padding: .9rem .75rem; 
+        vertical-align: middle; 
+        border-color: var(--color-gray-200); 
+    }
+    .table tbody tr { 
+        transition: background-color .2s ease; 
+    }
+    .table tbody tr:hover { 
+        background-color: rgba(46,125,50,.02); 
+    }
+
+    /* Dept Avatar */
+    .dept-avatar {
+        width: 36px; 
+        height: 36px; 
+        border-radius: var(--radius-sm);
+        background: var(--color-primary-light); 
+        color: var(--color-primary);
+        font-size: .7rem; 
+        font-weight: 700;
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        flex-shrink: 0;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-flex; 
+        align-items: center;
+        padding: .25rem .75rem; 
+        border-radius: 20px;
+        font-size: .74rem; 
+        font-weight: 600;
+        text-transform: uppercase; 
+        letter-spacing: .3px; 
+        white-space: nowrap;
+    }
+    .status-pending   { background: rgba(255,152,0,.1);   color: var(--color-warning); }
+    .status-approved  { background: rgba(46,125,50,.1);   color: var(--color-primary); }
+    .status-processed { background: rgba(76,175,80,.1);   color: var(--color-success); }
+    .status-rejected  { background: rgba(244,67,54,.1);   color: var(--color-danger); }
+    .status-draft     { background: rgba(108,117,125,.1); color: var(--color-gray-600); }
+
+    /* Action Icons */
+    .btn-icon {
+        width: 32px; 
+        height: 32px; 
+        padding: 0;
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center;
+        border-radius: var(--radius-sm); 
+        transition: transform .2s ease;
+    }
+    .btn-icon:hover { 
+        transform: translateY(-2px); 
+    }
+    
+    .btn-outline-primary {
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+    
+    .btn-outline-primary:hover {
+        background-color: var(--color-primary);
+        color: white;
+    }
+    
+    .btn-outline-success {
+        color: var(--color-success);
+        border-color: var(--color-success);
+    }
+    
+    .btn-outline-success:hover {
+        background-color: var(--color-success);
+        color: white;
+    }
+    
+    .btn-outline-warning {
+        color: var(--color-warning);
+        border-color: var(--color-warning);
+    }
+    
+    .btn-outline-warning:hover {
+        background-color: var(--color-warning);
+        color: white;
+    }
+
+    /* Empty State */
+    .empty-state { 
+        padding: 3rem 1rem; 
+        text-align: center; 
+    }
+    .empty-state i { 
+        font-size: 3rem; 
+        margin-bottom: 1rem; 
+    }
+
+    /* Pagination */
+    .pagination {
+        gap: 0.25rem;
+    }
+    
+    .page-link {
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--color-gray-200);
+        color: var(--color-gray-600);
+        font-size: 0.875rem;
+        padding: 0.5rem 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .page-link:hover {
+        background-color: var(--color-primary-light);
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+    
+    .page-item.active .page-link {
+        background-color: var(--color-primary);
+        border-color: var(--color-primary);
+        color: white;
+    }
+    
+    .page-item.disabled .page-link {
+        background-color: var(--color-gray-100);
+        border-color: var(--color-gray-200);
+        color: var(--color-gray-400);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .content-container {
+            padding: 0;
+        }
+        
+        .table thead th {
+            font-size: 0.75rem;
+            padding: 0.75rem 0.5rem;
+        }
+        
+        .table tbody td {
+            padding: 0.75rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .btn-icon {
+            width: 28px;
+            height: 28px;
+        }
+        
+        .badge-chip {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+        }
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
 
 {% endblock %}
