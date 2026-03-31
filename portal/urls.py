@@ -937,5 +937,73 @@ urlpatterns = [
     # Settings
     path('settings/reorder-levels/',  views.store_reorder_settings,  name='store_reorder_settings'),
     path('settings/storage-locations/', views.store_location_settings, name='store_location_settings'),
+    
+    # ── Student Reports ────────────────────────────────────────────────────────
+    path(
+        "admin-reports/students/",
+        views.student_reports,
+        name="student_reports",
+    ),
+    path(
+        "admin-reports/students/export/excel/",
+        views.export_student_report_excel,
+        name="export_student_report_excel",
+    ),
+    path(
+        "admin-reports/students/export/pdf/",
+        views.export_student_report_pdf,
+        name="export_student_report_pdf",
+    ),
+ 
+    # ── Academic Reports ───────────────────────────────────────────────────────
+    path(
+        "admin-reports/academic/",
+        views.academic_reports,
+        name="academic_reports",
+    ),
+    path(
+        "admin-reports/academic/export/excel/",
+        views.export_academic_report_excel,
+        name="export_academic_report_excel",
+    ),
+    path(
+        "admin-reports/academic/export/pdf/",
+        views.export_academic_report_pdf,
+        name="export_academic_report_pdf",
+    ),
+ 
+    # ── Financial Reports ──────────────────────────────────────────────────────
+    path(
+        "admin-reports/financial/",
+        views.financial_reports,
+        name="financial_reports",
+    ),
+    path(
+        "admin-reports/financial/export/excel/",
+        views.export_financial_report_excel,
+        name="export_financial_report_excel",
+    ),
+    path(
+        "admin-reports/financial/export/pdf/",
+        views.export_financial_report_pdf,
+        name="export_financial_report_pdf",
+    ),
+ 
+    # ── Hostel Reports ─────────────────────────────────────────────────────────
+    path(
+        "admin-reports/hostel/",
+        views.hostel_reports,
+        name="hostel_reports",
+    ),
+    path(
+        "admin-reports/hostel/export/excel/",
+        views.export_hostel_report_excel,
+        name="export_hostel_report_excel",
+    ),
+    path(
+        "admin-reports/hostel/export/pdf/",
+        views.export_hostel_report_pdf,
+        name="export_hostel_report_pdf",
+    ),
        
 ]

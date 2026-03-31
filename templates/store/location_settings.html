@@ -1,0 +1,319 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Location Settings{% endblock %}
+{% block page_title %}Location Settings{% endblock %}
+{% block page_subtitle %}Configure store locations, zones and bin references{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Location Settings</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="ri-information-line me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Location Settings</h1>
+                <p class="text-muted mb-0">Define physical store locations, zones and bin references</p>
+            </div>
+            <a href="{% url 'store_settings_reorder' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                <i class="ri-settings-3-line fs-5"></i><span>Reorder Settings</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Store Info -->
+        <div class="col-12 col-lg-5">
+            <div class="management-card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">Store Information</h5>
+                    <div class="card-subtitle">Main store identity and contact details</div>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'store_settings_location' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="store_info">
+                        <div class="mb-3">
+                            <label class="form-label">Store Name <span class="text-danger">*</span></label>
+                            <input type="text" name="store_name" value="{{ store_settings.store_name|default:'' }}"
+                                   class="form-control" placeholder="e.g. Central Store">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Store Code</label>
+                            <input type="text" name="store_code" value="{{ store_settings.store_code|default:'' }}"
+                                   class="form-control" placeholder="e.g. STORE-001">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Physical Address</label>
+                            <textarea name="store_address" class="form-control" rows="2"
+                                      placeholder="Block, floor, room number…">{{ store_settings.store_address|default:'' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Store Manager Contact</label>
+                            <input type="text" name="manager_contact" value="{{ store_settings.manager_contact|default:'' }}"
+                                   class="form-control" placeholder="Phone or extension">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Operating Hours</label>
+                            <input type="text" name="operating_hours" value="{{ store_settings.operating_hours|default:'' }}"
+                                   class="form-control" placeholder="e.g. Mon–Fri 8:00am–5:00pm">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-save-line me-1"></i>Save Store Info
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zones & Bins -->
+        <div class="col-12 col-lg-7">
+            <div class="management-card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Storage Zones</h5>
+                        <div class="card-subtitle">Logical zones within the store (e.g. stationery, electronics)</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary"
+                            data-bs-toggle="modal" data-bs-target="#addZoneModal">
+                        <i class="ri-add-line me-1"></i>Add Zone
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Zone Code</th>
+                                    <th>Zone Name</th>
+                                    <th>Description</th>
+                                    <th>Category</th>
+                                    <th class="pe-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for zone in zones %}
+                                <tr>
+                                    <td class="ps-4"><strong>{{ zone.code }}</strong></td>
+                                    <td class="fw-medium">{{ zone.name }}</td>
+                                    <td><span class="text-muted">{{ zone.description|truncatechars:35|default:"—" }}</span></td>
+                                    <td>
+                                        {% if zone.category %}
+                                        <span class="badge bg-light text-dark border">{{ zone.category.name }}</span>
+                                        {% else %}<span class="text-muted">—</span>{% endif %}
+                                    </td>
+                                    <td class="pe-4">
+                                        <div class="d-flex gap-1">
+                                            <button type="button" class="btn btn-icon btn-outline-secondary btn-sm"
+                                                data-bs-toggle="modal" data-bs-target="#editZoneModal"
+                                                data-zone-id="{{ zone.pk }}"
+                                                data-zone-code="{{ zone.code }}"
+                                                data-zone-name="{{ zone.name }}"
+                                                data-zone-desc="{{ zone.description }}"
+                                                title="Edit" data-bs-toggle="tooltip">
+                                                <i class="ri-edit-line"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-icon btn-outline-danger btn-sm"
+                                                data-bs-toggle="modal" data-bs-target="#deleteZoneModal"
+                                                data-zone-id="{{ zone.pk }}"
+                                                data-zone-name="{{ zone.name }}"
+                                                title="Delete">
+                                                <i class="ri-delete-bin-line"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4">
+                                        <div class="empty-state">
+                                            <i class="ri-map-pin-line display-6 text-muted mb-2"></i>
+                                            <p class="text-muted mb-0">No zones defined yet. Add one to get started.</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bin Reference Guide -->
+            <div class="management-card">
+                <div class="card-header">
+                    <h5 class="card-title">Bin Location Guide</h5>
+                    <div class="card-subtitle">Standard format for bin references</div>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'store_settings_location' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="bin_format">
+                        <div class="mb-3">
+                            <label class="form-label">Bin Reference Format</label>
+                            <input type="text" name="bin_format" value="{{ store_settings.bin_format|default:'' }}"
+                                   class="form-control" placeholder="e.g. [ZONE]-[ROW][SHELF]-[BIN]">
+                            <small class="form-text text-muted">
+                                Example: A-01A-001 (Zone A, Row 1, Shelf A, Bin 001)
+                            </small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea name="location_notes" class="form-control" rows="2"
+                                      placeholder="Any additional location notes or instructions…">{{ store_settings.location_notes|default:'' }}</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                            <i class="ri-save-line me-1"></i>Save Bin Format
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Add Zone Modal -->
+<div class="modal fade" id="addZoneModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" action="{% url 'store_settings_location' %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="add_zone">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ri-add-line me-2"></i>Add Storage Zone</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Zone Code <span class="text-danger">*</span></label>
+                        <input type="text" name="zone_code" class="form-control" placeholder="e.g. A, B, STAT">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Zone Name <span class="text-danger">*</span></label>
+                        <input type="text" name="zone_name" class="form-control" placeholder="e.g. Stationery Zone">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category (optional)</label>
+                        <select name="zone_category" class="form-select">
+                            <option value="">— No specific category —</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.pk }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="zone_description" class="form-control" rows="2" placeholder="What is stored here?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-1"></i>Add Zone
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Zone Modal -->
+<div class="modal fade" id="editZoneModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" action="{% url 'store_settings_location' %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="edit_zone">
+            <input type="hidden" name="zone_id" id="editZoneId">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ri-edit-line me-2"></i>Edit Zone</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Zone Code <span class="text-danger">*</span></label>
+                        <input type="text" name="zone_code" id="editZoneCode" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Zone Name <span class="text-danger">*</span></label>
+                        <input type="text" name="zone_name" id="editZoneName" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="zone_description" id="editZoneDesc" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-1"></i>Save Changes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Zone Modal -->
+<div class="modal fade" id="deleteZoneModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <form method="post" action="{% url 'store_settings_location' %}">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="delete_zone">
+            <input type="hidden" name="zone_id" id="deleteZoneId">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger"><i class="ri-delete-bin-line me-2"></i>Delete Zone</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Delete zone <strong id="deleteZoneName"></strong>? This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        <i class="ri-delete-bin-line me-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Edit zone modal
+    document.getElementById('editZoneModal').addEventListener('show.bs.modal', function (e) {
+        const btn = e.relatedTarget;
+        document.getElementById('editZoneId').value       = btn.dataset.zoneId;
+        document.getElementById('editZoneCode').value     = btn.dataset.zoneCode;
+        document.getElementById('editZoneName').value     = btn.dataset.zoneName;
+        document.getElementById('editZoneDesc').value     = btn.dataset.zoneDesc;
+    });
+    // Delete zone modal
+    document.getElementById('deleteZoneModal').addEventListener('show.bs.modal', function (e) {
+        const btn = e.relatedTarget;
+        document.getElementById('deleteZoneId').value          = btn.dataset.zoneId;
+        document.getElementById('deleteZoneName').textContent  = btn.dataset.zoneName;
+    });
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+{% endblock %}

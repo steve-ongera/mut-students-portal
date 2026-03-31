@@ -1,0 +1,205 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Reorder Settings{% endblock %}
+{% block page_title %}Reorder Settings{% endblock %}
+{% block page_subtitle %}Configure stock thresholds and reorder points{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Reorder Settings</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="ri-information-line me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Reorder Settings</h1>
+                <p class="text-muted mb-0">Set minimum thresholds that trigger low-stock alerts</p>
+            </div>
+            <a href="{% url 'store_settings_location' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                <i class="ri-map-pin-line fs-5"></i><span>Location Settings</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+
+        <!-- Global Threshold -->
+        <div class="col-12 col-lg-5">
+            <div class="management-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">Global Low-Stock Threshold</h5>
+                    <div class="card-subtitle">Applied to all items without a specific override</div>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'store_settings_reorder' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="global">
+                        <div class="mb-4">
+                            <label class="form-label">Minimum Quantity Threshold <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="number" name="global_threshold" value="{{ global_threshold }}"
+                                       class="form-control" min="0" placeholder="e.g. 10">
+                                <span class="input-group-text">units</span>
+                            </div>
+                            <small class="form-text text-muted">
+                                Items at or below this quantity will appear in the Low Stock list.
+                            </small>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label">Reorder Lead Time (Days)</label>
+                            <div class="input-group">
+                                <input type="number" name="lead_time_days" value="{{ lead_time_days }}"
+                                       class="form-control" min="0" placeholder="e.g. 7">
+                                <span class="input-group-text">days</span>
+                            </div>
+                            <small class="form-text text-muted">
+                                Expected supplier delivery time for reorder planning.
+                            </small>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label">Auto-Alert Notifications</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="enable_alerts"
+                                       id="enableAlerts" {% if enable_alerts %}checked{% endif %}>
+                                <label class="form-check-label" for="enableAlerts">
+                                    Enable email alerts when stock hits threshold
+                                </label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ri-save-line me-1"></i>Save Global Settings
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Per-Category Thresholds -->
+        <div class="col-12 col-lg-7">
+            <div class="management-card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title">Per-Category Thresholds</h5>
+                        <div class="card-subtitle">Override global threshold for specific categories</div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <form method="post" action="{% url 'store_settings_reorder' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_type" value="categories">
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-4">Category</th>
+                                        <th>Min Qty</th>
+                                        <th class="pe-4">Lead Days</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for cat in categories %}
+                                    <tr>
+                                        <td class="ps-4">
+                                            <span class="fw-medium">{{ cat.name }}</span>
+                                            <small class="text-muted d-block">{{ cat.code }}</small>
+                                        </td>
+                                        <td>
+                                            <input type="number"
+                                                   name="threshold_{{ cat.pk }}"
+                                                   value="{{ cat.min_threshold|default:'' }}"
+                                                   class="form-control form-control-sm"
+                                                   style="width:90px;"
+                                                   min="0"
+                                                   placeholder="{{ global_threshold }}">
+                                        </td>
+                                        <td class="pe-4">
+                                            <input type="number"
+                                                   name="lead_{{ cat.pk }}"
+                                                   value="{{ cat.lead_days|default:'' }}"
+                                                   class="form-control form-control-sm"
+                                                   style="width:90px;"
+                                                   min="0"
+                                                   placeholder="{{ lead_time_days }}">
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center py-4 text-muted">
+                                            No categories configured. <a href="{% url 'store_category_add' %}">Add a category</a> first.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if categories %}
+                        <div class="p-3 border-top">
+                            <button type="submit" class="btn btn-outline-primary btn-sm">
+                                <i class="ri-save-line me-1"></i>Save Category Thresholds
+                            </button>
+                            <small class="text-muted ms-2">Leave blank to use global threshold</small>
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Current Alert Summary -->
+    <div class="management-card mt-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Current Low-Stock Summary</h5>
+                <div class="card-subtitle">Items currently below their threshold</div>
+            </div>
+            <a href="{% url 'store_low_stock' %}" class="btn btn-sm btn-outline-warning">
+                View All <i class="ri-arrow-right-line ms-1"></i>
+            </a>
+        </div>
+        <div class="card-body">
+            {% if low_stock_items %}
+            <div class="row g-3">
+                {% for item in low_stock_items|slice:":6" %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="d-flex align-items-center justify-content-between p-3 border rounded">
+                        <div>
+                            <span class="fw-medium d-block">{{ item.item_description|truncatechars:30 }}</span>
+                            <small class="text-muted">{{ item.requisition.department.code }}</small>
+                        </div>
+                        <span class="badge {% if item.quantity == 0 %}bg-danger{% else %}bg-warning text-dark{% endif %} ms-2">
+                            {{ item.quantity }} left
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if low_stock_items.count > 6 %}
+            <p class="text-muted mt-3 mb-0">
+                <a href="{% url 'store_low_stock' %}">+ {{ low_stock_items.count|add:"-6" }} more items</a>
+            </p>
+            {% endif %}
+            {% else %}
+            <p class="text-muted mb-0"><i class="ri-checkbox-circle-line text-success me-1"></i>No items currently below threshold.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

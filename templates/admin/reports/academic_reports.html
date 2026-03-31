@@ -1,0 +1,309 @@
+{% extends 'admin/reports/report_base.html' %}
+{% load static %}
+
+{% block title %}Academic Reports{% endblock %}
+{% block page_title %}Academic Reports{% endblock %}
+{% block page_subtitle %}Results, GPA distribution, unit performance, and enrollment analytics{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="#">Reports</a></li>
+    <li class="breadcrumb-item active">Academic Reports</li>
+  </ol>
+</nav>
+
+<!-- ── Filter Bar ──────────────────────────────────────────────────────── -->
+<form method="get" class="filter-bar">
+  <div class="filter-group">
+    <label>Academic Year</label>
+    <select name="academic_year">
+      <option value="">All Years</option>
+      {% for ay in academic_years %}
+      <option value="{{ ay.id }}" {% if filters.academic_year_id == ay.id|stringformat:"i" %}selected{% endif %}>
+        {{ ay.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Semester</label>
+    <select name="semester">
+      <option value="">All Semesters</option>
+      {% for sem in semesters %}
+      <option value="{{ sem.id }}" {% if filters.semester_id == sem.id|stringformat:"i" %}selected{% endif %}>
+        {{ sem.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary btn-sm px-4" type="submit">
+    <i class="ri-filter-line me-1"></i> Apply
+  </button>
+  <a href="{% url 'academic_reports' %}" class="btn btn-outline-secondary btn-sm px-3">Clear</a>
+
+  <div class="ms-auto export-actions">
+    <a href="{% url 'export_academic_report_excel' %}?{{ request.GET.urlencode }}"
+       class="btn-export-excel">
+      <i class="ri-file-excel-2-line"></i> Export Excel
+    </a>
+    <a href="{% url 'export_academic_report_pdf' %}?{{ request.GET.urlencode }}"
+       class="btn-export-pdf">
+      <i class="ri-file-pdf-2-line"></i> Export PDF
+    </a>
+  </div>
+</form>
+
+<!-- ── Stat Cards ──────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E3F2FD;">
+        <i class="ri-file-list-3-line" style="color:#1565C0;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#1565C0;">{{ total_results }}</div>
+        <div class="stat-label">Total Results</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">
+        <i class="ri-checkbox-circle-line" style="color:#2E7D32;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#2E7D32;">{{ pass_count }}</div>
+        <div class="stat-label">Passed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFEBEE;">
+        <i class="ri-close-circle-line" style="color:#C62828;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#C62828;">{{ fail_count }}</div>
+        <div class="stat-label">Failed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">
+        <i class="ri-percent-line" style="color:#388E3C;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#388E3C;">{{ pass_rate }}%</div>
+        <div class="stat-label">Pass Rate</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E0F2F1;">
+        <i class="ri-bar-chart-line" style="color:#00695C;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#00695C;">{{ avg_gpa }}</div>
+        <div class="stat-label">Avg Sem GPA</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#F3E5F5;">
+        <i class="ri-award-line" style="color:#7B1FA2;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#7B1FA2;">{{ avg_cgpa }}</div>
+        <div class="stat-label">Avg CGPA</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Pass Rate Gauge ────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-pie-chart-line me-2" style="color:#1565c0;"></i>Pass / Fail Overview</h5>
+      </div>
+      <div class="rc-body text-center">
+        <div style="font-size:3.5rem;font-weight:700;color:{% if pass_rate >= 70 %}#2e7d32{% elif pass_rate >= 50 %}#e65100{% else %}#c62828{% endif %};">
+          {{ pass_rate }}%
+        </div>
+        <div class="text-muted mb-3">Overall Pass Rate</div>
+        <div class="progress-bar-custom mb-2" style="height:14px;">
+          <div class="fill" style="width:{{ pass_rate }}%;background:{% if pass_rate >= 70 %}#2e7d32{% elif pass_rate >= 50 %}#e65100{% else %}#c62828{% endif %};"></div>
+        </div>
+        <div class="d-flex justify-content-between text-muted" style="font-size:.8rem;">
+          <span>0%</span><span>50%</span><span>100%</span>
+        </div>
+        <div class="row g-2 mt-3">
+          <div class="col-6">
+            <div class="summary-item">
+              <div class="val" style="color:#2e7d32;">{{ pass_count }}</div>
+              <div class="lbl">Passed</div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="summary-item">
+              <div class="val" style="color:#c62828;">{{ fail_count }}</div>
+              <div class="lbl">Failed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grade Distribution -->
+  <div class="col-lg-4">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-bar-chart-2-line me-2" style="color:#7b1fa2;"></i>Grade Distribution</h5>
+      </div>
+      <div class="rc-body p-0">
+        <table class="report-table">
+          <thead>
+            <tr><th>Grade</th><th>Count</th><th>%</th></tr>
+          </thead>
+          <tbody>
+            {% for g in grade_distribution %}
+            <tr>
+              <td><strong>{{ g.grade }}</strong></td>
+              <td>{{ g.count }}</td>
+              <td>
+                {% if total_results %}
+                  {% widthratio g.count total_results 100 %}%
+                {% else %}0%{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enrollment by Semester -->
+  <div class="col-lg-4">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-calendar-todo-line me-2" style="color:#e65100;"></i>Enrollments by Semester</h5>
+      </div>
+      <div class="rc-body p-0">
+        <table class="report-table">
+          <thead>
+            <tr><th>Semester</th><th>Enrollments</th></tr>
+          </thead>
+          <tbody>
+            {% for item in enroll_by_semester %}
+            <tr>
+              <td>{{ item.semester__name }}</td>
+              <td><span class="badge-pill badge-info">{{ item.count }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Unit Performance ───────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-book-2-line me-2" style="color:#1565c0;"></i>Unit Performance (Top 15)</h5>
+      </div>
+      <div class="rc-body p-0">
+        <div class="table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Unit Code</th>
+                <th>Unit Name</th>
+                <th>Avg Marks</th>
+                <th>Pass / Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for u in unit_performance %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><strong>{{ u.programme_unit__unit__code }}</strong></td>
+                <td>{{ u.programme_unit__unit__name|truncatechars:25 }}</td>
+                <td>{{ u.avg_marks|floatformat:1 }}</td>
+                <td>
+                  <span class="badge-pill badge-success">{{ u.pass_count }}</span>
+                  <span class="text-muted">/</span>
+                  <span>{{ u.total }}</span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Students -->
+  <div class="col-lg-6">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-trophy-line me-2" style="color:#e65100;"></i>Top Students by CGPA</h5>
+      </div>
+      <div class="rc-body p-0">
+        <div class="table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Reg. No.</th>
+                <th>Student</th>
+                <th>Programme</th>
+                <th>Sem GPA</th>
+                <th>CGPA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for g in top_students %}
+              <tr>
+                <td>
+                  {% if forloop.counter <= 3 %}
+                  <span style="color:#e65100;font-weight:700;">{{ forloop.counter }}</span>
+                  {% else %}{{ forloop.counter }}{% endif %}
+                </td>
+                <td>{{ g.student.registration_number }}</td>
+                <td>{{ g.student.user.get_full_name }}</td>
+                <td>{{ g.student.programme.code }}</td>
+                <td><strong>{{ g.semester_gpa }}</strong></td>
+                <td>
+                  <span class="badge-pill {% if g.cumulative_gpa >= 3.5 %}badge-success{% elif g.cumulative_gpa >= 2.5 %}badge-info{% else %}badge-warning{% endif %}">
+                    {{ g.cumulative_gpa }}
+                  </span>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-center text-muted py-4">No GPA records found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="text-muted text-end" style="font-size:.78rem;">
+  Report generated: {{ report_date }}
+</div>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Suppliers{% endblock %}
+{% block page_title %}Suppliers{% endblock %}
+{% block page_subtitle %}Manage active and inactive suppliers{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Suppliers</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="ri-information-line me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Suppliers</h1>
+                <p class="text-muted mb-0">{{ total }} supplier{{ total|pluralize }} registered</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'store_supplier_add' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                    <i class="ri-add-line fs-5"></i><span>Add Supplier</span>
+                </a>
+                <a href="{% url 'store_supplier_performance' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-bar-chart-line fs-5"></i><span>Performance</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-12 col-md-8">
+                    <label class="form-label">Search Supplier</label>
+                    <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Name, code, contact person…">
+                </div>
+                <div class="col-12 col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">Search</button>
+                    <a href="{% url 'store_supplier_list' %}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Supplier Directory</h5>
+                <div class="card-subtitle">All registered suppliers</div>
+            </div>
+            <span class="badge-chip">{{ total }} Suppliers</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Code</th>
+                            <th>Name</th>
+                            <th>Contact Person</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Rating</th>
+                            <th>Status</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for supplier in suppliers %}
+                        <tr>
+                            <td class="ps-4"><strong>{{ supplier.supplier_code }}</strong></td>
+                            <td>
+                                <a href="{% url 'store_supplier_detail' supplier.pk %}" class="fw-medium text-dark">
+                                    {{ supplier.name }}
+                                </a>
+                            </td>
+                            <td>{{ supplier.contact_person }}</td>
+                            <td><a href="mailto:{{ supplier.email }}" class="text-muted">{{ supplier.email }}</a></td>
+                            <td>{{ supplier.phone_number }}</td>
+                            <td>
+                                <span class="fw-semibold
+                                    {% if supplier.rating >= 4 %}text-success
+                                    {% elif supplier.rating >= 3 %}text-warning
+                                    {% else %}text-danger{% endif %}">
+                                    ★ {{ supplier.rating|floatformat:1 }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if supplier.is_active %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'store_supplier_detail' supplier.pk %}"
+                                       class="btn btn-icon btn-outline-primary btn-sm" title="View"
+                                       data-bs-toggle="tooltip"><i class="ri-eye-line"></i></a>
+                                    <a href="{% url 'store_supplier_edit' supplier.pk %}"
+                                       class="btn btn-icon btn-outline-secondary btn-sm" title="Edit"
+                                       data-bs-toggle="tooltip"><i class="ri-edit-line"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-building-2-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No suppliers found</h5>
+                                    <p class="text-muted mb-3">Add your first supplier to get started</p>
+                                    <a href="{% url 'store_supplier_add' %}" class="btn btn-primary btn-sm">Add Supplier</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ search }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+<script>
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

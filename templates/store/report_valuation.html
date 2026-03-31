@@ -1,0 +1,255 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Stock Valuation Report{% endblock %}
+{% block page_title %}Stock Valuation Report{% endblock %}
+{% block page_subtitle %}Monetary value of current stock holdings{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Valuation Report</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Stock Valuation Report</h1>
+                <p class="text-muted mb-0">As at <strong>{{ today|date:"d M Y" }}</strong></p>
+            </div>
+            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                <i class="ri-printer-line fs-5"></i><span>Print</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Top KPIs -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4">
+            <div class="management-card text-center py-4">
+                <div class="h3 fw-bold text-success mb-1">KES {{ grand_total|floatformat:2 }}</div>
+                <small class="text-muted">Total Stock Value</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="management-card text-center py-4">
+                <div class="h3 fw-bold text-primary mb-1">{{ total_items }}</div>
+                <small class="text-muted">Total Items in Stock</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-4">
+            <div class="management-card text-center py-4">
+                <div class="h3 fw-bold text-info mb-1">{{ total_categories }}</div>
+                <small class="text-muted">Categories</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Valuation by Category -->
+    <div class="management-card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Valuation by Category</h5>
+                <div class="card-subtitle">Stock value grouped by procurement category</div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Category</th>
+                            <th>Item Count</th>
+                            <th>Total Qty</th>
+                            <th>Total Value</th>
+                            <th class="pe-4">% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in category_valuation %}
+                        <tr>
+                            <td class="ps-4 fw-medium">{{ row.category__name|default:"Uncategorised" }}</td>
+                            <td>{{ row.item_count }}</td>
+                            <td>{{ row.total_qty }}</td>
+                            <td><strong>KES {{ row.total_value|floatformat:2 }}</strong></td>
+                            <td class="pe-4">
+                                {% if grand_total %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height:6px;">
+                                        <div class="progress-bar bg-primary" style="width:{{ row.pct }}%"></div>
+                                    </div>
+                                    <span class="small text-muted">{{ row.pct|floatformat:1 }}%</span>
+                                </div>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-3 text-muted">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light fw-semibold">
+                            <td class="ps-4">Grand Total</td>
+                            <td>{{ total_items }}</td>
+                            <td>—</td>
+                            <td>KES {{ grand_total|floatformat:2 }}</td>
+                            <td class="pe-4">100%</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Valuation by Department -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Valuation by Department</h5>
+            <div class="card-subtitle">Stock value grouped by owning department</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Department</th>
+                            <th>Item Count</th>
+                            <th>Total Qty</th>
+                            <th>Total Value</th>
+                            <th class="pe-4">% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in dept_valuation %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="fw-medium">{{ row.requisition__department__code }}</span>
+                                <small class="text-muted d-block">{{ row.requisition__department__name }}</small>
+                            </td>
+                            <td>{{ row.item_count }}</td>
+                            <td>{{ row.total_qty }}</td>
+                            <td><strong>KES {{ row.total_value|floatformat:2 }}</strong></td>
+                            <td class="pe-4">
+                                {% if grand_total %}
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height:6px;">
+                                        <div class="progress-bar bg-success" style="width:{{ row.pct }}%"></div>
+                                    </div>
+                                    <span class="small text-muted">{{ row.pct|floatformat:1 }}%</span>
+                                </div>
+                                {% else %}—{% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-3 text-muted">No data available</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Item-Level Valuation -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Item-Level Valuation</h5>
+                <div class="card-subtitle">Every stock item with its current value</div>
+            </div>
+            <span class="badge-chip">{{ total_items }} Items</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">#</th>
+                            <th>Item Description</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th>Unit Price</th>
+                            <th>Total Value</th>
+                            <th class="pe-4">Department</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="ps-4 text-muted">{{ forloop.counter0|add:page_obj.start_index }}</td>
+                            <td>
+                                <span class="fw-medium">{{ item.item_description|truncatechars:45 }}</span>
+                                {% if item.specifications %}
+                                <small class="text-muted d-block">{{ item.specifications|truncatechars:35 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.category %}
+                                <span class="badge bg-light text-dark border">{{ item.category.name }}</span>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td><strong>{{ item.quantity }}</strong></td>
+                            <td><span class="text-muted">{{ item.unit_of_measure }}</span></td>
+                            <td>KES {{ item.estimated_unit_price|floatformat:2 }}</td>
+                            <td><strong>KES {{ item.total_estimated_price|floatformat:2 }}</strong></td>
+                            <td class="pe-4">
+                                <span class="fw-medium">{{ item.requisition.department.code }}</span>
+                                <small class="text-muted d-block">{{ item.requisition.department.name|truncatechars:18 }}</small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-money-dollar-circle-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No stock items found</h5>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light fw-semibold">
+                            <td colspan="6" class="ps-4 text-end">Grand Total</td>
+                            <td>KES {{ grand_total|floatformat:2 }}</td>
+                            <td class="pe-4"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

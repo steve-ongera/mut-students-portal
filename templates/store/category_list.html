@@ -1,0 +1,121 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Categories{% endblock %}
+{% block page_title %}Procurement Categories{% endblock %}
+{% block page_subtitle %}Manage item categories{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Categories</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="ri-information-line me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Procurement Categories</h1>
+                <p class="text-muted mb-0">{{ total }} categor{{ total|pluralize:"y,ies" }} configured</p>
+            </div>
+            <a href="{% url 'store_category_add' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                <i class="ri-add-line fs-5"></i><span>Add Category</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Category List</h5>
+                <div class="card-subtitle">All procurement categories with item counts</div>
+            </div>
+            <span class="badge-chip">{{ total }} Categories</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Code</th>
+                            <th>Name</th>
+                            <th>Parent Category</th>
+                            <th>Item Count</th>
+                            <th>Description</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in categories %}
+                        <tr>
+                            <td class="ps-4"><strong>{{ cat.code }}</strong></td>
+                            <td>
+                                <span class="fw-medium">{{ cat.name }}</span>
+                                {% if not cat.parent_category %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1" style="font-size:0.7rem;">Top-level</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if cat.parent_category %}
+                                <span class="text-muted">{{ cat.parent_category.name }}</span>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ cat.item_count }} item{{ cat.item_count|pluralize }}</span>
+                            </td>
+                            <td><span class="text-muted">{{ cat.description|truncatechars:50|default:"—" }}</span></td>
+                            <td class="pe-4">
+                                <a href="{% url 'store_category_edit' cat.pk %}"
+                                   class="btn btn-icon btn-outline-secondary btn-sm" title="Edit"
+                                   data-bs-toggle="tooltip"><i class="ri-edit-line"></i></a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-apps-2-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No categories yet</h5>
+                                    <p class="text-muted mb-3">Create your first procurement category</p>
+                                    <a href="{% url 'store_category_add' %}" class="btn btn-primary btn-sm">Add Category</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>{% endif %}
+                    {% for num in page_obj.paginator.page_range %}{% if page_obj.number == num %}<li class="page-item active"><span class="page-link">{{ num }}</span></li>{% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}<li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>{% endif %}{% endfor %}
+                    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>{% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

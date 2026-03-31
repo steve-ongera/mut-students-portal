@@ -31845,4 +31845,1412 @@ def store_location_settings(request):
         .select_related('parent_category')
         .order_by('name')
     )
-    return render(request, 'store/location_settings.html', {'categories': categories})
+    return render(request, 'store/location_settings.html', {'categories': categories}) 
+
+
+"""
+Admin Reports Views
+===================
+Covers:
+  - Student Reports
+  - Academic Reports
+  - Financial Reports
+  - Hostel Reports
+
+Each report supports:
+  - HTML dashboard view
+  - Export to Excel (.xlsx)  via openpyxl
+  - Export to PDF            via reportlab
+
+Dependencies (add to requirements.txt):
+    openpyxl>=3.1.2
+    reportlab>=4.1.0
+"""
+
+import io
+from datetime import date, timedelta
+from decimal import Decimal
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import login_required
+from django.db.models import (
+    Avg, Count, DecimalField, ExpressionWrapper, F, Max, Min, Q, Sum,
+)
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
+
+# ── openpyxl ──────────────────────────────────────────────────────────────────
+import openpyxl
+from openpyxl.styles import (
+    Alignment, Border, Font, PatternFill, Side,
+)
+from openpyxl.utils import get_column_letter
+
+# ── reportlab ─────────────────────────────────────────────────────────────────
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import cm, inch
+from reportlab.platypus import (
+    HRFlowable, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table,
+    TableStyle,
+)
+
+# ── your models ───────────────────────────────────────────────────────────────
+from .models import (
+    AcademicYear, BookBorrowing, FeeBalance, FeePayment, FeeStructure,
+    HostelAllocation, HostelApplication, HostelBed, Semester,
+    SemesterGPA, SemesterResults, Student, UnitEnrollment, UnitRegistration,
+)
+
+# =============================================================================
+#  SHARED HELPERS
+# =============================================================================
+
+# ── Colour palette ────────────────────────────────────────────────────────────
+HEADER_GREEN  = "1B5E20"   # dark green
+HEADER_BLUE   = "1565C0"
+HEADER_ORANGE = "E65100"
+HEADER_TEAL   = "00695C"
+ROW_ALT       = "F1F8E9"   # light green stripe
+ROW_ALT_BLUE  = "E3F2FD"
+ROW_ALT_ORG   = "FFF3E0"
+ROW_ALT_TEAL  = "E0F2F1"
+
+
+def _thin_border():
+    thin = Side(style="thin", color="CCCCCC")
+    return Border(left=thin, right=thin, top=thin, bottom=thin)
+
+
+def _apply_header_style(cell, bg_hex, font_color="FFFFFF"):
+    cell.font = Font(bold=True, color=font_color, size=10)
+    cell.fill = PatternFill("solid", fgColor=bg_hex)
+    cell.alignment = Alignment(horizontal="center", vertical="center",
+                               wrap_text=True)
+    cell.border = _thin_border()
+
+
+def _apply_data_style(cell, alt=False, alt_hex=ROW_ALT, number_format=None):
+    cell.alignment = Alignment(vertical="center", wrap_text=True)
+    cell.border = _thin_border()
+    if alt:
+        cell.fill = PatternFill("solid", fgColor=alt_hex)
+    if number_format:
+        cell.number_format = number_format
+
+
+def _add_sheet_header(ws, title, subtitle, merge_cols, bg_hex):
+    """Write a 2-row decorative header across the sheet."""
+    ws.merge_cells(start_row=1, start_column=1,
+                   end_row=1, end_column=merge_cols)
+    c = ws.cell(row=1, column=1, value=title)
+    c.font = Font(bold=True, color="FFFFFF", size=14)
+    c.fill = PatternFill("solid", fgColor=bg_hex)
+    c.alignment = Alignment(horizontal="center", vertical="center")
+
+    ws.merge_cells(start_row=2, start_column=1,
+                   end_row=2, end_column=merge_cols)
+    c2 = ws.cell(row=2, column=1, value=subtitle)
+    c2.font = Font(italic=True, color="555555", size=10)
+    c2.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 30
+    ws.row_dimensions[2].height = 18
+
+
+def _auto_col_widths(ws, min_w=10, max_w=45):
+    for col in ws.columns:
+        col_letter = get_column_letter(col[0].column)
+        best = min_w
+        for cell in col:
+            try:
+                val_len = len(str(cell.value)) if cell.value else 0
+                best = min(max(best, val_len + 4), max_w)
+            except Exception:
+                pass
+        ws.column_dimensions[col_letter].width = best
+
+
+# ── PDF helpers ───────────────────────────────────────────────────────────────
+PDF_STYLES = getSampleStyleSheet()
+
+
+def _pdf_title_style(color=colors.HexColor("#1B5E20")):
+    return ParagraphStyle(
+        "CustomTitle", parent=PDF_STYLES["Title"],
+        textColor=color, spaceAfter=6,
+    )
+
+
+def _pdf_table_style(header_color=colors.HexColor("#1B5E20"),
+                     alt_color=colors.HexColor("#F1F8E9")):
+    return TableStyle([
+        ("BACKGROUND",  (0, 0), (-1, 0), header_color),
+        ("TEXTCOLOR",   (0, 0), (-1, 0), colors.white),
+        ("FONTNAME",    (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",    (0, 0), (-1, 0), 9),
+        ("ALIGN",       (0, 0), (-1, 0), "CENTER"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+                           [colors.white, alt_color]),
+        ("FONTSIZE",    (0, 1), (-1, -1), 8),
+        ("GRID",        (0, 0), (-1, -1), 0.4, colors.HexColor("#CCCCCC")),
+        ("VALIGN",      (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING",  (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+    ])
+
+
+def _build_pdf_response(filename):
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _build_xlsx_response(filename):
+    response = HttpResponse(
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _get_filters(request):
+    """Extract common filter params from request.GET."""
+    return {
+        "academic_year_id": request.GET.get("academic_year"),
+        "semester_id":      request.GET.get("semester"),
+        "programme_id":     request.GET.get("programme"),
+        "status":           request.GET.get("status"),
+        "search":           request.GET.get("search", "").strip(),
+    }
+
+
+# =============================================================================
+#  1.  STUDENT REPORTS
+# =============================================================================
+
+@login_required
+@staff_member_required
+def student_reports(request):
+    """Dashboard: student summary statistics."""
+    filters  = _get_filters(request)
+    qs       = Student.objects.select_related("user", "programme", "intake")
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by("-start_date")
+
+    if filters["academic_year_id"]:
+        qs = qs.filter(intake__academic_year_id=filters["academic_year_id"])
+    if filters["programme_id"]:
+        qs = qs.filter(programme_id=filters["programme_id"])
+    if filters["status"]:
+        qs = qs.filter(student_status=filters["status"])
+    if filters["search"]:
+        q = filters["search"]
+        qs = qs.filter(
+            Q(registration_number__icontains=q) |
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q) |
+            Q(user__email__icontains=q)
+        )
+
+    # ── summary stats ─────────────────────────────────────────────────────────
+    total         = qs.count()
+    active        = qs.filter(student_status="active").count()
+    graduated     = qs.filter(student_status="graduated").count()
+    suspended     = qs.filter(student_status="suspended").count()
+    deferred      = qs.filter(student_status="deferred").count()
+    discontinued  = qs.filter(student_status="discontinued").count()
+
+    by_programme  = (
+        qs.values("programme__code", "programme__name")
+          .annotate(count=Count("id"))
+          .order_by("-count")[:15]
+    )
+    by_year       = (
+        qs.values("current_year")
+          .annotate(count=Count("id"))
+          .order_by("current_year")
+    )
+    by_gender     = (
+        qs.values("gender")
+          .annotate(count=Count("id"))
+    )
+    avg_gpa       = qs.aggregate(avg=Avg("cumulative_gpa"))["avg"] or 0
+
+    students_list = qs.order_by("registration_number")[:500]
+
+    ctx = {
+        "students":        students_list,
+        "total":           total,
+        "active":          active,
+        "graduated":       graduated,
+        "suspended":       suspended,
+        "deferred":        deferred,
+        "discontinued":    discontinued,
+        "by_programme":    list(by_programme),
+        "by_year":         list(by_year),
+        "by_gender":       list(by_gender),
+        "avg_gpa":         round(avg_gpa, 2),
+        "academic_years":  academic_years,
+        "filters":         filters,
+        "report_date":     date.today(),
+    }
+    return render(request, "admin/reports/student_reports.html", ctx)
+
+
+# ── Excel export ──────────────────────────────────────────────────────────────
+@login_required
+@staff_member_required
+def export_student_report_excel(request):
+    filters = _get_filters(request)
+    qs = Student.objects.select_related("user", "programme", "intake")
+
+    if filters["academic_year_id"]:
+        qs = qs.filter(intake__academic_year_id=filters["academic_year_id"])
+    if filters["programme_id"]:
+        qs = qs.filter(programme_id=filters["programme_id"])
+    if filters["status"]:
+        qs = qs.filter(student_status=filters["status"])
+    if filters["search"]:
+        q = filters["search"]
+        qs = qs.filter(
+            Q(registration_number__icontains=q) |
+            Q(user__first_name__icontains=q) |
+            Q(user__last_name__icontains=q)
+        )
+    qs = qs.order_by("registration_number")
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: Student List ─────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Student List"
+    cols = ["#", "Reg. No.", "Full Name", "Email", "Phone",
+            "Programme Code", "Programme Name", "Year", "Semester",
+            "Gender", "Status", "Cumulative GPA", "Admission Date",
+            "Expected Graduation", "Sponsor"]
+    _add_sheet_header(ws1, "STUDENT REPORT",
+                      f"Generated: {date.today().strftime('%d %B %Y')}",
+                      len(cols), HEADER_GREEN)
+
+    for col_idx, h in enumerate(cols, 1):
+        cell = ws1.cell(row=3, column=col_idx, value=h)
+        _apply_header_style(cell, HEADER_GREEN)
+    ws1.row_dimensions[3].height = 22
+
+    for row_idx, s in enumerate(qs, 1):
+        r = row_idx + 3
+        alt = row_idx % 2 == 0
+        data = [
+            row_idx,
+            s.registration_number,
+            s.user.get_full_name(),
+            s.user.email,
+            s.user.phone_number,
+            s.programme.code,
+            s.programme.name,
+            s.current_year,
+            s.current_semester,
+            s.get_gender_display(),
+            s.get_student_status_display(),
+            float(s.cumulative_gpa),
+            s.admission_date.strftime("%d/%m/%Y") if s.admission_date else "",
+            s.expected_graduation_date.strftime("%d/%m/%Y") if s.expected_graduation_date else "",
+            s.sponsor_name or "",
+        ]
+        for col_idx, val in enumerate(data, 1):
+            cell = ws1.cell(row=r, column=col_idx, value=val)
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT,
+                              number_format="0.00" if col_idx == 12 else None)
+    _auto_col_widths(ws1)
+
+    # ── Sheet 2: Summary ──────────────────────────────────────────────────────
+    ws2 = wb.create_sheet("Summary")
+    _add_sheet_header(ws2, "STUDENT SUMMARY", "", 3, HEADER_GREEN)
+
+    status_data = (
+        qs.values("student_status")
+          .annotate(count=Count("id"))
+    )
+    ws2.cell(row=4, column=1, value="Status").font = Font(bold=True)
+    ws2.cell(row=4, column=2, value="Count").font  = Font(bold=True)
+    for i, item in enumerate(status_data, 5):
+        ws2.cell(row=i, column=1, value=item["student_status"].title())
+        ws2.cell(row=i, column=2, value=item["count"])
+
+    # ── Sheet 3: By Programme ─────────────────────────────────────────────────
+    ws3 = wb.create_sheet("By Programme")
+    _add_sheet_header(ws3, "STUDENTS BY PROGRAMME", "", 3, HEADER_GREEN)
+    by_prog = (
+        qs.values("programme__code", "programme__name")
+          .annotate(count=Count("id"), avg_gpa=Avg("cumulative_gpa"))
+          .order_by("-count")
+    )
+    for col_idx, h in enumerate(["Programme Code", "Programme Name", "Students", "Avg GPA"], 1):
+        cell = ws3.cell(row=3, column=col_idx, value=h)
+        _apply_header_style(cell, HEADER_GREEN)
+    for i, item in enumerate(by_prog, 4):
+        ws3.cell(row=i, column=1, value=item["programme__code"])
+        ws3.cell(row=i, column=2, value=item["programme__name"])
+        ws3.cell(row=i, column=3, value=item["count"])
+        ws3.cell(row=i, column=4, value=round(float(item["avg_gpa"] or 0), 2))
+    _auto_col_widths(ws3)
+
+    response = _build_xlsx_response(f"student_report_{date.today()}.xlsx")
+    wb.save(response)
+    return response
+
+
+# ── PDF export ────────────────────────────────────────────────────────────────
+@login_required
+@staff_member_required
+def export_student_report_pdf(request):
+    filters = _get_filters(request)
+    qs = Student.objects.select_related("user", "programme").order_by("registration_number")
+
+    if filters["academic_year_id"]:
+        qs = qs.filter(intake__academic_year_id=filters["academic_year_id"])
+    if filters["programme_id"]:
+        qs = qs.filter(programme_id=filters["programme_id"])
+    if filters["status"]:
+        qs = qs.filter(student_status=filters["status"])
+
+    response = _build_pdf_response(f"student_report_{date.today()}.pdf")
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4),
+                            topMargin=1.5*cm, bottomMargin=1.5*cm,
+                            leftMargin=1.5*cm, rightMargin=1.5*cm)
+
+    story = []
+    styles = getSampleStyleSheet()
+    title_style = _pdf_title_style(colors.HexColor("#1B5E20"))
+
+    story.append(Paragraph("STUDENT REPORT", title_style))
+    story.append(Paragraph(
+        f"Generated: {date.today().strftime('%d %B %Y')} | Total Students: {qs.count()}",
+        styles["Normal"]
+    ))
+    story.append(Spacer(1, 0.4*cm))
+    story.append(HRFlowable(width="100%", thickness=1,
+                             color=colors.HexColor("#1B5E20")))
+    story.append(Spacer(1, 0.4*cm))
+
+    # Summary table
+    active     = qs.filter(student_status="active").count()
+    graduated  = qs.filter(student_status="graduated").count()
+    suspended  = qs.filter(student_status="suspended").count()
+    avg_gpa    = qs.aggregate(avg=Avg("cumulative_gpa"))["avg"] or 0
+
+    summary_data = [
+        ["Total Students", "Active", "Graduated", "Suspended", "Avg GPA"],
+        [qs.count(), active, graduated, suspended, f"{avg_gpa:.2f}"],
+    ]
+    summary_table = Table(summary_data, colWidths=[3.5*cm]*5)
+    summary_table.setStyle(_pdf_table_style())
+    story.append(summary_table)
+    story.append(Spacer(1, 0.6*cm))
+
+    # Main table – limit to 500 rows for PDF
+    header = ["#", "Reg. No.", "Full Name", "Programme", "Yr", "Sem", "Status", "GPA"]
+    data   = [header]
+    for i, s in enumerate(qs[:500], 1):
+        data.append([
+            i,
+            s.registration_number,
+            s.user.get_full_name(),
+            s.programme.code,
+            s.current_year,
+            s.current_semester,
+            s.get_student_status_display(),
+            f"{s.cumulative_gpa:.2f}",
+        ])
+
+    col_w = [0.8*cm, 3*cm, 5*cm, 3*cm, 1*cm, 1*cm, 2.5*cm, 1.5*cm]
+    table = Table(data, colWidths=col_w, repeatRows=1)
+    table.setStyle(_pdf_table_style())
+    story.append(table)
+
+    doc.build(story)
+    return response
+
+
+# =============================================================================
+#  2.  ACADEMIC REPORTS
+# =============================================================================
+
+@login_required
+@staff_member_required
+def academic_reports(request):
+    """Dashboard: academic performance, GPA, results."""
+    filters       = _get_filters(request)
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by("-start_date")
+    current_year  = AcademicYear.objects.filter(is_current=True).first()
+
+    results_qs = SemesterResults.objects.select_related(
+        "student", "student__user", "programme_unit__unit",
+        "programme_unit__programme", "semester"
+    )
+    gpa_qs = SemesterGPA.objects.select_related(
+        "student", "student__user", "semester"
+    )
+    enroll_qs = UnitEnrollment.objects.select_related(
+        "student", "programme_unit__unit", "semester"
+    )
+
+    if filters["academic_year_id"]:
+        results_qs = results_qs.filter(academic_year_id=filters["academic_year_id"])
+        gpa_qs     = gpa_qs.filter(academic_year_id=filters["academic_year_id"])
+        enroll_qs  = enroll_qs.filter(
+            semester__academic_year_id=filters["academic_year_id"]
+        )
+    elif current_year:
+        results_qs = results_qs.filter(academic_year=current_year)
+        gpa_qs     = gpa_qs.filter(academic_year=current_year)
+        enroll_qs  = enroll_qs.filter(semester__academic_year=current_year)
+
+    if filters["semester_id"]:
+        results_qs = results_qs.filter(semester_id=filters["semester_id"])
+        gpa_qs     = gpa_qs.filter(semester_id=filters["semester_id"])
+        enroll_qs  = enroll_qs.filter(semester_id=filters["semester_id"])
+
+    # ── Aggregates ────────────────────────────────────────────────────────────
+    pass_count  = results_qs.filter(is_passed=True).count()
+    fail_count  = results_qs.filter(is_passed=False).count()
+    total_res   = results_qs.count()
+    pass_rate   = round((pass_count / total_res * 100), 1) if total_res else 0
+
+    avg_gpa     = gpa_qs.aggregate(avg=Avg("semester_gpa"))["avg"] or 0
+    avg_cgpa    = gpa_qs.aggregate(avg=Avg("cumulative_gpa"))["avg"] or 0
+
+    grade_dist  = (
+        results_qs.values("grade")
+                  .annotate(count=Count("id"))
+                  .order_by("grade")
+    )
+
+    top_students = (
+        gpa_qs.order_by("-cumulative_gpa")
+              .select_related("student__user", "student__programme")[:20]
+    )
+
+    unit_performance = (
+        results_qs.values(
+            "programme_unit__unit__code",
+            "programme_unit__unit__name"
+        )
+        .annotate(
+            avg_marks=Avg("total_marks"),
+            pass_count=Count("id", filter=Q(is_passed=True)),
+            total=Count("id"),
+        )
+        .order_by("-avg_marks")[:15]
+    )
+
+    enroll_by_semester = (
+        enroll_qs.values("semester__name")
+                 .annotate(count=Count("id"))
+                 .order_by("semester__name")
+    )
+
+    semesters = Semester.objects.filter(is_active=True).order_by("-start_date")
+
+    ctx = {
+        "pass_count":          pass_count,
+        "fail_count":          fail_count,
+        "total_results":       total_res,
+        "pass_rate":           pass_rate,
+        "avg_gpa":             round(avg_gpa, 2),
+        "avg_cgpa":            round(avg_cgpa, 2),
+        "grade_distribution":  list(grade_dist),
+        "top_students":        top_students,
+        "unit_performance":    list(unit_performance),
+        "enroll_by_semester":  list(enroll_by_semester),
+        "academic_years":      academic_years,
+        "semesters":           semesters,
+        "filters":             filters,
+        "report_date":         date.today(),
+    }
+    return render(request, "admin/reports/academic_reports.html", ctx)
+
+
+@login_required
+@staff_member_required
+def export_academic_report_excel(request):
+    filters = _get_filters(request)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    results_qs = SemesterResults.objects.select_related(
+        "student__user", "programme_unit__unit",
+        "programme_unit__programme", "semester", "academic_year"
+    )
+    gpa_qs = SemesterGPA.objects.select_related(
+        "student__user", "student__programme", "semester"
+    )
+
+    if filters["academic_year_id"]:
+        results_qs = results_qs.filter(academic_year_id=filters["academic_year_id"])
+        gpa_qs     = gpa_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        results_qs = results_qs.filter(academic_year=current_year)
+        gpa_qs     = gpa_qs.filter(academic_year=current_year)
+
+    if filters["semester_id"]:
+        results_qs = results_qs.filter(semester_id=filters["semester_id"])
+        gpa_qs     = gpa_qs.filter(semester_id=filters["semester_id"])
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: Results ──────────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Semester Results"
+    cols = ["#", "Reg. No.", "Student Name", "Programme", "Unit Code",
+            "Unit Name", "Semester", "CAT Marks", "Assignment",
+            "Exam Marks", "Total", "Grade", "Grade Point", "Credits",
+            "Quality Points", "Passed", "Supplementary"]
+    _add_sheet_header(ws1, "ACADEMIC RESULTS REPORT",
+                      f"Generated: {date.today().strftime('%d %B %Y')}",
+                      len(cols), HEADER_BLUE)
+    for ci, h in enumerate(cols, 1):
+        _apply_header_style(ws1.cell(row=3, column=ci, value=h), HEADER_BLUE)
+    ws1.row_dimensions[3].height = 22
+
+    for ri, r in enumerate(results_qs.order_by("semester", "student")[:5000], 1):
+        row = ri + 3
+        alt = ri % 2 == 0
+        vals = [
+            ri, r.student.registration_number,
+            r.student.user.get_full_name(),
+            r.programme_unit.programme.code,
+            r.programme_unit.unit.code,
+            r.programme_unit.unit.name,
+            str(r.semester),
+            float(r.cat_marks), float(r.assignment_marks),
+            float(r.exam_marks), float(r.total_marks),
+            r.grade, float(r.grade_point),
+            r.credit_hours, float(r.quality_points),
+            "Yes" if r.is_passed else "No",
+            "Yes" if r.is_supplementary else "No",
+        ]
+        for ci, v in enumerate(vals, 1):
+            cell = ws1.cell(row=row, column=ci, value=v)
+            fmt  = "0.00" if isinstance(v, float) else None
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT_BLUE,
+                              number_format=fmt)
+    _auto_col_widths(ws1)
+
+    # ── Sheet 2: GPA ──────────────────────────────────────────────────────────
+    ws2 = wb.create_sheet("GPA Summary")
+    gpa_cols = ["#", "Reg. No.", "Student Name", "Programme",
+                "Semester", "Semester GPA", "Cumulative GPA",
+                "Total Credits", "Class Rank"]
+    _add_sheet_header(ws2, "GPA SUMMARY", "", len(gpa_cols), HEADER_BLUE)
+    for ci, h in enumerate(gpa_cols, 1):
+        _apply_header_style(ws2.cell(row=3, column=ci, value=h), HEADER_BLUE)
+    for ri, g in enumerate(gpa_qs.order_by("-cumulative_gpa")[:2000], 1):
+        row = ri + 3
+        alt = ri % 2 == 0
+        vals = [
+            ri, g.student.registration_number,
+            g.student.user.get_full_name(),
+            g.student.programme.code,
+            str(g.semester),
+            float(g.semester_gpa),
+            float(g.cumulative_gpa),
+            g.total_credit_hours,
+            g.class_rank or "",
+        ]
+        for ci, v in enumerate(vals, 1):
+            cell = ws2.cell(row=row, column=ci, value=v)
+            fmt  = "0.00" if isinstance(v, float) else None
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT_BLUE,
+                              number_format=fmt)
+    _auto_col_widths(ws2)
+
+    # ── Sheet 3: Grade Distribution ───────────────────────────────────────────
+    ws3 = wb.create_sheet("Grade Distribution")
+    _add_sheet_header(ws3, "GRADE DISTRIBUTION", "", 3, HEADER_BLUE)
+    for ci, h in enumerate(["Grade", "Count", "Percentage"], 1):
+        _apply_header_style(ws3.cell(row=3, column=ci, value=h), HEADER_BLUE)
+    total = results_qs.count() or 1
+    gd = results_qs.values("grade").annotate(count=Count("id")).order_by("grade")
+    for ri, item in enumerate(gd, 1):
+        row = ri + 3
+        ws3.cell(row=row, column=1, value=item["grade"])
+        ws3.cell(row=row, column=2, value=item["count"])
+        ws3.cell(row=row, column=3, value=round(item["count"] / total * 100, 1))
+    _auto_col_widths(ws3)
+
+    response = _build_xlsx_response(f"academic_report_{date.today()}.xlsx")
+    wb.save(response)
+    return response
+
+
+@login_required
+@staff_member_required
+def export_academic_report_pdf(request):
+    filters = _get_filters(request)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    results_qs = SemesterResults.objects.select_related(
+        "student__user", "programme_unit__unit",
+        "programme_unit__programme", "semester"
+    )
+    if filters["academic_year_id"]:
+        results_qs = results_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        results_qs = results_qs.filter(academic_year=current_year)
+    if filters["semester_id"]:
+        results_qs = results_qs.filter(semester_id=filters["semester_id"])
+
+    total  = results_qs.count()
+    passed = results_qs.filter(is_passed=True).count()
+    failed = total - passed
+    pass_r = round(passed / total * 100, 1) if total else 0
+    avg_gpa = results_qs.aggregate(avg=Avg("grade_point"))["avg"] or 0
+
+    response = _build_pdf_response(f"academic_report_{date.today()}.pdf")
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4),
+                            topMargin=1.5*cm, bottomMargin=1.5*cm,
+                            leftMargin=1.5*cm, rightMargin=1.5*cm)
+    story = []
+    styles = getSampleStyleSheet()
+    title_style = _pdf_title_style(colors.HexColor("#1565C0"))
+
+    story.append(Paragraph("ACADEMIC PERFORMANCE REPORT", title_style))
+    story.append(Paragraph(
+        f"Generated: {date.today().strftime('%d %B %Y')}",
+        styles["Normal"]
+    ))
+    story.append(Spacer(1, 0.4*cm))
+    story.append(HRFlowable(width="100%", thickness=1,
+                             color=colors.HexColor("#1565C0")))
+    story.append(Spacer(1, 0.4*cm))
+
+    summary = Table(
+        [["Total Results", "Passed", "Failed", "Pass Rate", "Avg Grade Point"],
+         [total, passed, failed, f"{pass_r}%", f"{avg_gpa:.2f}"]],
+        colWidths=[3.5*cm]*5
+    )
+    summary.setStyle(_pdf_table_style(
+        header_color=colors.HexColor("#1565C0"),
+        alt_color=colors.HexColor("#E3F2FD")
+    ))
+    story.append(summary)
+    story.append(Spacer(1, 0.6*cm))
+
+    # Grade distribution
+    story.append(Paragraph("Grade Distribution", styles["Heading2"]))
+    gd = results_qs.values("grade").annotate(count=Count("id")).order_by("grade")
+    gd_data = [["Grade", "Count", "Pass Rate %"]]
+    for item in gd:
+        gd_data.append([
+            item["grade"],
+            item["count"],
+            f"{item['count']/total*100:.1f}%" if total else "0%"
+        ])
+    gd_table = Table(gd_data, colWidths=[3*cm, 3*cm, 4*cm])
+    gd_table.setStyle(_pdf_table_style(
+        header_color=colors.HexColor("#1565C0"),
+        alt_color=colors.HexColor("#E3F2FD")
+    ))
+    story.append(gd_table)
+    story.append(Spacer(1, 0.6*cm))
+
+    # Results list
+    story.append(Paragraph("Semester Results (Top 300)", styles["Heading2"]))
+    header = ["#", "Reg. No.", "Student", "Unit", "Semester",
+              "Total", "Grade", "GP", "Passed"]
+    data = [header]
+    for i, r in enumerate(results_qs.order_by("-total_marks")[:300], 1):
+        data.append([
+            i,
+            r.student.registration_number,
+            r.student.user.get_full_name()[:25],
+            r.programme_unit.unit.code,
+            str(r.semester)[:15],
+            f"{r.total_marks:.1f}",
+            r.grade,
+            f"{r.grade_point:.2f}",
+            "✓" if r.is_passed else "✗",
+        ])
+    col_w = [0.7*cm, 2.8*cm, 4.5*cm, 2.5*cm, 3*cm,
+             1.5*cm, 1.2*cm, 1.2*cm, 1.2*cm]
+    t = Table(data, colWidths=col_w, repeatRows=1)
+    t.setStyle(_pdf_table_style(
+        header_color=colors.HexColor("#1565C0"),
+        alt_color=colors.HexColor("#E3F2FD")
+    ))
+    story.append(t)
+    doc.build(story)
+    return response
+
+
+# =============================================================================
+#  3.  FINANCIAL REPORTS
+# =============================================================================
+
+@login_required
+@staff_member_required
+def financial_reports(request):
+    """Dashboard: fee payments, balances, revenue."""
+    filters       = _get_filters(request)
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by("-start_date")
+    current_year  = AcademicYear.objects.filter(is_current=True).first()
+
+    payment_qs = FeePayment.objects.select_related(
+        "student", "student__user", "semester", "academic_year", "fee_structure"
+    )
+    balance_qs = FeeBalance.objects.select_related(
+        "student", "student__user", "semester", "academic_year"
+    )
+
+    if filters["academic_year_id"]:
+        payment_qs = payment_qs.filter(academic_year_id=filters["academic_year_id"])
+        balance_qs = balance_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        payment_qs = payment_qs.filter(academic_year=current_year)
+        balance_qs = balance_qs.filter(academic_year=current_year)
+
+    if filters["semester_id"]:
+        payment_qs = payment_qs.filter(semester_id=filters["semester_id"])
+        balance_qs = balance_qs.filter(semester_id=filters["semester_id"])
+
+    # ── Aggregates ────────────────────────────────────────────────────────────
+    completed_payments = payment_qs.filter(status="completed")
+    total_collected    = completed_payments.aggregate(s=Sum("amount"))["s"] or 0
+    total_billed       = balance_qs.aggregate(s=Sum("total_fees"))["s"] or 0
+    total_paid_bal     = balance_qs.aggregate(s=Sum("amount_paid"))["s"] or 0
+    total_outstanding  = balance_qs.aggregate(s=Sum("balance"))["s"] or 0
+    cleared_count      = balance_qs.filter(is_cleared=True).count()
+    uncleared_count    = balance_qs.filter(is_cleared=False).count()
+
+    by_method = (
+        completed_payments.values("payment_method")
+                          .annotate(total=Sum("amount"), count=Count("id"))
+                          .order_by("-total")
+    )
+    by_semester = (
+        completed_payments.values("semester__name")
+                          .annotate(total=Sum("amount"), count=Count("id"))
+                          .order_by("semester__name")
+    )
+
+    defaulters = (
+        balance_qs.filter(is_cleared=False, balance__gt=0)
+                  .order_by("-balance")[:50]
+    )
+    recent_payments = completed_payments.order_by("-payment_date")[:50]
+
+    semesters = Semester.objects.filter(is_active=True).order_by("-start_date")
+
+    ctx = {
+        "total_collected":   total_collected,
+        "total_billed":      total_billed,
+        "total_outstanding": total_outstanding,
+        "cleared_count":     cleared_count,
+        "uncleared_count":   uncleared_count,
+        "by_method":         list(by_method),
+        "by_semester":       list(by_semester),
+        "defaulters":        defaulters,
+        "recent_payments":   recent_payments,
+        "academic_years":    academic_years,
+        "semesters":         semesters,
+        "filters":           filters,
+        "report_date":       date.today(),
+    }
+    return render(request, "admin/reports/financial_reports.html", ctx)
+
+
+@login_required
+@staff_member_required
+def export_financial_report_excel(request):
+    filters = _get_filters(request)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    payment_qs = FeePayment.objects.select_related(
+        "student__user", "semester", "academic_year", "fee_structure"
+    )
+    balance_qs = FeeBalance.objects.select_related(
+        "student__user", "student__programme", "semester", "academic_year"
+    )
+
+    if filters["academic_year_id"]:
+        payment_qs = payment_qs.filter(academic_year_id=filters["academic_year_id"])
+        balance_qs = balance_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        payment_qs = payment_qs.filter(academic_year=current_year)
+        balance_qs = balance_qs.filter(academic_year=current_year)
+
+    if filters["semester_id"]:
+        payment_qs = payment_qs.filter(semester_id=filters["semester_id"])
+        balance_qs = balance_qs.filter(semester_id=filters["semester_id"])
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: Payments ─────────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Fee Payments"
+    cols = ["#", "Reg. No.", "Student Name", "Semester", "Academic Year",
+            "Amount (KES)", "Payment Method", "Transaction Ref",
+            "Receipt No.", "Payment Date", "Status"]
+    _add_sheet_header(ws1, "FEE PAYMENTS REPORT",
+                      f"Generated: {date.today().strftime('%d %B %Y')}",
+                      len(cols), HEADER_ORANGE)
+    for ci, h in enumerate(cols, 1):
+        _apply_header_style(ws1.cell(row=3, column=ci, value=h), HEADER_ORANGE)
+    ws1.row_dimensions[3].height = 22
+
+    for ri, p in enumerate(payment_qs.order_by("-payment_date")[:5000], 1):
+        row = ri + 3
+        alt = ri % 2 == 0
+        vals = [
+            ri, p.student.registration_number,
+            p.student.user.get_full_name(),
+            str(p.semester),
+            str(p.academic_year),
+            float(p.amount),
+            p.get_payment_method_display(),
+            p.transaction_reference,
+            p.receipt_number or "",
+            p.payment_date.strftime("%d/%m/%Y %H:%M") if p.payment_date else "",
+            p.get_status_display(),
+        ]
+        for ci, v in enumerate(vals, 1):
+            cell = ws1.cell(row=row, column=ci, value=v)
+            fmt  = '#,##0.00' if ci == 6 else None
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT_ORG,
+                              number_format=fmt)
+
+    # Total row
+    total_row = len(payment_qs[:5000]) + 4
+    ws1.cell(row=total_row, column=5, value="TOTAL").font = Font(bold=True)
+    total_val = payment_qs.filter(status="completed").aggregate(s=Sum("amount"))["s"] or 0
+    cell = ws1.cell(row=total_row, column=6, value=float(total_val))
+    cell.font = Font(bold=True)
+    cell.number_format = '#,##0.00'
+    _auto_col_widths(ws1)
+
+    # ── Sheet 2: Fee Balances ─────────────────────────────────────────────────
+    ws2 = wb.create_sheet("Fee Balances")
+    b_cols = ["#", "Reg. No.", "Student Name", "Programme", "Semester",
+              "Total Fees", "Amount Paid", "Balance", "Cleared"]
+    _add_sheet_header(ws2, "FEE BALANCES REPORT", "", len(b_cols), HEADER_ORANGE)
+    for ci, h in enumerate(b_cols, 1):
+        _apply_header_style(ws2.cell(row=3, column=ci, value=h), HEADER_ORANGE)
+    for ri, b in enumerate(balance_qs.order_by("-balance")[:5000], 1):
+        row = ri + 3
+        alt = ri % 2 == 0
+        vals = [
+            ri, b.student.registration_number,
+            b.student.user.get_full_name(),
+            b.student.programme.code,
+            str(b.semester),
+            float(b.total_fees), float(b.amount_paid), float(b.balance),
+            "Yes" if b.is_cleared else "No",
+        ]
+        for ci, v in enumerate(vals, 1):
+            cell = ws2.cell(row=row, column=ci, value=v)
+            fmt  = '#,##0.00' if ci in (6, 7, 8) else None
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT_ORG,
+                              number_format=fmt)
+    _auto_col_widths(ws2)
+
+    # ── Sheet 3: Summary ──────────────────────────────────────────────────────
+    ws3 = wb.create_sheet("Summary")
+    _add_sheet_header(ws3, "FINANCIAL SUMMARY", "", 3, HEADER_ORANGE)
+    by_method = (
+        payment_qs.filter(status="completed")
+                  .values("payment_method")
+                  .annotate(total=Sum("amount"), count=Count("id"))
+                  .order_by("-total")
+    )
+    for ci, h in enumerate(["Payment Method", "Transactions", "Total (KES)"], 1):
+        _apply_header_style(ws3.cell(row=3, column=ci, value=h), HEADER_ORANGE)
+    for ri, item in enumerate(by_method, 1):
+        row = ri + 3
+        ws3.cell(row=row, column=1, value=item["payment_method"].replace("_", " ").title())
+        ws3.cell(row=row, column=2, value=item["count"])
+        c = ws3.cell(row=row, column=3, value=float(item["total"] or 0))
+        c.number_format = '#,##0.00'
+    _auto_col_widths(ws3)
+
+    response = _build_xlsx_response(f"financial_report_{date.today()}.xlsx")
+    wb.save(response)
+    return response
+
+
+@login_required
+@staff_member_required
+def export_financial_report_pdf(request):
+    filters = _get_filters(request)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    payment_qs = FeePayment.objects.select_related(
+        "student__user", "semester"
+    ).filter(status="completed")
+    balance_qs = FeeBalance.objects.select_related(
+        "student__user", "student__programme", "semester"
+    )
+
+    if filters["academic_year_id"]:
+        payment_qs = payment_qs.filter(academic_year_id=filters["academic_year_id"])
+        balance_qs = balance_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        payment_qs = payment_qs.filter(academic_year=current_year)
+        balance_qs = balance_qs.filter(academic_year=current_year)
+
+    total_collected  = payment_qs.aggregate(s=Sum("amount"))["s"] or 0
+    total_billed     = balance_qs.aggregate(s=Sum("total_fees"))["s"] or 0
+    total_outstanding = balance_qs.aggregate(s=Sum("balance"))["s"] or 0
+    cleared          = balance_qs.filter(is_cleared=True).count()
+    uncleared        = balance_qs.filter(is_cleared=False).count()
+
+    response = _build_pdf_response(f"financial_report_{date.today()}.pdf")
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4),
+                            topMargin=1.5*cm, bottomMargin=1.5*cm,
+                            leftMargin=1.5*cm, rightMargin=1.5*cm)
+    story = []
+    styles = getSampleStyleSheet()
+    hdr_color = colors.HexColor("#E65100")
+    alt_color = colors.HexColor("#FFF3E0")
+    title_style = _pdf_title_style(hdr_color)
+
+    story.append(Paragraph("FINANCIAL REPORT", title_style))
+    story.append(Paragraph(
+        f"Generated: {date.today().strftime('%d %B %Y')}",
+        styles["Normal"]
+    ))
+    story.append(Spacer(1, 0.4*cm))
+    story.append(HRFlowable(width="100%", thickness=1, color=hdr_color))
+    story.append(Spacer(1, 0.4*cm))
+
+    summary = Table(
+        [["Total Billed (KES)", "Collected (KES)", "Outstanding (KES)",
+          "Accounts Cleared", "Accounts Unpaid"],
+         [f"{total_billed:,.2f}", f"{total_collected:,.2f}",
+          f"{total_outstanding:,.2f}", cleared, uncleared]],
+        colWidths=[4*cm]*5
+    )
+    summary.setStyle(_pdf_table_style(
+        header_color=hdr_color, alt_color=alt_color
+    ))
+    story.append(summary)
+    story.append(Spacer(1, 0.6*cm))
+
+    # Payment method breakdown
+    story.append(Paragraph("Collections by Payment Method", styles["Heading2"]))
+    by_m = (
+        payment_qs.values("payment_method")
+                  .annotate(total=Sum("amount"), count=Count("id"))
+                  .order_by("-total")
+    )
+    m_data = [["Payment Method", "Transactions", "Amount (KES)"]]
+    for item in by_m:
+        m_data.append([
+            item["payment_method"].replace("_", " ").title(),
+            item["count"],
+            f"{item['total']:,.2f}",
+        ])
+    mt = Table(m_data, colWidths=[5*cm, 3*cm, 5*cm])
+    mt.setStyle(_pdf_table_style(header_color=hdr_color, alt_color=alt_color))
+    story.append(mt)
+    story.append(Spacer(1, 0.6*cm))
+
+    # Defaulters
+    story.append(Paragraph("Top Outstanding Balances", styles["Heading2"]))
+    def_data = [["#", "Reg. No.", "Student Name", "Programme",
+                 "Semester", "Balance (KES)"]]
+    for i, b in enumerate(balance_qs.filter(
+            is_cleared=False, balance__gt=0
+    ).order_by("-balance")[:30], 1):
+        def_data.append([
+            i,
+            b.student.registration_number,
+            b.student.user.get_full_name()[:25],
+            b.student.programme.code,
+            str(b.semester)[:20],
+            f"{b.balance:,.2f}",
+        ])
+    col_w = [0.7*cm, 3*cm, 5*cm, 3*cm, 4*cm, 3*cm]
+    dt = Table(def_data, colWidths=col_w, repeatRows=1)
+    dt.setStyle(_pdf_table_style(header_color=hdr_color, alt_color=alt_color))
+    story.append(dt)
+
+    doc.build(story)
+    return response
+
+
+# =============================================================================
+#  4.  HOSTEL REPORTS
+# =============================================================================
+
+@login_required
+@staff_member_required
+def hostel_reports(request):
+    """Dashboard: hostel occupancy, allocations, applications."""
+    filters       = _get_filters(request)
+    academic_years = AcademicYear.objects.filter(is_active=True).order_by("-start_date")
+    current_year  = AcademicYear.objects.filter(is_current=True).first()
+
+    alloc_qs = HostelAllocation.objects.select_related(
+        "student", "student__user", "bed__room__hostel",
+        "academic_year", "semester"
+    )
+    app_qs = HostelApplication.objects.select_related(
+        "student", "student__user", "hostel", "academic_year", "semester"
+    )
+    bed_qs = HostelBed.objects.select_related(
+        "room__hostel", "academic_year"
+    )
+
+    if filters["academic_year_id"]:
+        alloc_qs = alloc_qs.filter(academic_year_id=filters["academic_year_id"])
+        app_qs   = app_qs.filter(academic_year_id=filters["academic_year_id"])
+        bed_qs   = bed_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        alloc_qs = alloc_qs.filter(academic_year=current_year)
+        app_qs   = app_qs.filter(academic_year=current_year)
+        bed_qs   = bed_qs.filter(academic_year=current_year)
+
+    # ── Aggregates ────────────────────────────────────────────────────────────
+    total_beds      = bed_qs.count()
+    occupied_beds   = bed_qs.filter(status="occupied").count()
+    available_beds  = bed_qs.filter(status="available").count()
+    reserved_beds   = bed_qs.filter(status="reserved").count()
+    occupancy_rate  = round(occupied_beds / total_beds * 100, 1) if total_beds else 0
+
+    total_alloc     = alloc_qs.count()
+    active_alloc    = alloc_qs.filter(is_active=True).count()
+    fee_paid_alloc  = alloc_qs.filter(is_active=True, fee_paid=True).count()
+    fee_unpaid      = alloc_qs.filter(is_active=True, fee_paid=False).count()
+
+    total_apps      = app_qs.count()
+    pending_apps    = app_qs.filter(status="pending").count()
+    approved_apps   = app_qs.filter(status="approved").count()
+    rejected_apps   = app_qs.filter(status="rejected").count()
+
+    by_hostel = (
+        alloc_qs.filter(is_active=True)
+                .values(
+                    "bed__room__hostel__name",
+                    "bed__room__hostel__code",
+                    "bed__room__hostel__gender_type",
+                )
+                .annotate(count=Count("id"))
+                .order_by("-count")
+    )
+
+    by_room_type = (
+        alloc_qs.filter(is_active=True)
+                .values("bed__room__room_type")
+                .annotate(count=Count("id"))
+    )
+
+    recent_allocations = alloc_qs.order_by("-allocation_date")[:50]
+    pending_apps_list  = app_qs.filter(status="pending").order_by("-application_date")[:50]
+
+    semesters = Semester.objects.filter(is_active=True).order_by("-start_date")
+
+    ctx = {
+        "total_beds":        total_beds,
+        "occupied_beds":     occupied_beds,
+        "available_beds":    available_beds,
+        "reserved_beds":     reserved_beds,
+        "occupancy_rate":    occupancy_rate,
+        "total_alloc":       total_alloc,
+        "active_alloc":      active_alloc,
+        "fee_paid_alloc":    fee_paid_alloc,
+        "fee_unpaid":        fee_unpaid,
+        "total_apps":        total_apps,
+        "pending_apps":      pending_apps,
+        "approved_apps":     approved_apps,
+        "rejected_apps":     rejected_apps,
+        "by_hostel":         list(by_hostel),
+        "by_room_type":      list(by_room_type),
+        "recent_allocations": recent_allocations,
+        "pending_apps_list": pending_apps_list,
+        "academic_years":    academic_years,
+        "semesters":         semesters,
+        "filters":           filters,
+        "report_date":       date.today(),
+    }
+    return render(request, "admin/reports/hostel_reports.html", ctx)
+
+
+@login_required
+@staff_member_required
+def export_hostel_report_excel(request):
+    filters = _get_filters(request)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    alloc_qs = HostelAllocation.objects.select_related(
+        "student__user", "student__programme",
+        "bed__room__hostel", "academic_year", "semester"
+    )
+    app_qs = HostelApplication.objects.select_related(
+        "student__user", "student__programme",
+        "hostel", "academic_year", "semester"
+    )
+    bed_qs = HostelBed.objects.select_related("room__hostel", "academic_year")
+
+    if filters["academic_year_id"]:
+        alloc_qs = alloc_qs.filter(academic_year_id=filters["academic_year_id"])
+        app_qs   = app_qs.filter(academic_year_id=filters["academic_year_id"])
+        bed_qs   = bed_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        alloc_qs = alloc_qs.filter(academic_year=current_year)
+        app_qs   = app_qs.filter(academic_year=current_year)
+        bed_qs   = bed_qs.filter(academic_year=current_year)
+
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: Allocations ──────────────────────────────────────────────────
+    ws1 = wb.active
+    ws1.title = "Allocations"
+    cols = ["#", "Reg. No.", "Student Name", "Programme",
+            "Hostel", "Room No.", "Bed No.", "Room Type",
+            "Semester", "Academic Year",
+            "Allocation Date", "Check-In", "Check-Out",
+            "Active", "Fee Paid"]
+    _add_sheet_header(ws1, "HOSTEL ALLOCATIONS REPORT",
+                      f"Generated: {date.today().strftime('%d %B %Y')}",
+                      len(cols), HEADER_TEAL)
+    for ci, h in enumerate(cols, 1):
+        _apply_header_style(ws1.cell(row=3, column=ci, value=h), HEADER_TEAL)
+    ws1.row_dimensions[3].height = 22
+
+    for ri, a in enumerate(alloc_qs.order_by("-allocation_date")[:5000], 1):
+        row = ri + 3
+        alt = ri % 2 == 0
+        vals = [
+            ri, a.student.registration_number,
+            a.student.user.get_full_name(),
+            a.student.programme.code,
+            a.bed.room.hostel.name,
+            a.bed.room.room_number,
+            a.bed.bed_number,
+            a.bed.room.get_room_type_display(),
+            str(a.semester),
+            str(a.academic_year),
+            a.allocation_date.strftime("%d/%m/%Y") if a.allocation_date else "",
+            a.check_in_date.strftime("%d/%m/%Y") if a.check_in_date else "",
+            a.check_out_date.strftime("%d/%m/%Y") if a.check_out_date else "",
+            "Yes" if a.is_active else "No",
+            "Yes" if a.fee_paid else "No",
+        ]
+        for ci, v in enumerate(vals, 1):
+            cell = ws1.cell(row=row, column=ci, value=v)
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT_TEAL)
+    _auto_col_widths(ws1)
+
+    # ── Sheet 2: Applications ─────────────────────────────────────────────────
+    ws2 = wb.create_sheet("Applications")
+    app_cols = ["#", "Reg. No.", "Student Name", "Programme",
+                "Hostel", "Preferred Room Type", "Semester",
+                "Application Date", "Status", "Booking Fee Paid"]
+    _add_sheet_header(ws2, "HOSTEL APPLICATIONS", "", len(app_cols), HEADER_TEAL)
+    for ci, h in enumerate(app_cols, 1):
+        _apply_header_style(ws2.cell(row=3, column=ci, value=h), HEADER_TEAL)
+    for ri, a in enumerate(app_qs.order_by("-application_date")[:5000], 1):
+        row = ri + 3
+        alt = ri % 2 == 0
+        vals = [
+            ri, a.student.registration_number,
+            a.student.user.get_full_name(),
+            a.student.programme.code,
+            a.hostel.name,
+            a.preferred_room_type,
+            str(a.semester),
+            a.application_date.strftime("%d/%m/%Y"),
+            a.get_status_display(),
+            "Yes" if a.booking_fee_paid else "No",
+        ]
+        for ci, v in enumerate(vals, 1):
+            cell = ws2.cell(row=row, column=ci, value=v)
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT_TEAL)
+    _auto_col_widths(ws2)
+
+    # ── Sheet 3: Bed Status ───────────────────────────────────────────────────
+    ws3 = wb.create_sheet("Bed Status")
+    bed_cols = ["#", "Hostel", "Room No.", "Bed No.", "Status", "Academic Year"]
+    _add_sheet_header(ws3, "BED STATUS REPORT", "", len(bed_cols), HEADER_TEAL)
+    for ci, h in enumerate(bed_cols, 1):
+        _apply_header_style(ws3.cell(row=3, column=ci, value=h), HEADER_TEAL)
+    for ri, b in enumerate(bed_qs.order_by(
+            "room__hostel__name", "room__room_number", "bed_number"
+    )[:5000], 1):
+        row = ri + 3
+        alt = ri % 2 == 0
+        vals = [
+            ri,
+            b.room.hostel.name,
+            b.room.room_number,
+            b.bed_number,
+            b.get_status_display(),
+            str(b.academic_year),
+        ]
+        for ci, v in enumerate(vals, 1):
+            cell = ws3.cell(row=row, column=ci, value=v)
+            _apply_data_style(cell, alt=alt, alt_hex=ROW_ALT_TEAL)
+    _auto_col_widths(ws3)
+
+    # ── Sheet 4: Occupancy Summary ────────────────────────────────────────────
+    ws4 = wb.create_sheet("Occupancy Summary")
+    _add_sheet_header(ws4, "OCCUPANCY SUMMARY", "", 4, HEADER_TEAL)
+    by_hostel = (
+        alloc_qs.filter(is_active=True)
+                .values("bed__room__hostel__name", "bed__room__hostel__code")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+    )
+    total_beds = bed_qs.count()
+    for ci, h in enumerate(["Hostel Code", "Hostel Name", "Occupied", "% Occupied"], 1):
+        _apply_header_style(ws4.cell(row=3, column=ci, value=h), HEADER_TEAL)
+    for ri, item in enumerate(by_hostel, 1):
+        row = ri + 3
+        hostel_beds = bed_qs.filter(
+            room__hostel__code=item["bed__room__hostel__code"]
+        ).count()
+        ws4.cell(row=row, column=1, value=item["bed__room__hostel__code"])
+        ws4.cell(row=row, column=2, value=item["bed__room__hostel__name"])
+        ws4.cell(row=row, column=3, value=item["count"])
+        pct = round(item["count"] / hostel_beds * 100, 1) if hostel_beds else 0
+        ws4.cell(row=row, column=4, value=pct)
+    _auto_col_widths(ws4)
+
+    response = _build_xlsx_response(f"hostel_report_{date.today()}.xlsx")
+    wb.save(response)
+    return response
+
+
+@login_required
+@staff_member_required
+def export_hostel_report_pdf(request):
+    filters = _get_filters(request)
+    current_year = AcademicYear.objects.filter(is_current=True).first()
+
+    alloc_qs = HostelAllocation.objects.select_related(
+        "student__user", "student__programme",
+        "bed__room__hostel", "semester"
+    )
+    app_qs = HostelApplication.objects.select_related(
+        "student__user", "hostel", "semester"
+    )
+    bed_qs = HostelBed.objects.select_related("room__hostel")
+
+    if filters["academic_year_id"]:
+        alloc_qs = alloc_qs.filter(academic_year_id=filters["academic_year_id"])
+        app_qs   = app_qs.filter(academic_year_id=filters["academic_year_id"])
+        bed_qs   = bed_qs.filter(academic_year_id=filters["academic_year_id"])
+    elif current_year:
+        alloc_qs = alloc_qs.filter(academic_year=current_year)
+        app_qs   = app_qs.filter(academic_year=current_year)
+        bed_qs   = bed_qs.filter(academic_year=current_year)
+
+    total_beds     = bed_qs.count()
+    occupied       = bed_qs.filter(status="occupied").count()
+    available      = bed_qs.filter(status="available").count()
+    total_alloc    = alloc_qs.filter(is_active=True).count()
+    total_apps     = app_qs.count()
+    pending_apps   = app_qs.filter(status="pending").count()
+    occupancy_rate = round(occupied / total_beds * 100, 1) if total_beds else 0
+
+    response = _build_pdf_response(f"hostel_report_{date.today()}.pdf")
+    hdr_color = colors.HexColor("#00695C")
+    alt_color = colors.HexColor("#E0F2F1")
+
+    doc = SimpleDocTemplate(response, pagesize=landscape(A4),
+                            topMargin=1.5*cm, bottomMargin=1.5*cm,
+                            leftMargin=1.5*cm, rightMargin=1.5*cm)
+    story = []
+    styles = getSampleStyleSheet()
+    title_style = _pdf_title_style(hdr_color)
+
+    story.append(Paragraph("HOSTEL MANAGEMENT REPORT", title_style))
+    story.append(Paragraph(
+        f"Generated: {date.today().strftime('%d %B %Y')}",
+        styles["Normal"]
+    ))
+    story.append(Spacer(1, 0.4*cm))
+    story.append(HRFlowable(width="100%", thickness=1, color=hdr_color))
+    story.append(Spacer(1, 0.4*cm))
+
+    # Summary
+    summary = Table(
+        [["Total Beds", "Occupied", "Available", "Occupancy Rate",
+          "Active Allocations", "Applications"],
+         [total_beds, occupied, available, f"{occupancy_rate}%",
+          total_alloc, total_apps]],
+        colWidths=[3.5*cm]*6
+    )
+    summary.setStyle(_pdf_table_style(
+        header_color=hdr_color, alt_color=alt_color
+    ))
+    story.append(summary)
+    story.append(Spacer(1, 0.6*cm))
+
+    # Occupancy by hostel
+    story.append(Paragraph("Occupancy by Hostel", styles["Heading2"]))
+    by_hostel = (
+        alloc_qs.filter(is_active=True)
+                .values("bed__room__hostel__name",
+                        "bed__room__hostel__gender_type")
+                .annotate(count=Count("id"))
+                .order_by("-count")
+    )
+    h_data = [["Hostel Name", "Gender Type", "Occupied Beds"]]
+    for item in by_hostel:
+        h_data.append([
+            item["bed__room__hostel__name"],
+            item["bed__room__hostel__gender_type"].title(),
+            item["count"],
+        ])
+    ht = Table(h_data, colWidths=[7*cm, 4*cm, 4*cm])
+    ht.setStyle(_pdf_table_style(header_color=hdr_color, alt_color=alt_color))
+    story.append(ht)
+    story.append(Spacer(1, 0.6*cm))
+
+    # Recent allocations
+    story.append(Paragraph("Recent Allocations", styles["Heading2"]))
+    al_data = [["#", "Reg. No.", "Student Name", "Hostel",
+                "Room", "Bed", "Semester", "Fee Paid"]]
+    for i, a in enumerate(alloc_qs.filter(is_active=True).order_by("-allocation_date")[:40], 1):
+        al_data.append([
+            i,
+            a.student.registration_number,
+            a.student.user.get_full_name()[:22],
+            a.bed.room.hostel.name[:20],
+            a.bed.room.room_number,
+            a.bed.bed_number,
+            str(a.semester)[:15],
+            "Yes" if a.fee_paid else "No",
+        ])
+    col_w = [0.7*cm, 2.8*cm, 4.2*cm, 3.5*cm, 1.8*cm, 1.5*cm, 3*cm, 1.8*cm]
+    at = Table(al_data, colWidths=col_w, repeatRows=1)
+    at.setStyle(_pdf_table_style(header_color=hdr_color, alt_color=alt_color))
+    story.append(at)
+
+    # Pending applications
+    if pending_apps:
+        story.append(PageBreak())
+        story.append(Paragraph("Pending Applications", styles["Heading2"]))
+        pa_data = [["#", "Reg. No.", "Student Name", "Hostel", "Preferred Room", "Date"]]
+        for i, a in enumerate(
+            app_qs.filter(status="pending").order_by("-application_date")[:40], 1
+        ):
+            pa_data.append([
+                i,
+                a.student.registration_number,
+                a.student.user.get_full_name()[:22],
+                a.hostel.name[:20],
+                a.preferred_room_type,
+                a.application_date.strftime("%d/%m/%Y"),
+            ])
+        col_w2 = [0.7*cm, 2.8*cm, 5*cm, 4*cm, 3*cm, 3*cm]
+        pat = Table(pa_data, colWidths=col_w2, repeatRows=1)
+        pat.setStyle(_pdf_table_style(header_color=hdr_color, alt_color=alt_color))
+        story.append(pat)
+
+    doc.build(story)
+    return response

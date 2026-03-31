@@ -1,0 +1,321 @@
+{% extends 'admin/reports/report_base.html' %}
+{% load static %}
+
+{% block title %}Financial Reports{% endblock %}
+{% block page_title %}Financial Reports{% endblock %}
+{% block page_subtitle %}Fee collections, outstanding balances, payment methods and defaulter lists{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="#">Reports</a></li>
+    <li class="breadcrumb-item active">Financial Reports</li>
+  </ol>
+</nav>
+
+<!-- ── Filter Bar ──────────────────────────────────────────────────────── -->
+<form method="get" class="filter-bar">
+  <div class="filter-group">
+    <label>Academic Year</label>
+    <select name="academic_year">
+      <option value="">All Years</option>
+      {% for ay in academic_years %}
+      <option value="{{ ay.id }}" {% if filters.academic_year_id == ay.id|stringformat:"i" %}selected{% endif %}>
+        {{ ay.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Semester</label>
+    <select name="semester">
+      <option value="">All Semesters</option>
+      {% for sem in semesters %}
+      <option value="{{ sem.id }}" {% if filters.semester_id == sem.id|stringformat:"i" %}selected{% endif %}>
+        {{ sem.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary btn-sm px-4" type="submit">
+    <i class="ri-filter-line me-1"></i> Apply
+  </button>
+  <a href="{% url 'financial_reports' %}" class="btn btn-outline-secondary btn-sm px-3">Clear</a>
+
+  <div class="ms-auto export-actions">
+    <a href="{% url 'export_financial_report_excel' %}?{{ request.GET.urlencode }}"
+       class="btn-export-excel">
+      <i class="ri-file-excel-2-line"></i> Export Excel
+    </a>
+    <a href="{% url 'export_financial_report_pdf' %}?{{ request.GET.urlencode }}"
+       class="btn-export-pdf">
+      <i class="ri-file-pdf-2-line"></i> Export PDF
+    </a>
+  </div>
+</form>
+
+<!-- ── Stat Cards ──────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFF3E0;">
+        <i class="ri-bill-line" style="color:#E65100;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#E65100;font-size:1.2rem;">
+          KES {{ total_billed|floatformat:0 }}
+        </div>
+        <div class="stat-label">Total Billed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">
+        <i class="ri-money-dollar-circle-line" style="color:#2E7D32;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#2E7D32;font-size:1.2rem;">
+          KES {{ total_collected|floatformat:0 }}
+        </div>
+        <div class="stat-label">Collected</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFEBEE;">
+        <i class="ri-error-warning-line" style="color:#C62828;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#C62828;font-size:1.2rem;">
+          KES {{ total_outstanding|floatformat:0 }}
+        </div>
+        <div class="stat-label">Outstanding</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">
+        <i class="ri-checkbox-circle-line" style="color:#388E3C;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#388E3C;">{{ cleared_count }}</div>
+        <div class="stat-label">Accounts Cleared</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFEBEE;">
+        <i class="ri-close-circle-line" style="color:#C62828;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#C62828;">{{ uncleared_count }}</div>
+        <div class="stat-label">Unpaid Accounts</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E3F2FD;">
+        <i class="ri-percent-line" style="color:#1565C0;"></i>
+      </div>
+      <div>
+        {% if total_billed %}
+          {% with rate=total_collected|divisibleby:1 %}
+          <div class="stat-value" style="color:#1565C0;">
+            {% widthratio total_collected total_billed 100 %}%
+          </div>
+          {% endwith %}
+        {% else %}
+          <div class="stat-value" style="color:#1565C0;">0%</div>
+        {% endif %}
+        <div class="stat-label">Collection Rate</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Charts Row ─────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <!-- Payment Method Breakdown -->
+  <div class="col-lg-5">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-bank-card-line me-2" style="color:#e65100;"></i>Collections by Payment Method</h5>
+      </div>
+      <div class="rc-body p-0">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Transactions</th>
+              <th>Amount (KES)</th>
+              <th>Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in by_method %}
+            <tr>
+              <td>
+                <span class="badge-pill badge-info">
+                  {{ item.payment_method|title }}
+                </span>
+              </td>
+              <td>{{ item.count }}</td>
+              <td><strong>{{ item.total|floatformat:2 }}</strong></td>
+              <td>
+                {% if total_collected %}
+                <div class="progress-bar-custom">
+                  <div class="fill" style="width:{% widthratio item.total total_collected 100 %}%;background:#e65100;"></div>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collections by Semester -->
+  <div class="col-lg-7">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-calendar-check-line me-2" style="color:#2e7d32;"></i>Collections by Semester</h5>
+      </div>
+      <div class="rc-body p-0">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Semester</th>
+              <th>Transactions</th>
+              <th>Amount (KES)</th>
+              <th>Progress</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in by_semester %}
+            <tr>
+              <td>{{ item.semester__name }}</td>
+              <td>{{ item.count }}</td>
+              <td><strong>{{ item.total|floatformat:2 }}</strong></td>
+              <td>
+                {% if total_collected %}
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress-bar-custom flex-grow-1">
+                    <div class="fill" style="width:{% widthratio item.total total_collected 100 %}%;background:#2e7d32;"></div>
+                  </div>
+                  <small>{% widthratio item.total total_collected 100 %}%</small>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recent Payments ────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-7">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-history-line me-2" style="color:#1565c0;"></i>Recent Payments</h5>
+      </div>
+      <div class="rc-body p-0">
+        <div class="table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Reg. No.</th>
+                <th>Student</th>
+                <th>Semester</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Date</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in recent_payments %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ p.student.registration_number }}</td>
+                <td>{{ p.student.user.get_full_name|truncatechars:20 }}</td>
+                <td>{{ p.semester }}</td>
+                <td><strong>{{ p.amount|floatformat:2 }}</strong></td>
+                <td>
+                  <span class="badge-pill badge-info">{{ p.get_payment_method_display }}</span>
+                </td>
+                <td>{{ p.payment_date|date:"d/m/Y" }}</td>
+                <td>
+                  {% if p.status == "completed" %}
+                    <span class="badge-pill badge-success">Completed</span>
+                  {% elif p.status == "pending" %}
+                    <span class="badge-pill badge-warning">Pending</span>
+                  {% else %}
+                    <span class="badge-pill badge-danger">{{ p.get_status_display }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="8" class="text-center text-muted py-4">No payments found.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Defaulters -->
+  <div class="col-lg-5">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-alert-line me-2" style="color:#c62828;"></i>Top Outstanding Balances</h5>
+      </div>
+      <div class="rc-body p-0">
+        <div class="table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Reg. No.</th>
+                <th>Student</th>
+                <th>Balance (KES)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in defaulters %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ b.student.registration_number }}</td>
+                <td>{{ b.student.user.get_full_name|truncatechars:22 }}</td>
+                <td>
+                  <strong style="color:#c62828;">{{ b.balance|floatformat:2 }}</strong>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-center text-muted py-4">No outstanding balances.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="text-muted text-end" style="font-size:.78rem;">
+  Report generated: {{ report_date }}
+</div>
+{% endblock %}

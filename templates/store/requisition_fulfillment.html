@@ -1,0 +1,201 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Requisition Fulfillment{% endblock %}
+{% block page_title %}Requisition Fulfillment{% endblock %}
+{% block page_subtitle %}Process or reject approved requisitions{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'store_requisitions_all' %}">Requisitions</a></li>
+        <li class="breadcrumb-item active">Fulfillment</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="ri-information-line me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Requisition Fulfillment</h1>
+                <p class="text-muted mb-0">{{ total }} approved requisition{{ total|pluralize }} awaiting fulfillment</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Approved — Awaiting Processing</h5>
+                <div class="card-subtitle">Oldest approvals first</div>
+            </div>
+            <span class="badge-chip">{{ total }} Queued</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Req. No.</th>
+                            <th>Department</th>
+                            <th>Requested By</th>
+                            <th>Purpose</th>
+                            <th>Items</th>
+                            <th>Approved</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requisitions %}
+                        <tr>
+                            <td class="ps-4">
+                                <a href="{% url 'store_requisition_detail' req.pk %}" class="text-primary fw-medium">
+                                    {{ req.requisition_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.department.code }}</span>
+                                <small class="text-muted d-block">{{ req.department.name|truncatechars:22 }}</small>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.requested_by.get_full_name }}</span>
+                                <small class="text-muted d-block">{{ req.requested_by.email }}</small>
+                            </td>
+                            <td><span class="text-muted">{{ req.purpose|truncatechars:38 }}</span></td>
+                            <td><span class="badge bg-light text-dark border">{{ req.items.count }}</span></td>
+                            <td>
+                                {% if req.final_approval_date %}
+                                {{ req.final_approval_date|date:"d M Y" }}
+                                <small class="text-muted d-block">{{ req.final_approval_date|time:"H:i" }}</small>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'store_requisition_detail' req.pk %}"
+                                       class="btn btn-icon btn-outline-primary btn-sm" title="View"
+                                       data-bs-toggle="tooltip"><i class="ri-eye-line"></i></a>
+                                    <button type="button" class="btn btn-sm btn-success"
+                                        data-bs-toggle="modal" data-bs-target="#processModal"
+                                        data-req-id="{{ req.pk }}"
+                                        data-req-number="{{ req.requisition_number }}"
+                                        data-action="process">
+                                        <i class="ri-check-double-line me-1"></i>Process
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                        data-bs-toggle="modal" data-bs-target="#processModal"
+                                        data-req-id="{{ req.pk }}"
+                                        data-req-number="{{ req.requisition_number }}"
+                                        data-action="reject">
+                                        <i class="ri-close-line me-1"></i>Reject
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-checkbox-circle-line display-4 text-success mb-3"></i>
+                                    <h5 class="text-muted">No approved requisitions</h5>
+                                    <p class="text-muted mb-0">All approved requisitions have been fulfilled</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Process / Reject Modal -->
+<div class="modal fade" id="processModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="requisition_id" id="modalReqId">
+            <input type="hidden" name="action" id="modalAction">
+            <div class="modal-content">
+                <div class="modal-header" id="modalHeader">
+                    <h5 class="modal-title" id="modalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="modalBody"></p>
+                    <div class="mb-3">
+                        <label class="form-label">Remarks <span class="text-muted">(optional for processing, required for rejection)</span></label>
+                        <textarea name="remarks" class="form-control" rows="3" placeholder="Add remarks…"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn" id="modalSubmitBtn"></button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('processModal');
+    modal.addEventListener('show.bs.modal', function (e) {
+        const btn    = e.relatedTarget;
+        const action = btn.dataset.action;
+        const reqNum = btn.dataset.reqNumber;
+
+        document.getElementById('modalReqId').value  = btn.dataset.reqId;
+        document.getElementById('modalAction').value = action;
+
+        if (action === 'process') {
+            document.getElementById('modalTitle').textContent      = 'Confirm Processing';
+            document.getElementById('modalBody').textContent       = `Mark ${reqNum} as processed? This will add items to stock.`;
+            document.getElementById('modalSubmitBtn').textContent  = 'Confirm Process';
+            document.getElementById('modalSubmitBtn').className    = 'btn btn-success';
+        } else {
+            document.getElementById('modalTitle').textContent      = 'Reject Requisition';
+            document.getElementById('modalBody').textContent       = `Reject ${reqNum}? Please provide a reason below.`;
+            document.getElementById('modalSubmitBtn').textContent  = 'Confirm Rejection';
+            document.getElementById('modalSubmitBtn').className    = 'btn btn-danger';
+        }
+    });
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+{% endblock %}

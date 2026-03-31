@@ -1,0 +1,138 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Low Stock{% endblock %}
+{% block page_title %}Low Stock Alert{% endblock %}
+{% block page_subtitle %}Items at or below the minimum threshold{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Low Stock</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Low Stock Items</h1>
+                <p class="text-muted mb-0">
+                    Items with quantity &le; <strong>{{ low_threshold }}</strong> units &mdash; {{ total_low }} item{{ total_low|pluralize }} flagged
+                </p>
+            </div>
+            <a href="{% url 'store_stock_in' %}" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
+                <i class="ri-add-line fs-5"></i><span>Stock In</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Banner -->
+    {% if total_low %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="alert">
+        <i class="ri-alert-line fs-5"></i>
+        <div>
+            <strong>{{ total_low }} item{{ total_low|pluralize }}</strong> below threshold.
+            Consider raising a purchase requisition or processing pending orders.
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Low Stock Items</h5>
+                <div class="card-subtitle">Sorted by quantity (lowest first)</div>
+            </div>
+            <span class="badge-chip text-danger">{{ total_low }} Flagged</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Item Description</th>
+                            <th>Category</th>
+                            <th>Qty Remaining</th>
+                            <th>Unit</th>
+                            <th>Unit Price</th>
+                            <th>Department</th>
+                            <th class="pe-4">Requisition</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="fw-medium">{{ item.item_description|truncatechars:50 }}</span>
+                            </td>
+                            <td>
+                                {% if item.category %}
+                                <span class="badge bg-light text-dark border">{{ item.category.name }}</span>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if item.quantity == 0 %}
+                                <span class="badge bg-danger">0 — Out of Stock</span>
+                                {% elif item.quantity <= 2 %}
+                                <span class="badge bg-danger">{{ item.quantity }}</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">{{ item.quantity }}</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="text-muted">{{ item.unit_of_measure }}</span></td>
+                            <td>KES {{ item.estimated_unit_price|floatformat:2 }}</td>
+                            <td>
+                                <span class="fw-medium">{{ item.requisition.department.code }}</span>
+                                <small class="text-muted d-block">{{ item.requisition.department.name|truncatechars:20 }}</small>
+                            </td>
+                            <td class="pe-4">
+                                <a href="{% url 'store_requisition_detail' item.requisition.pk %}" class="text-primary fw-medium">
+                                    {{ item.requisition.requisition_number }}
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-checkbox-circle-line display-4 text-success mb-3"></i>
+                                    <h5 class="text-muted">All stock levels are healthy</h5>
+                                    <p class="text-muted mb-0">No items are below the threshold of {{ low_threshold }} units</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

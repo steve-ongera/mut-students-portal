@@ -1,0 +1,133 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Pending Requisitions{% endblock %}
+{% block page_title %}Pending Requisitions{% endblock %}
+{% block page_subtitle %}Awaiting procurement action{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'store_requisitions_all' %}">Requisitions</a></li>
+        <li class="breadcrumb-item active">Pending</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Pending Requisitions</h1>
+                <p class="text-muted mb-0">{{ total }} requisition{{ total|pluralize }} awaiting procurement action</p>
+            </div>
+        </div>
+    </div>
+
+    {% if total %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 mb-4" role="alert">
+        <i class="ri-time-line fs-5"></i>
+        <div><strong>{{ total }}</strong> requisition{{ total|pluralize }} pending procurement review.</div>
+    </div>
+    {% endif %}
+
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Pending Requisitions</h5>
+                <div class="card-subtitle">Statuses: Pending Procurement · Approved HOD · Approved HOS</div>
+            </div>
+            <span class="badge-chip text-warning">{{ total }} Pending</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Req. No.</th>
+                            <th>Department</th>
+                            <th>Requested By</th>
+                            <th>Purpose</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requisitions %}
+                        <tr>
+                            <td class="ps-4">
+                                <a href="{% url 'store_requisition_detail' req.pk %}" class="text-primary fw-medium">
+                                    {{ req.requisition_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.department.code }}</span>
+                                <small class="text-muted d-block">{{ req.department.name|truncatechars:22 }}</small>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.requested_by.get_full_name }}</span>
+                                <small class="text-muted d-block">{{ req.requested_by.email }}</small>
+                            </td>
+                            <td><span class="text-muted">{{ req.purpose|truncatechars:38 }}</span></td>
+                            <td><span class="badge bg-light text-dark border">{{ req.items.count }}</span></td>
+                            <td>
+                                <span class="status-badge status-pending"><i class="ri-time-line me-1"></i>{{ req.get_status_display }}</span>
+                            </td>
+                            <td>
+                                {{ req.created_at|date:"d M Y" }}
+                                <small class="text-muted d-block">{{ req.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td class="pe-4">
+                                <a href="{% url 'store_requisition_detail' req.pk %}"
+                                   class="btn btn-icon btn-outline-primary btn-sm" title="View"
+                                   data-bs-toggle="tooltip"><i class="ri-eye-line"></i></a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-checkbox-circle-line display-4 text-success mb-3"></i>
+                                    <h5 class="text-muted">No pending requisitions</h5>
+                                    <p class="text-muted mb-0">All requisitions have been actioned</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+<script>
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

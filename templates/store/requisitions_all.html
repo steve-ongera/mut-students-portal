@@ -1,0 +1,198 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}All Requisitions{% endblock %}
+{% block page_title %}Requisitions{% endblock %}
+{% block page_subtitle %}All purchase requisitions{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">All Requisitions</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="ri-information-line me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">All Requisitions</h1>
+                <p class="text-muted mb-0">{{ total }} requisition{{ total|pluralize }} found</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Number, purpose, department…">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All</option>
+                        {% for val, label in status_choices %}
+                        <option value="{{ val }}" {% if status_f == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Department</label>
+                    <select name="department" class="form-select">
+                        <option value="">All</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.pk }}" {% if dept_f == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.code }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">From</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">To</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+                </div>
+                <div class="col-12 col-md-1 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">Go</button>
+                    <a href="{% url 'store_requisitions_all' %}" class="btn btn-outline-secondary w-100">✕</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Requisitions</h5>
+                <div class="card-subtitle">All purchase requisitions — store manager view</div>
+            </div>
+            <span class="badge-chip">{{ total }} Total</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Req. No.</th>
+                            <th>Department</th>
+                            <th>Requested By</th>
+                            <th>Purpose</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th class="pe-4">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in requisitions %}
+                        <tr>
+                            <td class="ps-4">
+                                <a href="{% url 'store_requisition_detail' req.pk %}" class="text-primary fw-medium">
+                                    {{ req.requisition_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.department.code }}</span>
+                                <small class="text-muted d-block">{{ req.department.name|truncatechars:22 }}</small>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.requested_by.get_full_name }}</span>
+                                <small class="text-muted d-block">{{ req.requested_by.email }}</small>
+                            </td>
+                            <td><span class="text-muted">{{ req.purpose|truncatechars:38 }}</span></td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ req.items.count }}</span>
+                            </td>
+                            <td>
+                                {% if req.status == 'pending_procurement' %}
+                                    <span class="status-badge status-pending"><i class="ri-time-line me-1"></i>Pending</span>
+                                {% elif req.status == 'approved' %}
+                                    <span class="status-badge status-approved"><i class="ri-checkbox-circle-line me-1"></i>Approved</span>
+                                {% elif req.status == 'processed' %}
+                                    <span class="status-badge status-processed"><i class="ri-check-double-line me-1"></i>Processed</span>
+                                {% elif req.status == 'rejected' %}
+                                    <span class="status-badge status-rejected"><i class="ri-close-circle-line me-1"></i>Rejected</span>
+                                {% elif req.status == 'draft' %}
+                                    <span class="status-badge status-draft"><i class="ri-draft-line me-1"></i>Draft</span>
+                                {% else %}
+                                    <span class="status-badge status-draft">{{ req.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ req.created_at|date:"d M Y" }}
+                                <small class="text-muted d-block">{{ req.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td class="pe-4">
+                                <div class="d-flex gap-1">
+                                    <a href="{% url 'store_requisition_detail' req.pk %}"
+                                       class="btn btn-icon btn-outline-primary btn-sm" title="View"
+                                       data-bs-toggle="tooltip"><i class="ri-eye-line"></i></a>
+                                    {% if req.status == 'approved' %}
+                                    <a href="{% url 'store_requisition_fulfillment' %}"
+                                       class="btn btn-icon btn-outline-success btn-sm" title="Fulfill"
+                                       data-bs-toggle="tooltip"><i class="ri-check-double-line"></i></a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-file-list-3-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No requisitions found</h5>
+                                    <p class="text-muted mb-0">Try adjusting your filters</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search }}&status={{ status_f }}&department={{ dept_f }}&date_from={{ date_from }}&date_to={{ date_to }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ search }}&status={{ status_f }}&department={{ dept_f }}&date_from={{ date_from }}&date_to={{ date_to }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search }}&status={{ status_f }}&department={{ dept_f }}&date_from={{ date_from }}&date_to={{ date_to }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+<script>
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
+{% endblock %}

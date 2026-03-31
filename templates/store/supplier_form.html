@@ -1,0 +1,160 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} Supplier{% endblock %}
+{% block page_title %}{{ action }} Supplier{% endblock %}
+{% block page_subtitle %}{% if action == 'Add' %}Register a new supplier{% else %}Update supplier details{% endif %}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'store_supplier_list' %}">Suppliers</a></li>
+        <li class="breadcrumb-item active">{{ action }} Supplier</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">{{ action }} Supplier</h1>
+                <p class="text-muted mb-0">
+                    {% if action == 'Edit' and supplier %}Editing: <strong>{{ supplier.name }}</strong>{% else %}Fill in supplier details below{% endif %}
+                </p>
+            </div>
+            <a href="{% url 'store_supplier_list' %}" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                <i class="ri-arrow-left-line fs-5"></i><span>Back to List</span>
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-9">
+            <form method="post" novalidate>
+                {% csrf_token %}
+
+                <!-- Basic Info -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Basic Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-8">
+                                <label class="form-label">Supplier Name <span class="text-danger">*</span></label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                <div class="invalid-feedback d-block">{{ form.name.errors.as_text }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-4">
+                                <label class="form-label">Supplier Code <span class="text-danger">*</span></label>
+                                {{ form.supplier_code }}
+                                {% if form.supplier_code.errors %}
+                                <div class="invalid-feedback d-block">{{ form.supplier_code.errors.as_text }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Address <span class="text-danger">*</span></label>
+                                {{ form.address }}
+                                {% if form.address.errors %}
+                                <div class="invalid-feedback d-block">{{ form.address.errors.as_text }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Tax PIN</label>
+                                {{ form.tax_pin }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Rating (0–5)</label>
+                                {{ form.rating }}
+                                {% if form.rating.errors %}
+                                <div class="invalid-feedback d-block">{{ form.rating.errors.as_text }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Info -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Contact Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Contact Person <span class="text-danger">*</span></label>
+                                {{ form.contact_person }}
+                                {% if form.contact_person.errors %}
+                                <div class="invalid-feedback d-block">{{ form.contact_person.errors.as_text }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Email <span class="text-danger">*</span></label>
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                <div class="invalid-feedback d-block">{{ form.email.errors.as_text }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                {{ form.phone_number }}
+                                {% if form.phone_number.errors %}
+                                <div class="invalid-feedback d-block">{{ form.phone_number.errors.as_text }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Alternative Phone</label>
+                                {{ form.alternative_phone }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Banking Info -->
+                <div class="management-card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title">Banking Details</h5>
+                        <div class="card-subtitle">Optional — used for payment processing</div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Bank Name</label>
+                                {{ form.bank_name }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Bank Account</label>
+                                {{ form.bank_account }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status & Submit -->
+                <div class="management-card mb-4">
+                    <div class="card-body">
+                        <div class="form-check form-switch">
+                            {{ form.is_active }}
+                            <label class="form-check-label ms-2" for="{{ form.is_active.id_for_label }}">
+                                Active Supplier
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <a href="{% url 'store_supplier_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ri-save-line me-1"></i>{{ action }} Supplier
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

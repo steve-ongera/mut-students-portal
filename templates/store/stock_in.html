@@ -1,0 +1,185 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Stock In{% endblock %}
+{% block page_title %}Stock In{% endblock %}
+{% block page_subtitle %}Mark approved requisitions as received{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Stock In</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <i class="ri-information-line me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Stock In</h1>
+                <p class="text-muted mb-0">Approved requisitions awaiting goods receipt — {{ page_obj.paginator.count }} pending</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Approved Requisitions</h5>
+                <div class="card-subtitle">Mark as processed when goods are received</div>
+            </div>
+            <span class="badge-chip">{{ page_obj.paginator.count }} Pending</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Req. No.</th>
+                            <th>Department</th>
+                            <th>Requested By</th>
+                            <th>Purpose</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                            <th class="pe-4">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for req in approved_requisitions %}
+                        <tr>
+                            <td class="ps-4">
+                                <a href="{% url 'store_requisition_detail' req.pk %}" class="text-primary fw-medium">
+                                    {{ req.requisition_number }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.department.code }}</span>
+                                <small class="text-muted d-block">{{ req.department.name|truncatechars:22 }}</small>
+                            </td>
+                            <td>
+                                <span class="fw-medium">{{ req.requested_by.get_full_name }}</span>
+                                <small class="text-muted d-block">{{ req.requested_by.email }}</small>
+                            </td>
+                            <td><span class="text-muted">{{ req.purpose|truncatechars:40 }}</span></td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ req.items.count }} item{{ req.items.count|pluralize }}</span>
+                            </td>
+                            <td>
+                                {% if req.status == 'approved' %}
+                                <span class="status-badge status-approved"><i class="ri-checkbox-circle-line me-1"></i>Approved</span>
+                                {% else %}
+                                <span class="status-badge status-pending"><i class="ri-time-line me-1"></i>{{ req.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ req.created_at|date:"d M Y" }}
+                                <small class="text-muted d-block">{{ req.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td class="pe-4">
+                                <button type="button" class="btn btn-sm btn-success"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#stockInModal"
+                                    data-req-id="{{ req.pk }}"
+                                    data-req-number="{{ req.requisition_number }}"
+                                    data-dept="{{ req.department.name }}">
+                                    <i class="ri-check-line me-1"></i>Receive
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-truck-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No approved requisitions</h5>
+                                    <p class="text-muted mb-0">All approved requisitions have been processed</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- Stock In Confirmation Modal -->
+<div class="modal fade" id="stockInModal" tabindex="-1" aria-labelledby="stockInModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="requisition_id" id="modalReqId">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="stockInModalLabel">
+                        <i class="ri-truck-line me-2"></i>Confirm Goods Receipt
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>You are marking <strong id="modalReqNumber"></strong> from <strong id="modalDept"></strong> as received and processed.</p>
+                    <div class="alert alert-info">
+                        <i class="ri-information-line me-2"></i>
+                        This will move the requisition to <strong>Processed</strong> status and add items to the stock ledger.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="ri-check-double-line me-1"></i>Confirm Receipt
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('stockInModal');
+    modal.addEventListener('show.bs.modal', function (e) {
+        const btn = e.relatedTarget;
+        document.getElementById('modalReqId').value     = btn.dataset.reqId;
+        document.getElementById('modalReqNumber').textContent = btn.dataset.reqNumber;
+        document.getElementById('modalDept').textContent      = btn.dataset.dept;
+    });
+});
+</script>
+{% endblock %}

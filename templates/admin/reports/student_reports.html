@@ -1,0 +1,282 @@
+{% extends 'admin/reports/report_base.html' %}
+{% load static %}
+
+{% block title %}Student Reports{% endblock %}
+{% block page_title %}Student Reports{% endblock %}
+{% block page_subtitle %}Comprehensive student data, statistics and exports{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="#">Reports</a></li>
+    <li class="breadcrumb-item active">Student Reports</li>
+  </ol>
+</nav>
+
+<!-- ── Filter Bar ──────────────────────────────────────────────────────── -->
+<form method="get" class="filter-bar">
+  <div class="filter-group">
+    <label>Academic Year</label>
+    <select name="academic_year">
+      <option value="">All Years</option>
+      {% for ay in academic_years %}
+      <option value="{{ ay.id }}" {% if filters.academic_year_id == ay.id|stringformat:"i" %}selected{% endif %}>
+        {{ ay.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Status</label>
+    <select name="status">
+      <option value="">All Statuses</option>
+      <option value="active"    {% if filters.status == "active" %}selected{% endif %}>Active</option>
+      <option value="graduated" {% if filters.status == "graduated" %}selected{% endif %}>Graduated</option>
+      <option value="suspended" {% if filters.status == "suspended" %}selected{% endif %}>Suspended</option>
+      <option value="deferred"  {% if filters.status == "deferred" %}selected{% endif %}>Deferred</option>
+      <option value="discontinued" {% if filters.status == "discontinued" %}selected{% endif %}>Discontinued</option>
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Search</label>
+    <input type="text" name="search" value="{{ filters.search }}" placeholder="Reg. No. / Name…">
+  </div>
+  <button class="btn btn-primary btn-sm px-4" type="submit">
+    <i class="ri-filter-line me-1"></i> Apply
+  </button>
+  <a href="{% url 'student_reports' %}" class="btn btn-outline-secondary btn-sm px-3">Clear</a>
+
+  <!-- Export Buttons -->
+  <div class="ms-auto export-actions">
+    <a href="{% url 'export_student_report_excel' %}?{{ request.GET.urlencode }}"
+       class="btn-export-excel">
+      <i class="ri-file-excel-2-line"></i> Export Excel
+    </a>
+    <a href="{% url 'export_student_report_pdf' %}?{{ request.GET.urlencode }}"
+       class="btn-export-pdf">
+      <i class="ri-file-pdf-2-line"></i> Export PDF
+    </a>
+  </div>
+</form>
+
+<!-- ── Stat Cards ──────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  {% with cards=forloop %}
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">
+        <i class="ri-group-line" style="color:#2E7D32;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#2E7D32;">{{ total }}</div>
+        <div class="stat-label">Total Students</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">
+        <i class="ri-user-follow-line" style="color:#388E3C;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#388E3C;">{{ active }}</div>
+        <div class="stat-label">Active</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E3F2FD;">
+        <i class="ri-graduation-cap-line" style="color:#1565C0;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#1565C0;">{{ graduated }}</div>
+        <div class="stat-label">Graduated</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFF3E0;">
+        <i class="ri-pause-circle-line" style="color:#E65100;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#E65100;">{{ suspended }}</div>
+        <div class="stat-label">Suspended</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#F3E5F5;">
+        <i class="ri-time-line" style="color:#7B1FA2;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#7B1FA2;">{{ deferred }}</div>
+        <div class="stat-label">Deferred</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E0F2F1;">
+        <i class="ri-bar-chart-grouped-line" style="color:#00695C;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#00695C;">{{ avg_gpa }}</div>
+        <div class="stat-label">Avg. GPA</div>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+</div>
+
+<!-- ── Two-column charts row ──────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <!-- By Programme -->
+  <div class="col-lg-7">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-book-open-line me-2" style="color:#2e7d32;"></i>Students by Programme</h5>
+      </div>
+      <div class="rc-body p-0">
+        <div class="table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Programme Code</th>
+                <th>Programme Name</th>
+                <th>Students</th>
+                <th>Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in by_programme %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td><strong>{{ item.programme__code }}</strong></td>
+                <td>{{ item.programme__name }}</td>
+                <td><span class="badge-pill badge-success">{{ item.count }}</span></td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress-bar-custom flex-grow-1">
+                      <div class="fill" style="width:{% widthratio item.count total 100 %}%;background:#2e7d32;"></div>
+                    </div>
+                    <small style="min-width:35px;">{% widthratio item.count total 100 %}%</small>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- By Year & Gender -->
+  <div class="col-lg-5">
+    <div class="report-card mb-3">
+      <div class="rc-header">
+        <h5><i class="ri-calendar-line me-2" style="color:#1565c0;"></i>By Year of Study</h5>
+      </div>
+      <div class="rc-body">
+        <div class="summary-grid">
+          {% for item in by_year %}
+          <div class="summary-item">
+            <div class="val" style="color:#1565c0;">{{ item.count }}</div>
+            <div class="lbl">Year {{ item.current_year }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="report-card">
+      <div class="rc-header">
+        <h5><i class="ri-team-line me-2" style="color:#7b1fa2;"></i>By Gender</h5>
+      </div>
+      <div class="rc-body">
+        <div class="summary-grid">
+          {% for item in by_gender %}
+          <div class="summary-item">
+            <div class="val" style="color:#7b1fa2;">{{ item.count }}</div>
+            <div class="lbl">{{ item.gender|default:"N/A" }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Student List Table ─────────────────────────────────────────────── -->
+<div class="report-card">
+  <div class="rc-header">
+    <h5><i class="ri-list-check me-2" style="color:#2e7d32;"></i>
+      Student Records
+      <small class="text-muted fw-normal ms-2">(showing up to 500)</small>
+    </h5>
+    <small class="text-muted">Report Date: {{ report_date }}</small>
+  </div>
+  <div class="rc-body p-0">
+    <div class="table-wrapper">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Reg. No.</th>
+            <th>Full Name</th>
+            <th>Programme</th>
+            <th>Year</th>
+            <th>Sem</th>
+            <th>Gender</th>
+            <th>Status</th>
+            <th>GPA</th>
+            <th>Admission</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><strong>{{ s.registration_number }}</strong></td>
+            <td>{{ s.user.get_full_name }}</td>
+            <td>{{ s.programme.code }}</td>
+            <td>{{ s.current_year }}</td>
+            <td>{{ s.current_semester }}</td>
+            <td>{{ s.get_gender_display }}</td>
+            <td>
+              {% if s.student_status == "active" %}
+                <span class="badge-pill badge-success">Active</span>
+              {% elif s.student_status == "graduated" %}
+                <span class="badge-pill badge-info">Graduated</span>
+              {% elif s.student_status == "suspended" %}
+                <span class="badge-pill badge-danger">Suspended</span>
+              {% elif s.student_status == "deferred" %}
+                <span class="badge-pill badge-warning">Deferred</span>
+              {% else %}
+                <span class="badge-pill badge-secondary">{{ s.get_student_status_display }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <strong class="{% if s.cumulative_gpa >= 3.0 %}text-success{% elif s.cumulative_gpa >= 2.0 %}text-warning{% else %}text-danger{% endif %}">
+                {{ s.cumulative_gpa }}
+              </strong>
+            </td>
+            <td>{{ s.admission_date|date:"d/m/Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="text-center py-5 text-muted">
+              No students found matching the selected filters.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

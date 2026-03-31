@@ -1,0 +1,416 @@
+{% extends 'admin/reports/report_base.html' %}
+{% load static %}
+
+{% block title %}Hostel Reports{% endblock %}
+{% block page_title %}Hostel Reports{% endblock %}
+{% block page_subtitle %}Occupancy rates, allocations, applications and bed availability{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="#">Reports</a></li>
+    <li class="breadcrumb-item active">Hostel Reports</li>
+  </ol>
+</nav>
+
+<!-- ── Filter Bar ──────────────────────────────────────────────────────── -->
+<form method="get" class="filter-bar">
+  <div class="filter-group">
+    <label>Academic Year</label>
+    <select name="academic_year">
+      <option value="">All Years</option>
+      {% for ay in academic_years %}
+      <option value="{{ ay.id }}" {% if filters.academic_year_id == ay.id|stringformat:"i" %}selected{% endif %}>
+        {{ ay.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-group">
+    <label>Semester</label>
+    <select name="semester">
+      <option value="">All Semesters</option>
+      {% for sem in semesters %}
+      <option value="{{ sem.id }}" {% if filters.semester_id == sem.id|stringformat:"i" %}selected{% endif %}>
+        {{ sem.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn btn-primary btn-sm px-4" type="submit">
+    <i class="ri-filter-line me-1"></i> Apply
+  </button>
+  <a href="{% url 'hostel_reports' %}" class="btn btn-outline-secondary btn-sm px-3">Clear</a>
+
+  <div class="ms-auto export-actions">
+    <a href="{% url 'export_hostel_report_excel' %}?{{ request.GET.urlencode }}"
+       class="btn-export-excel">
+      <i class="ri-file-excel-2-line"></i> Export Excel
+    </a>
+    <a href="{% url 'export_hostel_report_pdf' %}?{{ request.GET.urlencode }}"
+       class="btn-export-pdf">
+      <i class="ri-file-pdf-2-line"></i> Export PDF
+    </a>
+  </div>
+</form>
+
+<!-- ── Stat Cards ──────────────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E0F2F1;">
+        <i class="ri-hotel-bed-line" style="color:#00695C;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#00695C;">{{ total_beds }}</div>
+        <div class="stat-label">Total Beds</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFEBEE;">
+        <i class="ri-user-location-line" style="color:#C62828;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#C62828;">{{ occupied_beds }}</div>
+        <div class="stat-label">Occupied</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E8F5E9;">
+        <i class="ri-checkbox-blank-circle-line" style="color:#2E7D32;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#2E7D32;">{{ available_beds }}</div>
+        <div class="stat-label">Available</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#FFF3E0;">
+        <i class="ri-time-line" style="color:#E65100;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#E65100;">{{ reserved_beds }}</div>
+        <div class="stat-label">Reserved</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E0F2F1;">
+        <i class="ri-percent-line" style="color:#00695C;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#00695C;">{{ occupancy_rate }}%</div>
+        <div class="stat-label">Occupancy Rate</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:#E3F2FD;">
+        <i class="ri-file-text-line" style="color:#1565C0;"></i>
+      </div>
+      <div>
+        <div class="stat-value" style="color:#1565C0;">{{ total_apps }}</div>
+        <div class="stat-label">Applications</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Occupancy Gauge + Application Stats ────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <!-- Occupancy Gauge -->
+  <div class="col-lg-4">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-pie-chart-2-line me-2" style="color:#00695c;"></i>Occupancy Overview</h5>
+      </div>
+      <div class="rc-body text-center">
+        <div style="font-size:3.5rem;font-weight:700;color:{% if occupancy_rate >= 80 %}#c62828{% elif occupancy_rate >= 60 %}#e65100{% else %}#2e7d32{% endif %};">
+          {{ occupancy_rate }}%
+        </div>
+        <div class="text-muted mb-3">Bed Occupancy Rate</div>
+        <div class="progress-bar-custom mb-4" style="height:16px;">
+          <div class="fill" style="width:{{ occupancy_rate }}%;
+            background:{% if occupancy_rate >= 80 %}#c62828{% elif occupancy_rate >= 60 %}#e65100{% else %}#2e7d32{% endif %};"></div>
+        </div>
+        <div class="row g-2">
+          <div class="col-4">
+            <div class="summary-item">
+              <div class="val" style="color:#c62828;">{{ occupied_beds }}</div>
+              <div class="lbl">Occupied</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="summary-item">
+              <div class="val" style="color:#2e7d32;">{{ available_beds }}</div>
+              <div class="lbl">Available</div>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="summary-item">
+              <div class="val" style="color:#e65100;">{{ reserved_beds }}</div>
+              <div class="lbl">Reserved</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Stats -->
+  <div class="col-lg-4">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-draft-line me-2" style="color:#1565c0;"></i>Application Status</h5>
+      </div>
+      <div class="rc-body">
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="val" style="color:#1565c0;">{{ total_apps }}</div>
+            <div class="lbl">Total</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" style="color:#e65100;">{{ pending_apps }}</div>
+            <div class="lbl">Pending</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" style="color:#2e7d32;">{{ approved_apps }}</div>
+            <div class="lbl">Approved</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" style="color:#c62828;">{{ rejected_apps }}</div>
+            <div class="lbl">Rejected</div>
+          </div>
+        </div>
+        <div class="mt-3">
+          {% if total_apps %}
+          <div class="mb-2">
+            <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+              <span>Approved</span>
+              <span>{% widthratio approved_apps total_apps 100 %}%</span>
+            </div>
+            <div class="progress-bar-custom">
+              <div class="fill" style="width:{% widthratio approved_apps total_apps 100 %}%;background:#2e7d32;"></div>
+            </div>
+          </div>
+          <div>
+            <div class="d-flex justify-content-between mb-1" style="font-size:.8rem;">
+              <span>Pending</span>
+              <span>{% widthratio pending_apps total_apps 100 %}%</span>
+            </div>
+            <div class="progress-bar-custom">
+              <div class="fill" style="width:{% widthratio pending_apps total_apps 100 %}%;background:#e65100;"></div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Allocation Stats -->
+  <div class="col-lg-4">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-home-4-line me-2" style="color:#7b1fa2;"></i>Allocation Stats</h5>
+      </div>
+      <div class="rc-body">
+        <div class="summary-grid">
+          <div class="summary-item">
+            <div class="val" style="color:#7b1fa2;">{{ total_alloc }}</div>
+            <div class="lbl">Total</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" style="color:#2e7d32;">{{ active_alloc }}</div>
+            <div class="lbl">Active</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" style="color:#1565c0;">{{ fee_paid_alloc }}</div>
+            <div class="lbl">Fee Paid</div>
+          </div>
+          <div class="summary-item">
+            <div class="val" style="color:#c62828;">{{ fee_unpaid }}</div>
+            <div class="lbl">Fee Unpaid</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Occupancy by Hostel ────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-5">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-building-2-line me-2" style="color:#00695c;"></i>Occupancy by Hostel</h5>
+      </div>
+      <div class="rc-body p-0">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Code</th>
+              <th>Hostel Name</th>
+              <th>Gender</th>
+              <th>Occupied</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in by_hostel %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td><strong>{{ h.bed__room__hostel__code }}</strong></td>
+              <td>{{ h.bed__room__hostel__name }}</td>
+              <td>
+                <span class="badge-pill {% if h.bed__room__hostel__gender_type == 'M' %}badge-info{% elif h.bed__room__hostel__gender_type == 'F' %}badge-warning{% else %}badge-secondary{% endif %}">
+                  {{ h.bed__room__hostel__gender_type }}
+                </span>
+              </td>
+              <td><span class="badge-pill badge-success">{{ h.count }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No data found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Room Type Distribution -->
+  <div class="col-lg-3">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-layout-grid-line me-2" style="color:#1565c0;"></i>By Room Type</h5>
+      </div>
+      <div class="rc-body p-0">
+        <table class="report-table">
+          <thead>
+            <tr><th>Room Type</th><th>Occupied</th></tr>
+          </thead>
+          <tbody>
+            {% for r in by_room_type %}
+            <tr>
+              <td>{{ r.bed__room__room_type|title }}</td>
+              <td><span class="badge-pill badge-info">{{ r.count }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pending Applications -->
+  <div class="col-lg-4">
+    <div class="report-card h-100">
+      <div class="rc-header">
+        <h5><i class="ri-alarm-warning-line me-2" style="color:#e65100;"></i>Pending Applications</h5>
+      </div>
+      <div class="rc-body p-0">
+        <div class="table-wrapper">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Reg. No.</th>
+                <th>Student</th>
+                <th>Hostel</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in pending_apps_list %}
+              <tr>
+                <td>{{ a.student.registration_number }}</td>
+                <td>{{ a.student.user.get_full_name|truncatechars:18 }}</td>
+                <td>{{ a.hostel.name|truncatechars:15 }}</td>
+                <td>{{ a.application_date|date:"d/m/Y" }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-center text-muted py-4">No pending applications.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recent Allocations Table ───────────────────────────────────────── -->
+<div class="report-card mb-4">
+  <div class="rc-header">
+    <h5><i class="ri-list-check-2 me-2" style="color:#00695c;"></i>Recent Allocations</h5>
+  </div>
+  <div class="rc-body p-0">
+    <div class="table-wrapper">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Reg. No.</th>
+            <th>Student Name</th>
+            <th>Programme</th>
+            <th>Hostel</th>
+            <th>Room</th>
+            <th>Bed</th>
+            <th>Semester</th>
+            <th>Allocation Date</th>
+            <th>Active</th>
+            <th>Fee Paid</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in recent_allocations %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ a.student.registration_number }}</td>
+            <td>{{ a.student.user.get_full_name|truncatechars:22 }}</td>
+            <td>{{ a.student.programme.code }}</td>
+            <td>{{ a.bed.room.hostel.name|truncatechars:18 }}</td>
+            <td>{{ a.bed.room.room_number }}</td>
+            <td>{{ a.bed.bed_number }}</td>
+            <td>{{ a.semester }}</td>
+            <td>{{ a.allocation_date|date:"d/m/Y" }}</td>
+            <td>
+              {% if a.is_active %}
+                <span class="badge-pill badge-success">Yes</span>
+              {% else %}
+                <span class="badge-pill badge-secondary">No</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.fee_paid %}
+                <span class="badge-pill badge-success">Paid</span>
+              {% else %}
+                <span class="badge-pill badge-danger">Unpaid</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="11" class="text-center text-muted py-5">
+              No allocations found for the selected filters.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="text-muted text-end" style="font-size:.78rem;">
+  Report generated: {{ report_date }}
+</div>
+{% endblock %}

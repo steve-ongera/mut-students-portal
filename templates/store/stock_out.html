@@ -1,0 +1,144 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Stock Out{% endblock %}
+{% block page_title %}Stock Out{% endblock %}
+{% block page_subtitle %}Items issued to departments{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Stock Out</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    <div class="page-header mb-4">
+        <h1 class="h3 fw-semibold mb-1">Stock Out</h1>
+        <p class="text-muted mb-0">Items issued out of store to departments</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-12 col-md-5">
+                    <label class="form-label">Search Item</label>
+                    <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Search item description…">
+                </div>
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Department</label>
+                    <select name="department" class="form-select">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.pk }}" {% if dept_id == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    <a href="{% url 'store_stock_out' %}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Issued Items</h5>
+                <div class="card-subtitle">All items from processed requisitions</div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Item Description</th>
+                            <th>Category</th>
+                            <th>Qty Issued</th>
+                            <th>Unit</th>
+                            <th>Unit Price</th>
+                            <th>Total Value</th>
+                            <th>Department</th>
+                            <th>Requisition</th>
+                            <th class="pe-4">Issued Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="ps-4">
+                                <span class="fw-medium">{{ item.item_description|truncatechars:45 }}</span>
+                            </td>
+                            <td>
+                                {% if item.category %}
+                                <span class="badge bg-light text-dark border">{{ item.category.name }}</span>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td><strong>{{ item.quantity }}</strong></td>
+                            <td><span class="text-muted">{{ item.unit_of_measure }}</span></td>
+                            <td>KES {{ item.estimated_unit_price|floatformat:2 }}</td>
+                            <td><strong>KES {{ item.total_estimated_price|floatformat:2 }}</strong></td>
+                            <td>
+                                <span class="fw-medium">{{ item.requisition.department.code }}</span>
+                                <small class="text-muted d-block">{{ item.requisition.department.name|truncatechars:20 }}</small>
+                            </td>
+                            <td>
+                                <a href="{% url 'store_requisition_detail' item.requisition.pk %}" class="text-primary fw-medium">
+                                    {{ item.requisition.requisition_number }}
+                                </a>
+                            </td>
+                            <td class="pe-4">
+                                {% if item.requisition.final_approval_date %}
+                                {{ item.requisition.final_approval_date|date:"d M Y" }}
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-inbox-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No issued items found</h5>
+                                    <p class="text-muted mb-0">No items match your current filters</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search }}&department={{ dept_id }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ search }}&department={{ dept_id }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search }}&department={{ dept_id }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}

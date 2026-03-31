@@ -1,0 +1,236 @@
+{% extends 'store/store_base.html' %}
+{% load static %}
+
+{% block title %}Inventory Report{% endblock %}
+{% block page_title %}Inventory Report{% endblock %}
+{% block page_subtitle %}Full snapshot of current stock levels{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'store_dashboard' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active">Inventory Report</li>
+    </ol>
+</nav>
+
+<div class="content-container">
+
+    <div class="page-header mb-4">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h1 class="h3 fw-semibold mb-1">Inventory Report</h1>
+                <p class="text-muted mb-0">Generated on {{ today|date:"d M Y" }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button onclick="window.print()" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                    <i class="ri-printer-line fs-5"></i><span>Print</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="management-card text-center py-3">
+                <div class="h4 fw-bold text-primary mb-1">{{ total_items }}</div>
+                <small class="text-muted">Total Items</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="management-card text-center py-3">
+                <div class="h4 fw-bold text-success mb-1">KES {{ total_value|floatformat:2 }}</div>
+                <small class="text-muted">Total Stock Value</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="management-card text-center py-3">
+                <div class="h4 fw-bold text-warning mb-1">{{ low_stock_count }}</div>
+                <small class="text-muted">Low Stock Items</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="management-card text-center py-3">
+                <div class="h4 fw-bold text-danger mb-1">{{ out_of_stock_count }}</div>
+                <small class="text-muted">Out of Stock</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="management-card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Search Item</label>
+                    <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="Item description…">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Category</label>
+                    <select name="category" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.pk }}" {% if cat_id == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Department</label>
+                    <select name="department" class="form-select">
+                        <option value="">All Departments</option>
+                        {% for dept in departments %}
+                        <option value="{{ dept.pk }}" {% if dept_id == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    <a href="{% url 'store_report_inventory' %}" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Stock by Category Summary -->
+    <div class="management-card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">Stock by Category</h5>
+            <div class="card-subtitle">Value breakdown per procurement category</div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">Category</th>
+                            <th>Item Count</th>
+                            <th>Total Qty</th>
+                            <th class="pe-4">Total Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in category_summary %}
+                        <tr>
+                            <td class="ps-4 fw-medium">{{ row.category__name|default:"Uncategorised" }}</td>
+                            <td>{{ row.item_count }}</td>
+                            <td>{{ row.total_qty }}</td>
+                            <td class="pe-4"><strong>KES {{ row.total_value|floatformat:2 }}</strong></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center py-3 text-muted">No data</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Stock Table -->
+    <div class="management-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="card-title">Full Stock Listing</h5>
+                <div class="card-subtitle">All items in stock</div>
+            </div>
+            <span class="badge-chip">{{ total_items }} Items</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-4">#</th>
+                            <th>Item Description</th>
+                            <th>Category</th>
+                            <th>Qty</th>
+                            <th>Unit</th>
+                            <th>Unit Price</th>
+                            <th>Total Value</th>
+                            <th>Department</th>
+                            <th class="pe-4">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td class="ps-4 text-muted">{{ forloop.counter0|add:page_obj.start_index }}</td>
+                            <td>
+                                <span class="fw-medium">{{ item.item_description|truncatechars:45 }}</span>
+                                {% if item.specifications %}
+                                <small class="text-muted d-block">{{ item.specifications|truncatechars:38 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.category %}
+                                <span class="badge bg-light text-dark border">{{ item.category.name }}</span>
+                                {% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td>
+                                {% if item.quantity == 0 %}
+                                <span class="fw-bold text-danger">0</span>
+                                {% elif item.quantity <= 5 %}
+                                <span class="fw-bold text-warning">{{ item.quantity }}</span>
+                                {% else %}
+                                <strong>{{ item.quantity }}</strong>
+                                {% endif %}
+                            </td>
+                            <td><span class="text-muted">{{ item.unit_of_measure }}</span></td>
+                            <td>KES {{ item.estimated_unit_price|floatformat:2 }}</td>
+                            <td><strong>KES {{ item.total_estimated_price|floatformat:2 }}</strong></td>
+                            <td>
+                                <span class="fw-medium">{{ item.requisition.department.code }}</span>
+                                <small class="text-muted d-block">{{ item.requisition.department.name|truncatechars:18 }}</small>
+                            </td>
+                            <td class="pe-4">
+                                {% if item.quantity == 0 %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Out of Stock</span>
+                                {% elif item.quantity <= 5 %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Low Stock</span>
+                                {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">In Stock</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5">
+                                <div class="empty-state">
+                                    <i class="ri-archive-line display-4 text-muted mb-3"></i>
+                                    <h5 class="text-muted">No stock found</h5>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <small class="text-muted">Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }}</small>
+            <nav>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search }}&category={{ cat_id }}&department={{ dept_id }}"><i class="ri-arrow-left-s-line"></i></a></li>
+                    {% endif %}
+                    {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:"-3" and num < page_obj.number|add:"3" %}
+                    <li class="page-item"><a class="page-link" href="?page={{ num }}&search={{ search }}&category={{ cat_id }}&department={{ dept_id }}">{{ num }}</a></li>
+                    {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search }}&category={{ cat_id }}&department={{ dept_id }}"><i class="ri-arrow-right-s-line"></i></a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
